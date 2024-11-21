@@ -36,3 +36,14 @@ CLI Deploy: aws cloudformation deploy --region us-east-1 --template-file /tmp/11
 Done
 ``````
 
+## Test the solution
+
+Open the `InputBucket` and `OutputBucket` using the links in the stack Resources tab.
+Open the `DocumentProcessingStateMachine` using the link in the stack Resources tab.
+
+Upload a filled PDF form to the `InputBucket`
+- The StepFunctions StateMachine should start executing. Open the `Running` execution page to observe the steps in the workflow, trace inputs/outputs, check Lambda code and logs, etc.
+
+When/if the execution sucessfully finishes, check the `OutputBucket` for the structured data JSON file with extracted fields.
+
+
