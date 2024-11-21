@@ -1,0 +1,25 @@
+{
+    "StartAt": "TextractStep",
+    "States": {
+      "TextractStep": {
+        "Type": "Task",
+        "Resource": "${TextractFunctionArn}",
+        "ResultPath": "$.textractResult",
+        "Next": "BedrockStep"
+      },
+      "BedrockStep": {
+        "Type": "Task",
+        "Resource": "${BedrockFunctionArn}",
+        "Parameters": {
+          "text.$": "$.textractResult.text",
+          "outputBucket": "${OutputBucket}",
+          "detail": {
+            "object": {
+              "key.$": "$.detail.object.key"
+            }
+          }
+        },
+        "End": true
+      }
+    }
+}

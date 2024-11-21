@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Document processing pipeline with Textract and Bedrock
+
+Resources:
+  InputBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+
+  OutputBucket:
+    Type: AWS::S3::Bucket
+
+  TextractFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/textract_function/
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 300
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - TextractPolicy:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: textract:DetectDocumentText
+                Resource: '*'
+        - S3ReadPolicy:
+            BucketName: !Ref InputBucket
+
+  BedrockFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/bedrock_function/
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 300
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: '*'
+        - S3CrudPolicy:
+            BucketName: !Ref OutputBucket
+
+  DocumentProcessingStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionSubstitutions:
+        TextractFunctionArn: !GetAtt TextractFunction.Arn
+        BedrockFunctionArn: !GetAtt BedrockFunction.Arn
+        OutputBucket: !Ref OutputBucket
+      DefinitionUri: statemachine/workflow.asl.json
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TextractFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref BedrockFunction
+
+  EventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.s3
+        detail-type:
+          - Object Created
+        detail:
+          bucket:
+            name:
+              - !Ref InputBucket
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt DocumentProcessingStateMachine.Arn
+          Id: ProcessDocument
+          RoleArn: !GetAtt EventBridgeRole.Arn
+
+  EventBridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StepFunctionsStartExecution
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: states:StartExecution
+                Resource: !GetAtt DocumentProcessingStateMachine.Arn
+
+Outputs:
+  InputBucketName:
+    Description: Input S3 bucket name
+    Value: !Ref InputBucket
+  OutputBucketName:
+    Description: Output S3 bucket name
+    Value: !Ref OutputBucket
+  StateMachineArn:
+    Description: State machine ARN
+    Value: !GetAtt DocumentProcessingStateMachine.Arn
