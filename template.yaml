@@ -46,6 +46,7 @@ Resources:
               Resource: '*'
         - S3CrudPolicy:
             BucketName: !Ref OutputBucket
+        - S3ReadPolicy:
             BucketName: !Ref InputBucket
 
   DocumentProcessingStateMachine:
