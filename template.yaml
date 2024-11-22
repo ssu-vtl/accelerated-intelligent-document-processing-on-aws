@@ -2,6 +2,19 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Document processing pipeline with Textract and Bedrock
 
+Parameters:
+  ErrorThreshold:
+    Type: Number
+    Default: 1
+    Description: Number of workflow errors that triggers an alert (per 5 minutes)
+    MinValue: 1
+
+  ExecutionTimeThresholdMs:
+    Type: Number
+    Default: 30000
+    Description: Maximum acceptable execution time in milliseconds before alerting (default 30000 = 30 seconds)
+    MinValue: 1000
+
 Resources:
   InputBucket:
     Type: AWS::S3::Bucket
@@ -100,6 +113,98 @@ Resources:
                 Action: states:StartExecution
                 Resource: !GetAtt DocumentProcessingStateMachine.Arn
 
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Workflow Alerts
+
+  WorkflowErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub "Alert when workflow errors exceed ${ErrorThreshold} in 5 minutes"
+      MetricName: ExecutionsFailedCount
+      Namespace: AWS/States
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref ErrorThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold 
+      Dimensions:
+        - Name: StateMachineArn
+          Value: !Ref DocumentProcessingStateMachine
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  SlowExecutionsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: !Sub "Alert when average execution time exceeds ${ExecutionTimeThresholdMs} milliseconds"
+      MetricName: ExecutionTime
+      Namespace: AWS/States
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref ExecutionTimeThresholdMs
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: StateMachineArn
+          Value: !Ref DocumentProcessingStateMachine
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  DashboardWorkflow:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: DocumentProcessingDashboard
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/States", "ExecutionsStarted", "StateMachineArn", "${DocumentProcessingStateMachine}"],
+                  [".", "ExecutionsSucceeded", ".", "."],
+                  [".", "ExecutionsFailed", ".", "."]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Workflow Executions",
+                "period": 300,
+                "stat": "Sum",
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/States", "ExecutionTime", "StateMachineArn", "${DocumentProcessingStateMachine}"]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Execution Duration",
+                "period": 300,
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                },
+                "stat": "Average",
+                "view": "timeSeries"
+              }
+            }
+          ]
+        }
+
 Outputs:
   InputBucketName:
     Description: Input S3 bucket name
@@ -110,3 +215,9 @@ Outputs:
   StateMachineArn:
     Description: State machine ARN
     Value: !GetAtt DocumentProcessingStateMachine.Arn
+  DashboardURL:
+    Description: CloudWatch Dashboard URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${DashboardWorkflow}
+  AlertsTopicARN:
+    Description: SNS Topic ARN for alerts
+    Value: !Ref AlertsTopic

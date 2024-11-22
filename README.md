@@ -47,3 +47,102 @@ Upload a filled PDF form to the `InputBucket`
 When/if the execution sucessfully finishes, check the `OutputBucket` for the structured data JSON file with extracted fields.
 
 
+## Monitoring & Alerts
+
+### CloudWatch Dashboard
+
+The solution includes a pre-configured CloudWatch Dashboard that provides visibility into the document processing workflow. 
+
+**Dashboard Location:**  
+CloudWatch > Dashboards > DocumentProcessingDashboard
+
+**Key Metrics Displayed:**
+* Workflow Execution Counts
+  - Started executions
+  - Successful executions  
+  - Failed executions
+* Execution Duration
+  - Average processing time 
+  - Red line indicates 30s threshold
+
+### Alerts Configuration
+
+The solution monitors two key conditions and sends notifications via SNS:
+
+1. **Workflow Errors**
+   - Triggers when any workflow execution fails
+   - Evaluation period: 5 minutes
+   - Threshold: ≥ 1 error
+
+2. **Slow Executions** 
+   - Triggers when average execution time exceeds 30 seconds
+   - Evaluation period: 5 minutes
+   - Alerts help identify performance degradation
+
+### Setting Up Alert Notifications
+
+1. Get the SNS Topic ARN from CloudFormation outputs:
+```bash
+aws cloudformation describe-stacks \
+  --stack-name doc-processing \
+  --query 'Stacks[0].Outputs[?OutputKey==`AlertsTopicARN`].OutputValue' \
+  --output text
+```
+
+2. Subscribe to alerts via email:
+```bash
+aws sns subscribe \
+  --topic-arn <AlertsTopicARN> \
+  --protocol email \
+  --notification-endpoint your@email.com
+```
+
+3. Confirm the subscription by clicking the link in the verification email
+
+### Configuring Alert Thresholds
+
+The solution stack provides two configurable threshold parameters:
+
+1. **ErrorThreshold**
+   - Default: 1 error per 5 minutes
+   - Minimum value: 1
+   - Triggers alert when error count equals or exceeds this value
+
+2. **ExecutionTimeThreshold**
+   - Default: 30 seconds
+   - Minimum value: 1
+   - Triggers alert when average execution time exceeds this threshold
+
+### Monitoring Best Practices
+
+1. **Regular Dashboard Review**
+   - Check execution trends
+   - Look for patterns in failures
+   - Monitor processing times
+
+2. **Alert Response**
+   - Document common error patterns
+   - Set up escalation procedures
+   - Review CloudWatch Logs for details when alerts trigger
+
+3. **Performance Optimization**
+   - Use execution time metrics to identify bottlenecks
+   - Consider adjusting Lambda timeouts if needed
+   - Monitor resource utilization
+
+### Additional CloudWatch Insights
+
+For deeper analysis, use CloudWatch Logs Insights with these example queries:
+
+```sql
+# Find all failed executions in last 24 hours
+fields @timestamp, @message
+| filter @message like /ExecutionsFailed/
+| sort @timestamp desc
+| limit 20
+
+# Average execution time by hour
+fields @timestamp, @message
+| filter @message like /ExecutionTime/
+| stats avg(ExecutionTime) by bin(1h)
+```
