@@ -65,8 +65,9 @@ echo "Make temp dir: $tmpdir"
 mkdir -p $tmpdir
 
 # Package and publish the artifacts
+sam build --template-file template.yaml
 sam package \
- --template-file template.yaml \
+ --template-file .aws-sam/build/template.yaml \
  --output-template-file ${tmpdir}/packaged.yaml \
  --s3-bucket ${BUCKET} \
  --s3-prefix ${PREFIX_AND_VERSION}
