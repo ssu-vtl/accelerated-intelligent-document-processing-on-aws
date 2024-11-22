@@ -1,0 +1,31 @@
+{
+    "High": [
+        "BOL Number", 
+        "Carrier Name",
+        "Destination Address",
+        "Destination Name",
+        "Origin Address",
+        "Origin Name",
+        "Signature Count",
+        "SCAC"
+    ],
+    "Medium": [
+        "Delivery Date",
+        "Ship Date",
+        "Freight Class",
+        "PO Number",
+        "Quantity",
+        "Quantity UOM",
+        "Weight",
+        "Weight UOM"
+    ],
+    "Low": [
+        "Commodity",
+        "Pro Number",
+        "Reference Number",
+        "Seal",
+        "Shipment Number",
+        "Temperature",
+        "Trailer"
+    ]
+}

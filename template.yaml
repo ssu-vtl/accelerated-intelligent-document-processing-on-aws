@@ -46,6 +46,7 @@ Resources:
               Resource: '*'
         - S3CrudPolicy:
             BucketName: !Ref OutputBucket
+            BucketName: !Ref InputBucket
 
   DocumentProcessingStateMachine:
     Type: AWS::Serverless::StateMachine
