@@ -5,6 +5,14 @@
         "Type": "Task",
         "Resource": "${TextractFunctionArn}",
         "ResultPath": "$.textractResult",
+        "Retry": [
+          {
+            "ErrorEquals": ["States.TaskFailed", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+            "IntervalSeconds": 2,
+            "MaxAttempts": 10,
+            "BackoffRate": 2
+          }
+        ],
         "Next": "BedrockStep"
       },
       "BedrockStep": {
@@ -19,7 +27,15 @@
             }
           }
         },
+        "Retry": [
+          {
+            "ErrorEquals": ["States.TaskFailed", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+            "IntervalSeconds": 2,
+            "MaxAttempts": 10,
+            "BackoffRate": 2
+          }
+        ],
         "End": true
       }
     }
-}
+  }
