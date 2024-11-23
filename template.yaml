@@ -32,7 +32,7 @@ Resources:
       CodeUri: src/textract_function/
       Handler: index.handler
       Runtime: python3.11
-      Timeout: 300
+      Timeout: 900
       Policies:
         - AWSLambdaBasicExecutionRole
         - TextractPolicy:
@@ -50,7 +50,7 @@ Resources:
       CodeUri: src/bedrock_function/
       Handler: index.handler
       Runtime: python3.11
-      Timeout: 300
+      Timeout: 900
       Policies:
         - AWSLambdaBasicExecutionRole
         - Statement:
