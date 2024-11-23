@@ -214,8 +214,8 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 0,
-              "y": 6,
+              "x": 12,
+              "y": 0,
               "width": 12,
               "height": 6,
               "properties": {
@@ -223,7 +223,55 @@ Resources:
                   ["AWS/States", "ExecutionTime", "StateMachineArn", "${DocumentProcessingStateMachine}"]
                 ],
                 "region": "${AWS::Region}",
-                "title": "Execution Duration",
+                "title": "Workflow Execution Duration",
+                "period": 300,
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                },
+                "stat": "Average",
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${TextractFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Textract Function Duration",
+                "period": 300,
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                },
+                "stat": "Average",
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${BedrockFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Bedrock Function Duration",
                 "period": 300,
                 "annotations": {
                   "horizontal": [{
@@ -245,7 +293,7 @@ Resources:
               "properties": {
                 "query": "SOURCE '${StateMachineLogGroup}' | fields @timestamp, @message | filter @message like /ExecutionFailed/ or @message like /TimedOut/ | parse @message /execution: (?<execution_arn>[^ ]*)/ | parse @message /error: (?<error>[^\"]*)/| sort @timestamp desc | limit 20",
                 "region": "${AWS::Region}",
-                "title": "1. Failed Step Functions Executions",
+                "title": "Step Functions Executions Failed",
                 "view": "table"
               }
             },
@@ -258,7 +306,7 @@ Resources:
               "properties": {
                 "query": "SOURCE '${TextractFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
                 "region": "${AWS::Region}",
-                "title": "2a. Textract Lambda Errors",
+                "title": "Textract Lambda Errors",
                 "view": "table"
               }
             },
@@ -271,7 +319,7 @@ Resources:
               "properties": {
                 "query": "SOURCE '${BedrockFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
                 "region": "${AWS::Region}",
-                "title": "2b. Bedrock Lambda Errors",
+                "title": "Bedrock Lambda Errors",
                 "view": "table"
               }
             },
@@ -284,7 +332,7 @@ Resources:
               "properties": {
                 "query": "SOURCE '${TextractFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
                 "region": "${AWS::Region}",
-                "title": "3a. Long Running Textract Invocations",
+                "title": "Textract Lambda Long Running Invocations",
                 "view": "table"
               }
             },
@@ -297,7 +345,7 @@ Resources:
               "properties": {
                 "query": "SOURCE '${BedrockFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
                 "region": "${AWS::Region}",
-                "title": "3b. Long Running Bedrock Invocations",
+                "title": "Bedrock Lambda Long Running Invocations",
                 "view": "table"
               }
             }

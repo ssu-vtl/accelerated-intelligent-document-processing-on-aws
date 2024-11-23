@@ -92,22 +92,32 @@ When/if the execution sucessfully finishes, check the `OutputBucket` for the str
 
 Access via CloudWatch > Dashboards > DocumentProcessingDashboard
 
-Shows:
-1. Workflow Statistics
+### Metrics Graphs
+1. **Workflow Statistics**
    - Execution counts (Started/Succeeded/Failed)
-   - Average duration with configurable threshold line
+   - 5-minute aggregation
 
-2. Failed Workflow Executions
+2. **Workflow Duration**
+   - Overall execution time with threshold line
+   - Includes all steps end-to-end
+
+3. **Lambda Durations**
+   - Textract function execution time
+   - Bedrock function execution time
+   - Both with configurable threshold lines
+
+### Log Insights
+1. **Failed Workflow Executions**
    - Lists most recent failures
    - Shows error details and execution ARNs
 
-3. Lambda Function Performance
-   - Textract Function:
-     * Error logs with request IDs
-     * Long-running invocations with duration and memory usage
-   - Bedrock Function:
-     * Error logs with request IDs
-     * Long-running invocations with duration and memory usage
+2. **Lambda Function Errors**
+   - Textract Function: Error logs with request IDs
+   - Bedrock Function: Error logs with request IDs
+
+3. **Long-Running Invocations**
+   - Textract Function: Duration and memory usage
+   - Bedrock Function: Duration and memory usage
 
 ## Log Groups
 
@@ -142,7 +152,8 @@ aws sns subscribe \
 ## Quick Troubleshooting
 
 1. **Workflow Failures:** Check Failed Executions widget → use execution ARN in Step Functions console
-2. **Lambda Issues:** 
-   - Check dedicated error widgets for each function
+2. **Performance Issues:** Check duration graphs for workflow and individual functions
+3. **Lambda Issues:** 
+   - Check error widgets for each function
    - Use request ID to trace through specific function logs
    - Review duration/memory metrics in long-running invocation widgets
