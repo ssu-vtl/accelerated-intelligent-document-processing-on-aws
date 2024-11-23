@@ -1,8 +1,40 @@
 # transflo-idp
 
+## Architecture Overview
+
+The solution uses AWS services to create a serverless document processing pipeline:
+
+```
+S3 → EventBridge → Step Functions → Lambda → Textract/Bedrock → S3
+```
+
+### Components
+
+1. **S3 Buckets**
+   - Input: Receives documents for processing
+   - Output: Stores extracted JSON results
+
+2. **Step Functions Workflow**
+   - Orchestrates document processing
+   - Handles retries (5 attempts with exponential backoff)
+   - Monitors execution status
+
+3. **Lambda Functions**
+   - Textract: Extracts text from documents
+   - Bedrock: Uses Claude 3 Sonnet to extract structured data
+
+4. **Monitoring**
+   - CloudWatch Dashboard for operational visibility
+   - Configurable alerts for errors and latency
+   - Log retention and error tracking
+
+The workflow triggers automatically when documents are uploaded to the input bucket, processes them through Textract and Claude, and saves structured JSON to the output bucket.
+
+## Build, Publish, Deploy
+
 ### 1. Dependencies
 
-To deploy or to publish, you need to have the following packages installed on your computer:
+You need to have the following packages installed on your computer:
 
 1. bash shell (Linux, MacOS, Windows-WSL)
 2. aws (AWS CLI)
@@ -12,7 +44,7 @@ Copy the GitLab repo to your computer. Either:
 - use the git command: git clone git@ssh.gitlab.aws.dev:genaiic-reusable-assets/transflo-idp.git
 - OR, download and expand the ZIP file from the GitLab page: https://gitlab.aws.dev/genaiic-reusable-assets/transflo-idp/-/archive/main/transflo-idp-main.zip
 
-## Publish the solution
+## Build and Publish the solution
 
 To build and publish your own template, to your own S3 bucket, so that others can easily deploy a stack from your templates, in your preferred region, here's how.
 
@@ -34,15 +66,22 @@ Template URL: https://s3.us-east-1.amazonaws.com/bobs-artifacts-us-east-1/transf
 CF Launch URL: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://s3.us-east-1.amazonaws.com/bobs-artifacts-us-east-1/transflo-idp/packaged.yaml&stackName=IDP
 CLI Deploy: aws cloudformation deploy --region us-east-1 --template-file /tmp/1132557/packaged.yaml --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --stack-name IDP
 Done
-``````
+```
 
 ## Test the solution
 
 Open the `InputBucket` and `OutputBucket` using the links in the stack Resources tab.
 Open the `DocumentProcessingStateMachine` using the link in the stack Resources tab.
 
-Upload a filled PDF form to the `InputBucket`
-- The StepFunctions StateMachine should start executing. Open the `Running` execution page to observe the steps in the workflow, trace inputs/outputs, check Lambda code and logs, etc.
+Upload a filled PNG or PDF form to the `InputBucket` - there's an example in the `./samples` folder.
+
+Example - to copy the sample file `insurance-claim-form.png` N times, do:
+```
+$ n=50
+$ for i in `seq 1 $n`; do aws s3 cp ./samples/insurance-claim-form.png s3://idp-inputbucket-kms4wmmc58rj/insurance-claim-form-$i.png; done
+```
+
+The StepFunctions StateMachine should start executing. Open the `Running` execution page to observe the steps in the workflow, trace inputs/outputs, check Lambda code and logs, etc.
 
 When/if the execution sucessfully finishes, check the `OutputBucket` for the structured data JSON file with extracted fields.
 
