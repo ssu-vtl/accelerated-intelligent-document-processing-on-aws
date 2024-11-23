@@ -15,6 +15,12 @@ Parameters:
     Description: Maximum acceptable execution time in milliseconds before alerting (default 30000 = 30 seconds)
     MinValue: 1000
 
+  LogRetentionDays:
+    Type: Number
+    Default: 30
+    Description: Number of days to retain CloudWatch logs
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
+
 Resources:
   InputBucket:
     Type: AWS::S3::Bucket
@@ -26,6 +32,24 @@ Resources:
   OutputBucket:
     Type: AWS::S3::Bucket
 
+  TextractFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/textract"
+      RetentionInDays: !Ref LogRetentionDays
+
+  BedrockFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/bedrock"
+      RetentionInDays: !Ref LogRetentionDays
+
+  StateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/vendedlogs/states/${AWS::StackName}/workflow"  # required prefix
+      RetentionInDays: !Ref LogRetentionDays
+
   TextractFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -33,6 +57,8 @@ Resources:
       Handler: index.handler
       Runtime: python3.11
       Timeout: 900
+      LoggingConfig:
+        LogGroup: !Ref TextractFunctionLogGroup
       Policies:
         - AWSLambdaBasicExecutionRole
         - TextractPolicy:
@@ -51,6 +77,8 @@ Resources:
       Handler: index.handler
       Runtime: python3.11
       Timeout: 900
+      LoggingConfig:
+        LogGroup: !Ref BedrockFunctionLogGroup
       Policies:
         - AWSLambdaBasicExecutionRole
         - Statement:
@@ -65,16 +93,22 @@ Resources:
   DocumentProcessingStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
+      DefinitionUri: statemachine/workflow.asl.json
       DefinitionSubstitutions:
         TextractFunctionArn: !GetAtt TextractFunction.Arn
         BedrockFunctionArn: !GetAtt BedrockFunction.Arn
         OutputBucket: !Ref OutputBucket
-      DefinitionUri: statemachine/workflow.asl.json
+      Logging:
+        Level: ALL
+        IncludeExecutionData: true
+        Destinations:
+          - CloudWatchLogsLogGroup: !GetAtt StateMachineLogGroup.Arn
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref TextractFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref BedrockFunction
+        - CloudWatchLogsFullAccess
 
   EventRule:
     Type: AWS::Events::Rule
@@ -201,6 +235,71 @@ Resources:
                 "stat": "Average",
                 "view": "timeSeries"
               }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 12,
+              "width": 24,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${StateMachineLogGroup}' | fields @timestamp, @message | filter @message like /ExecutionFailed/ or @message like /TimedOut/ | parse @message /execution: (?<execution_arn>[^ ]*)/ | parse @message /error: (?<error>[^\"]*)/| sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "1. Failed Step Functions Executions",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${TextractFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "2a. Textract Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${BedrockFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "2b. Bedrock Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${TextractFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "3a. Long Running Textract Invocations",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${BedrockFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "3b. Long Running Bedrock Invocations",
+                "view": "table"
+              }
             }
           ]
         }
@@ -221,3 +320,6 @@ Outputs:
   AlertsTopicARN:
     Description: SNS Topic ARN for alerts
     Value: !Ref AlertsTopic
+  LogGroupName:
+    Description: CloudWatch Log Group for Step Functions
+    Value: !Ref StateMachineLogGroup

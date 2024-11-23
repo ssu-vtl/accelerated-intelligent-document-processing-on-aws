@@ -47,102 +47,63 @@ Upload a filled PDF form to the `InputBucket`
 When/if the execution sucessfully finishes, check the `OutputBucket` for the structured data JSON file with extracted fields.
 
 
-## Monitoring & Alerts
+# Monitoring and Logging
 
-### CloudWatch Dashboard
+## CloudWatch Dashboard
 
-The solution includes a pre-configured CloudWatch Dashboard that provides visibility into the document processing workflow. 
+Access via CloudWatch > Dashboards > DocumentProcessingDashboard
 
-**Dashboard Location:**  
-CloudWatch > Dashboards > DocumentProcessingDashboard
+Shows:
+1. Workflow Statistics
+   - Execution counts (Started/Succeeded/Failed)
+   - Average duration with configurable threshold line
 
-**Key Metrics Displayed:**
-* Workflow Execution Counts
-  - Started executions
-  - Successful executions  
-  - Failed executions
-* Execution Duration
-  - Average processing time 
-  - Red line indicates 30s threshold
+2. Failed Workflow Executions
+   - Lists most recent failures
+   - Shows error details and execution ARNs
 
-### Alerts Configuration
+3. Lambda Function Performance
+   - Textract Function:
+     * Error logs with request IDs
+     * Long-running invocations with duration and memory usage
+   - Bedrock Function:
+     * Error logs with request IDs
+     * Long-running invocations with duration and memory usage
 
-The solution monitors two key conditions and sends notifications via SNS:
+## Log Groups
 
-1. **Workflow Errors**
-   - Triggers when any workflow execution fails
-   - Evaluation period: 5 minutes
-   - Threshold: ≥ 1 error
-
-2. **Slow Executions** 
-   - Triggers when average execution time exceeds 30 seconds
-   - Evaluation period: 5 minutes
-   - Alerts help identify performance degradation
-
-### Setting Up Alert Notifications
-
-1. Get the SNS Topic ARN from CloudFormation outputs:
-```bash
-aws cloudformation describe-stacks \
-  --stack-name doc-processing \
-  --query 'Stacks[0].Outputs[?OutputKey==`AlertsTopicARN`].OutputValue' \
-  --output text
+```
+/${StackName}/lambda/textract           # Textract function logs
+/${StackName}/lambda/bedrock            # Bedrock function logs
+/aws/vendedlogs/states/${StackName}-workflow  # Step Functions logs
 ```
 
-2. Subscribe to alerts via email:
+## CloudWatch Alarms
+
+Two alarms configured:
+1. Workflow Errors (default: ≥1 error in 5 min)
+2. Slow Executions (default: >30s)
+
+Subscribe to alerts:
 ```bash
 aws sns subscribe \
-  --topic-arn <AlertsTopicARN> \
+  --topic-arn <AlarmTopicARN> \
   --protocol email \
   --notification-endpoint your@email.com
 ```
 
-3. Confirm the subscription by clicking the link in the verification email
+## Stack Parameters
 
-### Configuring Alert Thresholds
-
-The solution stack provides two configurable threshold parameters:
-
-1. **ErrorThreshold**
-   - Default: 1 error per 5 minutes
-   - Minimum value: 1
-   - Triggers alert when error count equals or exceeds this value
-
-2. **ExecutionTimeThreshold**
-   - Default: 30 seconds
-   - Minimum value: 1
-   - Triggers alert when average execution time exceeds this threshold
-
-### Monitoring Best Practices
-
-1. **Regular Dashboard Review**
-   - Check execution trends
-   - Look for patterns in failures
-   - Monitor processing times
-
-2. **Alert Response**
-   - Document common error patterns
-   - Set up escalation procedures
-   - Review CloudWatch Logs for details when alerts trigger
-
-3. **Performance Optimization**
-   - Use execution time metrics to identify bottlenecks
-   - Consider adjusting Lambda timeouts if needed
-   - Monitor resource utilization
-
-### Additional CloudWatch Insights
-
-For deeper analysis, use CloudWatch Logs Insights with these example queries:
-
-```sql
-# Find all failed executions in last 24 hours
-fields @timestamp, @message
-| filter @message like /ExecutionsFailed/
-| sort @timestamp desc
-| limit 20
-
-# Average execution time by hour
-fields @timestamp, @message
-| filter @message like /ExecutionTime/
-| stats avg(ExecutionTime) by bin(1h)
+```bash
+  LogRetentionDays=90 \        # Log retention (default: 30 days)
+  ErrorThreshold=2 \           # Errors before alerting
+  ExecutionTimeThresholdMs=45000  # Duration threshold (ms)
 ```
+
+## Quick Troubleshooting
+
+1. **Workflow Failures:** Check Failed Executions widget → use execution ARN in Step Functions console
+2. **Lambda Issues:** 
+   - Check dedicated error widgets for each function
+   - Use request ID to trace through specific function logs
+   - Review duration/memory metrics in long-running invocation widgets
