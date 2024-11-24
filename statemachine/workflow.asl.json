@@ -1,25 +1,76 @@
 {
-    "StartAt": "TextractStep",
+    "StartAt": "RecordExecution",
     "States": {
-      "TextractStep": {
-        "Type": "Task",
-        "Resource": "${TextractFunctionArn}",
-        "ResultPath": "$.textractResult",
-        "Next": "BedrockStep"
-      },
-      "BedrockStep": {
-        "Type": "Task",
-        "Resource": "${BedrockFunctionArn}",
-        "Parameters": {
-          "text.$": "$.textractResult",
-          "outputBucket": "${OutputBucket}",
-          "detail": {
-            "object": {
-              "key.$": "$.detail.object.key"
-            }
-          }
+        "RecordExecution": {
+            "Type": "Task",
+            "Resource": "${TrackerFunctionArn}",
+            "Parameters": {
+                "execution_arn.$": "$$.Execution.Id",
+                "execution_start_time.$": "$$.Execution.StartTime",
+                "table_name": "${ExecutionTableName}",
+                "detail.$": "$.detail"
+            },
+            "ResultPath": "$.tracking",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.TaskFailed",
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException"
+                    ],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 2,
+                    "BackoffRate": 2
+                }
+            ],
+            "Next": "TextractStep"
         },
-        "End": true
-      }
+        "TextractStep": {
+            "Type": "Task",
+            "Resource": "${TextractFunctionArn}",
+            "ResultPath": "$.textractResult",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.TaskFailed",
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException"
+                    ],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 10,
+                    "BackoffRate": 2
+                }
+            ],
+            "Next": "BedrockStep"
+        },
+        "BedrockStep": {
+            "Type": "Task",
+            "Resource": "${BedrockFunctionArn}",
+            "Parameters": {
+                "text.$": "$.textractResult",
+                "outputBucket": "${OutputBucket}",
+                "detail": {
+                    "object": {
+                        "key.$": "$.detail.object.key"
+                    }
+                }
+            },
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.TaskFailed",
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException"
+                    ],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 10,
+                    "BackoffRate": 2
+                }
+            ],
+            "End": true
+        }
     }
 }

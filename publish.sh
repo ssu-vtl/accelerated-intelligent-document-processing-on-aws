@@ -59,16 +59,21 @@ else
   echo "Using existing bucket: $BUCKET"
 fi
 
-tmpdir=/tmp/$$
-echo "Make temp dir: $tmpdir"
-[ -d $tmpdir ] && rm -fr $tmpdir
-mkdir -p $tmpdir
+tmpdir=.aws-sam
 
 # Package and publish the artifacts
-sam build --use-container --template-file template.yaml
+is_x86_64() {
+    [[ $(uname -m) == "x86_64" ]]
+}
+if is_x86_64; then
+    sam build --template-file template.yaml
+else
+    echo "Running SAM build with container on Mac..."
+    sam build --use-container --template-file template.yaml
+fi
 
 sam package \
- --template-file .aws-sam/build/template.yaml \
+ --template-file ${tmpdir}/build/template.yaml \
  --output-template-file ${tmpdir}/packaged.yaml \
  --s3-bucket ${BUCKET} \
  --s3-prefix ${PREFIX_AND_VERSION}
