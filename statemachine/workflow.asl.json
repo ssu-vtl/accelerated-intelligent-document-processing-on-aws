@@ -49,13 +49,9 @@
             "Type": "Task",
             "Resource": "${BedrockFunctionArn}",
             "Parameters": {
-                "text.$": "$.textractResult",
-                "outputBucket": "${OutputBucket}",
-                "detail": {
-                    "object": {
-                        "key.$": "$.detail.object.key"
-                    }
-                }
+                "execution_arn.$": "$$.Execution.Id",
+                "textract.$": "$.textractResult",
+                "output_bucket_name": "${OutputBucket}"
             },
             "Retry": [
                 {
