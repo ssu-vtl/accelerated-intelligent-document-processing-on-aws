@@ -32,22 +32,37 @@ Resources:
   OutputBucket:
     Type: AWS::S3::Bucket
 
-  TextractFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
+  ExecutionTable:
+    Type: AWS::DynamoDB::Table
     Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/lambda/textract"
-      RetentionInDays: !Ref LogRetentionDays
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: object_key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: object_key
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
 
-  BedrockFunctionLogGroup:
+  TrackerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/tracker_function/
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 30
+      LoggingConfig:
+        LogGroup: !Ref TrackerFunctionLogGroup
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ExecutionTable
+  
+  TrackerFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/lambda/bedrock"
-      RetentionInDays: !Ref LogRetentionDays
-
-  StateMachineLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/vendedlogs/states/${AWS::StackName}/workflow"  # required prefix
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/tracker"
       RetentionInDays: !Ref LogRetentionDays
 
   TextractFunction:
@@ -69,7 +84,13 @@ Resources:
                 Resource: '*'
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
-
+  
+  TextractFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/textract"
+      RetentionInDays: !Ref LogRetentionDays
+  
   BedrockFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -80,24 +101,32 @@ Resources:
       LoggingConfig:
         LogGroup: !Ref BedrockFunctionLogGroup
       Policies:
-        - AWSLambdaBasicExecutionRole
-        - Statement:
-            - Effect: Allow
-              Action: bedrock:InvokeModel
-              Resource: '*'
-        - S3CrudPolicy:
-            BucketName: !Ref OutputBucket
-        - S3ReadPolicy:
-            BucketName: !Ref InputBucket
+      - AWSLambdaBasicExecutionRole
+      - Statement:
+        - Effect: Allow
+          Action: bedrock:InvokeModel
+          Resource: '*'
+      - S3CrudPolicy:
+          BucketName: !Ref OutputBucket
+      - S3ReadPolicy:
+          BucketName: !Ref InputBucket
+
+  BedrockFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/bedrock"
+      RetentionInDays: !Ref LogRetentionDays
 
   DocumentProcessingStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
       DefinitionUri: statemachine/workflow.asl.json
       DefinitionSubstitutions:
+        TrackerFunctionArn: !GetAtt TrackerFunction.Arn
         TextractFunctionArn: !GetAtt TextractFunction.Arn
         BedrockFunctionArn: !GetAtt BedrockFunction.Arn
         OutputBucket: !Ref OutputBucket
+        ExecutionTableName: !Ref ExecutionTable
       Logging:
         Level: ALL
         IncludeExecutionData: true
@@ -108,7 +137,17 @@ Resources:
             FunctionName: !Ref TextractFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref BedrockFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TrackerFunction
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ExecutionTable
         - CloudWatchLogsFullAccess
+
+  StateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/vendedlogs/states/${AWS::StackName}/workflow"  # required prefix
+      RetentionInDays: !Ref LogRetentionDays
 
   EventRule:
     Type: AWS::Events::Rule
@@ -352,6 +391,35 @@ Resources:
           ]
         }
 
+  LookupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/lookup_function/
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 30
+      LoggingConfig:
+        LogGroup: !Ref LookupFunctionLogGroup
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ExecutionTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ExecutionTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:DescribeExecution
+                - states:GetExecutionHistory
+              Resource: 
+                - !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${DocumentProcessingStateMachine.Name}*"
+
+  LookupFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/lookup"
+      RetentionInDays: !Ref LogRetentionDays
+
 Outputs:
   InputBucketName:
     Description: Input S3 bucket name
@@ -368,6 +436,9 @@ Outputs:
   AlertsTopicARN:
     Description: SNS Topic ARN for alerts
     Value: !Ref AlertsTopic
-  LogGroupName:
-    Description: CloudWatch Log Group for Step Functions
-    Value: !Ref StateMachineLogGroup
+  ExecutionTableName:
+    Description: Name of the execution tracking table
+    Value: !Ref ExecutionTable
+  LookupFunctionName:
+    Description: Name of the Lookup function
+    Value: !Ref LookupFunction

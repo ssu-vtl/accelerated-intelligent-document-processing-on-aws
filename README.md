@@ -59,7 +59,7 @@ Navigate into the project root directory and, in a bash shell, run:
 
 That's it! There's just one step.
   
-When completed, it displays the CloudFormation templates S3 URLs, 1-click URLs for launching the stack creation in CloudFormation console, and a command to deploy from the CLI if preferred. E.g.:
+When completed, it displays the CloudFormation templates S3 URLs, 1-click URLs for launching the stack creation in CloudFormation console, and a command to deploy from the CLI:
 ```
 OUTPUTS
 Template URL: https://s3.us-east-1.amazonaws.com/bobs-artifacts-us-east-1/transflo-idp/packaged.yaml
@@ -122,10 +122,14 @@ Access via CloudWatch > Dashboards > DocumentProcessingDashboard
 ## Log Groups
 
 ```
+/aws/vendedlogs/states/${StackName}/workflow  # Step Functions logs
 /${StackName}/lambda/textract           # Textract function logs
 /${StackName}/lambda/bedrock            # Bedrock function logs
-/aws/vendedlogs/states/${StackName}-workflow  # Step Functions logs
+/${StackName}/lambda/tracker            # Execution tracking function logs
+/${StackName}/lambda/lookup             # Lookup function logs
+
 ```
+All log groups share the same retention period, configurable via LogRetentionDays parameter (default: 30 days).
 
 ## CloudWatch Alarms
 
@@ -157,3 +161,130 @@ aws sns subscribe \
    - Check error widgets for each function
    - Use request ID to trace through specific function logs
    - Review duration/memory metrics in long-running invocation widgets
+
+# Execution Lookup
+
+The solution tracks document processing executions in DynamoDB, allowing quick lookups of Step Functions executions by S3 object key.
+
+## Architecture
+- DynamoDB table stores mapping of S3 keys to execution ARNs
+- Records automatically expire after 90 days (TTL)
+- Lookup function queries DynamoDB and fetches execution details
+- Step Functions workflow automatically records executions on start
+
+## Usage
+
+### AWS CLI
+
+```bash
+LOOKUP_FUNCTION=$(aws cloudformation describe-stacks \
+  --stack-name <stack-name> \
+  --query 'Stacks[0].Outputs[?OutputKey==`LookupFunctionName`].OutputValue' \
+  --output text)
+```
+
+```bash
+# Look up processing status for a document
+aws lambda invoke \
+  --function-name $LOOKUP_FUNCTION \
+  --cli-binary-format raw-in-base64-out \
+  --payload '{"s3_key":"path/to/document.pdf"}' \
+  response.json
+
+# Pretty print the response
+cat response.json | jq
+
+# Quick lookup and format in one line
+aws lambda invoke \
+  --function-name $LOOKUP_FUNCTION \
+  --cli-binary-format raw-in-base64-out \
+  --payload '{"s3_key":"path/to/document.pdf"}' \
+  /dev/stdout | jq
+```
+
+### Example Response
+
+```json
+{
+  "found": true,
+  "execution": {
+    "arn": "arn:aws:states:region:account:execution:stack-name:id",
+    "status": "SUCCEEDED",
+    "startDate": "2024-11-23T10:00:00Z",
+    "stopDate": "2024-11-23T10:01:30Z",
+    "input": {
+      "detail": {
+        "object": {
+          "key": "path/to/document.pdf"
+        }
+      }
+    },
+    "output": {
+      "textractResult": { ... },
+      "bedrockResult": { ... }
+    }
+  },
+  "events": [
+    {
+      "type": "ExecutionStarted",
+      "timestamp": "2024-11-23T10:00:00Z",
+      "details": { ... }
+    },
+    {
+      "type": "TaskStateEntered",
+      "timestamp": "2024-11-23T10:00:01Z",
+      "details": {
+        "name": "TextractStep"
+      }
+    }
+  ]
+}
+```
+
+### Error Responses
+
+```json
+// Document never processed
+{
+  "found": false,
+  "message": "No execution found for S3 key: path/to/document.pdf"
+}
+
+// Execution expired/deleted
+{
+  "found": false,
+  "message": "Execution arn:aws:states:... no longer exists"
+}
+```
+
+### Query Specific Information
+
+```bash
+# Get just the execution status
+aws lambda invoke \
+  --function-name $LOOKUP_FUNCTION \
+  --cli-binary-format raw-in-base64-out \
+  --payload '{"s3_key":"path/to/document.pdf"}' \
+  /dev/stdout | jq -r '.execution.status'
+
+# Get processing duration (if completed)
+aws lambda invoke \
+  --function-name $LOOKUP_FUNCTION \
+  --cli-binary-format raw-in-base64-out \
+  --payload '{"s3_key":"path/to/document.pdf"}' \
+  /dev/stdout | jq '
+    .execution |
+    select(.stopDate != null) |
+    . as $e |
+    ($e.stopDate | split("+")[0] | split(".")[0] | strptime("%Y-%m-%dT%H:%M:%S")) -
+    ($e.startDate | split("+")[0] | split(".")[0] | strptime("%Y-%m-%dT%H:%M:%S"))
+  '
+
+# Get extracted data
+aws lambda invoke \
+  --function-name $LOOKUP_FUNCTION \
+  --cli-binary-format raw-in-base64-out \
+  --payload '{"s3_key":"path/to/document.pdf"}' \
+  /dev/stdout | jq '.execution.output.bedrockResult'
+```
+
