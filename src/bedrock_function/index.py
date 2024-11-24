@@ -10,19 +10,27 @@ import json
 from textractor.parsers import response_parser
 import logging
 from botocore.exceptions import ClientError
+from botocore.config import Config
 from prompt_catalog import DEFAULT_SYSTEM_PROMPT, BASELINE_PROMPT
 
-region = "us-east-1"
+region = os.environ['AWS_REGION']
 
-# Initialize Textract client
-textract_client = boto3.client('textract', region_name=region)
+# Initialize S3 client
 s3_client = boto3.client('s3', region_name=region)
-bedrock_client = boto3.client(service_name="bedrock-runtime", region_name=region)
+# Initialize Bedrock client with adaptive retry to handle throttling
+config = Config(
+    retries = {
+        'max_attempts': 20,
+        'mode': 'adaptive'
+    }
+)
+bedrock_client = boto3.client(service_name="bedrock-runtime", region_name=region, config=config)
+
 model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
 # model_id = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 
 def invoke_claude(images, system_prompts, task_prompt, document_text, attributes):
@@ -129,7 +137,6 @@ def write_json_to_s3(json_string, bucket_name, object_key):
         None
     """
     # Convert the Python dictionary to a JSON string
-
     # Upload the JSON string to S3
     s3_client.put_object(
         Bucket=bucket_name,
@@ -137,41 +144,40 @@ def write_json_to_s3(json_string, bucket_name, object_key):
         Body=json_string,
         ContentType='application/json'
     )
-
     logger.info(f"JSON file successfully written to s3://{bucket_name}/{object_key}")
 
 
 def handler(event, context):
-    # Extract bucket name and object key from the S3 event
-    
-    start_time = time.time()
-    
+   
     logger.info(f"Event: {event}")
-    
-    document_text = event.get("text").get("document_text")
 
-    bucket_name = event.get("text").get("bucket_name")
-    object_key = event.get("text").get("object_key")
-    
-    output_bucket = event.get("outputBucket")
-
-    output_object_key = "extracted-entities" + object_key.replace(".pdf", ".json")
+    # Extract bucket name and object key from the event
+    document_text = event.get("textract").get("document_text")
+    input_bucket_name = event.get("textract").get("input_bucket_name")
+    input_object_key = event.get("textract").get("input_object_key")
+    output_bucket_name = event.get("output_bucket_name")
+    output_object_key = input_object_key + ".json"
 
     # Get the PDF object from S3
-    response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
+    t0 = time.time()
+    response = s3_client.get_object(Bucket=input_bucket_name, Key=input_object_key)
     pdf_content = response['Body'].read()
     images = get_document_images(pdf_content)
+    t1 = time.time()
+    logger.info(f"Time taken for S3 GetObject: {t1-t0:.6f} seconds")
 
     with open("attributes.json", 'r') as file:
         attributes_list = json.load(file)
+    t2 = time.time() 
+    logger.info(f"Time taken to load attributes: {t2-t1:.6f} seconds")
 
     extracted_entites_str = invoke_claude(images, DEFAULT_SYSTEM_PROMPT, BASELINE_PROMPT, document_text, attributes_list)
+    t3 = time.time() 
+    logger.info(f"Time taken by bedrock/claude: {t3-t2:.6f} seconds")
 
-    write_json_to_s3(extracted_entites_str, output_bucket, output_object_key)
-    
-    end_time = time.time()
-    elapsed_time = start_time - end_time
-    
-    logger.info(f"Time taken for the detect text lambda: {elapsed_time:.6f} seconds")
+    write_json_to_s3(extracted_entites_str, output_bucket_name, output_object_key)
+    t4 = time.time() 
+    logger.info(f"Time taken to write extracted entities: {t4-t3:.6f} seconds")
 
-    return None
+    # return entities as step output
+    return extracted_entites_str

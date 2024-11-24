@@ -162,129 +162,48 @@ aws sns subscribe \
    - Use request ID to trace through specific function logs
    - Review duration/memory metrics in long-running invocation widgets
 
-# Execution Lookup
+## Execution Lookup
 
 The solution tracks document processing executions in DynamoDB, allowing quick lookups of Step Functions executions by S3 object key.
-
-## Architecture
 - DynamoDB table stores mapping of S3 keys to execution ARNs
 - Records automatically expire after 90 days (TTL)
 - Lookup function queries DynamoDB and fetches execution details
 - Step Functions workflow automatically records executions on start
 
-## Usage
+## Quick Lookup Script
 
-### AWS CLI
-
-```bash
-LOOKUP_FUNCTION=$(aws cloudformation describe-stacks \
-  --stack-name <stack-name> \
-  --query 'Stacks[0].Outputs[?OutputKey==`LookupFunctionName`].OutputValue' \
-  --output text)
-```
+Use the provided script to quickly check processing status:
 
 ```bash
-# Look up processing status for a document
-aws lambda invoke \
-  --function-name $LOOKUP_FUNCTION \
-  --cli-binary-format raw-in-base64-out \
-  --payload '{"s3_key":"path/to/document.pdf"}' \
-  response.json
+# Basic usage
+./scripts/lookup_file_status.sh "documents/invoice.pdf" my-stack-name
 
-# Pretty print the response
-cat response.json | jq
+# Save output to file
+./scripts/lookup_file_status.sh "documents/invoice.pdf" my-stack-name > status.json
 
-# Quick lookup and format in one line
-aws lambda invoke \
-  --function-name $LOOKUP_FUNCTION \
-  --cli-binary-format raw-in-base64-out \
-  --payload '{"s3_key":"path/to/document.pdf"}' \
-  /dev/stdout | jq
+# Pretty print with jq
+./scripts/lookup_file_status.sh "documents/invoice.pdf" my-stack-name | jq
+
+# Check just the execution status
+./scripts/lookup_file_status.sh "documents/invoice.pdf" my-stack-name | jq -r '.execution.status'
+
+# Calculate processing duration (in seconds)
+./scripts/lookup_file_status.sh "documents/invoice.pdf" my-stack-name | jq '
+  .execution | 
+  select(.stopDate != null) | 
+  ([.startDate, .stopDate] | map(split("+")[0] | split(".")[0] | strptime("%Y-%m-%dT%H:%M:%S"))) |
+  .[1] - .[0]
+'
+
+# View extracted JSON output
+./scripts/lookup_file_status.sh "documents/invoice.pdf" my-stack-name | jq '.execution.output'
 ```
 
-### Example Response
+### Error Response
 
 ```json
 {
-  "found": true,
-  "execution": {
-    "arn": "arn:aws:states:region:account:execution:stack-name:id",
-    "status": "SUCCEEDED",
-    "startDate": "2024-11-23T10:00:00Z",
-    "stopDate": "2024-11-23T10:01:30Z",
-    "input": {
-      "detail": {
-        "object": {
-          "key": "path/to/document.pdf"
-        }
-      }
-    },
-    "output": {
-      "textractResult": { ... },
-      "bedrockResult": { ... }
-    }
-  },
-  "events": [
-    {
-      "type": "ExecutionStarted",
-      "timestamp": "2024-11-23T10:00:00Z",
-      "details": { ... }
-    },
-    {
-      "type": "TaskStateEntered",
-      "timestamp": "2024-11-23T10:00:01Z",
-      "details": {
-        "name": "TextractStep"
-      }
-    }
-  ]
-}
-```
-
-### Error Responses
-
-```json
-// Document never processed
-{
   "found": false,
-  "message": "No execution found for S3 key: path/to/document.pdf"
-}
-
-// Execution expired/deleted
-{
-  "found": false,
-  "message": "Execution arn:aws:states:... no longer exists"
+  "message": "No execution found for S3 key: documents/invoice.pdf"
 }
 ```
-
-### Query Specific Information
-
-```bash
-# Get just the execution status
-aws lambda invoke \
-  --function-name $LOOKUP_FUNCTION \
-  --cli-binary-format raw-in-base64-out \
-  --payload '{"s3_key":"path/to/document.pdf"}' \
-  /dev/stdout | jq -r '.execution.status'
-
-# Get processing duration (if completed)
-aws lambda invoke \
-  --function-name $LOOKUP_FUNCTION \
-  --cli-binary-format raw-in-base64-out \
-  --payload '{"s3_key":"path/to/document.pdf"}' \
-  /dev/stdout | jq '
-    .execution |
-    select(.stopDate != null) |
-    . as $e |
-    ($e.stopDate | split("+")[0] | split(".")[0] | strptime("%Y-%m-%dT%H:%M:%S")) -
-    ($e.startDate | split("+")[0] | split(".")[0] | strptime("%Y-%m-%dT%H:%M:%S"))
-  '
-
-# Get extracted data
-aws lambda invoke \
-  --function-name $LOOKUP_FUNCTION \
-  --cli-binary-format raw-in-base64-out \
-  --payload '{"s3_key":"path/to/document.pdf"}' \
-  /dev/stdout | jq '.execution.output.bedrockResult'
-```
-

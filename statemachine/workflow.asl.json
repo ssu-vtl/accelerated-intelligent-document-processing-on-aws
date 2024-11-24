@@ -39,7 +39,7 @@
                         "Lambda.SdkClientException"
                     ],
                     "IntervalSeconds": 2,
-                    "MaxAttempts": 10,
+                    "MaxAttempts": 5,
                     "BackoffRate": 2
                 }
             ],
@@ -49,13 +49,9 @@
             "Type": "Task",
             "Resource": "${BedrockFunctionArn}",
             "Parameters": {
-                "text.$": "$.textractResult",
-                "outputBucket": "${OutputBucket}",
-                "detail": {
-                    "object": {
-                        "key.$": "$.detail.object.key"
-                    }
-                }
+                "execution_arn.$": "$$.Execution.Id",
+                "textract.$": "$.textractResult",
+                "output_bucket_name": "${OutputBucket}"
             },
             "Retry": [
                 {
@@ -66,7 +62,7 @@
                         "Lambda.SdkClientException"
                     ],
                     "IntervalSeconds": 2,
-                    "MaxAttempts": 10,
+                    "MaxAttempts": 5,
                     "BackoffRate": 2
                 }
             ],
