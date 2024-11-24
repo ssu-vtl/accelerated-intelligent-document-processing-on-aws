@@ -72,6 +72,7 @@ Resources:
       Handler: index.handler
       Runtime: python3.11
       Timeout: 900
+      MemorySize: 512
       LoggingConfig:
         LogGroup: !Ref TextractFunctionLogGroup
       Policies:
@@ -98,6 +99,7 @@ Resources:
       Handler: index.handler
       Runtime: python3.11
       Timeout: 900
+      MemorySize: 512
       LoggingConfig:
         LogGroup: !Ref BedrockFunctionLogGroup
       Policies:
