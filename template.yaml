@@ -108,6 +108,10 @@ Resources:
         - Effect: Allow
           Action: bedrock:InvokeModel
           Resource: '*'
+      - Statement:
+        - Effect: Allow
+          Action: cloudwatch:PutMetricData
+          Resource: '*'
       - S3CrudPolicy:
           BucketName: !Ref OutputBucket
       - S3ReadPolicy:
@@ -247,7 +251,7 @@ Resources:
                   [".", "ExecutionsFailed", ".", "."]
                 ],
                 "region": "${AWS::Region}",
-                "title": "Workflow Executions",
+                "title": "Workflow Executions / Docs processed (per 5-Minute)",
                 "period": 300,
                 "stat": "Sum",
                 "view": "timeSeries"
@@ -285,6 +289,40 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
+                  ["Custom/Bedrock", "InputTokens", {"stat": "Sum", "period": 60}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Input Tokens (per 5-Minute)",
+                "period": 300,
+                "view": "timeSeries",
+                "stacked": false
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["Custom/Bedrock", "OutputTokens", {"stat": "Sum", "period": 60}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Output Tokens (per 5-Minute)",
+                "period": 300,
+                "view": "timeSeries",
+                "stacked": false
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
                   ["AWS/Lambda", "Duration", "FunctionName", "${TextractFunction}"]
                 ],
                 "region": "${AWS::Region}",
@@ -304,7 +342,7 @@ Resources:
             {
               "type": "metric",
               "x": 12,
-              "y": 6,
+              "y": 12,
               "width": 12,
               "height": 6,
               "properties": {
@@ -328,7 +366,7 @@ Resources:
             {
               "type": "log",
               "x": 0,
-              "y": 12,
+              "y": 18,
               "width": 24,
               "height": 6,
               "properties": {
@@ -341,7 +379,7 @@ Resources:
             {
               "type": "log",
               "x": 0,
-              "y": 18,
+              "y": 24,
               "width": 12,
               "height": 6,
               "properties": {
@@ -354,7 +392,7 @@ Resources:
             {
               "type": "log",
               "x": 12,
-              "y": 18,
+              "y": 24,
               "width": 12,
               "height": 6,
               "properties": {
@@ -367,7 +405,7 @@ Resources:
             {
               "type": "log",
               "x": 0,
-              "y": 24,
+              "y": 30,
               "width": 12,
               "height": 6,
               "properties": {
@@ -380,7 +418,7 @@ Resources:
             {
               "type": "log",
               "x": 12,
-              "y": 24,
+              "y": 30,
               "width": 12,
               "height": 6,
               "properties": {

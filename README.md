@@ -101,7 +101,11 @@ Access via CloudWatch > Dashboards > DocumentProcessingDashboard
    - Overall execution time with threshold line
    - Includes all steps end-to-end
 
-3. **Lambda Durations**
+3. **Input and Output tokens**
+   - Input tokens processed, in 5-minute intervals
+   - Output tokens processed, in 5-minute intervals
+
+4. **Lambda Durations**
    - Textract function execution time
    - Bedrock function execution time
    - Both with configurable threshold lines
