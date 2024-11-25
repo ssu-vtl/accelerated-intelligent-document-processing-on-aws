@@ -20,7 +20,7 @@ s3_client = boto3.client('s3', region_name=region)
 # Initialize Bedrock client with adaptive retry to handle throttling
 config = Config(
     retries = {
-        'max_attempts': 20,
+        'max_attempts': 100,
         'mode': 'adaptive'
     }
 )
