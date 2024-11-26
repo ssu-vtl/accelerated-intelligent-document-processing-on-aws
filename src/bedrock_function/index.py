@@ -26,8 +26,7 @@ config = Config(
 )
 bedrock_client = boto3.client(service_name="bedrock-runtime", region_name=region, config=config)
 
-model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
-# model_id = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+model_id = os.environ['EXTRACTION_MODEL_ID']
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
