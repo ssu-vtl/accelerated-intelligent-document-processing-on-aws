@@ -1,11 +1,8 @@
 import boto3
 import os
-import io
 import fitz  # PyMuPDF
 import time
-from PIL import Image
 import io
-import base64
 import json
 from textractor.parsers import response_parser
 import logging
@@ -15,15 +12,11 @@ from prompt_catalog import DEFAULT_SYSTEM_PROMPT, BASELINE_PROMPT
 
 region = os.environ['AWS_REGION']
 
-# Initialize S3 client
+# Initialize clients
+cloudwatch_client = boto3.client('cloudwatch')
 s3_client = boto3.client('s3', region_name=region)
 # Initialize Bedrock client with adaptive retry to handle throttling
-config = Config(
-    retries = {
-        'max_attempts': 100,
-        'mode': 'adaptive'
-    }
-)
+config = Config(retries={'max_attempts': 100, 'mode': 'adaptive'})
 bedrock_client = boto3.client(service_name="bedrock-runtime", region_name=region, config=config)
 
 model_id = os.environ['EXTRACTION_MODEL_ID']
@@ -31,6 +24,22 @@ model_id = os.environ['EXTRACTION_MODEL_ID']
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+def put_metric(name, value, unit='Count', dimensions=None):
+    """Put a metric to CloudWatch"""
+    dimensions = dimensions or []
+    logger.info(f"Publishing metric {name}: {value}")
+    try:
+        cloudwatch_client.put_metric_data(
+            Namespace='Custom/Bedrock',
+            MetricData=[{
+                'MetricName': name,
+                'Value': value,
+                'Unit': unit,
+                'Dimensions': dimensions
+            }]
+        )
+    except Exception as e:
+        logger.error(f"Error publishing metric {name}: {e}")
 
 def invoke_claude(images, system_prompts, task_prompt, document_text, attributes):
     """
@@ -83,6 +92,15 @@ def invoke_claude(images, system_prompts, task_prompt, document_text, attributes
         additionalModelRequestFields=additional_model_fields
     )
 
+    logger.info("Response: %s", response)
+
+    # Track token usage
+    if 'usage' in response:
+        input_tokens = response['usage'].get('inputTokens', 0)
+        output_tokens = response['usage'].get('outputTokens', 0)
+        put_metric('InputTokens', input_tokens)
+        put_metric('OutputTokens', output_tokens)
+    
     entities = response['output']['message']['content'][0].get("text")
 
     return entities
