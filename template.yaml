@@ -30,7 +30,7 @@ Parameters:
     Description: Bedrock Model ID to use for Extraction
 
 Resources:
-InputBucket:
+  InputBucket:
     Type: AWS::S3::Bucket
     Properties:
       NotificationConfiguration:
@@ -254,7 +254,6 @@ InputBucket:
   DashboardWorkflow:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: DocumentProcessingDashboard
       DashboardBody: !Sub |
         {
           "widgets": [
