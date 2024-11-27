@@ -254,6 +254,7 @@ Resources:
   DashboardWorkflow:
     Type: AWS::CloudWatch::Dashboard
     Properties:
+      DashboardName: !Sub "${AWS::StackName}-Dashboard"
       DashboardBody: !Sub |
         {
           "widgets": [
