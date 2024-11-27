@@ -19,8 +19,8 @@
         "Type": "Task",
         "Resource": "${BedrockFunctionArn}",
         "Parameters": {
-          "text.$": "$.textractResult",
-          "outputBucket": "${OutputBucket}",
+          "textract.$": "$.textractResult",
+          "output_bucket_name": "${OutputBucket}",
           "detail": {
             "object": {
               "key.$": "$.detail.object.key"

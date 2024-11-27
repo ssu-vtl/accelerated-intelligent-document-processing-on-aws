@@ -3,6 +3,13 @@ Transform: AWS::Serverless-2016-10-31
 Description: Document processing pipeline with Textract and Bedrock
 
 Parameters:
+
+  MaxConcurrentWorkflows:
+    Type: Number
+    Default: 100
+    Description: Maximum number of concurrent workflow executions allowed
+    MinValue: 1
+
   ErrorThreshold:
     Type: Number
     Default: 1
@@ -62,6 +69,17 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true
+  
+  ConcurrencyTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: counter_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: counter_id
+          KeyType: HASH
 
   ProcessingQueue:
     Type: AWS::SQS::Queue
@@ -70,36 +88,8 @@ Resources:
       ContentBasedDeduplication: true
       DeduplicationScope: messageGroup
       FifoThroughputLimit: perMessageGroupId
-      VisibilityTimeout: 3600
+      VisibilityTimeout: 30
       MessageRetentionPeriod: 1209600
-
-  QueueProcessor:
-   Type: AWS::Serverless::Function
-   Properties:
-     CodeUri: src/queue_processor/
-     Handler: index.handler
-     Runtime: python3.11
-     Timeout: 30
-     ReservedConcurrentExecutions: 5
-     LoggingConfig:
-       LogGroup: !Ref QueueProcessorLogGroup
-     Environment:
-       Variables:
-         STATE_MACHINE_ARN: !Ref DocumentProcessingStateMachine
-         TRACKING_TABLE: !Ref ExecutionTable
-     Policies:
-       - SQSPollerPolicy:
-           QueueName: !GetAtt ProcessingQueue.QueueName
-       - StatesExecutePolicy:
-           StateMachineName: !GetAtt DocumentProcessingStateMachine.Name
-       - DynamoDBCrudPolicy:
-           TableName: !Ref ExecutionTable
-
-  QueueProcessorLogGroup:
-   Type: AWS::Logs::LogGroup
-   Properties:
-     LogGroupName: !Sub "/${AWS::StackName}/lambda/queue-processor"
-     RetentionInDays: !Ref LogRetentionDays
 
   QueueSender:
    Type: AWS::Serverless::Function 
@@ -119,6 +109,21 @@ Resources:
            QueueName: !GetAtt ProcessingQueue.QueueName
        - DynamoDBCrudPolicy:
            TableName: !Ref ExecutionTable
+     Events:
+        S3Event:
+          Type: CloudWatchEvent
+          Properties:
+            Pattern:
+              source:
+                - aws.s3
+              detail-type:
+                - "Object Created"
+              detail:
+                bucket:
+                  name:
+                    - !Ref InputBucket
+                reason:
+                  - PutObject
 
   QueueSenderLogGroup:
    Type: AWS::Logs::LogGroup
@@ -126,24 +131,109 @@ Resources:
      LogGroupName: !Sub "/${AWS::StackName}/lambda/queue-sender" 
      RetentionInDays: !Ref LogRetentionDays
 
-  TrackerFunction:
+  WorkflowTracker:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/tracker_function/
+      CodeUri: src/workflow_tracker/
       Handler: index.handler
       Runtime: python3.11
       Timeout: 30
       LoggingConfig:
-        LogGroup: !Ref TrackerFunctionLogGroup
+        LogGroup: !Ref WorkflowTrackerLogGroup
+      Environment:
+        Variables:
+          TRACKING_TABLE: !Ref ExecutionTable
+          CONCURRENCY_TABLE: !Ref ConcurrencyTable
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ExecutionTable
-  
-  TrackerFunctionLogGroup:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConcurrencyTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cloudwatch:PutMetricData
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  'cloudwatch:namespace': 'DocumentProcessing'
+
+  WorkflowTrackerLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/lambda/tracker"
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/workflow-tracker"
       RetentionInDays: !Ref LogRetentionDays
+
+  WorkflowStateChangeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.states
+        detail-type:
+          - Step Functions Execution Status Change
+        detail:
+          stateMachineArn:
+            - !Ref DocumentProcessingStateMachine
+          status:
+            - FAILED
+            - TIMED_OUT
+            - ABORTED
+            - SUCCEEDED
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt WorkflowTracker.Arn
+          Id: TrackWorkflowCompletion
+          RetryPolicy:
+            MaximumRetryAttempts: 3
+
+  WorkflowTrackerPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WorkflowTracker
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt WorkflowStateChangeRule.Arn
+
+  QueueProcessor:
+   Type: AWS::Serverless::Function
+   Properties:
+     CodeUri: src/queue_processor/
+     Handler: index.handler
+     Runtime: python3.11
+     Timeout: 30
+     LoggingConfig:
+       LogGroup: !Ref QueueProcessorLogGroup
+     Environment:
+       Variables:
+         STATE_MACHINE_ARN: !Ref DocumentProcessingStateMachine
+         TRACKING_TABLE: !Ref ExecutionTable
+         CONCURRENCY_TABLE: !Ref ConcurrencyTable
+         MAX_CONCURRENT: !Ref MaxConcurrentWorkflows
+     Policies:
+       - SQSPollerPolicy:
+           QueueName: !GetAtt ProcessingQueue.QueueName
+       - StepFunctionsExecutionPolicy:
+           StateMachineName: !GetAtt DocumentProcessingStateMachine.Name
+       - DynamoDBCrudPolicy:
+           TableName: !Ref ExecutionTable
+       - DynamoDBCrudPolicy:
+           TableName: !Ref ConcurrencyTable
+     Events:
+      SQSEvent:
+        Type: SQS
+        Properties:
+          Queue: !GetAtt ProcessingQueue.Arn
+          BatchSize: 1
+          Enabled: true
+          FunctionResponseTypes: 
+            - ReportBatchItemFailures
+
+  QueueProcessorLogGroup:
+   Type: AWS::Logs::LogGroup
+   Properties:
+     LogGroupName: !Sub "/${AWS::StackName}/lambda/queue-processor"
+     RetentionInDays: !Ref LogRetentionDays
 
   TextractFunction:
     Type: AWS::Serverless::Function
@@ -209,17 +299,11 @@ Resources:
   DocumentProcessingStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      Name: !Sub "${AWS::StackName}-StateMachine"
       DefinitionUri: statemachine/workflow.asl.json
       DefinitionSubstitutions:
         TextractFunctionArn: !GetAtt TextractFunction.Arn
         BedrockFunctionArn: !GetAtt BedrockFunction.Arn
         OutputBucket: !Ref OutputBucket
-      Logging:
-        Level: ALL
-        IncludeExecutionData: true
-        Destinations:
-          - CloudWatchLogsLogGroup: !GetAtt StateMachineLogGroup.Arn
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref TextractFunction
@@ -283,13 +367,121 @@ Resources:
               "type": "metric",
               "x": 0,
               "y": 0,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["DocumentProcessing", "QueueLatencyMilliseconds", {"stat": "Average"}],
+                  [".", "QueueLatencyMilliseconds", {"stat": "p90"}],
+                  [".", "QueueLatencyMilliseconds", {"stat": "Maximum"}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Queue Latency",
+                "period": 300,
+                "view": "timeSeries",
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 0,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["DocumentProcessing", "WorkflowLatencyMilliseconds", {"stat": "Average"}],
+                  [".", "WorkflowLatencyMilliseconds", {"stat": "p90"}],
+                  [".", "WorkflowLatencyMilliseconds", {"stat": "Maximum"}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Workflow Latency",
+                "period": 300,
+                "view": "timeSeries",
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 0,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["DocumentProcessing", "TotalLatencyMilliseconds", {"stat": "Average"}],
+                  [".", "TotalLatencyMilliseconds", {"stat": "p90"}],
+                  [".", "TotalLatencyMilliseconds", {"stat": "Maximum"}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Total Processing Latency",
+                "period": 300,
+                "view": "timeSeries",
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["Custom/Bedrock", "InputTokens", {"stat": "Sum", "period": 60}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Input Tokens (per 5-Minute)",
+                "period": 300,
+                "view": "timeSeries",
+                "stacked": false
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["Custom/Bedrock", "OutputTokens", {"stat": "Sum", "period": 60}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Output Tokens (per 5-Minute)",
+                "period": 300,
+                "view": "timeSeries",
+                "stacked": false
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 12,
               "width": 12,
               "height": 6,
               "properties": {
                 "metrics": [
                   ["AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${ProcessingQueue.QueueName}"],
-                  [".", "NumberOfMessagesDeleted", ".", "."],
-                  [".", "ApproximateAgeOfOldestMessage", ".", "."]
+                  [".", "NumberOfMessagesDeleted", ".", "."]
                 ],
                 "region": "${AWS::Region}",
                 "title": "SQS Queue Metrics",
@@ -301,7 +493,7 @@ Resources:
             {
               "type": "metric",
               "x": 12,
-              "y": 0,
+              "y": 12,
               "width": 12,
               "height": 6,
               "properties": {
@@ -320,65 +512,7 @@ Resources:
             {
               "type": "metric",
               "x": 0,
-              "y": 6,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  ["AWS/States", "ExecutionTime", "StateMachineArn", "${DocumentProcessingStateMachine}"]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Workflow Execution Duration",
-                "period": 300,
-                "annotations": {
-                  "horizontal": [{
-                    "value": ${ExecutionTimeThresholdMs},
-                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
-                    "color": "#ff0000"
-                  }]
-                },
-                "stat": "Average",
-                "view": "timeSeries"
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12,
-              "y": 6,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  ["Custom/Bedrock", "InputTokens", {"stat": "Sum", "period": 60}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Input Tokens (per 5-Minute)",
-                "period": 300,
-                "view": "timeSeries",
-                "stacked": false
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 12,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  ["Custom/Bedrock", "OutputTokens", {"stat": "Sum", "period": 60}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Output Tokens (per 5-Minute)",
-                "period": 300,
-                "view": "timeSeries",
-                "stacked": false
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12,
-              "y": 12,
+              "y": 18,
               "width": 12,
               "height": 6,
               "properties": {
@@ -401,7 +535,7 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 0,
+              "x": 12,
               "y": 18,
               "width": 12,
               "height": 6,
@@ -421,19 +555,6 @@ Resources:
                 },
                 "stat": "Average",
                 "view": "timeSeries"
-              }
-            },
-            {
-              "type": "log",
-              "x": 12,
-              "y": 18,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${StateMachineLogGroup}' | fields @timestamp, @message | filter @message like /ExecutionFailed/ or @message like /TimedOut/ | parse @message /execution: (?<execution_arn>[^ ]*)/ | parse @message /error: (?<error>[^\"]*)/| sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Step Functions Executions Failed",
-                "view": "table"
               }
             },
             {
@@ -487,6 +608,19 @@ Resources:
                 "title": "Bedrock Lambda Long Running Invocations",
                 "view": "table"
               }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 36,
+              "width": 24,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${StateMachineLogGroup}' | fields @timestamp, @message | filter @message like /ExecutionFailed/ or @message like /TimedOut/ | parse @message /execution: (?<execution_arn>[^ ]*)/ | parse @message /error: (?<error>[^\"]*)/| sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Step Functions Executions Failed",
+                "view": "table"
+              }
             }
           ]
         }
@@ -521,52 +655,43 @@ Resources:
       RetentionInDays: !Ref LogRetentionDays
 
 Outputs:
-  InputBucketName:
+  S3InputBucketName:
     Description: Input S3 bucket name
     Value: !Ref InputBucket
-  InputBucketConsoleURL:
+  S3InputBucketConsoleURL:
     Description: Input S3 bucket console URL
     Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${InputBucket}
-  OutputBucketName:
+  S3OutputBucketName:
     Description: Output S3 bucket name
     Value: !Ref OutputBucket
-  OutputBucketConsoleURL:
+  S3OutputBucketConsoleURL:
     Description: Output S3 bucket console URL
     Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${OutputBucket}
-  StateMachineArn:
-    Description: State machine ARN
-    Value: !Ref DocumentProcessingStateMachine
   StateMachineConsoleURL:
     Description: State machine console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/states/home?region=${AWS::Region}#/statemachines/view/${DocumentProcessingStateMachine}
-  DashboardName:
-    Description: CloudWatch Dashboard Name
-    Value: !Ref DashboardWorkflow
-  DashboardConsoleURL:
+  CWDashboardConsoleURL:
     Description: CloudWatch Dashboard URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${DashboardWorkflow}
-  AlertsTopicARN:
+  SNSAlertsTopicARN:
     Description: SNS Topic ARN for alerts
     Value: !Ref AlertsTopic
-  AlertsTopicConsoleURL:
+  SNSAlertsTopicConsoleURL:
     Description: SNS Topic console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/sns/v3/home?region=${AWS::Region}#/topic/${AlertsTopic}
-  ExecutionTableName:
-    Description: Name of the execution tracking table
-    Value: !Ref ExecutionTable
-  ExecutionTableConsoleURL:
+  DynamoDBExecutionTableConsoleURL:
     Description: DynamoDB table console URL
-    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/dynamodbv2/home?region=${AWS::Region}#table/${ExecutionTable}
-  LookupFunctionName:
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/dynamodbv2/home?region=${AWS::Region}#item-explorer?maximize=true&operation=QUERY&table=${ExecutionTable}
+  DynamoDBConcurrencyTableConsoleURL:
+    Description: DynamoDB table console URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/dynamodbv2/home?region=${AWS::Region}#item-explorer?maximize=true&operation=QUERY&table=${ConcurrencyTable}
+  LambdaLookupFunctionName:
     Description: Name of the Lookup function
     Value: !Ref LookupFunction
-  LookupFunctionConsoleURL:
+  LambdaLookupFunctionConsoleURL:
     Description: Lambda function console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/lambda/home?region=${AWS::Region}#/functions/${LookupFunction}
-  QueueURL:
-    Description: URL of the FIFO queue
-    Value: !Ref ProcessingQueue
-  QueueConsoleURL:
+  SQSInputQueueConsoleURL:
     Description: SQS Queue console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/sqs/v2/home?region=${AWS::Region}#/queues/${ProcessingQueue}
 
