@@ -63,6 +63,69 @@ Resources:
         AttributeName: ttl
         Enabled: true
 
+  ProcessingQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      FifoQueue: true
+      ContentBasedDeduplication: true
+      DeduplicationScope: messageGroup
+      FifoThroughputLimit: perMessageGroupId
+      VisibilityTimeout: 3600
+      MessageRetentionPeriod: 1209600
+
+  QueueProcessor:
+   Type: AWS::Serverless::Function
+   Properties:
+     CodeUri: src/queue_processor/
+     Handler: index.handler
+     Runtime: python3.11
+     Timeout: 30
+     ReservedConcurrentExecutions: 5
+     LoggingConfig:
+       LogGroup: !Ref QueueProcessorLogGroup
+     Environment:
+       Variables:
+         STATE_MACHINE_ARN: !Ref DocumentProcessingStateMachine
+         TRACKING_TABLE: !Ref ExecutionTable
+     Policies:
+       - SQSPollerPolicy:
+           QueueName: !GetAtt ProcessingQueue.QueueName
+       - StatesExecutePolicy:
+           StateMachineName: !GetAtt DocumentProcessingStateMachine.Name
+       - DynamoDBCrudPolicy:
+           TableName: !Ref ExecutionTable
+
+  QueueProcessorLogGroup:
+   Type: AWS::Logs::LogGroup
+   Properties:
+     LogGroupName: !Sub "/${AWS::StackName}/lambda/queue-processor"
+     RetentionInDays: !Ref LogRetentionDays
+
+  QueueSender:
+   Type: AWS::Serverless::Function 
+   Properties:
+     CodeUri: src/queue_sender/
+     Handler: index.handler
+     Runtime: python3.11
+     Timeout: 30
+     LoggingConfig:
+       LogGroup: !Ref QueueSenderLogGroup
+     Environment:
+       Variables:
+         QUEUE_URL: !Ref ProcessingQueue
+         TRACKING_TABLE: !Ref ExecutionTable
+     Policies:
+       - SQSSendMessagePolicy:
+           QueueName: !GetAtt ProcessingQueue.QueueName
+       - DynamoDBCrudPolicy:
+           TableName: !Ref ExecutionTable
+
+  QueueSenderLogGroup:
+   Type: AWS::Logs::LogGroup
+   Properties:
+     LogGroupName: !Sub "/${AWS::StackName}/lambda/queue-sender" 
+     RetentionInDays: !Ref LogRetentionDays
+
   TrackerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -146,13 +209,12 @@ Resources:
   DocumentProcessingStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
+      Name: !Sub "${AWS::StackName}-StateMachine"
       DefinitionUri: statemachine/workflow.asl.json
       DefinitionSubstitutions:
-        TrackerFunctionArn: !GetAtt TrackerFunction.Arn
         TextractFunctionArn: !GetAtt TextractFunction.Arn
         BedrockFunctionArn: !GetAtt BedrockFunction.Arn
         OutputBucket: !Ref OutputBucket
-        ExecutionTableName: !Ref ExecutionTable
       Logging:
         Level: ALL
         IncludeExecutionData: true
@@ -163,10 +225,6 @@ Resources:
             FunctionName: !Ref TextractFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref BedrockFunction
-        - LambdaInvokePolicy:
-            FunctionName: !Ref TrackerFunction
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ExecutionTable
         - CloudWatchLogsFullAccess
 
   StateMachineLogGroup:
@@ -174,43 +232,6 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/vendedlogs/states/${AWS::StackName}/workflow"  # required prefix
       RetentionInDays: !Ref LogRetentionDays
-
-  EventRule:
-    Type: AWS::Events::Rule
-    Properties:
-      EventPattern:
-        source:
-          - aws.s3
-        detail-type:
-          - Object Created
-        detail:
-          bucket:
-            name:
-              - !Ref InputBucket
-      State: ENABLED
-      Targets:
-        - Arn: !GetAtt DocumentProcessingStateMachine.Arn
-          Id: ProcessDocument
-          RoleArn: !GetAtt EventBridgeRole.Arn
-
-  EventBridgeRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: events.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: StepFunctionsStartExecution
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: states:StartExecution
-                Resource: !GetAtt DocumentProcessingStateMachine.Arn
 
   AlertsTopic:
     Type: AWS::SNS::Topic
@@ -254,7 +275,7 @@ Resources:
   DashboardWorkflow:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: !Sub "${AWS::StackName}-Dashboard"
+      DashboardName: !Sub "${AWS::StackName}-${AWS::Region}"
       DashboardBody: !Sub |
         {
           "widgets": [
@@ -266,12 +287,12 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["AWS/States", "ExecutionsStarted", "StateMachineArn", "${DocumentProcessingStateMachine}"],
-                  [".", "ExecutionsSucceeded", ".", "."],
-                  [".", "ExecutionsFailed", ".", "."]
+                  ["AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${ProcessingQueue.QueueName}"],
+                  [".", "NumberOfMessagesDeleted", ".", "."],
+                  [".", "ApproximateAgeOfOldestMessage", ".", "."]
                 ],
                 "region": "${AWS::Region}",
-                "title": "Workflow Executions / Docs processed (per 5-Minute)",
+                "title": "SQS Queue Metrics",
                 "period": 300,
                 "stat": "Sum",
                 "view": "timeSeries"
@@ -281,6 +302,25 @@ Resources:
               "type": "metric",
               "x": 12,
               "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/States", "ExecutionsStarted", "StateMachineArn", "${DocumentProcessingStateMachine}"],
+                  [".", "ExecutionsSucceeded", ".", "."],
+                  [".", "ExecutionsFailed", ".", "."]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Workflow Executions",
+                "period": 300,
+                "stat": "Sum",
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
               "width": 12,
               "height": 6,
               "properties": {
@@ -303,7 +343,7 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 0,
+              "x": 12,
               "y": 6,
               "width": 12,
               "height": 6,
@@ -320,8 +360,8 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 12,
-              "y": 6,
+              "x": 0,
+              "y": 12,
               "width": 12,
               "height": 6,
               "properties": {
@@ -337,7 +377,7 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 0,
+              "x": 12,
               "y": 12,
               "width": 12,
               "height": 6,
@@ -361,8 +401,8 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 12,
-              "y": 12,
+              "x": 0,
+              "y": 18,
               "width": 12,
               "height": 6,
               "properties": {
@@ -385,9 +425,9 @@ Resources:
             },
             {
               "type": "log",
-              "x": 0,
+              "x": 12,
               "y": 18,
-              "width": 24,
+              "width": 12,
               "height": 6,
               "properties": {
                 "query": "SOURCE '${StateMachineLogGroup}' | fields @timestamp, @message | filter @message like /ExecutionFailed/ or @message like /TimedOut/ | parse @message /execution: (?<execution_arn>[^ ]*)/ | parse @message /error: (?<error>[^\"]*)/| sort @timestamp desc | limit 20",
@@ -484,21 +524,50 @@ Outputs:
   InputBucketName:
     Description: Input S3 bucket name
     Value: !Ref InputBucket
+  InputBucketConsoleURL:
+    Description: Input S3 bucket console URL
+    Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${InputBucket}
   OutputBucketName:
     Description: Output S3 bucket name
     Value: !Ref OutputBucket
+  OutputBucketConsoleURL:
+    Description: Output S3 bucket console URL
+    Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${OutputBucket}
   StateMachineArn:
     Description: State machine ARN
-    Value: !GetAtt DocumentProcessingStateMachine.Arn
-  DashboardURL:
+    Value: !Ref DocumentProcessingStateMachine
+  StateMachineConsoleURL:
+    Description: State machine console URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/states/home?region=${AWS::Region}#/statemachines/view/${DocumentProcessingStateMachine}
+  DashboardName:
+    Description: CloudWatch Dashboard Name
+    Value: !Ref DashboardWorkflow
+  DashboardConsoleURL:
     Description: CloudWatch Dashboard URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${DashboardWorkflow}
   AlertsTopicARN:
     Description: SNS Topic ARN for alerts
     Value: !Ref AlertsTopic
+  AlertsTopicConsoleURL:
+    Description: SNS Topic console URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/sns/v3/home?region=${AWS::Region}#/topic/${AlertsTopic}
   ExecutionTableName:
     Description: Name of the execution tracking table
     Value: !Ref ExecutionTable
+  ExecutionTableConsoleURL:
+    Description: DynamoDB table console URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/dynamodbv2/home?region=${AWS::Region}#table/${ExecutionTable}
   LookupFunctionName:
     Description: Name of the Lookup function
     Value: !Ref LookupFunction
+  LookupFunctionConsoleURL:
+    Description: Lambda function console URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/lambda/home?region=${AWS::Region}#/functions/${LookupFunction}
+  QueueURL:
+    Description: URL of the FIFO queue
+    Value: !Ref ProcessingQueue
+  QueueConsoleURL:
+    Description: SQS Queue console URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/sqs/v2/home?region=${AWS::Region}#/queues/${ProcessingQueue}
+
+

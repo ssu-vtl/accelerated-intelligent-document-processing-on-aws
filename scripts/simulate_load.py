@@ -80,7 +80,7 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--source-bucket', required=True, help='Source bucket name')
     parser.add_argument('-k', '--source-key', required=True, help='Source file key')
     parser.add_argument('-d', '--dest-bucket', required=True, help='Destination bucket name')
-    parser.add_argument('-p', '--dest-prefix', default='', help='Destination prefix (folder)')
+    parser.add_argument('-p', '--dest-prefix', default='simulated_load', help='Destination prefix (folder)')
     parser.add_argument('-r', '--rate', type=int, default=5000, help='Copies per minute (default: 5000)')
     parser.add_argument('-t', '--duration', type=int, default=1, help='Duration in minutes')
     
