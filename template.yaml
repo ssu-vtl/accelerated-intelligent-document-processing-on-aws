@@ -124,11 +124,52 @@ Resources:
                     - !Ref InputBucket
                 reason:
                   - PutObject
+                  - CopyObject
 
   QueueSenderLogGroup:
    Type: AWS::Logs::LogGroup
    Properties:
      LogGroupName: !Sub "/${AWS::StackName}/lambda/queue-sender" 
+     RetentionInDays: !Ref LogRetentionDays
+
+  QueueProcessor:
+   Type: AWS::Serverless::Function
+   Properties:
+     CodeUri: src/queue_processor/
+     Handler: index.handler
+     Runtime: python3.11
+     Timeout: 30
+     LoggingConfig:
+       LogGroup: !Ref QueueProcessorLogGroup
+     Environment:
+       Variables:
+         STATE_MACHINE_ARN: !Ref DocumentProcessingStateMachine
+         TRACKING_TABLE: !Ref ExecutionTable
+         CONCURRENCY_TABLE: !Ref ConcurrencyTable
+         MAX_CONCURRENT: !Ref MaxConcurrentWorkflows
+     Policies:
+       - SQSPollerPolicy:
+           QueueName: !GetAtt ProcessingQueue.QueueName
+       - StepFunctionsExecutionPolicy:
+           StateMachineName: !GetAtt DocumentProcessingStateMachine.Name
+       - DynamoDBCrudPolicy:
+           TableName: !Ref ExecutionTable
+       - DynamoDBCrudPolicy:
+           TableName: !Ref ConcurrencyTable
+     Events:
+      SQSEvent:
+        Type: SQS
+        Properties:
+          Queue: !GetAtt ProcessingQueue.Arn
+          BatchSize: 1
+          Enabled: true
+          FunctionResponseTypes: 
+            - ReportBatchItemFailures
+
+  QueueProcessorLogGroup:
+   Type: AWS::Logs::LogGroup
+   Properties:
+     LogGroupName: !Sub "/${AWS::StackName}/lambda/queue-processor"
      RetentionInDays: !Ref LogRetentionDays
 
   WorkflowTracker:
@@ -194,46 +235,6 @@ Resources:
       FunctionName: !Ref WorkflowTracker
       Principal: events.amazonaws.com
       SourceArn: !GetAtt WorkflowStateChangeRule.Arn
-
-  QueueProcessor:
-   Type: AWS::Serverless::Function
-   Properties:
-     CodeUri: src/queue_processor/
-     Handler: index.handler
-     Runtime: python3.11
-     Timeout: 30
-     LoggingConfig:
-       LogGroup: !Ref QueueProcessorLogGroup
-     Environment:
-       Variables:
-         STATE_MACHINE_ARN: !Ref DocumentProcessingStateMachine
-         TRACKING_TABLE: !Ref ExecutionTable
-         CONCURRENCY_TABLE: !Ref ConcurrencyTable
-         MAX_CONCURRENT: !Ref MaxConcurrentWorkflows
-     Policies:
-       - SQSPollerPolicy:
-           QueueName: !GetAtt ProcessingQueue.QueueName
-       - StepFunctionsExecutionPolicy:
-           StateMachineName: !GetAtt DocumentProcessingStateMachine.Name
-       - DynamoDBCrudPolicy:
-           TableName: !Ref ExecutionTable
-       - DynamoDBCrudPolicy:
-           TableName: !Ref ConcurrencyTable
-     Events:
-      SQSEvent:
-        Type: SQS
-        Properties:
-          Queue: !GetAtt ProcessingQueue.Arn
-          BatchSize: 1
-          Enabled: true
-          FunctionResponseTypes: 
-            - ReportBatchItemFailures
-
-  QueueProcessorLogGroup:
-   Type: AWS::Logs::LogGroup
-   Properties:
-     LogGroupName: !Sub "/${AWS::StackName}/lambda/queue-processor"
-     RetentionInDays: !Ref LogRetentionDays
 
   TextractFunction:
     Type: AWS::Serverless::Function
