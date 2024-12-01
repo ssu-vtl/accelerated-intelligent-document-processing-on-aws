@@ -1,4 +1,5 @@
 import boto3
+import json
 import os
 import io
 import fitz  # PyMuPDF
@@ -36,9 +37,9 @@ def get_document_text(pdf_content):
     return textract_pages
 
 def handler(event, context):        
-    logger.info(f"Event: {event}")
-    bucket_name = event.get("detail").get("bucket").get("name")
-    object_key = event.get("detail").get("object").get("key")
+    logger.info(f"Event: {json.dumps(event)}")
+    bucket_name = event.get("input").get("detail").get("bucket").get("name")
+    object_key = event.get("input").get("detail").get("object").get("key")
     # Get the PDF from S3
     t0 = time.time()
     response = s3_client.get_object(Bucket=bucket_name, Key=object_key)

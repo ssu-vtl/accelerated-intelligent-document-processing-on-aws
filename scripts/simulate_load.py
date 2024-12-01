@@ -41,9 +41,9 @@ def log_progress(stats, start_time):
         print(f"Files copied: {total}, Current rate: {rate:.1f} files/minute")
         time.sleep(10)
 
-def stress_test(source_bucket, source_key, dest_bucket, dest_prefix='', copies_per_minute=5000, duration_minutes=1):
+def stress_test(source_bucket, source_key, dest_bucket, dest_prefix='', copies_per_minute=2500, duration_minutes=1):
     s3_client = boto3.client('s3')
-    max_workers = min(copies_per_minute, 200)
+    max_workers = min(copies_per_minute, 500)
     stats = CopyStats()
     
     start_time = time.time()
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     parser.add_argument('-k', '--source-key', required=True, help='Source file key')
     parser.add_argument('-d', '--dest-bucket', required=True, help='Destination bucket name')
     parser.add_argument('-p', '--dest-prefix', default='simulated_load', help='Destination prefix (folder)')
-    parser.add_argument('-r', '--rate', type=int, default=5000, help='Copies per minute (default: 5000)')
+    parser.add_argument('-r', '--rate', type=int, default=2500, help='Copies per minute (default: 2500)')
     parser.add_argument('-t', '--duration', type=int, default=1, help='Duration in minutes')
     
     args = parser.parse_args()

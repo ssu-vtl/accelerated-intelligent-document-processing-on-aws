@@ -4,20 +4,30 @@ import fitz  # PyMuPDF
 import time
 import json
 import logging
-from botocore.config import Config
+import random
+from botocore.exceptions import ClientError
 from prompt_catalog import DEFAULT_SYSTEM_PROMPT, BASELINE_PROMPT
+
+MAX_RETRIES = 10
+INITIAL_BACKOFF = 2  # seconds
+MAX_BACKOFF = 600   # 10 minutes
 
 region = os.environ['AWS_REGION']
 model_id = os.environ['EXTRACTION_MODEL_ID']
 
-# Initialize clients
-adaptive_config = Config(retries={'max_attempts': 100, 'mode': 'adaptive'})
+# Initialize clients without adaptive retry
+bedrock_client = boto3.client(service_name="bedrock-runtime", region_name=region)
 cloudwatch_client = boto3.client('cloudwatch')
 s3_client = boto3.client('s3', region_name=region)
-bedrock_client = boto3.client(service_name="bedrock-runtime", region_name=region, config=adaptive_config)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+def calculate_backoff(attempt):
+    """Calculate exponential backoff with jitter"""
+    backoff = min(MAX_BACKOFF, INITIAL_BACKOFF * (2 ** attempt))
+    jitter = random.uniform(0, 0.1 * backoff)  # 10% jitter
+    return backoff + jitter
 
 def put_metric(name, value, unit='Count', dimensions=None):
     dimensions = dimensions or []
@@ -38,37 +48,105 @@ def put_metric(name, value, unit='Count', dimensions=None):
 def invoke_claude(images, system_prompts, task_prompt, document_text, attributes):
     inference_config = {"temperature": 0.5}
     additional_model_fields = {"top_k": 200}
-    task_prompt = task_prompt.format(DOCUMENT_TEXT = document_text, ATTRIBUTES = attributes)
+    task_prompt = task_prompt.format(DOCUMENT_TEXT=document_text, ATTRIBUTES=attributes)
     system_prompt = [{"text": system_prompts}]
     content = [{"text": task_prompt}]
+    
     if images:
-        for image in images: 
+        for image in images:
             message = {"image": {
                 "format": 'jpeg',
-                "source": {"bytes": image}}} 
+                "source": {"bytes": image}}}
             content.append(message)
+    
     message = {
         "role": "user",
         "content": content
     }
     messages = [message]
-    logger.info(f"Bedrock Request - model {model_id}, inferenceConfig {inference_config} {additional_model_fields}", )
-    response = bedrock_client.converse(
-        modelId=model_id,
-        messages=messages,
-        system=system_prompt,
-        inferenceConfig=inference_config,
-        additionalModelRequestFields=additional_model_fields
-    )
-    logger.info("Bedrock Response: %s", response)
-    # Track token usage
-    if 'usage' in response:
-        input_tokens = response['usage'].get('inputTokens', 0)
-        output_tokens = response['usage'].get('outputTokens', 0)
-        put_metric('InputTokens', input_tokens)
-        put_metric('OutputTokens', output_tokens)
-    entities = response['output']['message']['content'][0].get("text")
-    return entities
+
+    retry_count = 0
+    last_exception = None
+    request_start_time = time.time()
+
+    # Track total requests
+    put_metric('BedrockRequestsTotal', 1)
+
+    while retry_count < MAX_RETRIES:
+        try:
+            logger.info(f"Bedrock request attempt {retry_count + 1}/{MAX_RETRIES} - "
+                       f"model: {model_id}, "
+                       f"inferenceConfig: {inference_config}, "
+                       f"additionalFields: {additional_model_fields}")
+            
+            attempt_start_time = time.time()
+            response = bedrock_client.converse(
+                modelId=model_id,
+                messages=messages,
+                system=system_prompt,
+                inferenceConfig=inference_config,
+                additionalModelRequestFields=additional_model_fields
+            )
+            duration = time.time() - attempt_start_time
+            
+            logger.info(f"Bedrock request successful after {retry_count + 1} attempts. "
+                       f"Duration: {duration:.2f}s")
+
+            # Track successful requests and latency
+            put_metric('BedrockRequestsSucceeded', 1)
+            put_metric('BedrockLatency', duration * 1000, 'Milliseconds')
+            if retry_count > 0:
+                put_metric('BedrockRetrySuccess', 1)
+
+            # Track token usage
+            if 'usage' in response:
+                input_tokens = response['usage'].get('inputTokens', 0)
+                output_tokens = response['usage'].get('outputTokens', 0)
+                put_metric('InputTokens', input_tokens)
+                put_metric('OutputTokens', output_tokens)
+
+            total_duration = time.time() - request_start_time
+            put_metric('BedrockTotalLatency', total_duration * 1000, 'Milliseconds')
+
+            entities = response['output']['message']['content'][0].get("text")
+            return entities
+
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            error_message = e.response['Error']['Message']
+            
+            if error_code in ['ThrottlingException', 'ServiceQuotaExceededException', 
+                            'RequestLimitExceeded', 'TooManyRequestsException']:
+                retry_count += 1
+                put_metric('BedrockThrottles', 1)
+                
+                if retry_count == MAX_RETRIES:
+                    logger.error(f"Max retries ({MAX_RETRIES}) exceeded. Last error: {error_message}")
+                    put_metric('BedrockRequestsFailed', 1)
+                    put_metric('BedrockMaxRetriesExceeded', 1)
+                    raise
+                
+                backoff = calculate_backoff(retry_count)
+                logger.warning(f"Bedrock throttling occurred (attempt {retry_count}/{MAX_RETRIES}). "
+                             f"Error: {error_message}. "
+                             f"Backing off for {backoff:.2f}s")
+                
+                time.sleep(backoff)
+                last_exception = e
+            else:
+                logger.error(f"Non-retryable Bedrock error: {error_code} - {error_message}")
+                put_metric('BedrockRequestsFailed', 1)
+                put_metric('BedrockNonRetryableErrors', 1)
+                raise
+
+        except Exception as e:
+            logger.error(f"Unexpected error invoking Bedrock: {str(e)}", exc_info=True)
+            put_metric('BedrockRequestsFailed', 1)
+            put_metric('BedrockUnexpectedErrors', 1)
+            raise
+
+    if last_exception:
+        raise last_exception
 
 
 def get_document_images(pdf_content):
@@ -94,7 +172,7 @@ def write_json_to_s3(json_string, bucket_name, object_key):
 
 
 def handler(event, context):
-    logger.info(f"Event: {event}")
+    logger.info(f"Event: {json.dumps(event)}")
     document_text = event.get("textract").get("document_text")
     input_bucket_name = event.get("textract").get("input_bucket_name")
     input_object_key = event.get("textract").get("input_object_key")

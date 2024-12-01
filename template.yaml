@@ -6,7 +6,7 @@ Parameters:
 
   MaxConcurrentWorkflows:
     Type: Number
-    Default: 100
+    Default: 800
     Description: Maximum number of concurrent workflow executions allowed
     MinValue: 1
 
@@ -32,7 +32,6 @@ Parameters:
     Type: String
     Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
     AllowedValues:
-      - 'anthropic.claude-3-sonnet-20240229-v1:0'
       - 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
     Description: Bedrock Model ID to use for Extraction
 
@@ -559,9 +558,74 @@ Resources:
               }
             },
             {
-              "type": "log",
+              "type": "metric",
               "x": 0,
               "y": 24,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["Custom/Bedrock", "BedrockRequestsTotal", {"stat": "Sum"}],
+                  [".", "BedrockRequestsSucceeded", {"stat": "Sum"}],
+                  [".", "BedrockRequestsFailed", {"stat": "Sum"}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Bedrock Request Status",
+                "period": 300,
+                "view": "timeSeries",
+                "stacked": false
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 24,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["Custom/Bedrock", "BedrockThrottles", {"stat": "Sum"}],
+                  [".", "BedrockRetrySuccess", {"stat": "Sum"}],
+                  [".", "BedrockMaxRetriesExceeded", {"stat": "Sum"}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Bedrock Retries",
+                "period": 300,
+                "view": "timeSeries",
+                "stacked": false
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 24,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["Custom/Bedrock", "BedrockLatency", {"stat": "Average"}],
+                  [".", "BedrockLatency", {"stat": "p90"}],
+                  [".", "BedrockTotalLatency", {"stat": "Average"}],
+                  [".", "BedrockTotalLatency", {"stat": "p90"}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Bedrock Latency",
+                "period": 300,
+                "view": "timeSeries",
+                "stacked": false,
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                }
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 30,
               "width": 12,
               "height": 6,
               "properties": {
@@ -574,7 +638,7 @@ Resources:
             {
               "type": "log",
               "x": 12,
-              "y": 24,
+              "y": 30,
               "width": 12,
               "height": 6,
               "properties": {
@@ -587,7 +651,7 @@ Resources:
             {
               "type": "log",
               "x": 0,
-              "y": 30,
+              "y": 36,
               "width": 12,
               "height": 6,
               "properties": {
@@ -600,7 +664,7 @@ Resources:
             {
               "type": "log",
               "x": 12,
-              "y": 30,
+              "y": 36,
               "width": 12,
               "height": 6,
               "properties": {
@@ -613,7 +677,7 @@ Resources:
             {
               "type": "log",
               "x": 0,
-              "y": 36,
+              "y": 42,
               "width": 24,
               "height": 6,
               "properties": {

@@ -4,12 +4,16 @@
       "TextractStep": {
         "Type": "Task",
         "Resource": "${TextractFunctionArn}",
+        "Parameters": {
+          "execution_arn.$": "$$.Execution.Id",
+          "input.$": "$"
+        },
         "ResultPath": "$.textractResult",
         "Retry": [
           {
             "ErrorEquals": ["States.TaskFailed", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
             "IntervalSeconds": 2,
-            "MaxAttempts": 10,
+            "MaxAttempts": 2,
             "BackoffRate": 2
           }
         ],
@@ -19,6 +23,7 @@
         "Type": "Task",
         "Resource": "${BedrockFunctionArn}",
         "Parameters": {
+          "execution_arn.$": "$$.Execution.Id",
           "textract.$": "$.textractResult",
           "output_bucket_name": "${OutputBucket}",
           "detail": {
