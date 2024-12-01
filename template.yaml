@@ -80,15 +80,11 @@ Resources:
         - AttributeName: counter_id
           KeyType: HASH
 
-  ProcessingQueue:
+  DocumentQueue:
     Type: AWS::SQS::Queue
     Properties:
-      FifoQueue: true
-      ContentBasedDeduplication: true
-      DeduplicationScope: messageGroup
-      FifoThroughputLimit: perMessageGroupId
       VisibilityTimeout: 30
-      MessageRetentionPeriod: 1209600
+      MessageRetentionPeriod: 86400
 
   QueueSender:
    Type: AWS::Serverless::Function 
@@ -101,11 +97,11 @@ Resources:
        LogGroup: !Ref QueueSenderLogGroup
      Environment:
        Variables:
-         QUEUE_URL: !Ref ProcessingQueue
+         QUEUE_URL: !Ref DocumentQueue
          TRACKING_TABLE: !Ref ExecutionTable
      Policies:
        - SQSSendMessagePolicy:
-           QueueName: !GetAtt ProcessingQueue.QueueName
+           QueueName: !GetAtt DocumentQueue.QueueName
        - DynamoDBCrudPolicy:
            TableName: !Ref ExecutionTable
      Events:
@@ -148,7 +144,7 @@ Resources:
          MAX_CONCURRENT: !Ref MaxConcurrentWorkflows
      Policies:
        - SQSPollerPolicy:
-           QueueName: !GetAtt ProcessingQueue.QueueName
+           QueueName: !GetAtt DocumentQueue.QueueName
        - StepFunctionsExecutionPolicy:
            StateMachineName: !GetAtt DocumentProcessingStateMachine.Name
        - DynamoDBCrudPolicy:
@@ -156,14 +152,14 @@ Resources:
        - DynamoDBCrudPolicy:
            TableName: !Ref ConcurrencyTable
      Events:
-      SQSEvent:
-        Type: SQS
-        Properties:
-          Queue: !GetAtt ProcessingQueue.Arn
-          BatchSize: 1
-          Enabled: true
-          FunctionResponseTypes: 
-            - ReportBatchItemFailures
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt DocumentQueue.Arn
+            BatchSize: 50  # Process up to 50 messages at once
+            MaximumBatchingWindowInSeconds: 1  # Wait max 1 second to fill batch
+            FunctionResponseTypes: 
+              - ReportBatchItemFailures
 
   QueueProcessorLogGroup:
    Type: AWS::Logs::LogGroup
@@ -480,7 +476,7 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${ProcessingQueue.QueueName}"],
+                  ["AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${DocumentQueue.QueueName}"],
                   [".", "NumberOfMessagesDeleted", ".", "."]
                 ],
                 "region": "${AWS::Region}",
@@ -758,6 +754,6 @@ Outputs:
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/lambda/home?region=${AWS::Region}#/functions/${LookupFunction}
   SQSInputQueueConsoleURL:
     Description: SQS Queue console URL
-    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/sqs/v2/home?region=${AWS::Region}#/queues/${ProcessingQueue}
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/sqs/v2/home?region=${AWS::Region}#/queues/${DocumentQueue}
 
 

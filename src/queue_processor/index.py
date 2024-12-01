@@ -60,48 +60,48 @@ def update_counter(increment=True):
         raise
 
 def handler(event, context):
-    logger.info(f"Processing event: {json.dumps(event)}")
+    logger.info(f"Processing batch of {len(event['Records'])} messages")
     
-    # Initialize counter if needed
-    initialize_counter()
-    
-    message = event['Records'][0]
-    body = json.loads(message['body'])
-    object_key = body['detail']['object']['key']
-    logger.info(f"Processing file: {object_key}")
-    
-    # Try to increment counter
-    if not update_counter(increment=True):
-        logger.warning(f"Concurrency limit reached for {object_key}")
-        raise Exception("Concurrency limit reached")
-    
-    try:
-        # Start workflow
-        logger.info(f"Starting workflow for {object_key}")
-        execution = sfn.start_execution(
-            stateMachineArn=state_machine_arn,
-            input=json.dumps(body)
-        )
-        logger.info(f"Workflow started: {execution['executionArn']}")
+    failed_messages = []
+    for record in event['Records']:
+        message = record['body']
+        body = json.loads(message)
+        object_key = body['detail']['object']['key']
         
-        # Update tracking
-        tracking_update = {
-            'Key': {'object_key': object_key},
-            'UpdateExpression': 'SET #status = :status, execution_arn = :arn, workflow_start_time = :start',
-            'ExpressionAttributeNames': {'#status': 'status'},
-            'ExpressionAttributeValues': {
-                ':status': 'STARTED',
-                ':arn': execution['executionArn'],
-                ':start': datetime.now(timezone.utc).isoformat()
+        # Try to increment counter
+        if not update_counter(increment=True):
+            logger.warning(f"Concurrency limit reached for {object_key}")
+            failed_messages.append(record['messageId'])
+            continue
+        
+        try:
+            # Start workflow
+            execution = sfn.start_execution(
+                stateMachineArn=state_machine_arn,
+                input=json.dumps(body)
+            )
+            logger.info(f"Workflow started: {execution['executionArn']}")
+            
+            # Update tracking
+            tracking_update = {
+                'Key': {'object_key': object_key},
+                'UpdateExpression': 'SET #status = :status, execution_arn = :arn, workflow_start_time = :start',
+                'ExpressionAttributeNames': {'#status': 'status'},
+                'ExpressionAttributeValues': {
+                    ':status': 'STARTED',
+                    ':arn': execution['executionArn'],
+                    ':start': datetime.now(timezone.utc).isoformat()
+                }
             }
-        }
-        logger.info(f"Updating tracking: {tracking_update}")
-        tracking_table.update_item(**tracking_update)
+            logger.info(f"Updating tracking: {tracking_update}")
+            tracking_table.update_item(**tracking_update)
+        except Exception as e:
+            logger.error(f"Error processing {object_key}: {str(e)}")
+            update_counter(increment=False)  # Decrement on failure
+            failed_messages.append(record['messageId'])            
         
-        return {'statusCode': 200, 'execution': execution['executionArn']}
-        
-    except Exception as e:
-        logger.error(f"Error processing {object_key}: {str(e)}", exc_info=True)
-        # If anything fails, decrement the counter
-        update_counter(increment=False)
-        raise
+    return {
+        "batchItemFailures": [
+            {"itemIdentifier": message_id} for message_id in failed_messages
+        ]
+    }

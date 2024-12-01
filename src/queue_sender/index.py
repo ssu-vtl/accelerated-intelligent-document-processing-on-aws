@@ -31,12 +31,10 @@ def handler(event, context):
     logger.info(f"Recording tracking entry: {tracking_item}")
     tracking_table.put_item(Item=tracking_item)
     
-    # Send to SQS FIFO queue
+    # Send to SQS queue
     message = {
         'QueueUrl': queue_url,
-        'MessageBody': json.dumps(event),
-        'MessageGroupId': 'documents',
-        'MessageDeduplicationId': object_key
+        'MessageBody': json.dumps(event)
     }
     logger.info(f"Sending SQS message: {message}")
     response = sqs.send_message(**message)
