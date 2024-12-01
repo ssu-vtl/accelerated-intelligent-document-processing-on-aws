@@ -8,9 +8,10 @@ import random
 from botocore.exceptions import ClientError
 from prompt_catalog import DEFAULT_SYSTEM_PROMPT, BASELINE_PROMPT
 
-MAX_RETRIES = 10
+# TODO - consider minimizing retries in lambda / maximize in Step Functions for cost efficiency.
+MAX_RETRIES = 8 # avoid 900sec Lambda time out. 
 INITIAL_BACKOFF = 2  # seconds
-MAX_BACKOFF = 600   # 10 minutes
+MAX_BACKOFF = 300   # 5 minutes
 
 region = os.environ['AWS_REGION']
 model_id = os.environ['EXTRACTION_MODEL_ID']

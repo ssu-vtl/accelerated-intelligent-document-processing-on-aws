@@ -445,8 +445,8 @@ Resources:
                   ["Custom/Bedrock", "InputTokens", {"stat": "Sum", "period": 60}]
                 ],
                 "region": "${AWS::Region}",
-                "title": "Input Tokens (per 5-Minute)",
-                "period": 300,
+                "title": "Input Tokens (per Minute)",
+                "period": 60,
                 "view": "timeSeries",
                 "stacked": false
               }
@@ -462,8 +462,8 @@ Resources:
                   ["Custom/Bedrock", "OutputTokens", {"stat": "Sum", "period": 60}]
                 ],
                 "region": "${AWS::Region}",
-                "title": "Output Tokens (per 5-Minute)",
-                "period": 300,
+                "title": "Output Tokens (per Minute)",
+                "period": 60,
                 "view": "timeSeries",
                 "stacked": false
               }
@@ -480,8 +480,8 @@ Resources:
                   [".", "NumberOfMessagesDeleted", ".", "."]
                 ],
                 "region": "${AWS::Region}",
-                "title": "SQS Queue Metrics",
-                "period": 300,
+                "title": "SQS Queue Metrics (per Minute)",
+                "period": 60,
                 "stat": "Sum",
                 "view": "timeSeries"
               }
@@ -499,8 +499,8 @@ Resources:
                   [".", "ExecutionsFailed", ".", "."]
                 ],
                 "region": "${AWS::Region}",
-                "title": "Workflow Executions",
-                "period": 300,
+                "title": "Workflow Executions (per Minute)",
+                "period": 60,
                 "stat": "Sum",
                 "view": "timeSeries"
               }
@@ -566,8 +566,8 @@ Resources:
                   [".", "BedrockRequestsFailed", {"stat": "Sum"}]
                 ],
                 "region": "${AWS::Region}",
-                "title": "Bedrock Request Status",
-                "period": 300,
+                "title": "Bedrock Request Status (per Minute)",
+                "period": 60,
                 "view": "timeSeries",
                 "stacked": false
               }
@@ -585,8 +585,8 @@ Resources:
                   [".", "BedrockMaxRetriesExceeded", {"stat": "Sum"}]
                 ],
                 "region": "${AWS::Region}",
-                "title": "Bedrock Retries",
-                "period": 300,
+                "title": "Bedrock Retries (per Minute)",
+                "period": 60,
                 "view": "timeSeries",
                 "stacked": false
               }
