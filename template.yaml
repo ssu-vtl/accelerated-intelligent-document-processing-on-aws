@@ -442,40 +442,6 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["Custom/Bedrock", "InputTokens", {"stat": "Sum", "period": 60}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Input Tokens (per Minute)",
-                "period": 60,
-                "view": "timeSeries",
-                "stacked": false
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12,
-              "y": 6,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  ["Custom/Bedrock", "OutputTokens", {"stat": "Sum", "period": 60}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Output Tokens (per Minute)",
-                "period": 60,
-                "view": "timeSeries",
-                "stacked": false
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 12,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
                   ["AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${DocumentQueue.QueueName}"],
                   [".", "NumberOfMessagesDeleted", ".", "."]
                 ],
@@ -489,7 +455,7 @@ Resources:
             {
               "type": "metric",
               "x": 12,
-              "y": 12,
+              "y": 6,
               "width": 12,
               "height": 6,
               "properties": {
@@ -508,7 +474,7 @@ Resources:
             {
               "type": "metric",
               "x": 0,
-              "y": 18,
+              "y": 12,
               "width": 12,
               "height": 6,
               "properties": {
@@ -532,7 +498,7 @@ Resources:
             {
               "type": "metric",
               "x": 12,
-              "y": 18,
+              "y": 12,
               "width": 12,
               "height": 6,
               "properties": {
@@ -551,6 +517,40 @@ Resources:
                 },
                 "stat": "Average",
                 "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["Custom/Bedrock", "InputTokens", {"stat": "Sum", "period": 60}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Input Tokens (per Minute)",
+                "period": 60,
+                "view": "timeSeries",
+                "stacked": false
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["Custom/Bedrock", "OutputTokens", {"stat": "Sum", "period": 60}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Output Tokens (per Minute)",
+                "period": 60,
+                "view": "timeSeries",
+                "stacked": false
               }
             },
             {
@@ -599,8 +599,8 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["Custom/Bedrock", "BedrockLatency", {"stat": "Average"}],
-                  [".", "BedrockLatency", {"stat": "p90"}],
+                  ["Custom/Bedrock", "BedrockRequestLatency", {"stat": "Average"}],
+                  [".", "BedrockRequestLatency", {"stat": "p90"}],
                   [".", "BedrockTotalLatency", {"stat": "Average"}],
                   [".", "BedrockTotalLatency", {"stat": "p90"}]
                 ],

@@ -95,7 +95,7 @@ def invoke_claude(images, system_prompts, task_prompt, document_text, attributes
 
             # Track successful requests and latency
             put_metric('BedrockRequestsSucceeded', 1)
-            put_metric('BedrockLatency', duration * 1000, 'Milliseconds')
+            put_metric('BedrockRequestLatency', duration * 1000, 'Milliseconds')
             if retry_count > 0:
                 put_metric('BedrockRetrySuccess', 1)
 
