@@ -752,7 +752,7 @@ Outputs:
   LambdaLookupFunctionConsoleURL:
     Description: Lambda function console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/lambda/home?region=${AWS::Region}#/functions/${LookupFunction}
-  SQSInputQueueConsoleURL:
+  SQSDocumentQueueConsoleURL:
     Description: SQS Queue console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/sqs/v2/home?region=${AWS::Region}#/queues/${DocumentQueue}
 
