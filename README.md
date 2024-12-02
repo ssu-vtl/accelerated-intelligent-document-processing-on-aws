@@ -1,35 +1,5 @@
 # transflo-idp
 
-## Architecture Overview
-
-The solution uses AWS services to create a serverless document processing pipeline:
-
-```
-S3 → EventBridge → Step Functions → Lambda → Textract/Bedrock → S3
-```
-
-### Components
-
-1. **S3 Buckets**
-   - Input: Receives documents for processing
-   - Output: Stores extracted JSON results
-
-2. **Step Functions Workflow**
-   - Orchestrates document processing
-   - Handles retries (5 attempts with exponential backoff)
-   - Monitors execution status
-
-3. **Lambda Functions**
-   - Textract: Extracts text from documents
-   - Bedrock: Uses Claude 3 Sonnet to extract structured data
-
-4. **Monitoring**
-   - CloudWatch Dashboard for operational visibility
-   - Configurable alerts for errors and latency
-   - Log retention and error tracking
-
-The workflow triggers automatically when documents are uploaded to the input bucket, processes them through Textract and Claude, and saves structured JSON to the output bucket.
-
 ## Build, Publish, Deploy
 
 ### 1. Dependencies
@@ -70,144 +40,282 @@ Done
 
 ## Test the solution
 
-Open the `InputBucket` and `OutputBucket` using the links in the stack Resources tab.
-Open the `DocumentProcessingStateMachine` using the link in the stack Resources tab.
+Open the `S3InputBucketConsoleURL` and `S3OutputBucketConsoleURL` using the links in the stack Resources tab.
+Open the `StateMachineConsoleURL` using the link in the stack Resources tab.
 
 Upload a filled PNG or PDF form to the `InputBucket` - there's an example in the `./samples` folder.
 
 Example - to copy the sample file `insurance-claim-form.png` N times, do:
 ```
 $ n=50
-$ for i in `seq 1 $n`; do aws s3 cp ./samples/insurance-claim-form.png s3://idp-inputbucket-kms4wmmc58rj/insurance-claim-form-$i.png; done
+$ for i in `seq 1 $n`; do aws s3 cp ./samples/insurance-claim-form.png s3://idp-inputbucket-kmsxxxxxxxxx/insurance-claim-form-$i.png; done
 ```
 
 The StepFunctions StateMachine should start executing. Open the `Running` execution page to observe the steps in the workflow, trace inputs/outputs, check Lambda code and logs, etc.
 
 When/if the execution sucessfully finishes, check the `OutputBucket` for the structured data JSON file with extracted fields.
 
+### Volume testing using load simulator script
 
-# Monitoring and Logging
-
-## CloudWatch Dashboard
-
-Access via CloudWatch > Dashboards > DocumentProcessingDashboard
-
-### Metrics Graphs
-1. **Workflow Statistics**
-   - Execution counts (Started/Succeeded/Failed)
-   - 5-minute aggregation
-
-2. **Workflow Duration**
-   - Overall execution time with threshold line
-   - Includes all steps end-to-end
-
-3. **Input and Output tokens**
-   - Input tokens processed, in 5-minute intervals
-   - Output tokens processed, in 5-minute intervals
-
-4. **Lambda Durations**
-   - Textract function execution time
-   - Bedrock function execution time
-   - Both with configurable threshold lines
-
-### Log Insights
-1. **Failed Workflow Executions**
-   - Lists most recent failures
-   - Shows error details and execution ARNs
-
-2. **Lambda Function Errors**
-   - Textract Function: Error logs with request IDs
-   - Bedrock Function: Error logs with request IDs
-
-3. **Long-Running Invocations**
-   - Textract Function: Duration and memory usage
-   - Bedrock Function: Duration and memory usage
-
-## Log Groups
-
+Use `./scripts/simulate_load.py` to simulate heavy incoming document rates over time. It copies a specified source document from an S3 bucket, many times in parallel, to the designated `InputBucket`. Example - to simulate incoming document rate of 500 docs per minute for 10 minutes, do:
 ```
-/aws/vendedlogs/states/${StackName}/workflow  # Step Functions logs
-/${StackName}/lambda/textract           # Textract function logs
-/${StackName}/lambda/bedrock            # Bedrock function logs
-/${StackName}/lambda/tracker            # Execution tracking function logs
-/${StackName}/lambda/lookup             # Lookup function logs
-
+$ python ./scripts/simulate_load.py -s source_bucket -k prefix/exampledoc.pdf -d idp-kmsxxxxxxxxx -r 500 -t 10
 ```
-All log groups share the same retention period, configurable via LogRetentionDays parameter (default: 30 days).
 
-## CloudWatch Alarms
+# Document Processing Pipeline
 
-Two alarms configured:
-1. Workflow Errors (default: ≥1 error in 5 min)
-2. Slow Executions (default: >30s)
+## Architecture Overview
 
-Subscribe to alerts:
+```mermaid
+flowchart LR
+    %% Styling
+    classDef storage fill:#2ecc71,stroke:#27ae60,stroke-width:2px,color:white
+    classDef queue fill:#3498db,stroke:#2980b9,stroke-width:2px,color:white
+    classDef lambda fill:#e67e22,stroke:#d35400,stroke-width:2px,color:white
+    classDef stepfunctions fill:#9b59b6,stroke:#8e44ad,stroke-width:2px,color:white
+    classDef dynamodb fill:#f1c40f,stroke:#f39c12,stroke-width:2px,color:white
+    classDef monitoring fill:#e74c3c,stroke:#c0392b,stroke-width:2px,color:white
+
+    subgraph Storage
+        S3in[(Input S3)]
+        S3out[(Output S3)]
+    end
+
+    subgraph Queue["Message Queue"]
+        EB[EventBridge]
+        SQS[SQS Standard Queue]
+    end
+
+    subgraph Functions
+        QS[Queue Sender]
+        QP[Queue Processor]
+    end
+
+    subgraph StepFunctions["Document Processing"]
+        SF[Step Functions]
+        TX[Textract Lambda]
+        BD[Bedrock Lambda]
+    end
+
+    subgraph DynamoDB
+        TT[(Tracking Table)]
+        CT[(Concurrency Table)]
+    end
+
+    subgraph Monitoring
+        CW[CloudWatch Dashboard]
+    end
+
+    S3in --> EB
+    EB --> QS
+    QS --> SQS
+    SQS --> QP
+    QP --> SF
+    QP --> TT
+    QP --> CT
+    SF --> TX
+    SF --> BD
+    BD --> S3out
+    
+    QP -.-> CW
+    SF -.-> CW
+    TX -.-> CW
+    BD -.-> CW
+
+    %% Apply styles
+    class S3in,S3out storage
+    class EB,SQS queue
+    class QS,QP,TX,BD lambda
+    class SF stepfunctions
+    class TT,CT dynamodb
+    class CW monitoring
+```
+
+### Flow Overview
+1. Documents uploaded to Input S3 bucket trigger EventBridge events
+2. Queue Sender Lambda records event in tracking table and sends to SQS
+3. Queue Processor Lambda:
+   - Picks up messages in batches
+   - Manages workflow concurrency using DynamoDB counter
+   - Starts Step Functions executions
+4. Step Functions workflow:
+   - Extracts text using Textract
+   - Processes text using Bedrock/Claude
+   - Writes results to Output S3
+5. Workflow completion events update tracking and metrics
+
+### Components
+- **Storage**: S3 buckets for input documents and JSON output
+- **Message Queue**: Standard SQS queue for high throughput
+- **Functions**: Lambda functions for queue operations
+- **Step Functions**: Document processing workflow orchestration
+- **DynamoDB**: Tracking and concurrency management
+- **CloudWatch**: Comprehensive monitoring and logging
+
+## Concurrency and Throttling Management
+
+### Bedrock Throttling and Retry
+The Bedrock Lambda function implements exponential backoff:
+```python
+MAX_RETRIES = 10
+INITIAL_BACKOFF = 2  # seconds
+MAX_BACKOFF = 600   # 10 minutes
+
+def calculate_backoff(attempt):
+    backoff = min(MAX_BACKOFF, INITIAL_BACKOFF * (2 ** attempt))
+    jitter = random.uniform(0, 0.1 * backoff)
+    return backoff + jitter
+```
+
+Retry behavior:
+- Up to 10 retry attempts
+- Exponential backoff starting at 2 seconds
+- Maximum backoff of 10 minutes
+- 10% random jitter to prevent thundering herd
+- Metrics tracking for retries and failures
+
+### Step Functions Retry Configuration
+Each Lambda invocation includes retry settings:
+```json
+"Retry": [
+  {
+    "ErrorEquals": [
+      "States.TaskFailed",
+      "Lambda.ServiceException",
+      "Lambda.AWSLambdaException",
+      "Lambda.SdkClientException"
+    ],
+    "IntervalSeconds": 2,
+    "MaxAttempts": 10,
+    "BackoffRate": 2
+  }
+]
+```
+
+### Concurrency Control
+- DynamoDB counter tracks active workflows
+- Queue Processor enforces maximum concurrent executions
+- SQS retains messages when concurrency limit reached
+- Batch processing for improved throughput
+
+## Monitoring and Logging
+
+### CloudWatch Dashboard
+Access via CloudWatch > Dashboards > `${StackName}-${Region}`
+
+#### Latency Metrics
+- Queue Latency
+- Workflow Latency
+- Total Processing Latency
+All include average, p90, and maximum values
+
+#### Throughput Metrics
+- SQS Queue metrics (received/deleted)
+- Step Functions execution counts
+- Textract and Bedrock invocations
+
+#### Error Tracking
+- Failed Step Functions executions
+- Lambda function errors
+- Long-running invocations
+
+### Log Groups
+```
+/${StackName}/lambda/textract
+/${StackName}/lambda/bedrock
+/${StackName}/lambda/queue-sender
+/${StackName}/lambda/queue-processor
+/aws/vendedlogs/states/${StackName}-workflow
+```
+
+## Document Status Lookup
+
+### Using the Lookup Script
 ```bash
-aws sns subscribe \
-  --topic-arn <AlarmTopicARN> \
-  --protocol email \
-  --notification-endpoint your@email.com
-```
+# Check document status
+./scripts/lookup_file_status.sh "path/to/document.pdf" stack-name
 
-## Stack Parameters
+# Format output with jq
+./scripts/lookup_file_status.sh "document.pdf" stack-name | jq
 
-```bash
-  LogRetentionDays=90 \        # Log retention (default: 30 days)
-  ErrorThreshold=2 \           # Errors before alerting
-  ExecutionTimeThresholdMs=45000  # Duration threshold (ms)
-```
+# Check just status
+./scripts/lookup_file_status.sh "document.pdf" stack-name | jq -r '.execution.status'
 
-## Quick Troubleshooting
-
-1. **Workflow Failures:** Check Failed Executions widget → use execution ARN in Step Functions console
-2. **Performance Issues:** Check duration graphs for workflow and individual functions
-3. **Lambda Issues:** 
-   - Check error widgets for each function
-   - Use request ID to trace through specific function logs
-   - Review duration/memory metrics in long-running invocation widgets
-
-## Execution Lookup
-
-The solution tracks document processing executions in DynamoDB, allowing quick lookups of Step Functions executions by S3 object key.
-- DynamoDB table stores mapping of S3 keys to execution ARNs
-- Records automatically expire after 90 days (TTL)
-- Lookup function queries DynamoDB and fetches execution details
-- Step Functions workflow automatically records executions on start
-
-## Quick Lookup Script
-
-Use the provided script to quickly check processing status:
-
-```bash
-# Basic usage
-./scripts/lookup_file_status.sh "documents/invoice.pdf" my-stack-name
-
-# Save output to file
-./scripts/lookup_file_status.sh "documents/invoice.pdf" my-stack-name > status.json
-
-# Pretty print with jq
-./scripts/lookup_file_status.sh "documents/invoice.pdf" my-stack-name | jq
-
-# Check just the execution status
-./scripts/lookup_file_status.sh "documents/invoice.pdf" my-stack-name | jq -r '.execution.status'
-
-# Calculate processing duration (in seconds)
-./scripts/lookup_file_status.sh "documents/invoice.pdf" my-stack-name | jq '
+# Calculate processing time
+./scripts/lookup_file_status.sh "document.pdf" stack-name | jq '
   .execution | 
   select(.stopDate != null) | 
   ([.startDate, .stopDate] | map(split("+")[0] | split(".")[0] | strptime("%Y-%m-%dT%H:%M:%S"))) |
   .[1] - .[0]
 '
-
-# View extracted JSON output
-./scripts/lookup_file_status.sh "documents/invoice.pdf" my-stack-name | jq '.execution.output'
 ```
 
-### Error Response
-
+### Response Format
 ```json
 {
-  "found": false,
-  "message": "No execution found for S3 key: documents/invoice.pdf"
+  "found": true,
+  "status": "COMPLETED",
+  "timing": {
+    "queue_time_ms": 234,
+    "workflow_time_ms": 15678,
+    "total_time_ms": 15912
+  },
+  "execution": {
+    "arn": "arn:aws:states:...",
+    "status": "SUCCEEDED",
+    "input": { ... },
+    "output": { ... }
+  }
 }
 ```
+
+## Configuration Parameters
+
+### Stack Parameters
+```bash
+sam deploy --guided \
+  --parameter-overrides \
+  MaxConcurrentWorkflows=100 \    # Maximum parallel workflows
+  LogRetentionDays=30 \          # CloudWatch log retention
+  ErrorThreshold=1 \             # Errors before alerting
+  ExecutionTimeThresholdMs=30000 # Duration threshold
+```
+
+### Monitoring Thresholds
+- Execution Time: Configurable threshold for long-running operations
+- Error Count: Number of errors that triggers alerts
+- Log Retention: How long to keep CloudWatch logs
+
+## Troubleshooting Guide
+
+1. **Document Not Processing**
+   - Check SQS queue metrics for backup
+   - Verify concurrency limit hasn't been reached
+   - Look for Lambda errors in dashboard
+
+2. **Slow Processing**
+   - Monitor latency metrics in dashboard
+   - Check Bedrock throttling and retry counts
+   - Review long-running invocations
+
+3. **Failed Processing**
+   - Check Step Functions execution errors
+   - Review Lambda error logs
+   - Verify input document format
+
+## Performance Considerations
+
+1. **Batch Processing**
+   - SQS configured for batch size of 10
+   - Reduces Lambda invocation overhead
+   - Maintains reasonable processing order
+
+2. **Concurrency**
+   - Controlled via DynamoDB counter
+   - Default limit of 100 concurrent workflows
+   - Adjustable based on Bedrock quotas
+
+3. **Queue Management**
+   - Standard queue for higher throughput
+   - Visibility timeout matches workflow duration
+   - Built-in retry for failed messages
