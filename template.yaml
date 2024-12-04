@@ -578,7 +578,7 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 12,
+              "x": 8,
               "y": 24,
               "width": 12,
               "height": 6,
@@ -588,6 +588,23 @@ Resources:
                 ],
                 "region": "${AWS::Region}",
                 "title": "Output Tokens (per Minute)",
+                "period": 60,
+                "view": "timeSeries",
+                "stacked": false
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["${AWS::StackName}", "TotalTokens", {"stat": "Sum", "period": 60}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Total Tokens (per Minute)",
                 "period": 60,
                 "view": "timeSeries",
                 "stacked": false
@@ -641,11 +658,13 @@ Resources:
                 "metrics": [
                   ["${AWS::StackName}", "BedrockRequestLatency", {"stat": "Average"}],
                   [".", "BedrockRequestLatency", {"stat": "p90"}],
+                  [".", "BedrockRequestLatency", {"stat": "Maximum"}],
                   [".", "BedrockTotalLatency", {"stat": "Average"}],
-                  [".", "BedrockTotalLatency", {"stat": "p90"}]
+                  [".", "BedrockTotalLatency", {"stat": "p90"}],
+                  [".", "BedrockTotalLatency", {"stat": "Maximum"}]
                 ],
                 "region": "${AWS::Region}",
-                "title": "Bedrock Latency",
+                "title": "Bedrock Latency - per request, and total (including backoff/retries)",
                 "period": 300,
                 "view": "timeSeries",
                 "stacked": false,
@@ -713,7 +732,7 @@ Resources:
             {
               "type": "log",
               "x": 0,
-              "y": 42,
+              "y": 54,
               "width": 24,
               "height": 6,
               "properties": {

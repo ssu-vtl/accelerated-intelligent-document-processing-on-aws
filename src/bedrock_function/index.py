@@ -106,8 +106,10 @@ def invoke_claude(page_images, system_prompts, task_prompt, document_text, attri
             if 'usage' in response:
                 input_tokens = response['usage'].get('inputTokens', 0)
                 output_tokens = response['usage'].get('outputTokens', 0)
+                total_tokens = response['usage'].get('totalTokens', 0)
                 put_metric('InputTokens', input_tokens)
                 put_metric('OutputTokens', output_tokens)
+                put_metric('TotalTokens', total_tokens)
 
             total_duration = time.time() - request_start_time
             put_metric('BedrockTotalLatency', total_duration * 1000, 'Milliseconds')
