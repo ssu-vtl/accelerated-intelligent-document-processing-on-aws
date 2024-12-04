@@ -7,6 +7,8 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
+
 dynamodb = boto3.resource('dynamodb')
 cloudwatch = boto3.client('cloudwatch')
 tracking_table = dynamodb.Table(os.environ['TRACKING_TABLE'])
@@ -27,7 +29,7 @@ def put_latency_metrics(item):
         logger.info(f"Publishing latency metrics - queue: {queue_latency}ms, workflow: {workflow_latency}ms, total: {total_latency}ms")
         
         cloudwatch.put_metric_data(
-            Namespace='DocumentProcessing',
+            Namespace=f'{METRIC_NAMESPACE}',
             MetricData=[
                 {
                     'MetricName': 'QueueLatencyMilliseconds',

@@ -8,7 +8,10 @@ import logging
 import time
 from botocore.config import Config
 
+print("Boto3 version: ", boto3.__version__)
+
 region = os.environ['AWS_REGION']
+METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -17,6 +20,23 @@ logger.setLevel(logging.INFO)
 adaptive_config = Config(retries={'max_attempts': 100, 'mode': 'adaptive'})
 s3_client = boto3.client('s3', region_name=region)
 textract_client = boto3.client('textract', region_name=region, config=adaptive_config)
+cloudwatch_client = boto3.client('cloudwatch')
+
+def put_metric(name, value, unit='Count', dimensions=None):
+    dimensions = dimensions or []
+    logger.info(f"Publishing metric {name}: {value}")
+    try:
+        cloudwatch_client.put_metric_data(
+            Namespace=f'{METRIC_NAMESPACE}',
+            MetricData=[{
+                'MetricName': name,
+                'Value': value,
+                'Unit': unit,
+                'Dimensions': dimensions
+            }]
+        )
+    except Exception as e:
+        logger.error(f"Error publishing metric {name}: {e}")
 
 def get_document_text(pdf_content):
     pdf_document = fitz.open(stream=pdf_content, filetype="pdf")

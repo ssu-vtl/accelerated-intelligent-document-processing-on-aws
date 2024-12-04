@@ -180,6 +180,7 @@ Resources:
         Variables:
           TRACKING_TABLE: !Ref ExecutionTable
           CONCURRENCY_TABLE: !Ref ConcurrencyTable
+          METRIC_NAMESPACE: !Ref AWS::StackName
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ExecutionTable
@@ -190,9 +191,6 @@ Resources:
               Action:
                 - cloudwatch:PutMetricData
               Resource: "*"
-              Condition:
-                StringEquals:
-                  'cloudwatch:namespace': 'DocumentProcessing'
 
   WorkflowTrackerLogGroup:
     Type: AWS::Logs::LogGroup
@@ -239,6 +237,9 @@ Resources:
       Runtime: python3.11
       Timeout: 900
       MemorySize: 512
+      Environment:
+        Variables:
+          METRIC_NAMESPACE: !Ref AWS::StackName
       LoggingConfig:
         LogGroup: !Ref TextractFunctionLogGroup
       Policies:
@@ -251,6 +252,10 @@ Resources:
                 Resource: '*'
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: '*'
   
   TextractFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -269,6 +274,7 @@ Resources:
       Environment:
         Variables:
           EXTRACTION_MODEL_ID: !Ref ExtractionModel
+          METRIC_NAMESPACE: !Ref AWS::StackName
       LoggingConfig:
         LogGroup: !Ref BedrockFunctionLogGroup
       Policies:
@@ -367,7 +373,7 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["DocumentProcessing", "QueueLatencyMilliseconds", {"stat": "Average"}],
+                  ["${AWS::StackName}", "QueueLatencyMilliseconds", {"stat": "Average"}],
                   [".", "QueueLatencyMilliseconds", {"stat": "p90"}],
                   [".", "QueueLatencyMilliseconds", {"stat": "Maximum"}]
                 ],
@@ -392,7 +398,7 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["DocumentProcessing", "WorkflowLatencyMilliseconds", {"stat": "Average"}],
+                  ["${AWS::StackName}", "WorkflowLatencyMilliseconds", {"stat": "Average"}],
                   [".", "WorkflowLatencyMilliseconds", {"stat": "p90"}],
                   [".", "WorkflowLatencyMilliseconds", {"stat": "Maximum"}]
                 ],
@@ -417,7 +423,7 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["DocumentProcessing", "TotalLatencyMilliseconds", {"stat": "Average"}],
+                  ["${AWS::StackName}", "TotalLatencyMilliseconds", {"stat": "Average"}],
                   [".", "TotalLatencyMilliseconds", {"stat": "p90"}],
                   [".", "TotalLatencyMilliseconds", {"stat": "Maximum"}]
                 ],
@@ -527,10 +533,10 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["Custom/Bedrock", "InputTokens", {"stat": "Sum", "period": 60}]
+                  ["${AWS::StackName}", "InputDocuments", {"stat": "Sum", "period": 60}]
                 ],
                 "region": "${AWS::Region}",
-                "title": "Input Tokens (per Minute)",
+                "title": "Input Documents (per Minute)",
                 "period": 60,
                 "view": "timeSeries",
                 "stacked": false
@@ -544,7 +550,41 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["Custom/Bedrock", "OutputTokens", {"stat": "Sum", "period": 60}]
+                  ["${AWS::StackName}", "InputDocumentPages", {"stat": "Sum", "period": 60}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Input Document Pages (per Minute)",
+                "period": 60,
+                "view": "timeSeries",
+                "stacked": false
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["${AWS::StackName}", "InputTokens", {"stat": "Sum", "period": 60}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Input Tokens (per Minute)",
+                "period": 60,
+                "view": "timeSeries",
+                "stacked": false
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["${AWS::StackName}", "OutputTokens", {"stat": "Sum", "period": 60}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Output Tokens (per Minute)",
@@ -561,7 +601,7 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["Custom/Bedrock", "BedrockRequestsTotal", {"stat": "Sum"}],
+                  ["${AWS::StackName}", "BedrockRequestsTotal", {"stat": "Sum"}],
                   [".", "BedrockRequestsSucceeded", {"stat": "Sum"}],
                   [".", "BedrockRequestsFailed", {"stat": "Sum"}]
                 ],
@@ -575,12 +615,12 @@ Resources:
             {
               "type": "metric",
               "x": 8,
-              "y": 24,
+              "y": 30,
               "width": 8,
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["Custom/Bedrock", "BedrockThrottles", {"stat": "Sum"}],
+                  ["${AWS::StackName}", "BedrockThrottles", {"stat": "Sum"}],
                   [".", "BedrockRetrySuccess", {"stat": "Sum"}],
                   [".", "BedrockMaxRetriesExceeded", {"stat": "Sum"}]
                 ],
@@ -594,12 +634,12 @@ Resources:
             {
               "type": "metric",
               "x": 16,
-              "y": 24,
+              "y": 30,
               "width": 8,
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["Custom/Bedrock", "BedrockRequestLatency", {"stat": "Average"}],
+                  ["${AWS::StackName}", "BedrockRequestLatency", {"stat": "Average"}],
                   [".", "BedrockRequestLatency", {"stat": "p90"}],
                   [".", "BedrockTotalLatency", {"stat": "Average"}],
                   [".", "BedrockTotalLatency", {"stat": "p90"}]
@@ -621,7 +661,7 @@ Resources:
             {
               "type": "log",
               "x": 0,
-              "y": 30,
+              "y": 42,
               "width": 12,
               "height": 6,
               "properties": {
@@ -634,7 +674,7 @@ Resources:
             {
               "type": "log",
               "x": 12,
-              "y": 30,
+              "y": 42,
               "width": 12,
               "height": 6,
               "properties": {
@@ -647,7 +687,7 @@ Resources:
             {
               "type": "log",
               "x": 0,
-              "y": 36,
+              "y": 48,
               "width": 12,
               "height": 6,
               "properties": {
@@ -660,7 +700,7 @@ Resources:
             {
               "type": "log",
               "x": 12,
-              "y": 36,
+              "y": 48,
               "width": 12,
               "height": 6,
               "properties": {
