@@ -239,15 +239,10 @@ All include average, p90, and maximum values
 ./scripts/lookup_file_status.sh "document.pdf" stack-name | jq
 
 # Check just status
-./scripts/lookup_file_status.sh "document.pdf" stack-name | jq -r '.execution.status'
+./scripts/lookup_file_status.sh "document.pdf" stack-name | jq -r '.status'
 
 # Calculate processing time
-./scripts/lookup_file_status.sh "document.pdf" stack-name | jq '
-  .execution | 
-  select(.stopDate != null) | 
-  ([.startDate, .stopDate] | map(split("+")[0] | split(".")[0] | strptime("%Y-%m-%dT%H:%M:%S"))) |
-  .[1] - .[0]
-'
+./scripts/lookup_file_status.sh "document.pdf" stack-name | jq -r '.timing'
 ```
 
 ### Response Format
