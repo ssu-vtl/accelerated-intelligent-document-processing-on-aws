@@ -737,7 +737,7 @@ Resources:
         LogGroup: !Ref LookupFunctionLogGroup
       Environment:
         Variables:
-          TABLE_NAME: !Ref ExecutionTable
+          TRACKING_TABLE: !Ref ExecutionTable
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref ExecutionTable

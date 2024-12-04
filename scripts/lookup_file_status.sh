@@ -12,7 +12,7 @@ STACK_NAME=${2:-IDP}
 
 LOOKUP_FUNCTION=$(aws cloudformation describe-stacks \
   --stack-name $STACK_NAME \
-  --query 'Stacks[0].Outputs[?OutputKey==`LookupFunctionName`].OutputValue' \
+  --query 'Stacks[0].Outputs[?OutputKey==`LambdaLookupFunctionName`].OutputValue' \
   --output text)
 
 aws lambda invoke \
