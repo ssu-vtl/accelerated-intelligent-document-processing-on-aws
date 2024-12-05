@@ -60,6 +60,8 @@ def update_counter(increment=True):
         raise
 
 def handler(event, context):
+    # Add this line at the start of handler
+    initialize_counter()
     logger.info(f"Processing batch of {len(event['Records'])} messages")
     
     failed_messages = []
