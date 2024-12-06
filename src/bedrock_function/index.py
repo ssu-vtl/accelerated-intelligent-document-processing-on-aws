@@ -7,6 +7,7 @@ import logging
 import random
 from botocore.exceptions import ClientError
 from prompt_catalog import DEFAULT_SYSTEM_PROMPT, BASELINE_PROMPT
+from PIL import Image
 
 print("Boto3 version: ", boto3.__version__)
 
