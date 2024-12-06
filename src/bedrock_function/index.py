@@ -55,6 +55,10 @@ def invoke_claude(page_images, system_prompts, task_prompt, document_text, attri
     task_prompt = task_prompt.format(DOCUMENT_TEXT=document_text, ATTRIBUTES=attributes)
     system_prompt = [{"text": system_prompts}]
     content = [{"text": task_prompt}]
+
+    if len(page_images) > 20:
+        page_images = page_images[:20] 
+        logger.error(f"Number of pages in the document is greater than 20. Processing with only the first 20 pages")
     
     if page_images:
         for image in page_images:
@@ -162,7 +166,16 @@ def get_document_page_images(pdf_content):
         page = pdf_document.load_page(page_num)
         pix = page.get_pixmap()
         img_bytes = pix.tobytes(output="jpeg")
-        page_images.append(img_bytes)
+        
+        # Add to images without resizing
+        # page_images.append(img_bytes)
+
+        # resize images
+        image = Image.open(io.BytesIO(img_bytes))
+        resized_image = image.resize((951, 1268))
+        img_byte_array = io.BytesIO()
+        resized_image.save(img_byte_array, format="JPEG")
+        page_images.append(img_byte_array.getvalue())
     pdf_document.close()
     return page_images
 
