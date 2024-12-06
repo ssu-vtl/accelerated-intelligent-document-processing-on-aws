@@ -16,22 +16,6 @@ state_machine_arn = os.environ['STATE_MACHINE_ARN']
 MAX_CONCURRENT = int(os.environ.get('MAX_CONCURRENT', '5'))
 COUNTER_ID = 'workflow_counter'
 
-def initialize_counter():
-    try:
-        concurrency_table.put_item(
-            Item={
-                'counter_id': COUNTER_ID,
-                'active_count': 0
-            },
-            ConditionExpression='attribute_not_exists(counter_id)'
-        )
-        logger.info("Counter initialized")
-    except ClientError as e:
-        if e.response['Error']['Code'] != 'ConditionalCheckFailedException':
-            logger.error(f"Error initializing counter: {e}")
-            raise
-        logger.info("Counter already exists")
-
 def update_counter(increment=True):
     logger.info(f"Updating counter: increment={increment}, max={MAX_CONCURRENT}")
     try:
@@ -60,8 +44,7 @@ def update_counter(increment=True):
         raise
 
 def handler(event, context):
-    # Add this line at the start of handler
-    initialize_counter()
+    
     logger.info(f"Processing batch of {len(event['Records'])} messages")
     
     failed_messages = []
