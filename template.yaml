@@ -117,9 +117,6 @@ Resources:
                 bucket:
                   name:
                     - !Ref InputBucket
-                reason:
-                  - PutObject
-                  - CopyObject
 
   QueueSenderLogGroup:
    Type: AWS::Logs::LogGroup
