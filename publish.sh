@@ -103,7 +103,7 @@ fi
 echo "OUTPUTS"
 echo Template URL: $template
 echo CF Launch URL: https://${REGION}.console.aws.amazon.com/cloudformation/home?region=${REGION}#/stacks/create/review?templateURL=${template}\&stackName=IDP
-echo CLI Deploy: aws cloudformation deploy --region $REGION --template-file $tmpdir/packaged.yaml --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --stack-name <unique stack name>
+echo CLI Deploy: aws cloudformation deploy --region $REGION --template-file $tmpdir/packaged.yaml --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --stack-name "<your-stack-name>"
 echo Done
 exit 0
 
