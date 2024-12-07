@@ -202,6 +202,7 @@ def handler(event, context):
     input_bucket_name = event.get("textract").get("input_bucket_name")
     input_object_key = event.get("textract").get("input_object_key")
     output_bucket_name = event.get("output_bucket_name")
+    output_object_key = input_object_key + ".json"
     
     # Get the PDF from S3
     t0 = time.time()
@@ -219,7 +220,7 @@ def handler(event, context):
     logger.info(f"Time taken by bedrock/claude: {t3-t2:.6f} seconds")
     put_metric('InputDocuments', 1)
     put_metric('InputDocumentPages', len(page_images))
-    write_json_to_s3(extracted_entites_str, output_bucket_name, input_object_key)
+    write_json_to_s3(extracted_entites_str, output_bucket_name, output_object_key)
     t4 = time.time() 
     logger.info(f"Time taken to write extracted entities to S3: {t4-t3:.6f} seconds")
     return extracted_entites_str
