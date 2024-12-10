@@ -33,7 +33,19 @@ Parameters:
     Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
     AllowedValues:
       - 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
+      - 'us.amazon.nova-pro-v1:0'
     Description: Bedrock Model ID to use for Extraction
+
+  ExtractionPrompts:
+    Type: String
+    Default: 'OCR Text + Page Images'
+    AllowedValues:
+      - 'OCR Text Only'
+      - 'OCR Text + Page Images'
+    Description: Choose whether to attach page image data along with OCR text, in extraction prompts 
+
+Conditions:
+  IsOCRTextOnly: !Equals [!Ref ExtractionPrompts, "OCR Text Only"]
 
 Resources:
   InputBucket:
@@ -348,6 +360,7 @@ Resources:
         Variables:
           EXTRACTION_MODEL_ID: !Ref ExtractionModel
           METRIC_NAMESPACE: !Ref AWS::StackName
+          OCR_TEXT_ONLY: !If [IsOCRTextOnly, true, false]
       LoggingConfig:
         LogGroup: !Ref BedrockFunctionLogGroup
       Policies:
