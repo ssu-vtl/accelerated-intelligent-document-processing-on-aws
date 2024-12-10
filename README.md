@@ -12,9 +12,9 @@ You need to have the following packages installed on your computer:
 2. aws (AWS CLI)
 3. sam (AWS SAM)
 
-Copy the GitLab repo to your computer. Either:
-- use the git command: git clone git@ssh.gitlab.aws.dev:genaiic-reusable-assets/transflo-idp.git
-- OR, download and expand the ZIP file from the GitLab page: https://gitlab.aws.dev/genaiic-reusable-assets/transflo-idp/-/archive/main/transflo-idp-main.zip
+Copy the repo to your computer. Either:
+- use the git command to clone the repo, if you have access
+- OR, download and expand the ZIP file for the repo, or use the ZIP file that has been shared with you.
 
 ## Build and Publish the solution
 
@@ -36,18 +36,20 @@ When completed, it displays the CloudFormation templates S3 URLs, 1-click URLs f
 OUTPUTS
 Template URL: https://s3.us-east-1.amazonaws.com/bobs-artifacts-us-east-1/transflo-idp/packaged.yaml
 CF Launch URL: https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://s3.us-east-1.amazonaws.com/bobs-artifacts-us-east-1/transflo-idp/packaged.yaml&stackName=IDP
-CLI Deploy: aws cloudformation deploy --region us-east-1 --template-file /tmp/1132557/packaged.yaml --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --stack-name IDP
+CLI Deploy: aws cloudformation deploy --region us-east-1 --template-file /tmp/1132557/packaged.yaml --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --stack-name <your_stack_name>>
 Done
 ```
+
+After you have deployed the stack, check the Outputs tab to inspect names and links to the dashboards, buckets, workflows and other solution resources.
 
 ## Test the solution
 
 Open the `S3InputBucketConsoleURL` and `S3OutputBucketConsoleURL` using the links in the stack Resources tab.
 Open the `StateMachineConsoleURL` using the link in the stack Resources tab.
 
-Upload a filled PNG or PDF form to the `InputBucket` - there's an example in the `./samples` folder.
+Upload a filled PDF form to the `InputBucket` - there's an example in the `./samples` folder.
 
-Example - to copy the sample file `insurance-claim-form.png` N times, do:
+Example - to copy the sample file `insurance-bundle.pdf` N times, do:
 ```
 $ n=50
 $ for i in `seq 1 $n`; do aws s3 cp ./samples/insurance-claim-form.png s3://idp-inputbucket-kmsxxxxxxxxx/insurance-claim-form-$i.png; done
@@ -57,81 +59,25 @@ The StepFunctions StateMachine should start executing. Open the `Running` execut
 
 When/if the execution sucessfully finishes, check the `OutputBucket` for the structured data JSON file with extracted fields.
 
-### Volume testing using load simulator script
+### Steady state volume testing using load simulator script
 
 Use `./scripts/simulate_load.py` to simulate heavy incoming document rates over time. It copies a specified source document from an S3 bucket, many times in parallel, to the designated `InputBucket`. Example - to simulate incoming document rate of 500 docs per minute for 10 minutes, do:
 ```
 $ python ./scripts/simulate_load.py -s source_bucket -k prefix/exampledoc.pdf -d idp-kmsxxxxxxxxx -r 500 -t 10
 ```
 
+### Variable volume testing using dynamic load simulator script
+
+Use `./scripts/simulate_dynamic_load.py` to simulate variable document rates over time. The rate of copying is determined by a CSV schedule file - e.g. [dynamic_schedule.csv](./scripts/dynamic_schedule.csv). It copies a specified source document from an S3 bucket, many times in parallel, to the designated `InputBucket`. Example - to simulate incoming documents based on the minute by minure rates in the schedule, do:
+```
+$ python ./scripts/simulate_load.py -s source_bucket -k prefix/exampledoc.pdf -d idp-kmsxxxxxxxxx -f schedule.csv
+```
+
 # Document Processing Pipeline
 
 ## Architecture Overview
 
-```mermaid
-flowchart LR
-    %% Styling
-    classDef storage fill:#2ecc71,stroke:#27ae60,stroke-width:2px,color:white
-    classDef queue fill:#3498db,stroke:#2980b9,stroke-width:2px,color:white
-    classDef lambda fill:#e67e22,stroke:#d35400,stroke-width:2px,color:white
-    classDef stepfunctions fill:#9b59b6,stroke:#8e44ad,stroke-width:2px,color:white
-    classDef dynamodb fill:#f1c40f,stroke:#f39c12,stroke-width:2px,color:white
-    classDef monitoring fill:#e74c3c,stroke:#c0392b,stroke-width:2px,color:white
-
-    subgraph Storage
-        S3in[(Input S3)]
-        S3out[(Output S3)]
-    end
-
-    subgraph Queue["Message Queue"]
-        EB[EventBridge]
-        SQS[SQS Standard Queue]
-    end
-
-    subgraph Functions
-        QS[Queue Sender]
-        QP[Queue Processor]
-    end
-
-    subgraph StepFunctions["Document Processing"]
-        SF[Step Functions]
-        TX[Textract Lambda]
-        BD[Bedrock Lambda]
-    end
-
-    subgraph DynamoDB
-        TT[(Tracking Table)]
-        CT[(Concurrency Table)]
-    end
-
-    subgraph Monitoring
-        CW[CloudWatch Dashboard]
-    end
-
-    S3in --> EB
-    EB --> QS
-    QS --> SQS
-    SQS --> QP
-    QP --> SF
-    QP --> TT
-    QP --> CT
-    SF --> TX
-    SF --> BD
-    BD --> S3out
-    
-    QP -.-> CW
-    SF -.-> CW
-    TX -.-> CW
-    BD -.-> CW
-
-    %% Apply styles
-    class S3in,S3out storage
-    class EB,SQS queue
-    class QS,QP,TX,BD lambda
-    class SF stepfunctions
-    class TT,CT dynamodb
-    class CW monitoring
-```
+![Arch Diag](./images/IDP.drawio.png)
 
 ### Flow Overview
 1. Documents uploaded to Input S3 bucket trigger EventBridge events
@@ -159,7 +105,7 @@ flowchart LR
 ### Bedrock Throttling and Retry
 The Bedrock Lambda function implements exponential backoff:
 ```python
-MAX_RETRIES = 10
+MAX_RETRIES = 8
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 600   # 10 minutes
 
@@ -170,7 +116,7 @@ def calculate_backoff(attempt):
 ```
 
 Retry behavior:
-- Up to 10 retry attempts
+- Up to 8 retry attempts
 - Exponential backoff starting at 2 seconds
 - Maximum backoff of 10 minutes
 - 10% random jitter to prevent thundering herd
@@ -196,9 +142,12 @@ Each Lambda invocation includes retry settings:
 
 ### Concurrency Control
 - DynamoDB counter tracks active workflows
-- Queue Processor enforces maximum concurrent executions
+- Queue Processor enforces maximum concurrent executions (default 800)
 - SQS retains messages when concurrency limit reached
 - Batch processing for improved throughput
+
+Reduce maximum concurrency to limit throughput for less time sensitive workloads (smooth demand peaks)
+Increase maximum concurrency to maximise throughput for time sensitive workloads, until you see Bedrock retries due to quota limits. 
 
 ## Monitoring and Logging
 
@@ -214,7 +163,9 @@ All include average, p90, and maximum values
 #### Throughput Metrics
 - SQS Queue metrics (received/deleted)
 - Step Functions execution counts
-- Textract and Bedrock invocations
+- Textract and Bedrock function invocations and durations
+- Document and Page counts
+- LLM Tokens processed 
 
 #### Error Tracking
 - Failed Step Functions executions
@@ -227,6 +178,7 @@ All include average, p90, and maximum values
 /${StackName}/lambda/bedrock
 /${StackName}/lambda/queue-sender
 /${StackName}/lambda/queue-processor
+/${StackName}/lambda/workflow-tracker
 /aws/vendedlogs/states/${StackName}-workflow
 ```
 
@@ -270,18 +222,13 @@ All include average, p90, and maximum values
 
 ### Stack Parameters
 ```bash
-sam deploy --guided \
-  --parameter-overrides \
-  MaxConcurrentWorkflows=100 \    # Maximum parallel workflows
-  LogRetentionDays=30 \          # CloudWatch log retention
-  ErrorThreshold=1 \             # Errors before alerting
-  ExecutionTimeThresholdMs=30000 # Duration threshold
-```
-
-### Monitoring Thresholds
-- Execution Time: Configurable threshold for long-running operations
-- Error Count: Number of errors that triggers alerts
-- Log Retention: How long to keep CloudWatch logs
+  MaxConcurrentWorkflows=800 \                          # Maximum parallel workflows
+  LogRetentionDays=30 \                                 # CloudWatch log retention
+  ErrorThreshold=1 \                                    # Errors before alerting
+  ExecutionTimeThresholdMs=420000                       # Duration threshold in millisecs
+  ExtractionModel='anthropic.claude-3-5-sonnet...'      # Bedrock model for extraction
+  ExtractionPromps='OCR + Page Images'                  # Optionally exclude images from prompt to trade accuracy for cost/throughput.
+  ```
 
 ## Troubleshooting Guide
 
@@ -309,8 +256,8 @@ sam deploy --guided \
 
 2. **Concurrency**
    - Controlled via DynamoDB counter
-   - Default limit of 100 concurrent workflows
-   - Adjustable based on Bedrock quotas
+   - Default limit of 800 concurrent workflows
+   - Adjustable to max throughput based on Bedrock quotas
 
 3. **Queue Management**
    - Standard queue for higher throughput
