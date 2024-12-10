@@ -20,6 +20,7 @@ MAX_BACKOFF = 300   # 5 minutes
 region = os.environ['AWS_REGION']
 model_id = os.environ['EXTRACTION_MODEL_ID']
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
+OCR_TEXT_ONLY = os.environ.get('OCR_TEXT_ONLY', 'false').lower() == 'true'
 
 # Initialize clients without adaptive retry
 bedrock_client = boto3.client(service_name="bedrock-runtime", region_name=region)
@@ -53,7 +54,10 @@ def put_metric(name, value, unit='Count', dimensions=None):
 
 def invoke_claude(page_images, system_prompts, task_prompt, document_text, attributes):
     inference_config = {"temperature": 0.5}
-    additional_model_fields = {"top_k": 200}
+    if model_id.startswith("us.anthropic"):
+        additional_model_fields = {"top_k": 200}
+    else:
+        additional_model_fields = None
     task_prompt = task_prompt.format(DOCUMENT_TEXT=document_text, ATTRIBUTES=attributes)
     system_prompt = [{"text": system_prompts}]
     content = [{"text": task_prompt}]
@@ -63,6 +67,7 @@ def invoke_claude(page_images, system_prompts, task_prompt, document_text, attri
         logger.error(f"Number of pages in the document is greater than 20. Processing with only the first 20 pages")
     
     if page_images:
+        logger.info(f"Attaching images to prompt, for {len(page_images)} pages.")
         for image in page_images:
             message = {"image": {
                 "format": 'jpeg',
@@ -208,13 +213,17 @@ def handler(event, context):
     t0 = time.time()
     response = s3_client.get_object(Bucket=input_bucket_name, Key=input_object_key)
     pdf_content = response['Body'].read()
-    page_images = get_document_page_images(pdf_content)
     t1 = time.time()
     logger.info(f"Time taken for S3 GetObject: {t1-t0:.6f} seconds")
+    page_images = []
+    if OCR_TEXT_ONLY:
+        logger.info("OCR_TEXT_ONLY is True, skipping PDF page image processing")
+    else:
+        page_images = get_document_page_images(pdf_content)
     with open("attributes.json", 'r') as file:
         attributes_list = json.load(file)
     t2 = time.time() 
-    logger.info(f"Time taken to load attributes: {t2-t1:.6f} seconds")
+    logger.info(f"Time taken to load page images and attributes: {t2-t1:.6f} seconds")
     extracted_entites_str = invoke_claude(page_images, DEFAULT_SYSTEM_PROMPT, BASELINE_PROMPT, document_text, attributes_list)
     t3 = time.time() 
     logger.info(f"Time taken by bedrock/claude: {t3-t2:.6f} seconds")
