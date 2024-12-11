@@ -54,7 +54,7 @@ def put_metric(name, value, unit='Count', dimensions=None):
     except Exception as e:
         logger.error(f"Error publishing metric {name}: {e}")
 
-def invoke_claude(page_images, system_prompts, task_prompt, document_text, attributes):
+def invoke_llm(page_images, system_prompts, task_prompt, document_text, attributes):
     inference_config = {"temperature": 0.5}
     if model_id.startswith("us.anthropic"):
         additional_model_fields = {"top_k": 200}
@@ -226,7 +226,7 @@ def handler(event, context):
         attributes_list = json.load(file)
     t2 = time.time() 
     logger.info(f"Time taken to load page images and attributes: {t2-t1:.6f} seconds")
-    extracted_entites_str = invoke_claude(page_images, DEFAULT_SYSTEM_PROMPT, BASELINE_PROMPT, document_text, attributes_list)
+    extracted_entites_str = invoke_llm(page_images, DEFAULT_SYSTEM_PROMPT, BASELINE_PROMPT, document_text, attributes_list)
     t3 = time.time() 
     logger.info(f"Time taken by bedrock/claude: {t3-t2:.6f} seconds")
     put_metric('InputDocuments', 1)
