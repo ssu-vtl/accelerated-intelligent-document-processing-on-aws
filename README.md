@@ -154,6 +154,11 @@ Increase maximum concurrency to maximise throughput for time sensitive workloads
 ### CloudWatch Dashboard
 Access via CloudWatch > Dashboards > `${StackName}-${Region}`
 
+<img src="./images/Dashboard1.png" alt="Dashboard1" width="800">
+<img src="./images/Dashboard2.png" alt="Dashboard2" width="800">
+<img src="./images/Dashboard3.png" alt="Dashboard3" width="800">
+
+
 #### Latency Metrics
 - Queue Latency
 - Workflow Latency
