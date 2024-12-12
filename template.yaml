@@ -541,14 +541,20 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${DocumentQueue.QueueName}"],
-                  [".", "NumberOfMessagesDeleted", ".", "."]
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Messages Received per Minute", "id": "e1"}],
+                  [{"expression": "m2/PERIOD(m2)*60", "label": "Messages Deleted per Minute", "id": "e2"}],
+                  ["AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${DocumentQueue.QueueName}", {"id": "m1", "stat": "Sum", "visible": false}],
+                  [".", "NumberOfMessagesDeleted", ".", ".", {"id": "m2", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "SQS Queue Metrics (per Minute)",
+                "view": "timeSeries",
                 "period": 60,
-                "stat": "Sum",
-                "view": "timeSeries"
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
               }
             },
             {
@@ -559,15 +565,22 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["AWS/States", "ExecutionsStarted", "StateMachineArn", "${DocumentProcessingStateMachine}"],
-                  [".", "ExecutionsSucceeded", ".", "."],
-                  [".", "ExecutionsFailed", ".", "."]
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Started per Minute", "id": "e1"}],
+                  [{"expression": "m2/PERIOD(m2)*60", "label": "Succeeded per Minute", "id": "e2"}],
+                  [{"expression": "m3/PERIOD(m3)*60", "label": "Failed per Minute", "id": "e3"}],
+                  ["AWS/States", "ExecutionsStarted", "StateMachineArn", "${DocumentProcessingStateMachine}", {"id": "m1", "stat": "Sum", "visible": false}],
+                  [".", "ExecutionsSucceeded", ".", ".", {"id": "m2", "stat": "Sum", "visible": false}],
+                  [".", "ExecutionsFailed", ".", ".", {"id": "m3", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Workflow Executions (per Minute)",
+                "view": "timeSeries",
                 "period": 60,
-                "stat": "Sum",
-                "view": "timeSeries"
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
               }
             },
             {
@@ -626,13 +639,18 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["${AWS::StackName}", "InputDocuments", {"stat": "Sum", "period": 60}]
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Documents per Minute"}],
+                  ["${AWS::StackName}", "InputDocuments", {"id": "m1", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Input Documents (per Minute)",
-                "period": 60,
                 "view": "timeSeries",
-                "stacked": false
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
               }
             },
             {
@@ -643,13 +661,18 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["${AWS::StackName}", "InputDocumentPages", {"stat": "Sum", "period": 60}]
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Pages per Minute"}],
+                  ["${AWS::StackName}", "InputDocumentPages", {"id": "m1", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Input Document Pages (per Minute)",
-                "period": 60,
                 "view": "timeSeries",
-                "stacked": false
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
               }
             },
             {
@@ -660,13 +683,18 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["${AWS::StackName}", "InputTokens", {"stat": "Sum", "period": 60}]
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Tokens per Minute"}],
+                  ["${AWS::StackName}", "InputTokens", {"id": "m1", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Input Tokens (per Minute)",
-                "period": 60,
                 "view": "timeSeries",
-                "stacked": false
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
               }
             },
             {
@@ -677,13 +705,18 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["${AWS::StackName}", "OutputTokens", {"stat": "Sum", "period": 60}]
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Tokens per Minute"}],
+                  ["${AWS::StackName}", "OutputTokens", {"id": "m1", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Output Tokens (per Minute)",
-                "period": 60,
                 "view": "timeSeries",
-                "stacked": false
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
               }
             },
             {
@@ -694,13 +727,18 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["${AWS::StackName}", "TotalTokens", {"stat": "Sum", "period": 60}]
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Tokens per Minute"}],
+                  ["${AWS::StackName}", "TotalTokens", {"id": "m1", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Total Tokens (per Minute)",
-                "period": 60,
                 "view": "timeSeries",
-                "stacked": false
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
               }
             },
             {
@@ -711,15 +749,22 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["${AWS::StackName}", "BedrockRequestsTotal", {"stat": "Sum"}],
-                  [".", "BedrockRequestsSucceeded", {"stat": "Sum"}],
-                  [".", "BedrockRequestsFailed", {"stat": "Sum"}]
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Total per Minute"}],
+                  [{"expression": "m2/PERIOD(m2)*60", "label": "Succeeded per Minute"}],
+                  [{"expression": "m3/PERIOD(m3)*60", "label": "Failed per Minute"}],
+                  ["${AWS::StackName}", "BedrockRequestsTotal", {"id": "m1", "stat": "Sum", "visible": false}],
+                  [".", "BedrockRequestsSucceeded", {"id": "m2", "stat": "Sum", "visible": false}],
+                  [".", "BedrockRequestsFailed", {"id": "m3", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Bedrock Request Status (per Minute)",
-                "period": 60,
                 "view": "timeSeries",
-                "stacked": false
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
               }
             },
             {
@@ -730,15 +775,22 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["${AWS::StackName}", "BedrockThrottles", {"stat": "Sum"}],
-                  [".", "BedrockRetrySuccess", {"stat": "Sum"}],
-                  [".", "BedrockMaxRetriesExceeded", {"stat": "Sum"}]
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Throttles per Minute"}],
+                  [{"expression": "m2/PERIOD(m2)*60", "label": "Retry Success per Minute"}],
+                  [{"expression": "m3/PERIOD(m3)*60", "label": "Max Retries Exceeded per Minute"}],
+                  ["${AWS::StackName}", "BedrockThrottles", {"id": "m1", "stat": "Sum", "visible": false}],
+                  [".", "BedrockRetrySuccess", {"id": "m2", "stat": "Sum", "visible": false}],
+                  [".", "BedrockMaxRetriesExceeded", {"id": "m3", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Bedrock Retries (per Minute)",
-                "period": 60,
                 "view": "timeSeries",
-                "stacked": false
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
               }
             },
             {
