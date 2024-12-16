@@ -689,104 +689,6 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  [{"expression": "m1/PERIOD(m1)*60", "label": "Messages Received per Minute", "id": "e1"}],
-                  [{"expression": "m2/PERIOD(m2)*60", "label": "Messages Deleted per Minute", "id": "e2"}],
-                  ["AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${DocumentQueue.QueueName}", {"id": "m1", "stat": "Sum", "visible": false}],
-                  [".", "NumberOfMessagesDeleted", ".", ".", {"id": "m2", "stat": "Sum", "visible": false}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "SQS Queue Metrics (per Minute)",
-                "view": "timeSeries",
-                "period": 60,
-                "yAxis": {
-                  "left": {
-                    "label": "Count per Minute"
-                  }
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12,
-              "y": 6,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [{"expression": "m1/PERIOD(m1)*60", "label": "Started per Minute", "id": "e1"}],
-                  [{"expression": "m2/PERIOD(m2)*60", "label": "Succeeded per Minute", "id": "e2"}],
-                  [{"expression": "m3/PERIOD(m3)*60", "label": "Failed per Minute", "id": "e3"}],
-                  ["AWS/States", "ExecutionsStarted", "StateMachineArn", "${DocumentProcessingStateMachine}", {"id": "m1", "stat": "Sum", "visible": false}],
-                  [".", "ExecutionsSucceeded", ".", ".", {"id": "m2", "stat": "Sum", "visible": false}],
-                  [".", "ExecutionsFailed", ".", ".", {"id": "m3", "stat": "Sum", "visible": false}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Workflow Executions (per Minute)",
-                "view": "timeSeries",
-                "period": 60,
-                "yAxis": {
-                  "left": {
-                    "label": "Count per Minute"
-                  }
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 12,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  ["AWS/Lambda", "Duration", "FunctionName", "${TextractFunction}"]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Textract Function Duration",
-                "period": 300,
-                "annotations": {
-                  "horizontal": [{
-                    "value": ${ExecutionTimeThresholdMs},
-                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
-                    "color": "#ff0000"
-                  }]
-                },
-                "stat": "Average",
-                "view": "timeSeries"
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12,
-              "y": 12,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  ["AWS/Lambda", "Duration", "FunctionName", "${BedrockFunction}"]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Bedrock Function Duration",
-                "period": 300,
-                "annotations": {
-                  "horizontal": [{
-                    "value": ${ExecutionTimeThresholdMs},
-                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
-                    "color": "#ff0000"
-                  }]
-                },
-                "stat": "Average",
-                "view": "timeSeries"
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 18,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
                   [{"expression": "m1/PERIOD(m1)*60", "label": "Documents per Minute"}],
                   ["${AWS::StackName}", "InputDocuments", {"id": "m1", "stat": "Sum", "visible": false}]
                 ],
@@ -804,7 +706,7 @@ Resources:
             {
               "type": "metric",
               "x": 12,
-              "y": 18,
+              "y": 6,
               "width": 12,
               "height": 6,
               "properties": {
@@ -826,7 +728,7 @@ Resources:
             {
               "type": "metric",
               "x": 0,
-              "y": 24,
+              "y": 12,
               "width": 8,
               "height": 6,
               "properties": {
@@ -848,7 +750,7 @@ Resources:
             {
               "type": "metric",
               "x": 8,
-              "y": 24,
+              "y": 12,
               "width": 8,
               "height": 6,
               "properties": {
@@ -870,7 +772,7 @@ Resources:
             {
               "type": "metric",
               "x": 16,
-              "y": 24,
+              "y": 12,
               "width": 8,
               "height": 6,
               "properties": {
@@ -892,7 +794,7 @@ Resources:
             {
               "type": "metric",
               "x": 0,
-              "y": 30,
+              "y": 18,
               "width": 8,
               "height": 6,
               "properties": {
@@ -918,7 +820,7 @@ Resources:
             {
               "type": "metric",
               "x": 8,
-              "y": 30,
+              "y": 18,
               "width": 8,
               "height": 6,
               "properties": {
@@ -944,7 +846,7 @@ Resources:
             {
               "type": "metric",
               "x": 16,
-              "y": 30,
+              "y": 18,
               "width": 8,
               "height": 6,
               "properties": {
@@ -968,6 +870,104 @@ Resources:
                     "color": "#ff0000"
                   }]
                 }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Messages Received per Minute", "id": "e1"}],
+                  [{"expression": "m2/PERIOD(m2)*60", "label": "Messages Deleted per Minute", "id": "e2"}],
+                  ["AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${DocumentQueue.QueueName}", {"id": "m1", "stat": "Sum", "visible": false}],
+                  [".", "NumberOfMessagesDeleted", ".", ".", {"id": "m2", "stat": "Sum", "visible": false}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "SQS Queue Metrics (per Minute)",
+                "view": "timeSeries",
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y":24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Started per Minute", "id": "e1"}],
+                  [{"expression": "m2/PERIOD(m2)*60", "label": "Succeeded per Minute", "id": "e2"}],
+                  [{"expression": "m3/PERIOD(m3)*60", "label": "Failed per Minute", "id": "e3"}],
+                  ["AWS/States", "ExecutionsStarted", "StateMachineArn", "${DocumentProcessingStateMachine}", {"id": "m1", "stat": "Sum", "visible": false}],
+                  [".", "ExecutionsSucceeded", ".", ".", {"id": "m2", "stat": "Sum", "visible": false}],
+                  [".", "ExecutionsFailed", ".", ".", {"id": "m3", "stat": "Sum", "visible": false}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Workflow Executions (per Minute)",
+                "view": "timeSeries",
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 30,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${TextractFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Textract Function Duration",
+                "period": 300,
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                },
+                "stat": "Average",
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 30,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${BedrockFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Bedrock Function Duration",
+                "period": 300,
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                },
+                "stat": "Average",
+                "view": "timeSeries"
               }
             },
             {
