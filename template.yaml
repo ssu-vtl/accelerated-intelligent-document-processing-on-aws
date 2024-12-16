@@ -57,7 +57,8 @@ Resources:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref CustomerManagedEncryptionKey
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -83,7 +84,8 @@ Resources:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref CustomerManagedEncryptionKey
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -101,7 +103,8 @@ Resources:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref CustomerManagedEncryptionKey
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -113,7 +116,7 @@ Resources:
         DestinationBucketName: !Ref LoggingBucket
         LogFilePrefix: output-bucket-logs/
 
-  DynamoDBEncryptionKey:
+  CustomerManagedEncryptionKey:
     Type: AWS::KMS::Key
     Properties:
       Description: KMS key for DynamoDB encryption
@@ -140,11 +143,11 @@ Resources:
               - kms:DescribeKey
             Resource: '*'
 
-  DynamoDBEncryptionKeyAlias:
+  CustomerManagedEncryptionKeyAlias:
     Type: AWS::KMS::Alias
     Properties:
-      AliasName: !Sub 'alias/${AWS::StackName}-dynamodb-encryption-key'
-      TargetKeyId: !Ref DynamoDBEncryptionKey
+      AliasName: !Sub 'alias/${AWS::StackName}-customer-encryption-key'
+      TargetKeyId: !Ref CustomerManagedEncryptionKey
 
   ExecutionTable:
     Type: AWS::DynamoDB::Table
@@ -162,7 +165,7 @@ Resources:
       SSESpecification:
         SSEEnabled: true
         SSEType: KMS
-        KMSMasterKeyId: !Ref DynamoDBEncryptionKey
+        KMSMasterKeyId: !Ref CustomerManagedEncryptionKey
   
   ConcurrencyTable:
     Type: AWS::DynamoDB::Table
@@ -177,7 +180,7 @@ Resources:
       SSESpecification:
         SSEEnabled: true
         SSEType: KMS
-        KMSMasterKeyId: !Ref DynamoDBEncryptionKey
+        KMSMasterKeyId: !Ref CustomerManagedEncryptionKey
 
   InitializeConcurrencyTableLambda:
    Type: AWS::Serverless::Function
@@ -256,7 +259,7 @@ Resources:
               - kms:ReEncrypt*
               - kms:GenerateDataKey*
               - kms:DescribeKey
-            Resource: !GetAtt DynamoDBEncryptionKey.Arn
+            Resource: !GetAtt CustomerManagedEncryptionKey.Arn
 
   InitializeConcurrencyTableCustomResource:
     Type: AWS::CloudFormation::CustomResource
@@ -305,7 +308,7 @@ Resources:
               - kms:ReEncrypt*
               - kms:GenerateDataKey*
               - kms:DescribeKey
-            Resource: !GetAtt DynamoDBEncryptionKey.Arn
+            Resource: !GetAtt CustomerManagedEncryptionKey.Arn
      Events:
         S3Event:
           Type: CloudWatchEvent
@@ -358,7 +361,7 @@ Resources:
               - kms:ReEncrypt*
               - kms:GenerateDataKey*
               - kms:DescribeKey
-            Resource: !GetAtt DynamoDBEncryptionKey.Arn
+            Resource: !GetAtt CustomerManagedEncryptionKey.Arn
      Events:
         SQSEvent:
           Type: SQS
@@ -406,7 +409,7 @@ Resources:
                 - kms:ReEncrypt*
                 - kms:GenerateDataKey*
                 - kms:DescribeKey
-              Resource: !GetAtt DynamoDBEncryptionKey.Arn
+              Resource: !GetAtt CustomerManagedEncryptionKey.Arn
 
   WorkflowTrackerLogGroup:
     Type: AWS::Logs::LogGroup
@@ -479,7 +482,7 @@ Resources:
               - kms:ReEncrypt*
               - kms:GenerateDataKey*
               - kms:DescribeKey
-            Resource: !GetAtt DynamoDBEncryptionKey.Arn
+            Resource: !GetAtt CustomerManagedEncryptionKey.Arn
   
   TextractFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -519,7 +522,7 @@ Resources:
             - kms:ReEncrypt*
             - kms:GenerateDataKey*
             - kms:DescribeKey
-          Resource: !GetAtt DynamoDBEncryptionKey.Arn
+          Resource: !GetAtt CustomerManagedEncryptionKey.Arn
       - S3CrudPolicy:
           BucketName: !Ref OutputBucket
       - S3ReadPolicy:
@@ -1064,7 +1067,7 @@ Resources:
                 - kms:ReEncrypt*
                 - kms:GenerateDataKey*
                 - kms:DescribeKey
-              Resource: !GetAtt DynamoDBEncryptionKey.Arn
+              Resource: !GetAtt CustomerManagedEncryptionKey.Arn
 
   LookupFunctionLogGroup:
     Type: AWS::Logs::LogGroup
