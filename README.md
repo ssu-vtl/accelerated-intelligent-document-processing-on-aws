@@ -1,28 +1,91 @@
-# transflo-idp
+# Intelligent Document Processing (IDP) Pipeline
 
 Copyright © Amazon.com and Affiliates: This deliverable is considered Developed Content as defined in the AWS Service Terms and the SOW between the parties
 
-## Build, Publish, Deploy
+I'll create a table of contents based on the content of the README document.
 
-### 1. Dependencies
+## Table of Contents
+
+- [Introduction](#introduction)
+  - [Key Features](#key-features)
+  - [Use Cases](#use-cases)
+- [Build, Publish, Deploy, Test](#build-publish-deploy-test)
+  - [Dependencies](#dependencies)
+  - [Build and Publish the solution](#build-and-publish-the-solution)
+  - [Test the solution](#test-the-solution)
+- [Architecture](#architecture)
+  - [Flow Overview](#flow-overview)
+  - [Components](#components)
+- [Concurrency and Throttling Management](#concurrency-and-throttling-management)
+  - [Bedrock Throttling and Retry](#bedrock-throttling-and-retry)
+  - [Step Functions Retry Configuration](#step-functions-retry-configuration)
+  - [Concurrency Control](#concurrency-control)
+- [Monitoring and Logging](#monitoring-and-logging)
+  - [CloudWatch Dashboard](#cloudwatch-dashboard)
+  - [Log Groups](#log-groups)
+- [Document Status Lookup](#document-status-lookup)
+  - [Using the Lookup Script](#using-the-lookup-script)
+  - [Response Format](#response-format)
+- [Additional scripts / utilities](#additional-scripts--utilities)
+- [Configuration / Customization](#configuration--customization)
+  - [Stack Parameters](#stack-parameters)
+  - [Request Service Quota Limits for high volume processing](#request-service-quota-limits-for-high-volume-processing)
+- [Customizing Extraction](#customizing-extraction)
+  - [Extraction Prompts](#extraction-prompts)
+  - [Extraction Attributes](#extraction-attributes)
+- [Troubleshooting Guide](#troubleshooting-guide)
+- [Performance Considerations](#performance-considerations)
+
+
+
+## Introduction
+
+A scalable, serverless solution for automated document processing and information extraction using AWS services. This system combines OCR capabilities with generative AI to convert unstructured documents into structured data at scale.
+
+### Key Features
+
+- **Serverless Architecture**: Built entirely on AWS serverless technologies including Lambda, Step Functions, SQS, and DynamoDB, eliminating infrastructure management overhead
+- **Intelligent Extraction**: Combines Amazon Textract for OCR with Anthropic's Claude (via Amazon Bedrock) for advanced information extraction and understanding
+- **High Throughput Processing**: Handles large volumes of documents through intelligent queuing and concurrency management
+- **Built-in Resilience**: Features comprehensive error handling, automatic retries, and throttling management
+- **Cost Optimization**: Pay-per-use pricing model with built-in controls to manage service quotas
+- **Comprehensive Monitoring**: Rich CloudWatch dashboard with detailed metrics, logs, and alerts for end-to-end visibility
+- **Easy Document Tracking**: Built-in tracking system to monitor document status and processing times
+- **Secure by Design**: Implements encryption at rest, access controls, and secure communication between services
+
+### Use Cases
+
+- Processing invoices, purchase orders, bills of lading, and other document types
+- Extracting information from forms and applications
+- Automating document-heavy workflows
+- Converting legacy paper documents into structured digital data
+- Real-time document processing pipelines
+
+The system is designed to handle various document types and can be customized for specific extraction needs through configuration of the extraction prompts and attributes.
+
+
+## Build, Publish, Deploy, Test
+
+### Dependencies
 
 You need to have the following packages installed on your computer:
 
 1. bash shell (Linux, MacOS, Windows-WSL)
 2. aws (AWS CLI)
 3. sam (AWS SAM)
+4. python 3.11 or later
 
 Copy the repo to your computer. Either:
 - use the git command to clone the repo, if you have access
 - OR, download and expand the ZIP file for the repo, or use the ZIP file that has been shared with you.
 
-## Build and Publish the solution
+### Build and Publish the solution
 
 To build and publish your own template, to your own S3 bucket, so that others can easily deploy a stack from your templates, in your preferred region, here's how.
 
 Navigate into the project root directory and, in a bash shell, run:
 
-1. `./publish.sh <cfn_bucket_basename> <cfn_prefix> <region e.g. us-east-1>`.  
+`./publish.sh <cfn_bucket_basename> <cfn_prefix> <region e.g. us-east-1>`.  
   This:
     - checks your system dependendencies for required packages (see Dependencies above)
     - creates CloudFormation templates and asset zip files
@@ -42,7 +105,7 @@ Done
 
 After you have deployed the stack, check the Outputs tab to inspect names and links to the dashboards, buckets, workflows and other solution resources.
 
-## Test the solution
+### Test the solution
 
 Open the `S3InputBucketConsoleURL` and `S3OutputBucketConsoleURL` using the links in the stack Resources tab.
 Open the `StateMachineConsoleURL` using the link in the stack Resources tab.
@@ -59,23 +122,22 @@ The StepFunctions StateMachine should start executing. Open the `Running` execut
 
 When/if the execution sucessfully finishes, check the `OutputBucket` for the structured data JSON file with extracted fields.
 
-### Steady state volume testing using load simulator script
+#### Steady state volume testing using load simulator script
 
 Use `./scripts/simulate_load.py` to simulate heavy incoming document rates over time. It copies a specified source document from an S3 bucket, many times in parallel, to the designated `InputBucket`. Example - to simulate incoming document rate of 500 docs per minute for 10 minutes, do:
 ```
 $ python ./scripts/simulate_load.py -s source_bucket -k prefix/exampledoc.pdf -d idp-kmsxxxxxxxxx -r 500 -t 10
 ```
 
-### Variable volume testing using dynamic load simulator script
+#### Variable volume testing using dynamic load simulator script
 
 Use `./scripts/simulate_dynamic_load.py` to simulate variable document rates over time. The rate of copying is determined by a CSV schedule file - e.g. [dynamic_schedule.csv](./scripts/dynamic_schedule.csv). It copies a specified source document from an S3 bucket, many times in parallel, to the designated `InputBucket`. Example - to simulate incoming documents based on the minute by minute rates in the schedule, do:
 ```
 $ python ./scripts/simulate_load.py -s source_bucket -k prefix/exampledoc.pdf -d idp-kmsxxxxxxxxx -f schedule.csv
 ```
 
-# Document Processing Pipeline
 
-## Architecture Overview
+## Architecture
 
 ![Arch Diag](./images/IDP.drawio.png)
 
@@ -227,22 +289,22 @@ All include average, p90, and maximum values
 
 ## Additional scripts / utilities
 
-`stop_workflows.sh <stack-name>:` _The Andon Chord! Purges all pending message from the SQS Document Queue, and stops all running State manhine executions._
+`stop_workflows.sh <stack-name>:` _The Andon Chord! Purges all pending message from the SQS Document Queue, and stops all running State machine executions._
 `compare_json_files.py [-h] [--output-dir OUTPUT_DIR] [--debug] bucket folder1 folder2:` _Handy tool to compare JSON files in different folders, for assessing, for example, effects of using different models or prompts._ 
 
-## Configuration Parameters
+## Configuration / Customization
 
 ### Stack Parameters
 ```bash
-  MaxConcurrentWorkflows=800 \                          # Maximum parallel workflows
-  LogRetentionDays=30 \                                 # CloudWatch log retention
-  ErrorThreshold=1 \                                    # Errors before alerting
-  ExecutionTimeThresholdMs=420000                       # Duration threshold in millisecs
-  ExtractionModel='anthropic.claude-3-5-sonnet...'      # Bedrock model for extraction
-  ExtractionPromps='OCR + Page Images'                  # Optionally exclude images from prompt to trade accuracy for cost/throughput.
-  ```
+  MaxConcurrentWorkflows=800                           # Maximum parallel workflows
+  LogRetentionDays=30                                  # CloudWatch log retention
+  ErrorThreshold=1                                     # Errors before alerting
+  ExecutionTimeThresholdMs=420000                      # Duration threshold in millisecs
+  ExtractionModel='anthropic.claude-3-5-sonnet...'     # Bedrock model for extraction
+  ExtractionPrompts='OCR + Page Images'                 # Optionally exclude images from prompt to trade accuracy for cost/throughput.
+```
 
-## Service Quota Limits for high volume processing
+### Request Service Quota Limits for high volume processing
 
 Consider requesting raised quotas for the following services, to avoid throttling errors:
 - Amazon Textract -> DetectDocumentText throttle limit in transactions per second 
@@ -252,6 +314,52 @@ Consider requesting raised quotas for the following services, to avoid throttlin
 - Amazon CloudWatch - Rate of PutMetricData requests
 
 Use the CloudWatch Dashboard to check errors reported by Lambda functions during scale testing, to check for these, or other, service quota limit exceptions.
+
+## Customizing Extraction
+
+The system uses a combination of prompt engineering and predefined attributes to extract information from documents. You can customize both to match your specific document types and extraction needs.
+
+### Extraction Prompts
+
+The main extraction prompts are defined in `src/bedrock_function/prompt_catalog.py`:
+
+```python
+DEFAULT_SYSTEM_PROMPT = "You are a document assistant. Respond only with JSON..."
+BASELINE_PROMPT = """
+<background>
+You are an expert in bill of ladings...
+</background>
+...
+```
+To modify the extraction behavior:
+
+1. Edit the `DEFAULT_SYSTEM_PROMPT` to change the AI assistant's basic behavior
+1. Customize the BASELINE_PROMPT to:
+- Provide domain expertise for your document types
+- Add specific instructions for handling edge cases
+- Modify output formatting requirements
+
+
+### Extraction Attributes
+Attributes to be extracted are defined in `src/bedrock_function/attributes.json`. Each attribute has:
+- Field name
+- Description
+- List of aliases (alternate names for the field)
+
+Example attribute definition:
+```json
+{
+    "Field": "BOL Number",
+    "Description": "A unique number assigned to the Bill of Lading for tracking purposes",
+    "Alias": "Shipment ID, Load ID, Waybill Number, B/L Number"
+}
+```
+To customize attributes:
+1. Add, remove, or modify attributes in attributes.json
+2. For each attribute, provide clear descriptions and comprehensive aliases
+3. Deploy the updated function to apply changes
+
+Note: Changes to prompts or attributes require redeployment of the Bedrock Lambda function.
 
 
 ## Troubleshooting Guide
@@ -274,12 +382,12 @@ Use the CloudWatch Dashboard to check errors reported by Lambda functions during
 
 ## Performance Considerations
 
-2. **Concurrency**
+1. **Concurrency**
    - Controlled via DynamoDB counter
    - Default limit of 800 concurrent workflows
    - Adjustable to max throughput based on Bedrock quotas
 
-1. **SQS Batch Processing**
+2. **SQS Batch Processing**
    - SQS configured for batch size of 50, max delay of 1s.
    - Reduces Lambda invocation overhead
    - Maintains reasonable processing order
