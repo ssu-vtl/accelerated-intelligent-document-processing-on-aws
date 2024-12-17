@@ -68,7 +68,7 @@ $ python ./scripts/simulate_load.py -s source_bucket -k prefix/exampledoc.pdf -d
 
 ### Variable volume testing using dynamic load simulator script
 
-Use `./scripts/simulate_dynamic_load.py` to simulate variable document rates over time. The rate of copying is determined by a CSV schedule file - e.g. [dynamic_schedule.csv](./scripts/dynamic_schedule.csv). It copies a specified source document from an S3 bucket, many times in parallel, to the designated `InputBucket`. Example - to simulate incoming documents based on the minute by minure rates in the schedule, do:
+Use `./scripts/simulate_dynamic_load.py` to simulate variable document rates over time. The rate of copying is determined by a CSV schedule file - e.g. [dynamic_schedule.csv](./scripts/dynamic_schedule.csv). It copies a specified source document from an S3 bucket, many times in parallel, to the designated `InputBucket`. Example - to simulate incoming documents based on the minute by minute rates in the schedule, do:
 ```
 $ python ./scripts/simulate_load.py -s source_bucket -k prefix/exampledoc.pdf -d idp-kmsxxxxxxxxx -f schedule.csv
 ```
@@ -224,6 +224,11 @@ All include average, p90, and maximum values
   }
 }
 ```
+
+## Additional scripts / utilities
+
+`stop_workflows.sh <stack-name>:` _The Andon Chord! Purges all pending message from the SQS Document Queue, and stops all running State manhine executions._
+`compare_json_files.py [-h] [--output-dir OUTPUT_DIR] [--debug] bucket folder1 folder2:` _Handy tool to compare JSON files in different folders, for assessing, for example, effects of using different models or prompts._ 
 
 ## Configuration Parameters
 
