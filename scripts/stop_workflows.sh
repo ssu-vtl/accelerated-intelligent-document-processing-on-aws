@@ -1,12 +1,26 @@
 #!/bin/bash
 
 if [ "$#" -lt 1 ]; then
-    echo "Usage: $0 <state-machine-arn> [region]"
+    echo "Usage: $0 <stack-name>"
     exit 1
 fi
 
-STATE_MACHINE_ARN=$1
-REGION=${2:-us-west-2}
+STACK_NAME=$1
+
+SQS_QUEUE_URL=$(aws cloudformation describe-stacks \
+  --stack-name $STACK_NAME \
+  --query 'Stacks[0].Outputs[?OutputKey==`SQSDocumentQueueUrl`].OutputValue' \
+  --output text)
+
+STATE_MACHINE_ARN=$(aws cloudformation describe-stacks \
+  --stack-name $STACK_NAME \
+  --query 'Stacks[0].Outputs[?OutputKey==`StateMachineArn`].OutputValue' \
+  --output text)
+
+echo "Purging all messages from SQS queue: $SQS_QUEUE_URL"
+aws sqs purge-queue --queue-url $SQS_QUEUE_URL
+
+echo "Stopping all running executions of state machine: $STATE_MACHINE_ARN"
 TOTAL_STOPPED=0
 START_TIME=$(date +%s)
 last_log_time=$START_TIME
@@ -15,7 +29,7 @@ function stop_batch() {
     local executions=$1
     local count=0
     for execution in $executions; do
-        aws stepfunctions stop-execution --execution-arn "$execution" --region "$REGION" &>/dev/null &
+        aws stepfunctions stop-execution --execution-arn "$execution"  &>/dev/null &
         ((count++))
     done
     wait
@@ -38,7 +52,6 @@ while true; do
     executions=$(aws stepfunctions list-executions \
         --state-machine-arn "$STATE_MACHINE_ARN" \
         --status "RUNNING" \
-        --region "$REGION" \
         --max-items 100 \
         --query 'executions[*].executionArn' \
         --output text)
