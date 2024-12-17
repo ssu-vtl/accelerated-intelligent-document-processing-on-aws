@@ -154,8 +154,10 @@ Increase maximum concurrency to maximise throughput for time sensitive workloads
 ### CloudWatch Dashboard
 Access via CloudWatch > Dashboards > `${StackName}-${Region}`
 
-<img src="./images/Dashboard1.png" alt="Dashboard1" width="800">
-<img src="./images/Dashboard2.png" alt="Dashboard2" width="800">
+<img src="./images/Dashboard1.png" alt="Dashboard1" width="800">  
+
+<img src="./images/Dashboard2.png" alt="Dashboard2" width="800">  
+
 <img src="./images/Dashboard3.png" alt="Dashboard3" width="800">
 
 
@@ -166,16 +168,16 @@ Access via CloudWatch > Dashboards > `${StackName}-${Region}`
 All include average, p90, and maximum values
 
 #### Throughput Metrics
+- Document and Page counts
+- LLM Tokens processed 
 - SQS Queue metrics (received/deleted)
 - Step Functions execution counts
 - Textract and Bedrock function invocations and durations
-- Document and Page counts
-- LLM Tokens processed 
 
 #### Error Tracking
-- Failed Step Functions executions
-- Lambda function errors
 - Long-running invocations
+- Lambda function errors
+- Failed Step Functions executions
 
 ### Log Groups
 ```
@@ -235,6 +237,18 @@ All include average, p90, and maximum values
   ExtractionPromps='OCR + Page Images'                  # Optionally exclude images from prompt to trade accuracy for cost/throughput.
   ```
 
+## Service Quota Limits for high volume processing
+
+Consider requesting raised quotas for the following services, to avoid throttling errors:
+- Amazon Textract -> DetectDocumentText throttle limit in transactions per second 
+- Amazon Bedrock -> On-demand InvokeModel tokens per minute for Anthropic Claude 3.5 Sonnet V2
+- Amazon Bedrock -> On-demand InvokeModel requests per minute for Anthropic Claude 3.5 Sonnet V2
+- AWS Lambda -> Concurrent executions
+- Amazon CloudWatch - Rate of PutMetricData requests
+
+Use the CloudWatch Dashboard to check errors reported by Lambda functions during scale testing, to check for these, or other, service quota limit exceptions.
+
+
 ## Troubleshooting Guide
 
 1. **Document Not Processing**
@@ -251,20 +265,21 @@ All include average, p90, and maximum values
    - Check Step Functions execution errors
    - Review Lambda error logs
    - Verify input document format
+   - Check Dead Letter SQS Queues for evidence of any unprocessed events
 
 ## Performance Considerations
-
-1. **Batch Processing**
-   - SQS configured for batch size of 10
-   - Reduces Lambda invocation overhead
-   - Maintains reasonable processing order
 
 2. **Concurrency**
    - Controlled via DynamoDB counter
    - Default limit of 800 concurrent workflows
    - Adjustable to max throughput based on Bedrock quotas
 
-3. **Queue Management**
+1. **SQS Batch Processing**
+   - SQS configured for batch size of 50, max delay of 1s.
+   - Reduces Lambda invocation overhead
+   - Maintains reasonable processing order
+
+3. **SQS Queue Management**
    - Standard queue for higher throughput
    - Visibility timeout matches workflow duration
    - Built-in retry for failed messages

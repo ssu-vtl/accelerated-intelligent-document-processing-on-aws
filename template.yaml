@@ -709,7 +709,7 @@ Resources:
               "type": "metric",
               "x": 0,
               "y": 6,
-              "width": 12,
+              "width": 8,
               "height": 6,
               "properties": {
                 "metrics": [
@@ -729,9 +729,9 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 12,
+              "x": 8,
               "y": 6,
-              "width": 12,
+              "width": 8,
               "height": 6,
               "properties": {
                 "metrics": [
@@ -747,6 +747,20 @@ Resources:
                     "label": "Count per Minute"
                   }
                 }
+              }
+            },
+            {
+              "type": "log",
+              "x": 16,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${WorkflowTrackerLogGroup}' | fields @timestamp, @message | filter @message like /Publishing latency metrics/ | parse @message 'total: *ms' as totalTime |  filter totalTime > ${ExecutionTimeThresholdMs} |  stats count(*) as high_latency_count by bin(1m)",
+                "region": "${AWS::Region}",
+                "title": "Count of documents over latency threshold (${ExecutionTimeThresholdMs}ms)",
+                "stacked": false,
+                "view": "timeSeries"
               }
             },
             {
@@ -1001,32 +1015,6 @@ Resources:
               "width": 12,
               "height": 6,
               "properties": {
-                "query": "SOURCE '${TextractFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Textract Lambda Errors",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 12,
-              "y": 36,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${BedrockFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Bedrock Lambda Errors",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 0,
-              "y": 42,
-              "width": 12,
-              "height": 6,
-              "properties": {
                 "query": "SOURCE '${TextractFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
                 "region": "${AWS::Region}",
                 "title": "Textract Lambda Long Running Invocations",
@@ -1036,7 +1024,7 @@ Resources:
             {
               "type": "log",
               "x": 12,
-              "y": 42,
+              "y": 36,
               "width": 12,
               "height": 6,
               "properties": {
@@ -1049,7 +1037,85 @@ Resources:
             {
               "type": "log",
               "x": 0,
+              "y": 42,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${TextractFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Textract Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 42,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${BedrockFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Bedrock Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
               "y": 48,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${QueueSenderLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Queue Sender Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 48,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${QueueProcessorLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Queue Processor Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 54,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${WorkflowTrackerLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Workflow Tracker Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 54,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${LookupFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Lookup Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 60,
               "width": 24,
               "height": 6,
               "properties": {
