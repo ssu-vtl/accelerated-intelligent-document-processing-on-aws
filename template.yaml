@@ -152,6 +152,8 @@ Resources:
   ExecutionTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: object_key
@@ -270,17 +272,26 @@ Resources:
   DocumentQueueDLQ:
     Type: AWS::SQS::Queue
     Properties:
+      KmsMasterKeyId: !Ref CustomerManagedEncryptionKey
       VisibilityTimeout: 30
-      MessageRetentionPeriod: 345600  # 4 days for DLQ
+      MessageRetentionPeriod: 345600 # 4 days
 
   DocumentQueue:
     Type: AWS::SQS::Queue
     Properties:
+      KmsMasterKeyId: !Ref CustomerManagedEncryptionKey
       VisibilityTimeout: 30
       MessageRetentionPeriod: 86400  # 1 day 
       RedrivePolicy:
         maxReceiveCount: 1000  # should retry up to 8hrs (1000 * 30 sec visibility) before moving to DLQ
         deadLetterTargetArn: !GetAtt DocumentQueueDLQ.Arn
+
+  QueueSenderDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId: !Ref CustomerManagedEncryptionKey
+      VisibilityTimeout: 30
+      MessageRetentionPeriod: 345600 # 4 days
 
   QueueSender:
    Type: AWS::Serverless::Function 
@@ -289,6 +300,9 @@ Resources:
      Handler: index.handler
      Runtime: python3.11
      Timeout: 30
+     DeadLetterQueue:
+       Type: SQS
+       TargetArn: !GetAtt QueueSenderDLQ.Arn
      LoggingConfig:
        LogGroup: !Ref QueueSenderLogGroup
      Environment:
@@ -378,6 +392,13 @@ Resources:
      LogGroupName: !Sub "/${AWS::StackName}/lambda/queue-processor"
      RetentionInDays: !Ref LogRetentionDays
 
+  WorkflowTrackerDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId: !Ref CustomerManagedEncryptionKey
+      VisibilityTimeout: 30
+      MessageRetentionPeriod: 345600 # 4 days
+
   WorkflowTracker:
     Type: AWS::Serverless::Function
     Properties:
@@ -385,6 +406,9 @@ Resources:
       Handler: index.handler
       Runtime: python3.11
       Timeout: 30
+      DeadLetterQueue:
+        Type: SQS
+        TargetArn: !GetAtt WorkflowTrackerDLQ.Arn
       LoggingConfig:
         LogGroup: !Ref WorkflowTrackerLogGroup
       Environment:
