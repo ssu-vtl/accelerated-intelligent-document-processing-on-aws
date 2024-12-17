@@ -171,29 +171,34 @@ def invoke_llm(page_images, system_prompts, task_prompt, document_text, attribut
 def get_document_page_images(pdf_content):
     pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
     page_images = []
+    target_width, target_height = 951, 1268  # Anthropic recommended max resolution
+    target_resolution = target_width * target_height
+    
     for page_num in range(len(pdf_document)):
         page = pdf_document.load_page(page_num)
         pix = page.get_pixmap()
         img_bytes = pix.tobytes(output="jpeg")
         
-        # Add to images without resizing
-        # page_images.append(img_bytes)
-
-        # resize images
         image = Image.open(io.BytesIO(img_bytes))
-        resized_image = image.resize((951, 1268))
+        current_width, current_height = image.size
+        current_resolution = current_width * current_height
+        
+        # Only resize if the total pixel count is higher than target
+        if current_resolution > target_resolution:
+            logger.info(f"Downsizing image resolution from {current_width} x {current_height} = {current_resolution} to {target_width} x {target_height} = {target_resolution}")
+            resized_image = image.resize((target_width, target_height))
+        else:
+            resized_image = image
+            
         img_byte_array = io.BytesIO()
         resized_image.save(img_byte_array, format="JPEG")
         page_images.append(img_byte_array.getvalue())
+    
     pdf_document.close()
     return page_images
 
 
 def write_json_to_s3(json_string, bucket_name, object_key):
-
-    base_name = os.path.splitext(object_key)[0]  # Extract the base file name
-    output_file_key = f"{base_name}.json"
-
     s3_client.put_object(
         Bucket=bucket_name,
         Key=object_key,
