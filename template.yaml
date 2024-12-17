@@ -1178,8 +1178,11 @@ Outputs:
   S3OutputBucketConsoleURL:
     Description: Output S3 bucket console URL
     Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${OutputBucket}
+  StateMachineArn:
+    Description: Step Functions State machine ARN
+    Value: !GetAtt DocumentProcessingStateMachine.Arn
   StateMachineConsoleURL:
-    Description: State machine console URL
+    Description: Step Functions State machine console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/states/home?region=${AWS::Region}#/statemachines/view/${DocumentProcessingStateMachine}
   CWDashboardConsoleURL:
     Description: CloudWatch Dashboard URL
@@ -1202,6 +1205,9 @@ Outputs:
   LambdaLookupFunctionConsoleURL:
     Description: Lambda function console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/lambda/home?region=${AWS::Region}#/functions/${LookupFunction}
+  SQSDocumentQueueUrl:
+    Description: SQS Queue URL
+    Value: !Ref DocumentQueue
   SQSDocumentQueueConsoleURL:
     Description: SQS Queue console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/sqs/v2/home?region=${AWS::Region}#/queues/${DocumentQueue}
