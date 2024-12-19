@@ -2,6 +2,7 @@
 # Copyright © Amazon.com and Affiliates: This deliverable is considered Developed Content as defined in the AWS Service Terms and the SOW between the parties.
 
 import boto3
+from botocore.config import Config
 import json
 from deepdiff import DeepDiff
 from collections import defaultdict
@@ -164,6 +165,77 @@ def compare_json_sets(bucket_name, folder1, folder2):
     
     return comparison_results, summary_stats, field_differences, invalid_files
 
+def get_ai_summary(comparison_results, summary_stats, field_differences):
+    """
+    Generate an AI-powered summary of the differences using Amazon Bedrock
+    """
+    # Configure Bedrock client
+    bedrock = boto3.client(
+        service_name='bedrock-runtime',
+        config=Config(region_name='us-east-1')
+    )
+    
+    # Prepare the analysis prompt
+    differences_examples = []
+    for result in comparison_results:
+        if result['status'] == 'Different' and result['differences']:
+            differences_examples.append(f"File: {result['filename']}\n{result['differences']}")
+    
+    # Create a summary of field differences
+    field_diff_summary = "\n".join([f"{field}: {count} differences" 
+                                  for field, count in sorted(field_differences.items(), 
+                                                          key=lambda x: x[1], 
+                                                          reverse=True)])
+    
+    prompt = f"""Analyze the following JSON file differences and provide a detailed summary. 
+    Focus on:
+    1. Most commonly different fields
+    2. Whether differences are substantial (affecting meaning/operations) or cosmetic (formatting)
+    3. Patterns in the differences
+    4. Potential data quality issues or concerns
+
+    Summary Statistics:
+    {json.dumps(summary_stats, indent=2)}
+
+    Field-level Differences:
+    {field_diff_summary}
+
+    Representative Examples of Differences:
+    {differences_examples[:5]}  # Include first 5 examples
+
+    Provide a structured analysis similar to this format:
+    1. Most Common Types of Differences
+    2. Substantial Differences
+    3. Cosmetic Differences
+    4. Overall Assessment
+    """
+
+    # Call Bedrock
+    try:
+        body = json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 1024,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.5
+        })
+        
+        response = bedrock.invoke_model(
+            modelId='us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+            body=body
+        )
+        
+        response_body = json.loads(response['body'].read())
+        return response_body['content'][0]['text']
+    
+    except Exception as e:
+        logger.error(f"Error generating AI summary: {str(e)}")
+        return f"Error generating AI summary: {str(e)}"
+
 def generate_report(comparison_results, summary_stats, field_differences, invalid_files, output_dir='.'):
     """
     Generate detailed report of the comparison
@@ -171,11 +243,20 @@ def generate_report(comparison_results, summary_stats, field_differences, invali
     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     os.makedirs(output_dir, exist_ok=True)
     
+    # Generate AI summary
+    ai_summary = get_ai_summary(comparison_results, summary_stats, field_differences)
+    
     # Generate detailed report
     report_path = f'{output_dir}/comparison_report_{timestamp}.txt'
     with open(report_path, 'w') as f:
         f.write("JSON Files Comparison Report\n")
         f.write("==========================\n\n")
+        
+        # Write AI Summary
+        f.write("AI-Generated Analysis\n")
+        f.write("====================\n")
+        f.write(ai_summary)
+        f.write("\n\n" + "="*50 + "\n\n")
         
         # Write summary statistics
         f.write("Summary Statistics:\n")
@@ -220,35 +301,8 @@ def generate_report(comparison_results, summary_stats, field_differences, invali
                 f.write("Differences:\n")
                 f.write(result['differences'])
             f.write("\n" + "-"*50 + "\n")
-    
-    # Generate Excel summary
-    summary_df = pd.DataFrame({
-        'Metric': [
-            'Total Files',
-            'Identical',
-            'Different',
-            'Missing in Set 1',
-            'Missing in Set 2',
-            'Invalid JSON in Set 1',
-            'Invalid JSON in Set 2',
-            'Comparison Errors'
-        ],
-        'Count': [
-            sum(summary_stats.values()),
-            summary_stats['identical'],
-            summary_stats['different'],
-            summary_stats['missing_in_set1'],
-            summary_stats['missing_in_set2'],
-            summary_stats['invalid_json_set1'],
-            summary_stats['invalid_json_set2'],
-            summary_stats['comparison_error']
-        ]
-    })
-    
-    excel_path = f'{output_dir}/comparison_summary_{timestamp}.xlsx'
-    summary_df.to_excel(excel_path, index=False)
-    
-    return report_path, excel_path
+      
+    return report_path
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Compare JSON files between two S3 folders')
@@ -277,12 +331,11 @@ def main():
     )
     
     logger.info("\nGenerating reports...")
-    report_path, excel_path = generate_report(
+    report_path = generate_report(
         comparison_results, summary_stats, field_differences, invalid_files, args.output_dir
     )
     logger.info(f"\nComparison complete! Reports generated:")
     logger.info(f"Detailed report: {report_path}")
-    logger.info(f"Summary Excel: {excel_path}")
 
 if __name__ == "__main__":
     main()
