@@ -6,6 +6,7 @@
         "Resource": "${TextractFunctionArn}",
         "Parameters": {
           "execution_arn.$": "$$.Execution.Id",
+          "working_bucket": "${WorkingBucket}",
           "input.$": "$"
         },
         "ResultPath": "$.textractResult",
@@ -25,7 +26,7 @@
         "Parameters": {
           "execution_arn.$": "$$.Execution.Id",
           "textract.$": "$.textractResult",
-          "output_bucket_name": "${OutputBucket}",
+          "output_bucket": "${OutputBucket}",
           "detail": {
             "object": {
               "key.$": "$.detail.object.key"

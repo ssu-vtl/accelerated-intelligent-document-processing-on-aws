@@ -64,6 +64,9 @@ def invoke_llm(page_images, system_prompts, task_prompt, document_text, attribut
     system_prompt = [{"text": system_prompts}]
     content = [{"text": task_prompt}]
 
+    # Claude currently supports max 20 image attachments
+    # Per science team recommendation, we limit image attachments to 1st 20 pages.
+    # TODO: Assess potential accuracy impact for longer documents, and if necessary consider alternate approaches 
     if len(page_images) > 20:
         page_images = page_images[:20] 
         logger.error(f"Number of pages in the document is greater than 20. Processing with only the first 20 pages")
@@ -168,36 +171,6 @@ def invoke_llm(page_images, system_prompts, task_prompt, document_text, attribut
         raise last_exception
 
 
-def get_document_page_images(pdf_content):
-    pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
-    page_images = []
-    target_width, target_height = 951, 1268  # Anthropic recommended max resolution
-    target_resolution = target_width * target_height
-    
-    for page_num in range(len(pdf_document)):
-        page = pdf_document.load_page(page_num)
-        pix = page.get_pixmap()
-        img_bytes = pix.tobytes(output="jpeg")
-        
-        image = Image.open(io.BytesIO(img_bytes))
-        current_width, current_height = image.size
-        current_resolution = current_width * current_height
-        
-        # Only resize if the total pixel count is higher than target
-        if current_resolution > target_resolution:
-            logger.info(f"Downsizing image resolution from {current_width} x {current_height} = {current_resolution} to {target_width} x {target_height} = {target_resolution}")
-            resized_image = image.resize((target_width, target_height))
-        else:
-            resized_image = image
-            
-        img_byte_array = io.BytesIO()
-        resized_image.save(img_byte_array, format="JPEG")
-        page_images.append(img_byte_array.getvalue())
-    
-    pdf_document.close()
-    return page_images
-
-
 def write_json_to_s3(json_string, bucket_name, object_key):
     s3_client.put_object(
         Bucket=bucket_name,
@@ -208,35 +181,129 @@ def write_json_to_s3(json_string, bucket_name, object_key):
     logger.info(f"JSON file successfully written to s3://{bucket_name}/{object_key}")
 
 
+def read_parsed_text_from_s3(bucket, prefix):
+    """Read and combine all parsed text files from S3."""
+    try:
+        # List all text files in the parsed text folder
+        response = s3_client.list_objects_v2(
+            Bucket=bucket,
+            Prefix=f"{prefix}/text_parsed/"
+        )
+        
+        if 'Contents' not in response:
+            raise ValueError(f"No parsed text files found in s3://{bucket}/{prefix}/text_parsed/")
+            
+        # Sort by key to maintain page order
+        text_files = sorted(response['Contents'], key=lambda x: x['Key'])
+        
+        # Read and combine all text files
+        document_text = []
+        for file in text_files:
+            response = s3_client.get_object(Bucket=bucket, Key=file['Key'])
+            content = json.loads(response['Body'].read().decode('utf-8'))
+            document_text.append(content['text'])
+            
+        return '\n'.join(document_text)
+        
+    except Exception as e:
+        logger.error(f"Error reading parsed text from S3: {e}")
+        raise
+
+def read_page_images_from_s3(bucket, prefix, target_width=951, target_height=1268):
+    """ Read all page images from S3 and resize if needed. """
+    target_resolution = target_width * target_height
+    
+    try:
+        # List all images in the images folder
+        response = s3_client.list_objects_v2(
+            Bucket=bucket,
+            Prefix=f"{prefix}/images/"
+        )
+        
+        if 'Contents' not in response:
+            raise ValueError(f"No image files found in s3://{bucket}/{prefix}/images/")
+            
+        # Sort by key to maintain page order
+        image_files = sorted(response['Contents'], key=lambda x: x['Key'])
+        
+        # Read all images
+        page_images = []
+        for file in image_files:
+            response = s3_client.get_object(Bucket=bucket, Key=file['Key'])
+            image_data = response['Body'].read()
+            
+            # Open image and check resolution
+            image = Image.open(io.BytesIO(image_data))
+            current_width, current_height = image.size
+            current_resolution = current_width * current_height
+            
+            # Resize if current resolution exceeds target
+            if current_resolution > target_resolution:
+                logger.info(f"Downsizing image resolution from {current_width} x {current_height} = {current_resolution} "
+                          f"to {target_width} x {target_height} = {target_resolution}")
+                resized_image = image.resize((target_width, target_height))
+            else:
+                resized_image = image
+            
+            # Convert to byte array
+            img_byte_array = io.BytesIO()
+            resized_image.save(img_byte_array, format="JPEG")
+            page_images.append(img_byte_array.getvalue())
+            
+        return page_images
+        
+    except Exception as e:
+        logger.error(f"Error reading page images from S3: {e}")
+        raise
+
 def handler(event, context):
     logger.info(f"Event: {json.dumps(event)}")
-    document_text = event.get("textract").get("document_text")
-    input_bucket_name = event.get("textract").get("input_bucket_name")
-    input_object_key = event.get("textract").get("input_object_key")
-    output_bucket_name = event.get("output_bucket_name")
-    output_object_key = input_object_key + ".json"
     
-    # Get the PDF from S3
+    # Get parameters from event
+    working_bucket = event.get("textract", {}).get("working_bucket")
+    working_prefix = event.get("textract", {}).get("working_prefix")
+    object_key = event.get("textract", {}).get("object_key")
+    output_bucket = event.get("output_bucket")
+    output_object_key = object_key + ".json"
+    
+    if not all([working_bucket, working_prefix, object_key, output_bucket]):
+        raise ValueError("Missing required parameters in event")
+
+    # Read document text from parsed text files in S3
     t0 = time.time()
-    response = s3_client.get_object(Bucket=input_bucket_name, Key=input_object_key)
-    pdf_content = response['Body'].read()
+    document_text = read_parsed_text_from_s3(working_bucket, working_prefix)
     t1 = time.time()
-    logger.info(f"Time taken for S3 GetObject: {t1-t0:.6f} seconds")
+    logger.info(f"Time taken to read parsed text from S3: {t1-t0:.6f} seconds")
+
+    # Read page images from S3
     page_images = []
     if OCR_TEXT_ONLY:
-        logger.info("OCR_TEXT_ONLY is True, skipping PDF page image processing")
+        logger.info("OCR_TEXT_ONLY is True, skipping page image reading")
     else:
-        page_images = get_document_page_images(pdf_content)
+        page_images = read_page_images_from_s3(working_bucket, working_prefix)
+    
+    # Load attributes
     with open("attributes.json", 'r') as file:
         attributes_list = json.load(file)
     t2 = time.time() 
     logger.info(f"Time taken to load page images and attributes: {t2-t1:.6f} seconds")
-    extracted_entites_str = invoke_llm(page_images, DEFAULT_SYSTEM_PROMPT, BASELINE_PROMPT, document_text, attributes_list)
+
+    # Process with LLM
+    extracted_entites_str = invoke_llm(
+        page_images, 
+        DEFAULT_SYSTEM_PROMPT, 
+        BASELINE_PROMPT, 
+        document_text, 
+        attributes_list
+    )
     t3 = time.time() 
     logger.info(f"Time taken by bedrock/claude: {t3-t2:.6f} seconds")
+
+    # Write metrics and results
     put_metric('InputDocuments', 1)
     put_metric('InputDocumentPages', len(page_images))
-    write_json_to_s3(extracted_entites_str, output_bucket_name, output_object_key)
+    write_json_to_s3(extracted_entites_str, output_bucket, output_object_key)
     t4 = time.time() 
     logger.info(f"Time taken to write extracted entities to S3: {t4-t3:.6f} seconds")
+
     return extracted_entites_str
