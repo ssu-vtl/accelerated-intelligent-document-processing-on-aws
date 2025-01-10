@@ -114,6 +114,35 @@ Resources:
         DestinationBucketName: !Ref LoggingBucket
         LogFilePrefix: input-bucket-logs/
 
+  WorkingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref CustomerManagedEncryptionKey
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LoggingBucket
+        LogFilePrefix: working-bucket-logs/
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteAfterNDays
+            Status: Enabled
+            ExpirationInDays: 30
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+
   OutputBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -496,10 +525,11 @@ Resources:
       Handler: index.handler
       Runtime: python3.11
       Timeout: 900
-      MemorySize: 512
+      MemorySize: 4096
       Environment:
         Variables:
           METRIC_NAMESPACE: !Ref AWS::StackName
+          MAX_WORKERS: 20
       LoggingConfig:
         LogGroup: !Ref TextractFunctionLogGroup
       Policies:
@@ -510,6 +540,8 @@ Resources:
               - Effect: Allow
                 Action: textract:DetectDocumentText
                 Resource: '*'
+        - S3CrudPolicy:
+            BucketName: !Ref WorkingBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
         - Statement:
@@ -565,6 +597,8 @@ Resources:
             - kms:DescribeKey
           Resource: !GetAtt CustomerManagedEncryptionKey.Arn
       - S3CrudPolicy:
+          BucketName: !Ref WorkingBucket
+      - S3CrudPolicy:
           BucketName: !Ref OutputBucket
       - S3ReadPolicy:
           BucketName: !Ref InputBucket
@@ -582,6 +616,7 @@ Resources:
       DefinitionSubstitutions:
         TextractFunctionArn: !GetAtt TextractFunction.Arn
         BedrockFunctionArn: !GetAtt BedrockFunction.Arn
+        WorkingBucket: !Ref WorkingBucket
         OutputBucket: !Ref OutputBucket
       Logging:
         Level: ALL
@@ -1195,6 +1230,12 @@ Outputs:
   S3OutputBucketConsoleURL:
     Description: Output S3 bucket console URL
     Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${OutputBucket}
+  S3WorkingBucketName:
+    Description: Output S3 bucket name
+    Value: !Ref OutputBucket
+  S3WorkingBucketConsoleURL:
+    Description: Working S3 bucket console URL (stores intermediate files, images and OCR data)
+    Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${WorkingBucket}
   StateMachineArn:
     Description: Step Functions State machine ARN
     Value: !GetAtt DocumentProcessingStateMachine.Arn

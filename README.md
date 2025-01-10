@@ -122,6 +122,20 @@ The StepFunctions StateMachine should start executing. Open the `Running` execut
 
 When/if the execution sucessfully finishes, check the `OutputBucket` for the structured data JSON file with extracted fields.
 
+### Testing individual lambda functions locally
+
+For example, to test the `TextractFunction` lambda locally:
+- identify your input and working S3 buckets, and a test PDF file in the input bucket - add them to `testing/textract_event.json`
+- Verify `testing/env.json` and change region if necessary
+- run the publish script as described above to package the code
+- use the sam cli to run the function locally in a container, as shown below:
+``` 
+sam local invoke TextractFunction -e testing/bedrock_event.json --env-vars testing/env.json
+```
+
+Follow similar process to test other lambda functions locally.
+
+
 #### Steady state volume testing using load simulator script
 
 Use `./scripts/simulate_load.py` to simulate heavy incoming document rates over time. It copies a specified source document from an S3 bucket, many times in parallel, to the designated `InputBucket`. Example - to simulate incoming document rate of 500 docs per minute for 10 minutes, do:
