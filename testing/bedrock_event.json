@@ -1,0 +1,9 @@
+{
+  "textract": {
+    "input_bucket": "<INPUT_BUCKET>", 
+    "object_key": "<PATH_TO_PDF_FILE>",
+    "working_bucket": "<WORKING_BUCKET>", 
+    "working_prefix": "<PATH_TO_PDF_FILE>"
+   },
+   "output_bucket": "<OUTPUT_BUCKET>"
+}
