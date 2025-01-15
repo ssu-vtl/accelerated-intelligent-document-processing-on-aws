@@ -111,8 +111,9 @@ Resources:
         ModelDataUrl: !Ref UDOPModelArtifactPath
         Environment:
           SAGEMAKER_PROGRAM: inference.py
-          SAGEMAKER_SUBMIT_DIRECTORY: code
+          SAGEMAKER_SUBMIT_DIRECTORY: /opt/ml/model/code
           SAGEMAKER_CONTAINER_LOG_LEVEL: 20
+          SAGEMAKER_REGION: !Ref AWS::Region
 
   UDOPEndpointConfig:
     Type: AWS::SageMaker::EndpointConfig

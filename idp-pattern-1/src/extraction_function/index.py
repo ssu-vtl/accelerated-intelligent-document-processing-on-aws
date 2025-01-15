@@ -171,6 +171,43 @@ def invoke_llm(page_images, system_prompts, task_prompt, document_text, attribut
         raise last_exception
 
 
+def get_text_content(bucket, text_path):
+    """Read text content from a single S3 path"""
+    try:
+        # Extract key from s3:// URL
+        key = text_path.replace(f"s3://{bucket}/", "")
+        response = s3_client.get_object(Bucket=bucket, Key=key)
+        content = json.loads(response['Body'].read().decode('utf-8'))
+        return content.get('text', '')
+    except Exception as e:
+        logger.error(f"Error reading text from {text_path}: {e}")
+        raise
+
+def get_image_content(bucket, image_path, target_width=951, target_height=1268):
+    """Read and process a single image from S3"""
+    try:
+        # Extract key from s3:// URL
+        key = image_path.replace(f"s3://{bucket}/", "")
+        response = s3_client.get_object(Bucket=bucket, Key=key)
+        image_data = response['Body'].read()
+        
+        image = Image.open(io.BytesIO(image_data))
+        current_width, current_height = image.size
+        current_resolution = current_width * current_height
+        target_resolution = target_width * target_height
+        
+        if current_resolution > target_resolution:
+            logger.info(f"Downsizing image from {current_width}x{current_height}")
+            image = image.resize((target_width, target_height))
+        
+        img_byte_array = io.BytesIO()
+        image.save(img_byte_array, format="JPEG")
+        return img_byte_array.getvalue()
+        
+    except Exception as e:
+        logger.error(f"Error reading image from {image_path}: {e}")
+        raise
+
 def write_json_to_s3(json_string, bucket_name, object_key):
     s3_client.put_object(
         Bucket=bucket_name,
@@ -180,130 +217,84 @@ def write_json_to_s3(json_string, bucket_name, object_key):
     )
     logger.info(f"JSON file successfully written to s3://{bucket_name}/{object_key}")
 
-
-def read_parsed_text_from_s3(bucket, prefix):
-    """Read and combine all parsed text files from S3."""
-    try:
-        # List all text files in the parsed text folder
-        response = s3_client.list_objects_v2(
-            Bucket=bucket,
-            Prefix=f"{prefix}/text_parsed/"
-        )
-        
-        if 'Contents' not in response:
-            raise ValueError(f"No parsed text files found in s3://{bucket}/{prefix}/text_parsed/")
-            
-        # Sort by key to maintain page order
-        text_files = sorted(response['Contents'], key=lambda x: x['Key'])
-        
-        # Read and combine all text files
-        document_text = []
-        for file in text_files:
-            response = s3_client.get_object(Bucket=bucket, Key=file['Key'])
-            content = json.loads(response['Body'].read().decode('utf-8'))
-            document_text.append(content['text'])
-            
-        return '\n'.join(document_text)
-        
-    except Exception as e:
-        logger.error(f"Error reading parsed text from S3: {e}")
-        raise
-
-def read_page_images_from_s3(bucket, prefix, target_width=951, target_height=1268):
-    """ Read all page images from S3 and resize if needed. """
-    target_resolution = target_width * target_height
-    
-    try:
-        # List all images in the images folder
-        response = s3_client.list_objects_v2(
-            Bucket=bucket,
-            Prefix=f"{prefix}/images/"
-        )
-        
-        if 'Contents' not in response:
-            raise ValueError(f"No image files found in s3://{bucket}/{prefix}/images/")
-            
-        # Sort by key to maintain page order
-        image_files = sorted(response['Contents'], key=lambda x: x['Key'])
-        
-        # Read all images
-        page_images = []
-        for file in image_files:
-            response = s3_client.get_object(Bucket=bucket, Key=file['Key'])
-            image_data = response['Body'].read()
-            
-            # Open image and check resolution
-            image = Image.open(io.BytesIO(image_data))
-            current_width, current_height = image.size
-            current_resolution = current_width * current_height
-            
-            # Resize if current resolution exceeds target
-            if current_resolution > target_resolution:
-                logger.info(f"Downsizing image resolution from {current_width} x {current_height} = {current_resolution} "
-                          f"to {target_width} x {target_height} = {target_resolution}")
-                resized_image = image.resize((target_width, target_height))
-            else:
-                resized_image = image
-            
-            # Convert to byte array
-            img_byte_array = io.BytesIO()
-            resized_image.save(img_byte_array, format="JPEG")
-            page_images.append(img_byte_array.getvalue())
-            
-        return page_images
-        
-    except Exception as e:
-        logger.error(f"Error reading page images from S3: {e}")
-        raise
-
 def handler(event, context):
     logger.info(f"Event: {json.dumps(event)}")
     
     # Get parameters from event
-    working_bucket = event.get("textract", {}).get("working_bucket")
-    working_prefix = event.get("textract", {}).get("working_prefix")
-    object_key = event.get("textract", {}).get("object_key")
+    input_bucket = event.get("ClassificationResult", {}).get("input_bucket")
+    working_bucket = event.get("ClassificationResult", {}).get("working_bucket")
+    working_prefix = event.get("ClassificationResult", {}).get("working_prefix")
+    object_key = event.get("ClassificationResult", {}).get("object_key")
+    num_pages = event.get("ClassificationResult", {}).get("num_pages")
+    class_label = event.get("ClassificationResult", {}).get("class_label")
+    pages = event.get("ClassificationResult", {}).get("pages")
     output_bucket = event.get("output_bucket")
-    output_object_key = object_key + ".json"
-    
-    if not all([working_bucket, working_prefix, object_key, output_bucket]):
+    output_prefix = object_key
+
+    if not all([pages, working_bucket, class_label, output_bucket]):
         raise ValueError("Missing required parameters in event")
 
-    # Read document text from parsed text files in S3
-    t0 = time.time()
-    document_text = read_parsed_text_from_s3(working_bucket, working_prefix)
-    t1 = time.time()
-    logger.info(f"Time taken to read parsed text from S3: {t1-t0:.6f} seconds")
+    # Sort pages by page number
+    sorted_page_numbers = sorted(pages.keys(), key=int)
+    start_page = int(sorted_page_numbers[0])
+    end_page = int(sorted_page_numbers[-1])
+    logger.info(f"Processing {len(sorted_page_numbers)} pages from {object_key}, class {class_label}: {start_page}-{end_page}")
 
-    # Read page images from S3
-    page_images = []
-    if OCR_TEXT_ONLY:
-        logger.info("OCR_TEXT_ONLY is True, skipping page image reading")
-    else:
-        page_images = read_page_images_from_s3(working_bucket, working_prefix)
+    # Read document text from all pages in order
+    t0 = time.time()
+    document_texts = []
+    for page_num in sorted_page_numbers:
+        page_data = pages[page_num]
+        text_path = page_data['textract_document_text_parsed_path']
+        page_text = get_text_content(working_bucket, text_path)
+        document_texts.append(page_text)
     
+    document_text = '\n'.join(document_texts)
+    t1 = time.time()
+    logger.info(f"Time taken to read text content: {t1-t0:.2f} seconds")
+
+    # Read page images if needed
+    page_images = []
+    for page_num in sorted_page_numbers:
+        page_data = pages[page_num]
+        image_path = page_data['image_path']
+        image_content = get_image_content(working_bucket, image_path)
+        page_images.append(image_content)
+    
+    t2 = time.time()
+    logger.info(f"Time taken to read images: {t2-t1:.2f} seconds")
+
     # Load attributes
     with open("attributes.json", 'r') as file:
         attributes_list = json.load(file)
-    t2 = time.time() 
-    logger.info(f"Time taken to load page images and attributes: {t2-t1:.6f} seconds")
 
     # Process with LLM
-    extracted_entites_str = invoke_llm(
-        page_images, 
-        DEFAULT_SYSTEM_PROMPT, 
-        BASELINE_PROMPT, 
-        document_text, 
+    extracted_entities_str = invoke_llm(
+        page_images,
+        DEFAULT_SYSTEM_PROMPT,
+        BASELINE_PROMPT,
+        document_text,
         attributes_list
     )
-    t3 = time.time() 
-    logger.info(f"Time taken by bedrock/claude: {t3-t2:.6f} seconds")
+    t3 = time.time()
+    logger.info(f"Time taken by bedrock/claude: {t3-t2:.2f} seconds")
 
-    # Write metrics and results
+    # Write results
+    output_key = f"{output_prefix}/{class_label}/Pages_{start_page}_to_{end_page}.json"
+    write_json_to_s3(extracted_entities_str, output_bucket, output_key)
+    
+    # Track metrics
     put_metric('InputDocuments', 1)
-    put_metric('InputDocumentPages', len(page_images))
-    write_json_to_s3(extracted_entites_str, output_bucket, output_object_key)
-    t4 = time.time() 
-    logger.info(f"Time taken to write extracted entities to S3: {t4-t3:.6f} seconds")
-
-    return extracted_entites_str
+    put_metric('InputDocumentPages', len(pages))
+    
+    result = {
+        "input_bucket": input_bucket, 
+        "object_key": object_key,
+        "class_label": class_label,
+        "num_pages": len(pages),
+        "page_numbers": sorted_page_numbers,
+        "extracted_entities": extracted_entities_str,
+        "output_location": f"s3://{output_bucket}/{output_key}"
+    }
+    
+    return result
