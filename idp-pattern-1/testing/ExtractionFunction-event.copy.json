@@ -1,0 +1,10 @@
+{
+  "textract": {
+    "input_bucket": "bobs-sandbox", 
+    "object_key": "scratch/900PagePacket.pdf",
+    "working_bucket": "bobs-sandbox-working-bucket", 
+    "working_prefix": "scratch/900PagePacket.pdf", 
+    "num_pages": 909
+   },
+   "output_bucket": "bobs-sandbox-output-bucket"
+}

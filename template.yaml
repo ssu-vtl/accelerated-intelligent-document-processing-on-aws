@@ -2,10 +2,11 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Document processing pipeline with Textract and Bedrock
+Description: AWS GenAI IDP Accelerator (v0.2.0)
 
 Parameters:
 
+  # Pipeline Configuration
   MaxConcurrentWorkflows:
     Type: Number
     Default: 800
@@ -30,26 +31,60 @@ Parameters:
     Description: Number of days to retain CloudWatch logs
     AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
 
-  ExtractionModel:
+  # Classification and Packet Splitting Configuration
+  IDPPattern:
     Type: String
-    Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
+    Default: Pattern1
     AllowedValues:
-      - 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
-      - 'us.amazon.nova-pro-v1:0'
-    Description: Bedrock Model ID to use for Extraction
+      - Pattern1
+    Description: Choose from built-in IDP workflow patterns - see README for pattern descriptions
 
-  ExtractionPrompts:
+  UDOPModelArtifactPath:
     Type: String
-    Default: 'OCR Text + Page Images'
-    AllowedValues:
-      - 'OCR Text Only'
-      - 'OCR Text + Page Images'
-    Description: Choose whether to attach page image data along with OCR text, in extraction prompts 
+    Default: ''
+    AllowedPattern: "^(|s3://.*)$"
+    Description: When IDPPattern is "Pattern1", provide S3 path to the UDOP model.tar.gz file (e.g., s3://bucket-name/path/to/model.tar.gz)
+
+
+Rules:
+
+  UDOPModelArtifactPath:
+    RuleCondition:
+      !Equals [
+        !Ref IDPPattern,
+        "Pattern1",
+      ]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref UDOPModelArtifactPath, ""]]
+        AssertDescription:
+          UDOPModelArtifactPath is required when IDPPattern
+          is 'Pattern1'
 
 Conditions:
-  IsOCRTextOnly: !Equals [!Ref ExtractionPrompts, "OCR Text Only"]
+
+  IsPattern1: !Equals [!Ref IDPPattern, "Pattern1"]
+
 
 Resources:
+
+  # Nested stack for selected pattern
+
+  PATTERN1STACK:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsPattern1
+    Properties:
+      # yamllint disable rule:line-length
+      TemplateURL: ./idp-pattern-1/.aws-sam/idp-pattern-1.yaml
+      Parameters:
+        StackName: !Ref AWS::StackName
+        InputBucket: !Ref InputBucket
+        WorkingBucket: !Ref WorkingBucket
+        OutputBucket: !Ref OutputBucket
+        CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
+        LogRetentionDays: !Ref LogRetentionDays
+        UDOPModelArtifactPath: !Ref UDOPModelArtifactPath
+
+  # Main stack resources
 
   LoggingBucket:
     Type: AWS::S3::Bucket
@@ -291,8 +326,6 @@ Resources:
               # Send a failure response to CloudFormation
               cfnresponse.send(event, context, cfnresponse.FAILED, {"Error": str(e)})
               raise
-     LoggingConfig:
-      LogGroup: !Ref QueueProcessorLogGroup
      Environment:
       Variables:
         CONCURRENCY_TABLE: !Ref ConcurrencyTable
@@ -400,7 +433,7 @@ Resources:
        LogGroup: !Ref QueueProcessorLogGroup
      Environment:
        Variables:
-         STATE_MACHINE_ARN: !Ref DocumentProcessingStateMachine
+         STATE_MACHINE_ARN: !GetAtt PATTERN1STACK.Outputs.StateMachineArn
          TRACKING_TABLE: !Ref ExecutionTable
          CONCURRENCY_TABLE: !Ref ConcurrencyTable
          MAX_CONCURRENT: !Ref MaxConcurrentWorkflows
@@ -408,7 +441,7 @@ Resources:
        - SQSPollerPolicy:
            QueueName: !GetAtt DocumentQueue.QueueName
        - StepFunctionsExecutionPolicy:
-           StateMachineName: !GetAtt DocumentProcessingStateMachine.Name
+           StateMachineName: !GetAtt PATTERN1STACK.Outputs.StateMachineName
        - DynamoDBCrudPolicy:
            TableName: !Ref ExecutionTable
        - DynamoDBCrudPolicy:
@@ -497,7 +530,7 @@ Resources:
           - Step Functions Execution Status Change
         detail:
           stateMachineArn:
-            - !Ref DocumentProcessingStateMachine
+            - !GetAtt PATTERN1STACK.Outputs.StateMachineArn
           status:
             - FAILED
             - TIMED_OUT
@@ -518,124 +551,6 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt WorkflowStateChangeRule.Arn
 
-  TextractFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/textract_function/
-      Handler: index.handler
-      Runtime: python3.11
-      Timeout: 900
-      MemorySize: 4096
-      Environment:
-        Variables:
-          METRIC_NAMESPACE: !Ref AWS::StackName
-          MAX_WORKERS: 20
-      LoggingConfig:
-        LogGroup: !Ref TextractFunctionLogGroup
-      Policies:
-        - AWSLambdaBasicExecutionRole
-        - TextractPolicy:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: textract:DetectDocumentText
-                Resource: '*'
-        - S3CrudPolicy:
-            BucketName: !Ref WorkingBucket
-        - S3ReadPolicy:
-            BucketName: !Ref InputBucket
-        - Statement:
-          - Effect: Allow
-            Action: cloudwatch:PutMetricData
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - kms:Encrypt
-              - kms:Decrypt
-              - kms:ReEncrypt*
-              - kms:GenerateDataKey*
-              - kms:DescribeKey
-            Resource: !GetAtt CustomerManagedEncryptionKey.Arn
-  
-  TextractFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/lambda/textract"
-      RetentionInDays: !Ref LogRetentionDays
-  
-  BedrockFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/bedrock_function/
-      Handler: index.handler
-      Runtime: python3.11
-      Timeout: 900
-      MemorySize: 512
-      Environment:
-        Variables:
-          EXTRACTION_MODEL_ID: !Ref ExtractionModel
-          METRIC_NAMESPACE: !Ref AWS::StackName
-          OCR_TEXT_ONLY: !If [IsOCRTextOnly, true, false]
-      LoggingConfig:
-        LogGroup: !Ref BedrockFunctionLogGroup
-      Policies:
-      - AWSLambdaBasicExecutionRole
-      - Statement:
-        - Effect: Allow
-          Action: bedrock:InvokeModel
-          Resource: '*'
-      - Statement:
-        - Effect: Allow
-          Action: cloudwatch:PutMetricData
-          Resource: '*'
-        - Effect: Allow
-          Action:
-            - kms:Encrypt
-            - kms:Decrypt
-            - kms:ReEncrypt*
-            - kms:GenerateDataKey*
-            - kms:DescribeKey
-          Resource: !GetAtt CustomerManagedEncryptionKey.Arn
-      - S3CrudPolicy:
-          BucketName: !Ref WorkingBucket
-      - S3CrudPolicy:
-          BucketName: !Ref OutputBucket
-      - S3ReadPolicy:
-          BucketName: !Ref InputBucket
-
-  BedrockFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/lambda/bedrock"
-      RetentionInDays: !Ref LogRetentionDays
-
-  DocumentProcessingStateMachine:
-    Type: AWS::Serverless::StateMachine
-    Properties:
-      DefinitionUri: statemachine/workflow.asl.json
-      DefinitionSubstitutions:
-        TextractFunctionArn: !GetAtt TextractFunction.Arn
-        BedrockFunctionArn: !GetAtt BedrockFunction.Arn
-        WorkingBucket: !Ref WorkingBucket
-        OutputBucket: !Ref OutputBucket
-      Logging:
-        Level: ALL
-        IncludeExecutionData: true
-        Destinations:
-          - CloudWatchLogsLogGroup: !GetAtt StateMachineLogGroup.Arn
-      Policies:
-        - LambdaInvokePolicy:
-            FunctionName: !Ref TextractFunction
-        - LambdaInvokePolicy:
-            FunctionName: !Ref BedrockFunction
-        - CloudWatchLogsFullAccess
-
-  StateMachineLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub "/aws/vendedlogs/states/${AWS::StackName}/workflow"  # required prefix
-      RetentionInDays: !Ref LogRetentionDays
-
   AlertsTopic:
     Type: AWS::SNS::Topic
     Properties:
@@ -654,7 +569,7 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold 
       Dimensions:
         - Name: StateMachineArn
-          Value: !Ref DocumentProcessingStateMachine
+          Value: !GetAtt PATTERN1STACK.Outputs.StateMachineArn
       AlarmActions:
         - !Ref AlertsTopic
 
@@ -671,7 +586,7 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       Dimensions:
         - Name: StateMachineArn
-          Value: !Ref DocumentProcessingStateMachine
+          Value: !GetAtt PATTERN1STACK.Outputs.StateMachineArn
       AlarmActions:
         - !Ref AlertsTopic
 
@@ -997,7 +912,7 @@ Resources:
                   [{"expression": "m1/PERIOD(m1)*60", "label": "Started per Minute", "id": "e1"}],
                   [{"expression": "m2/PERIOD(m2)*60", "label": "Succeeded per Minute", "id": "e2"}],
                   [{"expression": "m3/PERIOD(m3)*60", "label": "Failed per Minute", "id": "e3"}],
-                  ["AWS/States", "ExecutionsStarted", "StateMachineArn", "${DocumentProcessingStateMachine}", {"id": "m1", "stat": "Sum", "visible": false}],
+                  ["AWS/States", "ExecutionsStarted", "StateMachineArn", "${PATTERN1STACK.Outputs.StateMachineArn}", {"id": "m1", "stat": "Sum", "visible": false}],
                   [".", "ExecutionsSucceeded", ".", ".", {"id": "m2", "stat": "Sum", "visible": false}],
                   [".", "ExecutionsFailed", ".", ".", {"id": "m3", "stat": "Sum", "visible": false}]
                 ],
@@ -1020,10 +935,10 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["AWS/Lambda", "Duration", "FunctionName", "${TextractFunction}"]
+                  ["AWS/Lambda", "Duration", "FunctionName", "${PATTERN1STACK.Outputs.OCRFunctionName}"]
                 ],
                 "region": "${AWS::Region}",
-                "title": "Textract Function Duration",
+                "title": "OCR Function Duration",
                 "period": 300,
                 "annotations": {
                   "horizontal": [{
@@ -1044,7 +959,7 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["AWS/Lambda", "Duration", "FunctionName", "${BedrockFunction}"]
+                  ["AWS/Lambda", "Duration", "FunctionName", "${PATTERN1STACK.Outputs.ExtractionFunctionName}"]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Bedrock Function Duration",
@@ -1067,9 +982,9 @@ Resources:
               "width": 12,
               "height": 6,
               "properties": {
-                "query": "SOURCE '${TextractFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
+                "query": "SOURCE '${PATTERN1STACK.Outputs.OCRFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
                 "region": "${AWS::Region}",
-                "title": "Textract Lambda Long Running Invocations",
+                "title": "OCR Lambda Long Running Invocations",
                 "view": "table"
               }
             },
@@ -1080,9 +995,9 @@ Resources:
               "width": 12,
               "height": 6,
               "properties": {
-                "query": "SOURCE '${BedrockFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
+                "query": "SOURCE '${PATTERN1STACK.Outputs.ExtractionFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
                 "region": "${AWS::Region}",
-                "title": "Bedrock Lambda Long Running Invocations",
+                "title": "Extraction Lambda Long Running Invocations",
                 "view": "table"
               }
             },
@@ -1093,9 +1008,9 @@ Resources:
               "width": 12,
               "height": 6,
               "properties": {
-                "query": "SOURCE '${TextractFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "query": "SOURCE '${PATTERN1STACK.Outputs.OCRFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
                 "region": "${AWS::Region}",
-                "title": "Textract Lambda Errors",
+                "title": "OCR Lambda Errors",
                 "view": "table"
               }
             },
@@ -1106,9 +1021,9 @@ Resources:
               "width": 12,
               "height": 6,
               "properties": {
-                "query": "SOURCE '${BedrockFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "query": "SOURCE '${PATTERN1STACK.Outputs.ExtractionFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
                 "region": "${AWS::Region}",
-                "title": "Bedrock Lambda Errors",
+                "title": "Extraction Lambda Errors",
                 "view": "table"
               }
             },
@@ -1171,7 +1086,7 @@ Resources:
               "width": 24,
               "height": 6,
               "properties": {
-                "query": "SOURCE '${StateMachineLogGroup}' | fields @timestamp, @message | filter @message like /ExecutionFailed/ or @message like /TimedOut/ | parse @message /execution: (?<execution_arn>[^ ]*)/ | parse @message /error: (?<error>[^\"]*)/| sort @timestamp desc | limit 20",
+                "query": "SOURCE '${PATTERN1STACK.Outputs.StateMachineLogGroup}' | fields @timestamp, @message | filter @message like /ExecutionFailed/ or @message like /TimedOut/ | parse @message /execution: (?<execution_arn>[^ ]*)/ | parse @message /error: (?<error>[^\"]*)/| sort @timestamp desc | limit 20",
                 "region": "${AWS::Region}",
                 "title": "Step Functions Executions Failed",
                 "view": "table"
@@ -1201,7 +1116,7 @@ Resources:
                 - states:DescribeExecution
                 - states:GetExecutionHistory
               Resource: 
-                - !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${DocumentProcessingStateMachine.Name}*"
+                - !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${PATTERN1STACK.Outputs.StateMachineName}*"
             - Effect: Allow
               Action:
                 - kms:Encrypt
@@ -1238,10 +1153,10 @@ Outputs:
     Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${WorkingBucket}
   StateMachineArn:
     Description: Step Functions State machine ARN
-    Value: !GetAtt DocumentProcessingStateMachine.Arn
+    Value: !GetAtt PATTERN1STACK.Outputs.StateMachineArn
   StateMachineConsoleURL:
     Description: Step Functions State machine console URL
-    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/states/home?region=${AWS::Region}#/statemachines/view/${DocumentProcessingStateMachine}
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/states/home?region=${AWS::Region}#/statemachines/view/${PATTERN1STACK.Outputs.StateMachineArn}
   CWDashboardConsoleURL:
     Description: CloudWatch Dashboard URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${DashboardWorkflow}

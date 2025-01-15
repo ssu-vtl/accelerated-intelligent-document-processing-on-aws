@@ -1,0 +1,258 @@
+# Copyright © Amazon.com and Affiliates: This deliverable is considered Developed Content as defined in the AWS Service Terms and the SOW between the parties.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS GenAI IDP Accelerator - resources for IDP Pattern 1
+
+Parameters:
+
+  StackName:
+    Type: String
+
+  InputBucket:
+    Type: String
+
+  WorkingBucket:
+    Type: String
+
+  OutputBucket:
+    Type: String
+
+  CustomerManagedEncryptionKeyArn:
+    Type: String
+
+  LogRetentionDays:
+    Type: Number
+
+  UDOPModelArtifactPath:
+    Type: String
+    AllowedPattern: "^(|s3://.*)$"
+
+  ExtractionModel:
+    Type: String
+    Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
+    AllowedValues:
+      - 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
+      - 'us.amazon.nova-pro-v1:0'
+    Description: Bedrock Model ID to use for Extraction
+
+Resources:
+
+  SAGEMAKERCLASSIFIERSTACK:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      # yamllint disable rule:line-length
+      TemplateURL: ./sagemaker_classifier_endpoint.yaml
+      Parameters:
+        StackName: !Ref StackName
+        UDOPModelArtifactPath: !Ref UDOPModelArtifactPath
+        WorkingBucket: !Ref WorkingBucket
+        CustomerManagedEncryptionKeyArn: !Ref CustomerManagedEncryptionKeyArn
+
+  OCRFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/ocr_function/
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 900
+      MemorySize: 4096
+      Environment:
+        Variables:
+          METRIC_NAMESPACE: !Ref StackName
+          MAX_WORKERS: 20
+      LoggingConfig:
+        LogGroup: !Ref OCRFunctionLogGroup
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - TextractPolicy:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: textract:DetectDocumentText
+                Resource: '*'
+        - S3CrudPolicy:
+            BucketName: !Ref WorkingBucket
+        - S3ReadPolicy:
+            BucketName: !Ref InputBucket
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: !Ref CustomerManagedEncryptionKeyArn
+  
+  OCRFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/OCRFunction"
+      RetentionInDays: !Ref LogRetentionDays
+
+  ClassificationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/classification_function/
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 900
+      MemorySize: 4096
+      Environment:
+        Variables:
+          METRIC_NAMESPACE: !Ref StackName
+          MAX_WORKERS: 20
+          SAGEMAKER_ENDPOINT_NAME: !GetAtt SAGEMAKERCLASSIFIERSTACK.Outputs.EndpointName
+      LoggingConfig:
+        LogGroup: !Ref ClassificationFunctionLogGroup
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - TextractPolicy:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: sagemaker:InvokeEndpoint
+                Resource: !GetAtt SAGEMAKERCLASSIFIERSTACK.Outputs.EndpointArn
+        - S3CrudPolicy:
+            BucketName: !Ref WorkingBucket
+        - S3ReadPolicy:
+            BucketName: !Ref InputBucket
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: !Ref CustomerManagedEncryptionKeyArn
+  
+  ClassificationFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/ClassificationFunction"
+      RetentionInDays: !Ref LogRetentionDays
+  
+  ExtractionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/extraction_function/
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 900
+      MemorySize: 512
+      Environment:
+        Variables:
+          EXTRACTION_MODEL_ID: !Ref ExtractionModel
+          METRIC_NAMESPACE: !Ref StackName
+      LoggingConfig:
+        LogGroup: !Ref ExtractionFunctionLogGroup
+      Policies:
+      - AWSLambdaBasicExecutionRole
+      - Statement:
+        - Effect: Allow
+          Action: bedrock:InvokeModel
+          Resource: '*'
+      - Statement:
+        - Effect: Allow
+          Action: cloudwatch:PutMetricData
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - kms:Encrypt
+            - kms:Decrypt
+            - kms:ReEncrypt*
+            - kms:GenerateDataKey*
+            - kms:DescribeKey
+          Resource: !Ref CustomerManagedEncryptionKeyArn
+      - S3CrudPolicy:
+          BucketName: !Ref WorkingBucket
+      - S3CrudPolicy:
+          BucketName: !Ref OutputBucket
+      - S3ReadPolicy:
+          BucketName: !Ref InputBucket
+
+  ExtractionFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/ExtractionFunction"
+      RetentionInDays: !Ref LogRetentionDays
+
+  DocumentProcessingStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachine/workflow.asl.json
+      DefinitionSubstitutions:
+        OCRFunctionArn: !GetAtt OCRFunction.Arn
+        ClassificationFunctionArn: !GetAtt ClassificationFunction.Arn
+        ExtractionFunctionArn: !GetAtt ExtractionFunction.Arn
+        WorkingBucket: !Ref WorkingBucket
+        OutputBucket: !Ref OutputBucket
+      Logging:
+        Level: ALL
+        IncludeExecutionData: true
+        Destinations:
+          - CloudWatchLogsLogGroup: !GetAtt StateMachineLogGroup.Arn
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref OCRFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ExtractionFunction
+        - CloudWatchLogsFullAccess
+
+  StateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/vendedlogs/states/${AWS::StackName}/workflow"  # required prefix
+      RetentionInDays: !Ref LogRetentionDays
+
+
+Outputs:
+
+  StateMachineName:
+    Description: Step Functions State machine Name
+    Value: !GetAtt DocumentProcessingStateMachine.Name
+
+  StateMachineArn:
+    Description: Step Functions State machine ARN
+    Value: !GetAtt DocumentProcessingStateMachine.Arn
+
+  StateMachineConsoleURL:
+    Description: Step Functions State machine console URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/states/home?region=${AWS::Region}#/statemachines/view/${DocumentProcessingStateMachine}
+
+  StateMachineLogGroup:
+    Description: Step Functions State machine log group
+    Value: !Ref StateMachineLogGroup
+
+  ExtractionFunctionName:
+    Description: Name of the Extraction function
+    Value: !Ref ExtractionFunction
+
+  ExtractionFunctionConsoleURL:
+    Description: OCR function console URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/lambda/home?region=${AWS::Region}#/functions/${ExtractionFunction}
+  
+  ExtractionFunctionLogGroup:
+    Description: Extraction function log group
+    Value: !Ref ExtractionFunctionLogGroup 
+
+  OCRFunctionName:
+    Description: Name of the OCR function
+    Value: !Ref OCRFunction
+
+  OCRFunctionConsoleURL:
+    Description: OCR function console URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/lambda/home?region=${AWS::Region}#/functions/${OCRFunction}
+  
+  OCRFunctionLogGroup:
+    Description: OCR function log group
+    Value: !Ref OCRFunctionLogGroup    
+

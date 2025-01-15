@@ -1,0 +1,13 @@
+{
+  "input": {
+    "detail": {
+      "bucket": {
+        "name": "bobs-sandbox"
+      },
+      "object": {
+        "key": "scratch/insurance-bundle.pdf"
+      }
+    }
+  },
+  "working_bucket": "bobs-sandbox-working-bucket"
+}

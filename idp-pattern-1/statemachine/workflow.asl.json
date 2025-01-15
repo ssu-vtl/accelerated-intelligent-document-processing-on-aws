@@ -1,15 +1,15 @@
 {
-    "StartAt": "TextractStep",
+    "StartAt": "OCRStep",
     "States": {
-      "TextractStep": {
+      "OCRStep": {
         "Type": "Task",
-        "Resource": "${TextractFunctionArn}",
+        "Resource": "${OCRFunctionArn}",
         "Parameters": {
           "execution_arn.$": "$$.Execution.Id",
           "working_bucket": "${WorkingBucket}",
           "input.$": "$"
         },
-        "ResultPath": "$.textractResult",
+        "ResultPath": "$.OCRResult",
         "Retry": [
           {
             "ErrorEquals": ["States.TaskFailed", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
@@ -18,20 +18,34 @@
             "BackoffRate": 2
           }
         ],
-        "Next": "BedrockStep"
+        "Next": "ClassificationStep"
       },
-      "BedrockStep": {
+      "ClassificationStep": {
         "Type": "Task",
-        "Resource": "${BedrockFunctionArn}",
+        "Resource": "${ClassificationFunctionArn}",
         "Parameters": {
           "execution_arn.$": "$$.Execution.Id",
-          "textract.$": "$.textractResult",
           "output_bucket": "${OutputBucket}",
-          "detail": {
-            "object": {
-              "key.$": "$.detail.object.key"
-            }
+          "OCRResult.$": "$.OCRResult"
+        },
+        "ResultPath": "$.ClassificationResult",
+        "Retry": [
+          {
+            "ErrorEquals": ["States.TaskFailed", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+            "IntervalSeconds": 2,
+            "MaxAttempts": 10,
+            "BackoffRate": 2
           }
+        ],
+        "Next": "ExtractionStep"
+      },
+      "ExtractionStep": {
+        "Type": "Task",
+        "Resource": "${ExtractionFunctionArn}",
+        "Parameters": {
+          "execution_arn.$": "$$.Execution.Id",
+          "output_bucket": "${OutputBucket}",
+          "ClassificationResult.$": "$.ClassificationResult"
         },
         "Retry": [
           {

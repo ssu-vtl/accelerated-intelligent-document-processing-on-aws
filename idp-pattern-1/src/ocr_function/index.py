@@ -1,5 +1,3 @@
-# Copyright © Amazon.com and Affiliates: This deliverable is considered Developed Content as defined in the AWS Service Terms and the SOW between the parties.
-
 import concurrent.futures
 import time
 import boto3
@@ -63,20 +61,20 @@ def process_single_page(page_index, pdf_document, working_bucket, prefix):
     textract_result = textract_client.detect_document_text(Document={"Bytes": img_bytes})
     
     # Store raw Textract response
-    text_key = f"{prefix}/text_raw/page_{page_number:04d}.json"
+    raw_text_key = f"{prefix}/textract_document_text_raw/page_{page_number:04d}.json"
     s3_client.put_object(
         Bucket=working_bucket,
-        Key=text_key,
+        Key=raw_text_key,
         Body=json.dumps(textract_result),
         ContentType='application/json'
     )
 
     # Store text from parsed Textract response
+    parsed_text_key = f"{prefix}/textract_document_text_parsed/page_{page_number:04d}.json"
     parsed_result = response_parser.parse(textract_result)
-    text_key = f"{prefix}/text_parsed/page_{page_number:04d}.json"
     s3_client.put_object(
         Bucket=working_bucket,
-        Key=text_key,
+        Key=parsed_text_key,
         Body=json.dumps({"text": parsed_result.text}),
         ContentType='application/json'
     )
@@ -84,11 +82,17 @@ def process_single_page(page_index, pdf_document, working_bucket, prefix):
     t2 = time.time()
     logger.info(f"Time taken for Textract (page {page_number}): {t2-t1:.6f} seconds")
     
-    return True
+    # Return paths for this page
+    return {
+        "textract_document_text_raw_path": f"s3://{working_bucket}/{raw_text_key}",
+        "textract_document_text_parsed_path": f"s3://{working_bucket}/{parsed_text_key}",
+        "image_path": f"s3://{working_bucket}/{image_key}"
+    }
 
 def get_document_text(pdf_content, working_bucket, prefix, max_workers = MAX_WORKERS):
     pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
     num_pages = len(pdf_document)
+    page_results = {}
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_page = {
@@ -99,13 +103,14 @@ def get_document_text(pdf_content, working_bucket, prefix, max_workers = MAX_WOR
         for future in concurrent.futures.as_completed(future_to_page):
             page_index = future_to_page[future]
             try:
-                future.result()
+                page_paths = future.result()
+                page_results[str(page_index + 1)] = page_paths
             except Exception as e:
                 logger.error(f"Error processing page index {page_index}, page number {page_index + 1}: {str(e)}")
                 raise
     
     pdf_document.close()
-    return num_pages
+    return num_pages, page_results
 
 def handler(event, context):        
     logger.info(f"Event: {json.dumps(event)}")
@@ -119,13 +124,21 @@ def handler(event, context):
     pdf_content = response['Body'].read()
     t1 = time.time()
     logger.info(f"Time taken for S3 GetObject: {t1-t0:.6f} seconds")
+    
     # OCR the pages
-    num_pages = get_document_text(pdf_content, working_bucket, prefix=object_key)
+    num_pages, page_results = get_document_text(pdf_content, working_bucket, prefix=object_key)
     logger.info(f"Finished processing {object_key} ({num_pages} pages) - output pages written to s3://{working_bucket}/{object_key}/")   
+    
+    t2 = time.time()
+    logger.info(f"Time taken to process all {num_pages} pages: {t2-t1:.2f} seconds")
+
     response = {
         "input_bucket": input_bucket, 
         "object_key": object_key,
         "working_bucket": working_bucket,
         "working_prefix": object_key, 
-        "num_pages": num_pages}
-    return response 
+        "num_pages": num_pages,
+        "pages": page_results
+    }
+    print("Response: ", response)
+    return response

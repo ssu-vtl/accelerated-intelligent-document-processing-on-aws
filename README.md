@@ -124,13 +124,14 @@ When/if the execution sucessfully finishes, check the `OutputBucket` for the str
 
 ### Testing individual lambda functions locally
 
-For example, to test the `TextractFunction` lambda locally:
-- identify your input and working S3 buckets, and a test PDF file in the input bucket - add them to `testing/textract_event.json`
-- Verify `testing/env.json` and change region if necessary
-- run the publish script as described above to package the code
-- use the sam cli to run the function locally in a container, as shown below:
+For example, to test the `idp-pattern-1/OCRFunction` lambda locally:
+- change directory to the folder that has the template.yaml for the function you want to test
+- identify your input and working S3 buckets, and a test PDF file in the input bucket - add them to `./testing/OCRFunction_event.json` 
+- Verify `./testing/env.json` and change region if necessary
+- run `sam build` to package the function(s)
+- use `sam local` to run the function locally in a container, as shown below:
 ``` 
-sam local invoke TextractFunction -e testing/bedrock_event.json --env-vars testing/env.json
+sam local invoke OCRFunction -e testing/OCRFunction-event.json --env-vars testing/env.json
 ```
 
 Follow similar process to test other lambda functions locally.
