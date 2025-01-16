@@ -61,6 +61,7 @@ def classify_single_page(page_number, page_data):
                 "textract": page_data['textract_document_text_raw_path'],
                 "image": page_data['image_path']
             }
+            logger.info(f"Payload: {payload}")
             
             # Invoke endpoint
             attempt_start_time = time.time()
@@ -73,6 +74,7 @@ def classify_single_page(page_number, page_data):
             
             # Parse response
             response_body = json.loads(response['Body'].read().decode())
+            logger.info(f"Response body: {response_body}")
             
             # Log success metrics
             logger.info(f"Page {page_number} classification successful after {retry_count + 1} attempts. "
@@ -85,18 +87,9 @@ def classify_single_page(page_number, page_data):
             # Return classification results along with page data
             return {
                 'page_number': page_number,
-                'classification': response_body['class_label'],
-                'confidence': response_body.get('confidence', None),
+                'classification': response_body['prediction'],
                 'paths': page_data
-            }
-            """
-            return {
-                'page_number': page_number,
-                'classification': random.choice(['class-1','class-2','class-3']),
-                'confidence': 1,
-                'paths': page_data
-            }
-            """         
+            }     
             
         except ClientError as e:
             error_code = e.response['Error']['Code']
@@ -148,6 +141,41 @@ def write_json_to_s3(json_string, bucket_name, object_key):
     )
     logger.info(f"JSON file successfully written to s3://{bucket_name}/{object_key}")
 
+def group_consecutive_pages(results):
+    """
+    Group consecutive pages with the same classification.
+    Returns a dictionary of class labels mapping to groups of consecutive pages.
+    """
+    # Sort results by page number to ensure proper consecutive grouping
+    sorted_results = sorted(results, key=lambda x: x['page_number'])
+    
+    grouped_pages = defaultdict(dict)
+    current_group = 1
+    
+    if not sorted_results:
+        return grouped_pages
+        
+    # Initialize with first result
+    current_class = sorted_results[0]['classification']
+    current_pages = [sorted_results[0]]
+    
+    # Process remaining results
+    for result in sorted_results[1:]:
+        if result['classification'] == current_class:
+            # Add to current group if same class
+            current_pages.append(result)
+        else:
+            # Store current group and start new one
+            grouped_pages[current_class][f"{current_class}_pagegroup_{current_group}"] = current_pages
+            current_group += 1
+            current_class = result['classification']
+            current_pages = [result]
+    
+    # Store final group
+    grouped_pages[current_class][f"{current_class}_pagegroup_{current_group}"] = current_pages
+    
+    return grouped_pages
+
 def handler(event, context):
     logger.info(f"Event: {json.dumps(event)}")
     
@@ -177,11 +205,8 @@ def handler(event, context):
     t1 = time.time()
     logger.info(f"Time taken for classification: {t1-t0:.2f} seconds")
 
-    # Organize results by class label
-    results_by_class = defaultdict(list)
-    for result in all_results:
-        class_label = result['classification']
-        results_by_class[class_label].append(result)
+    # Group consecutive pages with same classification
+    pages_by_class = group_consecutive_pages(all_results)
     
     response = {
         "input_bucket": input_bucket, 
@@ -189,7 +214,7 @@ def handler(event, context):
         "working_bucket": working_bucket,
         "working_prefix": object_key, 
         "num_pages": num_pages,
-        "pages_by_class": dict(results_by_class)
+        "pages_by_class": dict(pages_by_class)
     }
 
     # Write results to S3

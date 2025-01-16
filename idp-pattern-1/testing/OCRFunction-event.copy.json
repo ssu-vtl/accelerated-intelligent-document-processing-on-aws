@@ -2,12 +2,12 @@
   "input": {
     "detail": {
       "bucket": {
-        "name": "bobs-sandbox"
+        "name": "idpv020-workingbucket-auabktssrntl"
       },
       "object": {
-        "key": "scratch/insurance-bundle.pdf"
+        "key": "insurance-bundle.pdf"
       }
     }
   },
-  "working_bucket": "bobs-sandbox-working-bucket"
+  "working_bucket": "idpv020-workingbucket-auabktssrntl"
 }
