@@ -1,78 +1,100 @@
 {
     "StartAt": "OCRStep",
     "States": {
-      "OCRStep": {
-        "Type": "Task",
-        "Resource": "${OCRFunctionArn}",
-        "Parameters": {
-          "execution_arn.$": "$$.Execution.Id",
-          "working_bucket": "${WorkingBucket}",
-          "input.$": "$"
-        },
-        "ResultPath": "$.OCRResult",
-        "Retry": [
-          {
-            "ErrorEquals": ["States.TaskFailed", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
-            "IntervalSeconds": 2,
-            "MaxAttempts": 2,
-            "BackoffRate": 2
-          }
-        ],
-        "Next": "ClassificationStep"
-      },
-      "ClassificationStep": {
-        "Type": "Task",
-        "Resource": "${ClassificationFunctionArn}",
-        "Parameters": {
-          "execution_arn.$": "$$.Execution.Id",
-          "output_bucket": "${OutputBucket}",
-          "OCRResult.$": "$.OCRResult"
-        },
-        "ResultPath": "$.ClassificationResult",
-        "Retry": [
-          {
-            "ErrorEquals": ["States.TaskFailed", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
-            "IntervalSeconds": 2,
-            "MaxAttempts": 10,
-            "BackoffRate": 2
-          }
-        ],
-        "Next": "ProcessPageGroups"
-      },
-      "ProcessPageGroups": {
-        "Type": "Map",
-        "ItemsPath": "$.ClassificationResult.pagegroups",
-        "Parameters": {
-          "execution_arn.$": "$$.Execution.Id",
-          "output_bucket": "${OutputBucket}",
-          "metadata.$": "$.ClassificationResult.metadata",
-          "pagegroup.$": "$"
-        },
-        "Iterator": {
-          "StartAt": "ExtractionStep",
-          "States": {
-            "ExtractionStep": {
-              "Type": "Task",
-              "Resource": "${ExtractionFunctionArn}",
-              "Parameters": {
-                "execution_arn.$": "$.execution_arn",
-                "output_bucket.$": "$.output_bucket",
-                "metadata.$": "$.metadata",
-                "pagegroup.$": "$.pagegroup"
-              },
-              "Retry": [
+        "OCRStep": {
+            "Type": "Task",
+            "Resource": "${OCRFunctionArn}",
+            "Parameters": {
+                "execution_arn.$": "$$.Execution.Id",
+                "working_bucket": "${WorkingBucket}",
+                "input.$": "$"
+            },
+            "ResultPath": "$.OCRResult",
+            "Retry": [
                 {
-                  "ErrorEquals": ["States.TaskFailed", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
-                  "IntervalSeconds": 2,
-                  "MaxAttempts": 10,
-                  "BackoffRate": 2
+                    "ErrorEquals": [
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException",
+                        "Lambda.TooManyRequestsException",
+                        "ServiceQuotaExceededException",
+                        "ThrottlingException",
+                        "ProvisionedThroughputExceededException",
+                        "RequestLimitExceeded"
+                    ],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 2,
+                    "BackoffRate": 2
                 }
-              ],
-              "End": true
-            }
-          }
+            ],
+            "Next": "ClassificationStep"
         },
-        "End": true
-      }
+        "ClassificationStep": {
+            "Type": "Task",
+            "Resource": "${ClassificationFunctionArn}",
+            "Parameters": {
+                "execution_arn.$": "$$.Execution.Id",
+                "output_bucket": "${OutputBucket}",
+                "OCRResult.$": "$.OCRResult"
+            },
+            "ResultPath": "$.ClassificationResult",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException",
+                        "Lambda.TooManyRequestsException",
+                        "ServiceQuotaExceededException",
+                        "ThrottlingException",
+                        "ProvisionedThroughputExceededException",
+                        "RequestLimitExceeded"
+                    ],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 10,
+                    "BackoffRate": 2
+                }
+            ],
+            "Next": "ProcessPageGroups"
+        },
+        "ProcessPageGroups": {
+            "Type": "Map",
+            "ItemsPath": "$.ClassificationResult.pagegroups",
+            "ItemSelector": {
+                "execution_arn.$": "$$.Execution.Id",
+                "output_bucket": "${OutputBucket}",
+                "metadata.$": "$.ClassificationResult.metadata",
+                "pagegroup.$": "$$.Map.Item.Value"
+            },
+            "MaxConcurrency": 10,
+            "Iterator": {
+                "StartAt": "ExtractionStep",
+                "States": {
+                    "ExtractionStep": {
+                        "Type": "Task",
+                        "Resource": "${ExtractionFunctionArn}",
+                        "Retry": [
+                            {
+                                "ErrorEquals": [
+                                    "Lambda.ServiceException",
+                                    "Lambda.AWSLambdaException",
+                                    "Lambda.SdkClientException",
+                                    "Lambda.TooManyRequestsException",
+                                    "ServiceQuotaExceededException",
+                                    "ThrottlingException",
+                                    "ProvisionedThroughputExceededException",
+                                    "RequestLimitExceeded"
+                                ],
+                                "IntervalSeconds": 2,
+                                "MaxAttempts": 10,
+                                "BackoffRate": 2
+                            }
+                        ],
+                        "End": true
+                    }
+                }
+            },
+            "End": true
+        }
     }
-  }
+}

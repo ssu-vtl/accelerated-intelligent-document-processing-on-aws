@@ -112,7 +112,24 @@ def get_document_text(pdf_content, working_bucket, prefix, max_workers = MAX_WOR
     pdf_document.close()
     return num_pages, page_results
 
-def handler(event, context):        
+def handler(event, context): 
+    """
+    Input event for new input object packet/document:
+    {
+        "execution_arn": <ARN>,
+        "working_bucket": <BUCKET>,
+        "input": {
+            "detail": {
+                "bucket": {
+                    "name": <BUCKET>
+                },
+                "object": {
+                    "key": <KEY>
+                }
+            }
+        }
+    }
+    """       
     logger.info(f"Event: {json.dumps(event)}")
     input_bucket = event.get("input").get("detail").get("bucket").get("name")
     working_bucket = event.get("working_bucket")

@@ -174,7 +174,7 @@ def group_consecutive_pages(results):
         else:
             # Store current group and start new one
             pagegroups.append({
-                'id': f"{current_class}_pagegroup_{current_group}",
+                'id': f"Class_{current_class}_Pagegroup_{current_group}",
                 'document_type': current_class,
                 'pages': current_pages
             })
@@ -214,6 +214,29 @@ def classify_pages_concurrently(pages):
     return all_results
 
 def handler(event, context):
+    """
+    Input event containing page level OCR and image data from OCR step:
+    {
+        "execution_arn": <ARN>,
+        "output_bucket": <BUCKET>,
+        "OCRResult": {
+            "metadata": {
+                "input_bucket": <BUCKET>,
+                "object_key": <KEY>,
+                "working_bucket": <BUCKET>,
+                "working_prefix": <PREFIX>,
+                "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
+            }
+        },
+        "pages": {
+            <ID>: {
+                        "textract_document_text_raw_path": <S3_URI>,
+                        "textract_document_text_parsed_path": <S3_URI>,
+                        "image_path": <S3_URI>
+            }
+        }
+    }
+    """
     logger.info(f"Event: {json.dumps(event)}")
     
     # Get parameters from event

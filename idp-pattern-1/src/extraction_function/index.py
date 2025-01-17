@@ -171,11 +171,12 @@ def invoke_llm(page_images, system_prompts, task_prompt, document_text, attribut
         raise last_exception
 
 
-def get_text_content(bucket, text_path):
+def get_text_content(s3path):
     """Read text content from a single S3 path"""
     try:
         # Extract key from s3:// URL
-        key = text_path.replace(f"s3://{bucket}/", "")
+        _, _, bucket, *key_parts = s3path.split('/')
+        key = '/'.join(key_parts)
         response = s3_client.get_object(Bucket=bucket, Key=key)
         content = json.loads(response['Body'].read().decode('utf-8'))
         return content.get('text', '')
@@ -183,11 +184,11 @@ def get_text_content(bucket, text_path):
         logger.error(f"Error reading text from {text_path}: {e}")
         raise
 
-def get_image_content(bucket, image_path, target_width=951, target_height=1268):
+def get_image_content(s3path, target_width=951, target_height=1268):
     """Read and process a single image from S3"""
     try:
-        # Extract key from s3:// URL
-        key = image_path.replace(f"s3://{bucket}/", "")
+        _, _, bucket, *key_parts = s3path.split('/')
+        key = '/'.join(key_parts)
         response = s3_client.get_object(Bucket=bucket, Key=key)
         image_data = response['Body'].read()
         
@@ -218,47 +219,70 @@ def write_json_to_s3(json_string, bucket_name, object_key):
     logger.info(f"JSON file successfully written to s3://{bucket_name}/{object_key}")
 
 def handler(event, context):
+    """
+    Input event for single document / pagegroup of given type:
+    {
+        "output_bucket": <BUCKET>,
+        "metadata": {
+            "input_bucket": <BUCKET>,
+            "object_key": <KEY>,
+            "working_bucket": <BUCKET>,
+            "working_prefix": <PREFIX>,
+            "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
+        },
+        "execution_arn": <ARN>,
+        "pagegroup": {
+            "id": <ID>,
+            "document_type": <TYPE or CLASS>,
+            "pages": [
+                {
+                    "page_number": <NUM>,
+                    "classification": <TYPE or CLASS>,
+                    "paths": {
+                        "textract_document_text_raw_path": <S3_URI>,
+                        "textract_document_text_parsed_path": <S3_URI>,
+                        "image_path": <S3_URI>
+                    }
+                }
+            ]
+        }
+    }
+    """
     logger.info(f"Event: {json.dumps(event)}")
     
     # Get parameters from event
-    input_bucket = event.get("ClassificationResult", {}).get("input_bucket")
-    working_bucket = event.get("ClassificationResult", {}).get("working_bucket")
-    working_prefix = event.get("ClassificationResult", {}).get("working_prefix")
-    object_key = event.get("ClassificationResult", {}).get("object_key")
-    num_pages = event.get("ClassificationResult", {}).get("num_pages")
-    class_label = event.get("ClassificationResult", {}).get("class_label")
-    pages = event.get("ClassificationResult", {}).get("pages")
-    output_bucket = event.get("output_bucket")
+    metadata = event.get("metadata")
+    pagegroup = event.get("pagegroup")
+    output_bucket = event.get("output_bucket")   
+    object_key = metadata.get("object_key")
+    class_label = pagegroup.get("document_type")
+    pages = pagegroup.get("pages")
     output_prefix = object_key
 
-    if not all([pages, working_bucket, class_label, output_bucket]):
-        raise ValueError("Missing required parameters in event")
 
     # Sort pages by page number
-    sorted_page_numbers = sorted(pages.keys(), key=int)
+    sorted_page_numbers = sorted([page['page_number'] for page in pagegroup['pages']], key=int)
     start_page = int(sorted_page_numbers[0])
     end_page = int(sorted_page_numbers[-1])
-    logger.info(f"Processing {len(sorted_page_numbers)} pages from {object_key}, class {class_label}: {start_page}-{end_page}")
+    logger.info(f"Processing {len(sorted_page_numbers)} pages from {object_key} {pagegroup}, class {class_label}: {start_page}-{end_page}")
 
     # Read document text from all pages in order
     t0 = time.time()
     document_texts = []
-    for page_num in sorted_page_numbers:
-        page_data = pages[page_num]
-        text_path = page_data['textract_document_text_parsed_path']
-        page_text = get_text_content(working_bucket, text_path)
+    for page in sorted(pagegroup['pages'], key=lambda x: int(x['page_number'])):
+        text_path = page['paths']['textract_document_text_parsed_path']
+        page_text = get_text_content(text_path)
         document_texts.append(page_text)
     
     document_text = '\n'.join(document_texts)
     t1 = time.time()
     logger.info(f"Time taken to read text content: {t1-t0:.2f} seconds")
 
-    # Read page images if needed
+    # Read page images
     page_images = []
-    for page_num in sorted_page_numbers:
-        page_data = pages[page_num]
-        image_path = page_data['image_path']
-        image_content = get_image_content(working_bucket, image_path)
+    for page in sorted(pagegroup['pages'], key=lambda x: int(x['page_number'])):
+        image_path = page['paths']['image_path']
+        image_content = get_image_content(image_path)
         page_images.append(image_content)
     
     t2 = time.time()
@@ -280,7 +304,7 @@ def handler(event, context):
     logger.info(f"Time taken by bedrock/claude: {t3-t2:.2f} seconds")
 
     # Write results
-    output_key = f"{output_prefix}/{class_label}/Pages_{start_page}_to_{end_page}.json"
+    output_key = f"{output_prefix}/{pagegroup['id']}_Pages_{start_page}_to_{end_page}.json"
     write_json_to_s3(extracted_entities_str, output_bucket, output_key)
     
     # Track metrics
@@ -288,11 +312,7 @@ def handler(event, context):
     put_metric('InputDocumentPages', len(pages))
     
     result = {
-        "input_bucket": input_bucket, 
-        "object_key": object_key,
-        "class_label": class_label,
-        "num_pages": len(pages),
-        "page_numbers": sorted_page_numbers,
+        "metadata": metadata, 
         "extracted_entities": extracted_entities_str,
         "output_location": f"s3://{output_bucket}/{output_key}"
     }
