@@ -6,6 +6,8 @@ import random
 import logging
 from botocore.exceptions import ClientError
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 
 print("Boto3 version: ", boto3.__version__)
 
@@ -13,6 +15,7 @@ print("Boto3 version: ", boto3.__version__)
 MAX_RETRIES = 8 
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 300   # 5 minutes
+MAX_WORKERS = 20     # Adjust based on your needs and endpoint capacity
 
 region = os.environ['AWS_REGION']
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
@@ -25,6 +28,9 @@ s3_client = boto3.client('s3', region_name=region)
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# Add thread-safe metric publishing
+metric_lock = Lock()
+
 def calculate_backoff(attempt):
     """Calculate exponential backoff with jitter"""
     backoff = min(MAX_BACKOFF, INITIAL_BACKOFF * (2 ** attempt))
@@ -34,18 +40,19 @@ def calculate_backoff(attempt):
 def put_metric(name, value, unit='Count', dimensions=None):
     dimensions = dimensions or []
     logger.info(f"Publishing metric {name}: {value}")
-    try:
-        cloudwatch_client.put_metric_data(
-            Namespace=f'{METRIC_NAMESPACE}',
-            MetricData=[{
-                'MetricName': name,
-                'Value': value,
-                'Unit': unit,
-                'Dimensions': dimensions
-            }]
-        )
-    except Exception as e:
-        logger.error(f"Error publishing metric {name}: {e}")
+    with metric_lock:  # Ensure thread-safe metric publishing
+        try:
+            cloudwatch_client.put_metric_data(
+                Namespace=f'{METRIC_NAMESPACE}',
+                MetricData=[{
+                    'MetricName': name,
+                    'Value': value,
+                    'Unit': unit,
+                    'Dimensions': dimensions
+                }]
+            )
+        except Exception as e:
+            logger.error(f"Error publishing metric {name}: {e}")
 
 def classify_single_page(page_number, page_data):
     """Classify a single page using the UDOP model"""
@@ -143,17 +150,17 @@ def write_json_to_s3(json_string, bucket_name, object_key):
 
 def group_consecutive_pages(results):
     """
-    Group consecutive pages with the same classification.
-    Returns a dictionary of class labels mapping to groups of consecutive pages.
+    Group consecutive pages with the same classification into pagegroups.
+    Returns a list of pagegroups, each containing an id, document_type, and pages.
     """
     # Sort results by page number to ensure proper consecutive grouping
     sorted_results = sorted(results, key=lambda x: x['page_number'])
     
-    grouped_pages = defaultdict(dict)
+    pagegroups = []
     current_group = 1
     
     if not sorted_results:
-        return grouped_pages
+        return pagegroups
         
     # Initialize with first result
     current_class = sorted_results[0]['classification']
@@ -166,28 +173,54 @@ def group_consecutive_pages(results):
             current_pages.append(result)
         else:
             # Store current group and start new one
-            grouped_pages[current_class][f"{current_class}_pagegroup_{current_group}"] = current_pages
+            pagegroups.append({
+                'id': f"{current_class}_pagegroup_{current_group}",
+                'document_type': current_class,
+                'pages': current_pages
+            })
             current_group += 1
             current_class = result['classification']
             current_pages = [result]
     
     # Store final group
-    grouped_pages[current_class][f"{current_class}_pagegroup_{current_group}"] = current_pages
+    pagegroups.append({
+        'id': f"{current_class}_pagegroup_{current_group}",
+        'document_type': current_class,
+        'pages': current_pages
+    })
     
-    return grouped_pages
+    return pagegroups
+
+def classify_pages_concurrently(pages):
+    """Classify multiple pages concurrently using a thread pool"""
+    all_results = []
+    futures = []
+    
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        # Submit all classification tasks
+        for page_num, page_data in pages.items():
+            future = executor.submit(classify_single_page, page_num, page_data)
+            futures.append(future)
+        
+        # Collect results as they complete
+        for future in as_completed(futures):
+            try:
+                result = future.result()
+                all_results.append(result)
+            except Exception as e:
+                logger.error(f"Error in concurrent classification: {str(e)}")
+                raise
+    
+    return all_results
 
 def handler(event, context):
     logger.info(f"Event: {json.dumps(event)}")
     
     # Get parameters from event
-    input_bucket = event.get("OCRResult", {}).get("input_bucket")
-    working_bucket = event.get("OCRResult", {}).get("working_bucket")
-    working_prefix = event.get("OCRResult", {}).get("working_prefix")
-    object_key = event.get("OCRResult", {}).get("object_key")
-    num_pages = event.get("OCRResult", {}).get("num_pages")
+    metadata = event.get("OCRResult", {}).get("metadata")
     pages = event.get("OCRResult", {}).get("pages")
 
-    if not all([input_bucket, working_bucket, working_prefix, object_key, num_pages, pages]):
+    if not all([metadata, pages]):
         raise ValueError("Missing required parameters in event")
 
     t0 = time.time()
@@ -196,32 +229,25 @@ def handler(event, context):
     total_pages = len(pages)
     put_metric('ClassificationRequestsTotal', total_pages)
     
-    # Classify each page
-    all_results = []
-    for page_num, page_data in pages.items():
-        result = classify_single_page(page_num, page_data)
-        all_results.append(result)
+    # Classify pages concurrently
+    all_results = classify_pages_concurrently(pages)
     
     t1 = time.time()
     logger.info(f"Time taken for classification: {t1-t0:.2f} seconds")
 
     # Group consecutive pages with same classification
-    pages_by_class = group_consecutive_pages(all_results)
+    pagegroups = group_consecutive_pages(all_results)
     
     response = {
-        "input_bucket": input_bucket, 
-        "object_key": object_key,
-        "working_bucket": working_bucket,
-        "working_prefix": object_key, 
-        "num_pages": num_pages,
-        "pages_by_class": dict(pages_by_class)
+        "metadata": metadata,
+        "pagegroups": pagegroups
     }
 
     # Write results to S3
-    output_key = f"{working_prefix}/classification_results.json"
+    output_key = f'{metadata["working_prefix"]}/classification_results.json'
     write_json_to_s3(
         json.dumps(response),
-        working_bucket,
+        metadata["working_bucket"],
         output_key
     )
     

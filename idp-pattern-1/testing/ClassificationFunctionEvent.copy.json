@@ -1,10 +1,12 @@
 {
     "OCRResult": {
-        "input_bucket": "idpv020-workingbucket-auabktssrntl",
-        "object_key": "insurance-bundle.pdf",
-        "working_bucket": "idpv020-workingbucket-auabktssrntl",
-        "working_prefix": "insurance-bundle.pdf",
-        "num_pages": 6,
+        "metadata": {
+            "input_bucket": "idpv020-workingbucket-auabktssrntl",
+            "object_key": "insurance-bundle.pdf",
+            "working_bucket": "idpv020-workingbucket-auabktssrntl",
+            "working_prefix": "insurance-bundle.pdf",
+            "num_pages": 6
+        },
         "pages": {
             "5": {
                 "textract_document_text_raw_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/textract_document_text_raw/page_0005.json",
@@ -21,11 +23,6 @@
                 "textract_document_text_parsed_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/textract_document_text_parsed/page_0006.json",
                 "image_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/images/page_0006.jpg"
             },
-            "4": {
-                "textract_document_text_raw_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/textract_document_text_raw/page_0004.json",
-                "textract_document_text_parsed_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/textract_document_text_parsed/page_0004.json",
-                "image_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/images/page_0004.jpg"
-            },
             "3": {
                 "textract_document_text_raw_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/textract_document_text_raw/page_0003.json",
                 "textract_document_text_parsed_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/textract_document_text_parsed/page_0003.json",
@@ -35,6 +32,11 @@
                 "textract_document_text_raw_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/textract_document_text_raw/page_0001.json",
                 "textract_document_text_parsed_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/textract_document_text_parsed/page_0001.json",
                 "image_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/images/page_0001.jpg"
+            },
+            "4": {
+                "textract_document_text_raw_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/textract_document_text_raw/page_0004.json",
+                "textract_document_text_parsed_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/textract_document_text_parsed/page_0004.json",
+                "image_path": "s3://idpv020-workingbucket-auabktssrntl/insurance-bundle.pdf/images/page_0004.jpg"
             }
         }
     }

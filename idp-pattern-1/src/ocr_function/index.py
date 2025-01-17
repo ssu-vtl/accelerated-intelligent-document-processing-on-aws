@@ -133,11 +133,13 @@ def handler(event, context):
     logger.info(f"Time taken to process all {num_pages} pages: {t2-t1:.2f} seconds")
 
     response = {
-        "input_bucket": input_bucket, 
-        "object_key": object_key,
-        "working_bucket": working_bucket,
-        "working_prefix": object_key, 
-        "num_pages": num_pages,
+        "metadata": {
+            "input_bucket": input_bucket, 
+            "object_key": object_key,
+            "working_bucket": working_bucket,
+            "working_prefix": object_key, 
+            "num_pages": num_pages
+        },
         "pages": page_results
     }
     print("Response: ", response)

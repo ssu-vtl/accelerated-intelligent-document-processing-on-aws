@@ -204,6 +204,8 @@ Resources:
         - LambdaInvokePolicy:
             FunctionName: !Ref OCRFunction
         - LambdaInvokePolicy:
+            FunctionName: !Ref ClassificationFunction
+        - LambdaInvokePolicy:
             FunctionName: !Ref ExtractionFunction
         - CloudWatchLogsFullAccess
 

@@ -37,24 +37,41 @@
             "BackoffRate": 2
           }
         ],
-        "Next": "ExtractionStep"
+        "Next": "ProcessPageGroups"
       },
-      "ExtractionStep": {
-        "Type": "Task",
-        "Resource": "${ExtractionFunctionArn}",
+      "ProcessPageGroups": {
+        "Type": "Map",
+        "ItemsPath": "$.ClassificationResult.pagegroups",
         "Parameters": {
           "execution_arn.$": "$$.Execution.Id",
           "output_bucket": "${OutputBucket}",
-          "ClassificationResult.$": "$.ClassificationResult"
+          "metadata.$": "$.ClassificationResult.metadata",
+          "pagegroup.$": "$"
         },
-        "Retry": [
-          {
-            "ErrorEquals": ["States.TaskFailed", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
-            "IntervalSeconds": 2,
-            "MaxAttempts": 10,
-            "BackoffRate": 2
+        "Iterator": {
+          "StartAt": "ExtractionStep",
+          "States": {
+            "ExtractionStep": {
+              "Type": "Task",
+              "Resource": "${ExtractionFunctionArn}",
+              "Parameters": {
+                "execution_arn.$": "$.execution_arn",
+                "output_bucket.$": "$.output_bucket",
+                "metadata.$": "$.metadata",
+                "pagegroup.$": "$.pagegroup"
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": ["States.TaskFailed", "Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 10,
+                  "BackoffRate": 2
+                }
+              ],
+              "End": true
+            }
           }
-        ],
+        },
         "End": true
       }
     }
