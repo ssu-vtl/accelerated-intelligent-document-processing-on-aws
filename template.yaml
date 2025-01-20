@@ -82,6 +82,7 @@ Resources:
         OutputBucket: !Ref OutputBucket
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
+        ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
         UDOPModelArtifactPath: !Ref UDOPModelArtifactPath
 
   # Main stack resources
@@ -590,10 +591,10 @@ Resources:
       AlarmActions:
         - !Ref AlertsTopic
 
-  DashboardWorkflow:
+  MainTemplateSubsetDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: !Sub "${AWS::StackName}-${AWS::Region}"
+      DashboardName: !Sub "${AWS::StackName}-${AWS::Region}-MainTemplate-Subset"
       DashboardBody: !Sub |
         {
           "widgets": [
@@ -680,211 +681,6 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  [{"expression": "m1/PERIOD(m1)*60", "label": "Documents per Minute"}],
-                  ["${AWS::StackName}", "InputDocuments", {"id": "m1", "stat": "Sum", "visible": false}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Input Documents (per Minute)",
-                "view": "timeSeries",
-                "period": 60,
-                "yAxis": {
-                  "left": {
-                    "label": "Count per Minute"
-                  }
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 8,
-              "y": 6,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [{"expression": "m1/PERIOD(m1)*60", "label": "Pages per Minute"}],
-                  ["${AWS::StackName}", "InputDocumentPages", {"id": "m1", "stat": "Sum", "visible": false}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Input Document Pages (per Minute)",
-                "view": "timeSeries",
-                "period": 60,
-                "yAxis": {
-                  "left": {
-                    "label": "Count per Minute"
-                  }
-                }
-              }
-            },
-            {
-              "type": "log",
-              "x": 16,
-              "y": 6,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${WorkflowTrackerLogGroup}' | fields @timestamp, @message | filter @message like /Publishing latency metrics/ | parse @message 'total: *ms' as totalTime |  filter totalTime > ${ExecutionTimeThresholdMs} |  stats count(*) as high_latency_count by bin(1m)",
-                "region": "${AWS::Region}",
-                "title": "Count of documents over latency threshold (${ExecutionTimeThresholdMs}ms)",
-                "stacked": false,
-                "view": "timeSeries"
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 12,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [{"expression": "m1/PERIOD(m1)*60", "label": "Tokens per Minute"}],
-                  ["${AWS::StackName}", "InputTokens", {"id": "m1", "stat": "Sum", "visible": false}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Input Tokens (per Minute)",
-                "view": "timeSeries",
-                "period": 60,
-                "yAxis": {
-                  "left": {
-                    "label": "Count per Minute"
-                  }
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 8,
-              "y": 12,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [{"expression": "m1/PERIOD(m1)*60", "label": "Tokens per Minute"}],
-                  ["${AWS::StackName}", "OutputTokens", {"id": "m1", "stat": "Sum", "visible": false}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Output Tokens (per Minute)",
-                "view": "timeSeries",
-                "period": 60,
-                "yAxis": {
-                  "left": {
-                    "label": "Count per Minute"
-                  }
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 16,
-              "y": 12,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [{"expression": "m1/PERIOD(m1)*60", "label": "Tokens per Minute"}],
-                  ["${AWS::StackName}", "TotalTokens", {"id": "m1", "stat": "Sum", "visible": false}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Total Tokens (per Minute)",
-                "view": "timeSeries",
-                "period": 60,
-                "yAxis": {
-                  "left": {
-                    "label": "Count per Minute"
-                  }
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 18,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [{"expression": "m1/PERIOD(m1)*60", "label": "Total per Minute"}],
-                  [{"expression": "m2/PERIOD(m2)*60", "label": "Succeeded per Minute"}],
-                  [{"expression": "m3/PERIOD(m3)*60", "label": "Failed per Minute"}],
-                  ["${AWS::StackName}", "BedrockRequestsTotal", {"id": "m1", "stat": "Sum", "visible": false}],
-                  [".", "BedrockRequestsSucceeded", {"id": "m2", "stat": "Sum", "visible": false}],
-                  [".", "BedrockRequestsFailed", {"id": "m3", "stat": "Sum", "visible": false}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Bedrock Request Status (per Minute)",
-                "view": "timeSeries",
-                "period": 60,
-                "yAxis": {
-                  "left": {
-                    "label": "Count per Minute"
-                  }
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 8,
-              "y": 18,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [{"expression": "m1/PERIOD(m1)*60", "label": "Throttles per Minute"}],
-                  [{"expression": "m2/PERIOD(m2)*60", "label": "Retry Success per Minute"}],
-                  [{"expression": "m3/PERIOD(m3)*60", "label": "Max Retries Exceeded per Minute"}],
-                  ["${AWS::StackName}", "BedrockThrottles", {"id": "m1", "stat": "Sum", "visible": false}],
-                  [".", "BedrockRetrySuccess", {"id": "m2", "stat": "Sum", "visible": false}],
-                  [".", "BedrockMaxRetriesExceeded", {"id": "m3", "stat": "Sum", "visible": false}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Bedrock Retries (per Minute)",
-                "view": "timeSeries",
-                "period": 60,
-                "yAxis": {
-                  "left": {
-                    "label": "Count per Minute"
-                  }
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 16,
-              "y": 18,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  ["${AWS::StackName}", "BedrockRequestLatency", {"stat": "Average"}],
-                  [".", "BedrockRequestLatency", {"stat": "p90"}],
-                  [".", "BedrockRequestLatency", {"stat": "Maximum"}],
-                  [".", "BedrockTotalLatency", {"stat": "Average"}],
-                  [".", "BedrockTotalLatency", {"stat": "p90"}],
-                  [".", "BedrockTotalLatency", {"stat": "Maximum"}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Bedrock Latency - per request, and total (including backoff/retries)",
-                "period": 300,
-                "view": "timeSeries",
-                "stacked": false,
-                "annotations": {
-                  "horizontal": [{
-                    "value": ${ExecutionTimeThresholdMs},
-                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
-                    "color": "#ff0000"
-                  }]
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 24,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
                   [{"expression": "m1/PERIOD(m1)*60", "label": "Messages Received per Minute", "id": "e1"}],
                   [{"expression": "m2/PERIOD(m2)*60", "label": "Messages Deleted per Minute", "id": "e2"}],
                   ["AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${DocumentQueue.QueueName}", {"id": "m1", "stat": "Sum", "visible": false}],
@@ -903,9 +699,9 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 12,
-              "y":24,
-              "width": 12,
+              "x": 8,
+              "y":6,
+              "width": 8,
               "height": 6,
               "properties": {
                 "metrics": [
@@ -928,161 +724,23 @@ Resources:
               }
             },
             {
-              "type": "metric",
-              "x": 0,
-              "y": 30,
-              "width": 12,
+              "type": "log",
+              "x": 18,
+              "y": 6,
+              "width": 8,
               "height": 6,
               "properties": {
-                "metrics": [
-                  ["AWS/Lambda", "Duration", "FunctionName", "${PATTERN1STACK.Outputs.OCRFunctionName}"]
-                ],
+                "query": "SOURCE '${WorkflowTrackerLogGroup}' | fields @timestamp, @message | filter @message like /Publishing latency metrics/ | parse @message 'total: *ms' as totalTime |  filter totalTime > ${ExecutionTimeThresholdMs} |  stats count(*) as high_latency_count by bin(1m)",
                 "region": "${AWS::Region}",
-                "title": "OCR Function Duration",
-                "period": 300,
-                "annotations": {
-                  "horizontal": [{
-                    "value": ${ExecutionTimeThresholdMs},
-                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
-                    "color": "#ff0000"
-                  }]
-                },
-                "stat": "Average",
-                "view": "timeSeries"
-              }
-            },
-            {
-              "type": "metric",
-              "x": 12,
-              "y": 30,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  ["AWS/Lambda", "Duration", "FunctionName", "${PATTERN1STACK.Outputs.ExtractionFunctionName}"]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Bedrock Function Duration",
-                "period": 300,
-                "annotations": {
-                  "horizontal": [{
-                    "value": ${ExecutionTimeThresholdMs},
-                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
-                    "color": "#ff0000"
-                  }]
-                },
-                "stat": "Average",
+                "title": "Count of Workflow Executions over latency threshold (${ExecutionTimeThresholdMs}ms)",
+                "stacked": false,
                 "view": "timeSeries"
               }
             },
             {
               "type": "log",
               "x": 0,
-              "y": 36,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${PATTERN1STACK.Outputs.OCRFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "OCR Lambda Long Running Invocations",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 12,
-              "y": 36,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${PATTERN1STACK.Outputs.ExtractionFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Extraction Lambda Long Running Invocations",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 0,
-              "y": 42,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${PATTERN1STACK.Outputs.OCRFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "OCR Lambda Errors",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 12,
-              "y": 42,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${PATTERN1STACK.Outputs.ExtractionFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Extraction Lambda Errors",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 0,
-              "y": 48,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${QueueSenderLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Queue Sender Lambda Errors",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 12,
-              "y": 48,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${QueueProcessorLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Queue Processor Lambda Errors",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 0,
-              "y": 54,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${WorkflowTrackerLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Workflow Tracker Lambda Errors",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 12,
-              "y": 54,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${LookupFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Lookup Lambda Errors",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 0,
-              "y": 60,
+              "y": 12,
               "width": 24,
               "height": 6,
               "properties": {
@@ -1091,9 +749,92 @@ Resources:
                 "title": "Step Functions Executions Failed",
                 "view": "table"
               }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${QueueSenderLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Queue Sender Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log", 
+              "x": 12,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${QueueProcessorLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Queue Processor Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 24,
+              "width": 12,
+              "height": 6, 
+              "properties": {
+                "query": "SOURCE '${WorkflowTrackerLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Workflow Tracker Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${LookupFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Lookup Lambda Errors",
+                "view": "table"
+              }
             }
           ]
         }
+
+  DashboardMergerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/dashboard_merger
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 60
+      MemorySize: 128
+      Environment:
+        Variables:
+          STACK_NAME: !Ref AWS::StackName
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - cloudwatch:GetDashboard
+                - cloudwatch:ListDashboards
+                - cloudwatch:PutDashboard
+                - cloudwatch:DeleteDashboards
+              Resource: '*'
+
+  MergedDashboard:
+    Type: Custom::DashboardMerger
+    Properties:
+      ServiceToken: !GetAtt DashboardMergerFunction.Arn
+      Dashboard1Name: !Ref MainTemplateSubsetDashboard
+      Dashboard2Name: !GetAtt PATTERN1STACK.Outputs.DashboardName
+      MergedDashboardName: !Sub "${AWS::StackName}-Integrated-${AWS::Region}"
+      ChangeToForceMerge: 20012025-2  # Change this value when either of the two input dashboards have been changed
 
   LookupFunction:
     Type: AWS::Serverless::Function
@@ -1157,9 +898,12 @@ Outputs:
   StateMachineConsoleURL:
     Description: Step Functions State machine console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/states/home?region=${AWS::Region}#/statemachines/view/${PATTERN1STACK.Outputs.StateMachineArn}
+  CWDashboardConsoleName:
+    Description: Name of the merged CloudWatch dashboard
+    Value: !GetAtt MergedDashboard.DashboardName
   CWDashboardConsoleURL:
-    Description: CloudWatch Dashboard URL
-    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${DashboardWorkflow}
+    Description: URL of the merged CloudWatch dashboard
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${MergedDashboard.DashboardName}"
   SNSAlertsTopicARN:
     Description: SNS Topic ARN for alerts
     Value: !Ref AlertsTopic
