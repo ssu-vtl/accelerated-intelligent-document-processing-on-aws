@@ -1,0 +1,26 @@
+{
+    "output_bucket": <BUCKET>,
+    "metadata": {
+        "input_bucket": <BUCKET>,
+        "object_key": <KEY>,
+        "working_bucket": <BUCKET>,
+        "working_prefix": <PREFIX>,
+        "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
+    },
+    "execution_arn": <ARN>,
+    "pagegroup": {
+        "id": <ID>,
+        "document_type": <TYPE or CLASS>,
+        "pages": [
+            {
+                "page_number": <NUM>,
+                "classification": <TYPE or CLASS>,
+                "paths": {
+                    "textract_document_text_raw_path": <S3_URI>,
+                    "textract_document_text_parsed_path": <S3_URI>,
+                    "image_path": <S3_URI>
+                }
+            }
+        ]
+    }
+}

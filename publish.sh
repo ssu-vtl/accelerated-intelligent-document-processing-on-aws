@@ -59,30 +59,43 @@ else
   echo "Using existing bucket: $BUCKET"
 fi
 
-tmpdir=.aws-sam
 
 # Package and publish the artifacts
 is_x86_64() {
-    [[ $(uname -m) == "x86_64" ]]
+  [[ $(uname -m) == "x86_64" ]]
 }
 if is_x86_64; then
-    sam build --template-file template.yaml
+  USE_CONTAINER_FLAG=""
 else
-    echo "Running SAM build with container on Mac..."
-    sam build --use-container --template-file template.yaml
+  echo "Run SAM build with container on Mac..."
+  USE_CONTAINER_FLAG="--use-container "
 fi
 
+for nested in patterns/*; do
+  echo "Building nested template artifacts in $nested" 
+  pushd $nested
+  sam build $USE_CONTAINER_FLAG --template-file template.yaml
+  sam package \
+    --template-file .aws-sam/build/template.yaml \
+    --output-template-file .aws-sam/packaged.yaml \
+    --s3-bucket ${BUCKET} \
+    --s3-prefix ${PREFIX_AND_VERSION}
+  popd
+done
+# build main template
+MAIN_TEMPLATE=idp-main.yaml
+sam build $USE_CONTAINER_FLAG --template-file template.yaml
 sam package \
- --template-file ${tmpdir}/build/template.yaml \
- --output-template-file ${tmpdir}/packaged.yaml \
+ --template-file .aws-sam/build/template.yaml \
+ --output-template-file .aws-sam/${MAIN_TEMPLATE} \
  --s3-bucket ${BUCKET} \
  --s3-prefix ${PREFIX_AND_VERSION}
 
-aws s3 cp ${tmpdir}/packaged.yaml s3://${BUCKET}/${PREFIX}/packaged.yaml || exit 1
-
-template="https://s3.${REGION}.amazonaws.com/${BUCKET}/${PREFIX}/packaged.yaml"
-echo "Validating template: $template"
-aws cloudformation validate-template --template-url $template > /dev/null || exit 1
+# upload main template
+aws s3 cp .aws-sam/${MAIN_TEMPLATE} s3://${BUCKET}/${PREFIX}/${MAIN_TEMPLATE} || exit 1
+TEMPLATE_URL="https://s3.${REGION}.amazonaws.com/${BUCKET}/${PREFIX}/${MAIN_TEMPLATE}"
+echo "Validating template: $TEMPLATE_URL"
+aws cloudformation validate-template --template-url $TEMPLATE_URL > /dev/null || exit 1
 
 if $PUBLIC; then
 echo "Setting public read ACLs on published artifacts"
@@ -95,15 +108,15 @@ for file in $files
   counter=$((counter + 1))
   echo -ne "Progress: $counter/$c files processed\r"
   done
-aws s3api put-object-acl --acl public-read --bucket ${BUCKET} --key ${PREFIX}/packaged.yaml
+aws s3api put-object-acl --acl public-read --bucket ${BUCKET} --key ${PREFIX}/${MAIN_TEMPLATE}
 echo ""
 echo "Done."
 fi
 
 echo "OUTPUTS"
-echo Template URL: $template
-echo CF Launch URL: https://${REGION}.console.aws.amazon.com/cloudformation/home?region=${REGION}#/stacks/create/review?templateURL=${template}\&stackName=IDP
-echo CLI Deploy: aws cloudformation deploy --region $REGION --template-file $tmpdir/packaged.yaml --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --stack-name "<your-stack-name>"
+echo Template URL: $TEMPLATE_URL
+echo CF Launch URL: https://${REGION}.console.aws.amazon.com/cloudformation/home?region=${REGION}#/stacks/create/review?templateURL=${TEMPLATE_URL}\&stackName=IDP
+echo CLI Deploy: aws cloudformation deploy --region $REGION --template-file .aws-sam/${MAIN_TEMPLATE} --s3-bucket ${BUCKET} --s3-prefix ${PREFIX_AND_VERSION} --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --parameter-overrides UDOPModelArtifactPath="s3://bucket-name/path/to/model.tar.gz" <other params> --stack-name "<your-stack-name>"
 echo Done
 exit 0
 
