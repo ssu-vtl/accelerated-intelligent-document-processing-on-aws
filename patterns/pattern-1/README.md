@@ -2,6 +2,24 @@
 
 This pattern implements an intelligent document processing workflow that uses UDOP (Unified Document Processing) for page classification and grouping, followed by Claude for information extraction.
 
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+  - [State Machine Workflow](#state-machine-workflow)
+  - [Lambda Functions](#lambda-functions)
+    - [OCR Function](#ocr-function)
+    - [Classification Function](#classification-function)
+    - [Extraction Function](#extraction-function)
+  - [UDOP Model on SageMaker](#udop-model-on-sagemaker)
+  - [Monitoring and Metrics](#monitoring-and-metrics)
+    - [Performance Metrics](#performance-metrics)
+    - [Error Tracking](#error-tracking)
+    - [Lambda Function Metrics](#lambda-function-metrics)
+  - [Template Outputs](#template-outputs)
+  - [Configuration](#configuration)
+- [Testing](#testing)
+- [Best Practices](#best-practices)
+
 ## Architecture Overview
 
 The workflow consists of three main processing steps:

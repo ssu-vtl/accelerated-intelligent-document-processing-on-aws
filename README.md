@@ -4,6 +4,8 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
 
 ## Table of Contents
 
+## Table of Contents
+
 - [Introduction](#introduction)
   - [Key Features](#key-features)
   - [Use Cases](#use-cases)
@@ -11,15 +13,28 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
   - [Dependencies](#dependencies)
   - [Build and Publish the solution](#build-and-publish-the-solution)
   - [Test the solution](#test-the-solution)
+    - [Testing individual lambda functions locally](#testing-individual-lambda-functions-locally)
+    - [Steady state volume testing using load simulator script](#steady-state-volume-testing-using-load-simulator-script)
+    - [Variable volume testing using dynamic load simulator script](#variable-volume-testing-using-dynamic-load-simulator-script)
 - [Architecture](#architecture)
   - [Flow Overview](#flow-overview)
   - [Components](#components)
+  - [Modular Design Overview](#modular-design-overview)
+  - [Stack Structure](#stack-structure)
+    - [Main Stack (template.yaml)](#main-stack-templateyaml)
+    - [Pattern Stacks (patterns/*)](#pattern-stacks-patterns)
+  - [Pattern Selection and Deployment](#pattern-selection-and-deployment)
+  - [Integrated Monitoring](#integrated-monitoring)
+  - [Adding New Patterns](#adding-new-patterns)
 - [Concurrency and Throttling Management](#concurrency-and-throttling-management)
-  - [Bedrock Throttling and Retry](#bedrock-throttling-and-retry)
+  - [Throttling and Retry (Bedrock and/or SageMaker)](#throttling-and-retry-bedrock-andor-sagemaker)
   - [Step Functions Retry Configuration](#step-functions-retry-configuration)
   - [Concurrency Control](#concurrency-control)
 - [Monitoring and Logging](#monitoring-and-logging)
   - [CloudWatch Dashboard](#cloudwatch-dashboard)
+    - [Latency Metrics](#latency-metrics)
+    - [Throughput Metrics](#throughput-metrics)
+    - [Error Tracking](#error-tracking)
   - [Log Groups](#log-groups)
 - [Document Status Lookup](#document-status-lookup)
   - [Using the Lookup Script](#using-the-lookup-script)
@@ -33,7 +48,6 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
   - [Extraction Attributes](#extraction-attributes)
 - [Troubleshooting Guide](#troubleshooting-guide)
 - [Performance Considerations](#performance-considerations)
-
 
 
 ## Introduction
