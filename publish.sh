@@ -71,13 +71,13 @@ else
   USE_CONTAINER_FLAG="--use-container "
 fi
 
-for nested in idp-pattern-1; do
+for nested in patterns/*; do
   echo "Building nested template artifacts in $nested" 
   pushd $nested
   sam build $USE_CONTAINER_FLAG --template-file template.yaml
   sam package \
     --template-file .aws-sam/build/template.yaml \
-    --output-template-file .aws-sam/${nested}.yaml \
+    --output-template-file .aws-sam/packaged.yaml \
     --s3-bucket ${BUCKET} \
     --s3-prefix ${PREFIX_AND_VERSION}
   popd

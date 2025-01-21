@@ -31,39 +31,160 @@ Parameters:
     Description: Number of days to retain CloudWatch logs
     AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
 
-  # Classification and Packet Splitting Configuration
+  # Workflow Configuration
   IDPPattern:
     Type: String
     Default: Pattern1
     AllowedValues:
       - Pattern1
-    Description: Choose from built-in IDP workflow patterns - see README for pattern descriptions
+      - Pattern2
+    Description: >-
+        Choose from built-in IDP workflow patterns - see README for pattern descriptions.
+        Pattern1: OCR -> UDOP Page Classification and Grouping -> Extraction
+        Pattern2: TBD
 
-  UDOPModelArtifactPath:
+  # Pattern 1 Parameters
+
+  Pattern1UDOPModelArtifactPath:
+    Type: String
+    Default: 's3://bobs-artifacts-us-east-1/udop/model.tar.gz'
+    AllowedPattern: "^(|s3://.*)$"
+    Description: For Pattern1, provide S3 path to the UDOP model.tar.gz file (e.g., s3://bucket-name/path/to/model.tar.gz)
+
+  Pattern1ExtractionModel:
+    Type: String
+    Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
+    AllowedValues:
+      - 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
+      - 'us.amazon.nova-pro-v1:0'
+    Description: Model to use for Extraction
+
+  # Pattern 2 Parameters
+
+  Pattern2ClassificationModel:
+    Type: String
+    Default: 'us.amazon.nova-pro-v1:0'
+    AllowedValues:
+      - 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
+      - 'us.amazon.nova-pro-v1:0'
+      - 'Custom Fine Tuned Classification Model'
+    Description: Model to use for Classification
+
+  Pattern2ExtractionModel:
+    Type: String
+    Default: 'us.amazon.nova-pro-v1:0'
+    AllowedValues:
+      - 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
+      - 'us.amazon.nova-pro-v1:0'
+      - 'Custom Fine Tuned Extraction Model'
+    Description: Model to use for Extraction
+
+  Pattern2CustomClassificationModelARN:
     Type: String
     Default: ''
-    AllowedPattern: "^(|s3://.*)$"
-    Description: When IDPPattern is "Pattern1", provide S3 path to the UDOP model.tar.gz file (e.g., s3://bucket-name/path/to/model.tar.gz)
+    Description: For 'Custom Fine Tuned Classification Model', specify Model ARN
 
+  Pattern2CustomExtractionModelARN:
+    Type: String
+    Default: ''
+    Description: For 'Custom Fine Tuned Extraction Model', specify Model ARN
 
 Rules:
 
-  UDOPModelArtifactPath:
+  # Pattern 1 rules 
+
+  Pattern1UDOPModelArtifactPath:
     RuleCondition:
       !Equals [
         !Ref IDPPattern,
         "Pattern1",
       ]
     Assertions:
-      - Assert: !Not [!Equals [!Ref UDOPModelArtifactPath, ""]]
+      - Assert: !Not [!Equals [!Ref Pattern1UDOPModelArtifactPath, ""]]
         AssertDescription:
-          UDOPModelArtifactPath is required when IDPPattern
-          is 'Pattern1'
+          UDOP Model Artifact Path is required when IDPPattern is 'Pattern1'
+
+  # Pattern 2 rules
+
+  Pattern2ClassificationModelArn:
+    RuleCondition:
+      !Equals [
+        !Ref Pattern2ClassificationModel,
+        "Custom Fine Tuned Classification Model",
+      ]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref Pattern2CustomClassificationModelARN, ""]]
+        AssertDescription:
+          Pattern2CustomClassificationModelARN is required when 'Custom Fine Tuned Classification Model'
+          is selected.
+
+  Pattern2ExtractionModelArn:
+    RuleCondition:
+      !Equals [
+        !Ref Pattern2ExtractionModel,
+        "Custom Fine Tuned Extraction Model",
+      ]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref Pattern2CustomExtractionModelARN, ""]]
+        AssertDescription:
+          Pattern2CustomExtractionModelARN is required when 'Custom Fine Tuned Extraction Model'
+          is selected.
 
 Conditions:
 
   IsPattern1: !Equals [!Ref IDPPattern, "Pattern1"]
+  IsPattern2: !Equals [!Ref IDPPattern, "Pattern2"]
 
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Pipeline Configuration"
+        Parameters:
+          - MaxConcurrentWorkflows
+          - ErrorThreshold
+          - ExecutionTimeThresholdMs
+          - LogRetentionDays
+
+      - Label:
+          default: "Workflow Pattern Selection"
+        Parameters:
+          - IDPPattern
+      - Label:
+          default: "Pattern 1 Configuration"
+        Parameters:
+          - Pattern1UDOPModelArtifactPath
+          - Pattern1ExtractionModel
+      - Label:
+          default: "Pattern 2 Configuration"
+        Parameters:
+          - Pattern2ClassificationModel
+          - Pattern2ExtractionModel
+          - Pattern2CustomClassificationModelARN
+          - Pattern2CustomExtractionModelARN
+
+    ParameterLabels:
+      MaxConcurrentWorkflows:
+        default: "Maximum Concurrent Workflows"
+      ErrorThreshold:
+        default: "Error Alert Threshold"
+      ExecutionTimeThresholdMs:
+        default: "Execution Time Threshold (ms)"
+      LogRetentionDays:
+        default: "Log Retention Period (days)"
+      IDPPattern:
+        default: "Prefdefined Document Processing Pattern"
+      Pattern1UDOPModelArtifactPath:
+        default: "Pattern1 - UDOP Model Artifact Path"
+      Pattern1ExtractionModel:
+        default: "Pattern1 - Extraction Model"
+      Pattern2ExtractionModel:
+        default: "Pattern1 - Extraction Model"
+      Pattern2CustomClassificationModelARN:
+        default: "Pattern2 - Custom Classification Model ARN"
+      Pattern2CustomExtractionModelARN:
+        default: "Pattern2 - Custom Extraction Model ARN"
 
 Resources:
 
@@ -74,7 +195,7 @@ Resources:
     Condition: IsPattern1
     Properties:
       # yamllint disable rule:line-length
-      TemplateURL: ./idp-pattern-1/.aws-sam/idp-pattern-1.yaml
+      TemplateURL: ./patterns/pattern-1/.aws-sam/packaged.yaml
       Parameters:
         StackName: !Ref AWS::StackName
         InputBucket: !Ref InputBucket
@@ -83,7 +204,26 @@ Resources:
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
-        UDOPModelArtifactPath: !Ref UDOPModelArtifactPath
+        UDOPModelArtifactPath: !Ref Pattern1UDOPModelArtifactPath
+        ExtractionModel: !Ref Pattern1ExtractionModel
+
+  PATTERN2STACK:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsPattern2
+    Properties:
+      TemplateURL: ./patterns/pattern-2/.aws-sam/packaged.yaml
+      Parameters:
+        StackName: !Ref AWS::StackName
+        InputBucket: !Ref InputBucket
+        WorkingBucket: !Ref WorkingBucket
+        OutputBucket: !Ref OutputBucket
+        CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
+        LogRetentionDays: !Ref LogRetentionDays
+        ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
+        ClassificationModel: !Ref Pattern2ClassificationModel
+        ExtractionModel: !Ref Pattern2ExtractionModel
+        CustomClassificationModelARN: !Ref Pattern2CustomClassificationModelARN
+        CustomExtractionModelARN: !Ref Pattern2CustomExtractionModelARN
 
   # Main stack resources
 
@@ -434,7 +574,10 @@ Resources:
        LogGroup: !Ref QueueProcessorLogGroup
      Environment:
        Variables:
-         STATE_MACHINE_ARN: !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+         STATE_MACHINE_ARN: !If 
+            - IsPattern1
+            - !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+            - !GetAtt PATTERN2STACK.Outputs.StateMachineArn
          TRACKING_TABLE: !Ref ExecutionTable
          CONCURRENCY_TABLE: !Ref ConcurrencyTable
          MAX_CONCURRENT: !Ref MaxConcurrentWorkflows
@@ -442,7 +585,10 @@ Resources:
        - SQSPollerPolicy:
            QueueName: !GetAtt DocumentQueue.QueueName
        - StepFunctionsExecutionPolicy:
-           StateMachineName: !GetAtt PATTERN1STACK.Outputs.StateMachineName
+           StateMachineName: !If 
+              - IsPattern1
+              - !GetAtt PATTERN1STACK.Outputs.StateMachineName
+              - !GetAtt PATTERN2STACK.Outputs.StateMachineName
        - DynamoDBCrudPolicy:
            TableName: !Ref ExecutionTable
        - DynamoDBCrudPolicy:
@@ -531,7 +677,10 @@ Resources:
           - Step Functions Execution Status Change
         detail:
           stateMachineArn:
-            - !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+            - !If 
+              - IsPattern1
+              - !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+              - !GetAtt PATTERN2STACK.Outputs.StateMachineArn
           status:
             - FAILED
             - TIMED_OUT
@@ -570,7 +719,10 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold 
       Dimensions:
         - Name: StateMachineArn
-          Value: !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+          Value: !If 
+            - IsPattern1
+            - !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+            - !GetAtt PATTERN2STACK.Outputs.StateMachineArn
       AlarmActions:
         - !Ref AlertsTopic
 
@@ -587,7 +739,10 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       Dimensions:
         - Name: StateMachineArn
-          Value: !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+          Value: !If 
+            - IsPattern1
+            - !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+            - !GetAtt PATTERN2STACK.Outputs.StateMachineArn
       AlarmActions:
         - !Ref AlertsTopic
 
@@ -595,215 +750,361 @@ Resources:
     Type: AWS::CloudWatch::Dashboard
     Properties:
       DashboardName: !Sub "${AWS::StackName}-${AWS::Region}-MainTemplate-Subset"
-      DashboardBody: !Sub |
-        {
-          "widgets": [
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 0,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  ["${AWS::StackName}", "QueueLatencyMilliseconds", {"stat": "Average"}],
-                  [".", "QueueLatencyMilliseconds", {"stat": "p90"}],
-                  [".", "QueueLatencyMilliseconds", {"stat": "Maximum"}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Queue Latency",
-                "period": 300,
-                "view": "timeSeries",
-                "annotations": {
-                  "horizontal": [{
-                    "value": ${ExecutionTimeThresholdMs},
-                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
-                    "color": "#ff0000"
-                  }]
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 8,
-              "y": 0,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  ["${AWS::StackName}", "WorkflowLatencyMilliseconds", {"stat": "Average"}],
-                  [".", "WorkflowLatencyMilliseconds", {"stat": "p90"}],
-                  [".", "WorkflowLatencyMilliseconds", {"stat": "Maximum"}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Workflow Latency",
-                "period": 300,
-                "view": "timeSeries",
-                "annotations": {
-                  "horizontal": [{
-                    "value": ${ExecutionTimeThresholdMs},
-                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
-                    "color": "#ff0000"
-                  }]
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 16,
-              "y": 0,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  ["${AWS::StackName}", "TotalLatencyMilliseconds", {"stat": "Average"}],
-                  [".", "TotalLatencyMilliseconds", {"stat": "p90"}],
-                  [".", "TotalLatencyMilliseconds", {"stat": "Maximum"}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Total Processing Latency",
-                "period": 300,
-                "view": "timeSeries",
-                "annotations": {
-                  "horizontal": [{
-                    "value": ${ExecutionTimeThresholdMs},
-                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
-                    "color": "#ff0000"
-                  }]
-                }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 0,
-              "y": 6,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [{"expression": "m1/PERIOD(m1)*60", "label": "Messages Received per Minute", "id": "e1"}],
-                  [{"expression": "m2/PERIOD(m2)*60", "label": "Messages Deleted per Minute", "id": "e2"}],
-                  ["AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${DocumentQueue.QueueName}", {"id": "m1", "stat": "Sum", "visible": false}],
-                  [".", "NumberOfMessagesDeleted", ".", ".", {"id": "m2", "stat": "Sum", "visible": false}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "SQS Queue Metrics (per Minute)",
-                "view": "timeSeries",
-                "period": 60,
-                "yAxis": {
-                  "left": {
-                    "label": "Count per Minute"
+      DashboardBody: !Sub
+        - |
+          {
+            "widgets": [
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 0,
+                "width": 8,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [
+                      "${AWS::StackName}",
+                      "QueueLatencyMilliseconds",
+                      {
+                        "stat": "Average"
+                      }
+                    ],
+                    [
+                      ".",
+                      "QueueLatencyMilliseconds",
+                      {
+                        "stat": "p90"
+                      }
+                    ],
+                    [
+                      ".",
+                      "QueueLatencyMilliseconds",
+                      {
+                        "stat": "Maximum"
+                      }
+                    ]
+                  ],
+                  "region": "${AWS::Region}",
+                  "title": "Queue Latency",
+                  "period": 300,
+                  "view": "timeSeries",
+                  "annotations": {
+                    "horizontal": [
+                      {
+                        "value": ${ExecutionTimeThresholdMs
+                        },
+                        "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                        "color": "#ff0000"
+                      }
+                    ]
                   }
                 }
-              }
-            },
-            {
-              "type": "metric",
-              "x": 8,
-              "y":6,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "metrics": [
-                  [{"expression": "m1/PERIOD(m1)*60", "label": "Started per Minute", "id": "e1"}],
-                  [{"expression": "m2/PERIOD(m2)*60", "label": "Succeeded per Minute", "id": "e2"}],
-                  [{"expression": "m3/PERIOD(m3)*60", "label": "Failed per Minute", "id": "e3"}],
-                  ["AWS/States", "ExecutionsStarted", "StateMachineArn", "${PATTERN1STACK.Outputs.StateMachineArn}", {"id": "m1", "stat": "Sum", "visible": false}],
-                  [".", "ExecutionsSucceeded", ".", ".", {"id": "m2", "stat": "Sum", "visible": false}],
-                  [".", "ExecutionsFailed", ".", ".", {"id": "m3", "stat": "Sum", "visible": false}]
-                ],
-                "region": "${AWS::Region}",
-                "title": "Workflow Executions (per Minute)",
-                "view": "timeSeries",
-                "period": 60,
-                "yAxis": {
-                  "left": {
-                    "label": "Count per Minute"
+              },
+              {
+                "type": "metric",
+                "x": 8,
+                "y": 0,
+                "width": 8,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [
+                      "${AWS::StackName}",
+                      "WorkflowLatencyMilliseconds",
+                      {
+                        "stat": "Average"
+                      }
+                    ],
+                    [
+                      ".",
+                      "WorkflowLatencyMilliseconds",
+                      {
+                        "stat": "p90"
+                      }
+                    ],
+                    [
+                      ".",
+                      "WorkflowLatencyMilliseconds",
+                      {
+                        "stat": "Maximum"
+                      }
+                    ]
+                  ],
+                  "region": "${AWS::Region}",
+                  "title": "Workflow Latency",
+                  "period": 300,
+                  "view": "timeSeries",
+                  "annotations": {
+                    "horizontal": [
+                      {
+                        "value": ${ExecutionTimeThresholdMs
+                        },
+                        "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                        "color": "#ff0000"
+                      }
+                    ]
                   }
                 }
+              },
+              {
+                "type": "metric",
+                "x": 16,
+                "y": 0,
+                "width": 8,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [
+                      "${AWS::StackName}",
+                      "TotalLatencyMilliseconds",
+                      {
+                        "stat": "Average"
+                      }
+                    ],
+                    [
+                      ".",
+                      "TotalLatencyMilliseconds",
+                      {
+                        "stat": "p90"
+                      }
+                    ],
+                    [
+                      ".",
+                      "TotalLatencyMilliseconds",
+                      {
+                        "stat": "Maximum"
+                      }
+                    ]
+                  ],
+                  "region": "${AWS::Region}",
+                  "title": "Total Processing Latency",
+                  "period": 300,
+                  "view": "timeSeries",
+                  "annotations": {
+                    "horizontal": [
+                      {
+                        "value": ${ExecutionTimeThresholdMs
+                        },
+                        "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                        "color": "#ff0000"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 6,
+                "width": 8,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [
+                      {
+                        "expression": "m1/PERIOD(m1)*60",
+                        "label": "Messages Received per Minute",
+                        "id": "e1"
+                      }
+                    ],
+                    [
+                      {
+                        "expression": "m2/PERIOD(m2)*60",
+                        "label": "Messages Deleted per Minute",
+                        "id": "e2"
+                      }
+                    ],
+                    [
+                      "AWS/SQS",
+                      "NumberOfMessagesReceived",
+                      "QueueName",
+                      "${DocumentQueue.QueueName}",
+                      {
+                        "id": "m1",
+                        "stat": "Sum",
+                        "visible": false
+                      }
+                    ],
+                    [
+                      ".",
+                      "NumberOfMessagesDeleted",
+                      ".",
+                      ".",
+                      {
+                        "id": "m2",
+                        "stat": "Sum",
+                        "visible": false
+                      }
+                    ]
+                  ],
+                  "region": "${AWS::Region}",
+                  "title": "SQS Queue Metrics (per Minute)",
+                  "view": "timeSeries",
+                  "period": 60,
+                  "yAxis": {
+                    "left": {
+                      "label": "Count per Minute"
+                    }
+                  }
+                }
+              },
+              {
+                "type": "metric",
+                "x": 8,
+                "y": 6,
+                "width": 8,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [
+                      {
+                        "expression": "m1/PERIOD(m1)*60",
+                        "label": "Started per Minute",
+                        "id": "e1"
+                      }
+                    ],
+                    [
+                      {
+                        "expression": "m2/PERIOD(m2)*60",
+                        "label": "Succeeded per Minute",
+                        "id": "e2"
+                      }
+                    ],
+                    [
+                      {
+                        "expression": "m3/PERIOD(m3)*60",
+                        "label": "Failed per Minute",
+                        "id": "e3"
+                      }
+                    ],
+                    [
+                      "AWS/States",
+                      "ExecutionsStarted",
+                      "StateMachineArn",
+                      "${StateMachineArn}",
+                      {
+                        "id": "m1",
+                        "stat": "Sum",
+                        "visible": false
+                      }
+                    ],
+                    [
+                      ".",
+                      "ExecutionsSucceeded",
+                      ".",
+                      ".",
+                      {
+                        "id": "m2",
+                        "stat": "Sum",
+                        "visible": false
+                      }
+                    ],
+                    [
+                      ".",
+                      "ExecutionsFailed",
+                      ".",
+                      ".",
+                      {
+                        "id": "m3",
+                        "stat": "Sum",
+                        "visible": false
+                      }
+                    ]
+                  ],
+                  "region": "${AWS::Region}",
+                  "title": "Workflow Executions (per Minute)",
+                  "view": "timeSeries",
+                  "period": 60,
+                  "yAxis": {
+                    "left": {
+                      "label": "Count per Minute"
+                    }
+                  }
+                }
+              },
+              {
+                "type": "log",
+                "x": 18,
+                "y": 6,
+                "width": 8,
+                "height": 6,
+                "properties": {
+                  "query": "SOURCE '${WorkflowTrackerLogGroup}' | fields @timestamp, @message | filter @message like /Publishing latency metrics/ | parse @message 'total: *ms' as totalTime |  filter totalTime > ${ExecutionTimeThresholdMs} |  stats count(*) as high_latency_count by bin(1m)",
+                  "region": "${AWS::Region}",
+                  "title": "Count of Workflow Executions over latency threshold (${ExecutionTimeThresholdMs}ms)",
+                  "stacked": false,
+                  "view": "timeSeries"
+                }
+              },
+              {
+                "type": "log",
+                "x": 0,
+                "y": 12,
+                "width": 24,
+                "height": 6,
+                "properties": {
+                  "query": "SOURCE '${StateMachineLogGroup}' | fields @timestamp, @message | filter @message like /ExecutionFailed/ or @message like /TimedOut/ | parse @message /execution: (?<execution_arn>[^ ]*)/ | parse @message /error: (?<error>[^\"]*)/| sort @timestamp desc | limit 20",
+                  "region": "${AWS::Region}",
+                  "title": "Step Functions Executions Failed",
+                  "view": "table"
+                }
+              },
+              {
+                "type": "log",
+                "x": 0,
+                "y": 18,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "query": "SOURCE '${QueueSenderLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
+                  "region": "${AWS::Region}",
+                  "title": "Queue Sender Lambda Errors",
+                  "view": "table"
+                }
+              },
+              {
+                "type": "log",
+                "x": 12,
+                "y": 18,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "query": "SOURCE '${QueueProcessorLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
+                  "region": "${AWS::Region}",
+                  "title": "Queue Processor Lambda Errors",
+                  "view": "table"
+                }
+              },
+              {
+                "type": "log",
+                "x": 0,
+                "y": 24,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "query": "SOURCE '${WorkflowTrackerLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
+                  "region": "${AWS::Region}",
+                  "title": "Workflow Tracker Lambda Errors",
+                  "view": "table"
+                }
+              },
+              {
+                "type": "log",
+                "x": 12,
+                "y": 24,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "query": "SOURCE '${LookupFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
+                  "region": "${AWS::Region}",
+                  "title": "Lookup Lambda Errors",
+                  "view": "table"
+                }
               }
-            },
-            {
-              "type": "log",
-              "x": 18,
-              "y": 6,
-              "width": 8,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${WorkflowTrackerLogGroup}' | fields @timestamp, @message | filter @message like /Publishing latency metrics/ | parse @message 'total: *ms' as totalTime |  filter totalTime > ${ExecutionTimeThresholdMs} |  stats count(*) as high_latency_count by bin(1m)",
-                "region": "${AWS::Region}",
-                "title": "Count of Workflow Executions over latency threshold (${ExecutionTimeThresholdMs}ms)",
-                "stacked": false,
-                "view": "timeSeries"
-              }
-            },
-            {
-              "type": "log",
-              "x": 0,
-              "y": 12,
-              "width": 24,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${PATTERN1STACK.Outputs.StateMachineLogGroup}' | fields @timestamp, @message | filter @message like /ExecutionFailed/ or @message like /TimedOut/ | parse @message /execution: (?<execution_arn>[^ ]*)/ | parse @message /error: (?<error>[^\"]*)/| sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Step Functions Executions Failed",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 0,
-              "y": 18,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${QueueSenderLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Queue Sender Lambda Errors",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log", 
-              "x": 12,
-              "y": 18,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${QueueProcessorLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Queue Processor Lambda Errors",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 0,
-              "y": 24,
-              "width": 12,
-              "height": 6, 
-              "properties": {
-                "query": "SOURCE '${WorkflowTrackerLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Workflow Tracker Lambda Errors",
-                "view": "table"
-              }
-            },
-            {
-              "type": "log",
-              "x": 12,
-              "y": 24,
-              "width": 12,
-              "height": 6,
-              "properties": {
-                "query": "SOURCE '${LookupFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
-                "region": "${AWS::Region}",
-                "title": "Lookup Lambda Errors",
-                "view": "table"
-              }
-            }
-          ]
-        }
+            ]
+          }
+        - StateMachineArn: !If [IsPattern1, !GetAtt PATTERN1STACK.Outputs.StateMachineArn, !GetAtt PATTERN2STACK.Outputs.StateMachineArn]
+          StateMachineLogGroup: !If [IsPattern1, !GetAtt PATTERN1STACK.Outputs.StateMachineLogGroup, !GetAtt PATTERN2STACK.Outputs.StateMachineLogGroup]
 
   DashboardMergerFunction:
     Type: AWS::Serverless::Function
@@ -832,9 +1133,12 @@ Resources:
     Properties:
       ServiceToken: !GetAtt DashboardMergerFunction.Arn
       Dashboard1Name: !Ref MainTemplateSubsetDashboard
-      Dashboard2Name: !GetAtt PATTERN1STACK.Outputs.DashboardName
+      Dashboard2Name: !If 
+        - IsPattern1
+        - !GetAtt PATTERN1STACK.Outputs.DashboardName
+        - !GetAtt PATTERN2STACK.Outputs.DashboardName
       MergedDashboardName: !Sub "${AWS::StackName}-Integrated-${AWS::Region}"
-      ChangeToForceMerge: 20012025-2  # Change this value when either of the two input dashboards have been changed
+      ChangeToForceMerge: 21012025-2  # Change this value when either of the two input dashboards have been changed
 
   LookupFunction:
     Type: AWS::Serverless::Function
@@ -857,7 +1161,9 @@ Resources:
                 - states:DescribeExecution
                 - states:GetExecutionHistory
               Resource: 
-                - !Sub "arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${PATTERN1STACK.Outputs.StateMachineName}*"
+                - !Sub 
+                  - "arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${StateMachineArn}*"
+                  - StateMachineArn: !If [IsPattern1, !GetAtt PATTERN1STACK.Outputs.StateMachineArn, !GetAtt PATTERN2STACK.Outputs.StateMachineArn]
             - Effect: Allow
               Action:
                 - kms:Encrypt
@@ -894,10 +1200,16 @@ Outputs:
     Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${WorkingBucket}
   StateMachineArn:
     Description: Step Functions State machine ARN
-    Value: !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+    Value: !If 
+      - IsPattern1
+      - !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+      - !GetAtt PATTERN2STACK.Outputs.StateMachineArn
   StateMachineConsoleURL:
     Description: Step Functions State machine console URL
-    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/states/home?region=${AWS::Region}#/statemachines/view/${PATTERN1STACK.Outputs.StateMachineArn}
+    Value: !Sub
+      - https://${AWS::Region}.console.aws.amazon.com/states/home?region=${AWS::Region}#/statemachines/view/${StateMachineArn}
+      - StateMachineArn: !If [IsPattern1, !GetAtt PATTERN1STACK.Outputs.StateMachineArn, !GetAtt PATTERN2STACK.Outputs.StateMachineArn]
+
   CWDashboardConsoleName:
     Description: Name of the merged CloudWatch dashboard
     Value: !GetAtt MergedDashboard.DashboardName

@@ -2,7 +2,7 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: AWS GenAI IDP Accelerator - resources for IDP Pattern 1
+Description: AWS GenAI IDP Accelerator - resources for IDP Pattern 2
 
 Parameters:
 
@@ -28,30 +28,24 @@ Parameters:
     Type: Number
     Default: 30000
 
-  UDOPModelArtifactPath:
+  ClassificationModel:
     Type: String
-    AllowedPattern: "^(|s3://.*)$"
+    Default: 'us.amazon.nova-pro-v1:0'
 
   ExtractionModel:
     Type: String
-    Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
-    AllowedValues:
-      - 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
-      - 'us.amazon.nova-pro-v1:0'
-    Description: Bedrock Model ID to use for Extraction
+    Default: 'us.amazon.nova-pro-v1:0'
+
+  CustomClassificationModelARN:
+    Type: String
+    Default: ''
+
+  CustomExtractionModelARN:
+    Type: String
+    Default: ''
+
 
 Resources:
-
-  SAGEMAKERCLASSIFIERSTACK:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      # yamllint disable rule:line-length
-      TemplateURL: ./sagemaker_classifier_endpoint.yaml
-      Parameters:
-        StackName: !Ref StackName
-        UDOPModelArtifactPath: !Ref UDOPModelArtifactPath
-        WorkingBucket: !Ref WorkingBucket
-        CustomerManagedEncryptionKeyArn: !Ref CustomerManagedEncryptionKeyArn
 
   OCRFunction:
     Type: AWS::Serverless::Function
@@ -107,7 +101,6 @@ Resources:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
-          SAGEMAKER_ENDPOINT_NAME: !GetAtt SAGEMAKERCLASSIFIERSTACK.Outputs.EndpointName
       LoggingConfig:
         LogGroup: !Ref ClassificationFunctionLogGroup
       Policies:
@@ -128,9 +121,6 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
-          - Effect: Allow
-            Action: sagemaker:InvokeEndpoint
-            Resource: !GetAtt SAGEMAKERCLASSIFIERSTACK.Outputs.EndpointArn
   
   ClassificationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -259,6 +249,25 @@ Resources:
                 "yAxis": {
                   "left": {
                     "label": "Count per Minute"
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 0,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [],
+                "region": "${AWS::Region}",
+                "title": "Blank",
+                "view": "timeSeries",
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "N/A"
                   }
                 }
               }
@@ -436,7 +445,7 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 12,
+              "x": 8,
               "y": 18,
               "width": 8,
               "height": 6,
@@ -460,7 +469,7 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 18,
+              "x": 16,
               "y": 18,
               "width": 8,
               "height": 6,
@@ -504,7 +513,7 @@ Resources:
               "properties": {
                 "query": "SOURCE '${OCRFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
                 "region": "${AWS::Region}",
-                "title": "Textract Lambda Errors",
+                "title": "OCR Lambda Errors",
                 "view": "table"
               }
             },

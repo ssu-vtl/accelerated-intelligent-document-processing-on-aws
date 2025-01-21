@@ -3,48 +3,61 @@ import boto3
 import cfnresponse
 import logging
 from botocore.exceptions import ClientError
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 cloudwatch = boto3.client('cloudwatch')
 
-def sort_widgets_by_type(widgets: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Sorts widgets by type, with timeseries first, then tables"""
+def split_widgets_by_type(widgets: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Splits widgets into timeSeries, table, and other types.
+    Returns tuple of (timeseries_widgets, table_widgets, other_widgets)
+    """
     timeseries_widgets = []
     table_widgets = []
     other_widgets = []
     
     for widget in widgets:
-        # Get the properties dictionary that contains the view type
         properties = widget.get('properties', {})
         view = properties.get('view', '')
         
-        if view == 'timeseries':
+        if view == 'timeSeries':
             timeseries_widgets.append(widget)
         elif view == 'table':
             table_widgets.append(widget)
         else:
             other_widgets.append(widget)
     
-    return timeseries_widgets + table_widgets + other_widgets
+    return timeseries_widgets, table_widgets, other_widgets
 
-def adjust_widget_positions(widgets: List[Dict[str, Any]], start_y: int = 0) -> List[Dict[str, Any]]:
-    """Adjusts widget positions to be vertically stacked from a starting y-position"""
-    current_y = start_y
+def get_max_y_value(widgets: List[Dict[str, Any]]) -> int:
+    """Returns the maximum y-coordinate value among the given widgets"""
+    if not widgets:
+        return 0
+    return max(widget.get('y', 0) + widget.get('height', 0) for widget in widgets)
+
+def adjust_section_positions(widgets: List[Dict[str, Any]], start_y: int = 0) -> List[Dict[str, Any]]:
+    """
+    Adjusts positions of widgets within a section, maintaining their relative positions
+    and applying the start_y offset.
+    """
+    if not widgets:
+        return []
+        
     adjusted_widgets = []
+    offset = start_y
     
     for widget in widgets:
         widget_copy = widget.copy()
-        widget_copy['y'] = current_y
+        widget_copy['y'] += offset
         adjusted_widgets.append(widget_copy)
-        current_y += widget_copy.get('height', 0)
     
     return adjusted_widgets
 
 def merge_dashboard_bodies(dashboard_1_body: str, dashboard_2_body: str) -> Dict[str, Any]:
-    """Merges two dashboard JSON bodies by combining their widgets, grouped by type"""
+    """Merges two dashboard JSON bodies by combining their widgets section by section"""
     try:
         dashboard_1 = json.loads(dashboard_1_body)
         dashboard_2 = json.loads(dashboard_2_body)
@@ -53,18 +66,45 @@ def merge_dashboard_bodies(dashboard_1_body: str, dashboard_2_body: str) -> Dict
         dashboard_1.setdefault('widgets', [])
         dashboard_2.setdefault('widgets', [])
         
-        # Combine all widgets from both dashboards
-        all_widgets = dashboard_1['widgets'] + dashboard_2['widgets']
+        # Split widgets by type for each dashboard
+        d1_timeseries, d1_tables, d1_other = split_widgets_by_type(dashboard_1['widgets'])
+        d2_timeseries, d2_tables, d2_other = split_widgets_by_type(dashboard_2['widgets'])
         
-        # Sort widgets by type
-        sorted_widgets = sort_widgets_by_type(all_widgets)
+        merged_widgets = []
+        current_y = 0
         
-        # Adjust positions to stack them vertically
-        positioned_widgets = adjust_widget_positions(sorted_widgets)
+        # 1. Dashboard 1 timeSeries
+        d1_timeseries_adjusted = adjust_section_positions(d1_timeseries, current_y)
+        merged_widgets.extend(d1_timeseries_adjusted)
+        current_y = get_max_y_value(merged_widgets)
+        
+        # 2. Dashboard 2 timeSeries
+        d2_timeseries_adjusted = adjust_section_positions(d2_timeseries, current_y)
+        merged_widgets.extend(d2_timeseries_adjusted)
+        current_y = get_max_y_value(merged_widgets)
+        
+        # 3. Dashboard 1 tables
+        d1_tables_adjusted = adjust_section_positions(d1_tables, current_y)
+        merged_widgets.extend(d1_tables_adjusted)
+        current_y = get_max_y_value(merged_widgets)
+        
+        # 4. Dashboard 2 tables
+        d2_tables_adjusted = adjust_section_positions(d2_tables, current_y)
+        merged_widgets.extend(d2_tables_adjusted)
+        current_y = get_max_y_value(merged_widgets)
+        
+        # 5. Dashboard 1 other
+        d1_other_adjusted = adjust_section_positions(d1_other, current_y)
+        merged_widgets.extend(d1_other_adjusted)
+        current_y = get_max_y_value(merged_widgets)
+        
+        # 6. Dashboard 2 other
+        d2_other_adjusted = adjust_section_positions(d2_other, current_y)
+        merged_widgets.extend(d2_other_adjusted)
         
         # Create merged dashboard
         merged_dashboard = dashboard_1.copy()
-        merged_dashboard['widgets'] = positioned_widgets
+        merged_dashboard['widgets'] = merged_widgets
             
         return merged_dashboard
         
