@@ -2,8 +2,6 @@
 
 Copyright © Amazon.com and Affiliates: This deliverable is considered Developed Content as defined in the AWS Service Terms and the SOW between the parties
 
-I'll create a table of contents based on the content of the README document.
-
 ## Table of Contents
 
 - [Introduction](#introduction)
@@ -55,7 +53,7 @@ A scalable, serverless solution for automated document processing and informatio
 
 ### Use Cases
 
-- Processing invoices, purchase orders, bills of lading, and other document types
+- Processing invoices, purchase orders, applications, and other document types
 - Extracting information from forms and applications
 - Automating document-heavy workflows
 - Converting legacy paper documents into structured digital data
@@ -114,7 +112,7 @@ Upload a filled PDF form to the `InputBucket` - there's an example in the `./sam
 
 Example - to copy the sample file `insurance-bundle.pdf` N times, do:
 ```
-$ n=50
+$ n=10
 $ for i in `seq 1 $n`; do aws s3 cp ./samples/insurance-claim-form.png s3://idp-inputbucket-kmsxxxxxxxxx/insurance-claim-form-$i.png; done
 ```
 
@@ -124,12 +122,12 @@ When/if the execution sucessfully finishes, check the `OutputBucket` for the str
 
 ### Testing individual lambda functions locally
 
-For example, to test the `idp-pattern-1/OCRFunction` lambda locally:
+For example, to test any lambda function locally:
 - change directory to the folder that has the template.yaml for the function you want to test
-- identify your input and working S3 buckets, and a test PDF file in the input bucket - add them to `./testing/OCRFunction_event.json` 
-- Verify `./testing/env.json` and change region if necessary
+- create a file containing the input event for your function.. some functions have templates in the ./testing folder 
+- verify `./testing/env.json` and change region if necessary
 - run `sam build` to package the function(s)
-- use `sam local` to run the function locally in a container, as shown below:
+- use `sam local` to run the function locally in a container, e.g.:
 ``` 
 sam local invoke OCRFunction -e testing/OCRFunction-event.json --env-vars testing/env.json
 ```
@@ -163,10 +161,7 @@ $ python ./scripts/simulate_load.py -s source_bucket -k prefix/exampledoc.pdf -d
    - Picks up messages in batches
    - Manages workflow concurrency using DynamoDB counter
    - Starts Step Functions executions
-4. Step Functions workflow:
-   - Extracts text using Textract
-   - Processes text using Bedrock/Claude
-   - Writes results to Output S3
+4. Step Functions workflow runs the steps defined in the sleected pattern to process the document, and generate output in th eOutput S3 bucket.
 5. Workflow completion events update tracking and metrics
 
 ### Components
@@ -177,10 +172,145 @@ $ python ./scripts/simulate_load.py -s source_bucket -k prefix/exampledoc.pdf -d
 - **DynamoDB**: Tracking and concurrency management
 - **CloudWatch**: Comprehensive monitoring and logging
 
+### Modular Design Overview
+
+The solution uses a modular architecture with nested CloudFormation stacks to support multiple document processing patterns while maintaining a common infrastructure for queueing, tracking, and monitoring. This design enables:
+
+- Support for multiple processing patterns without duplicating core infrastructure
+- Easy addition of new processing patterns without modifying existing code
+- Centralized monitoring and management across all patterns
+- Pattern-specific optimizations and configurations
+
+### Stack Structure
+
+#### Main Stack (template.yaml)
+The main template handles all pattern-agnostic resources and infrastructure:
+
+- S3 Buckets (Input, Working, Output)
+- SQS Queues and Dead Letter Queues
+- DynamoDB Tables (Execution Tracking, Concurrency)
+- Lambda Functions for:
+  - Queue Processing
+  - Queue Sending
+  - Workflow Tracking
+  - Document Status Lookup
+- CloudWatch Alarms and Dashboard
+- SNS Topics for Alerts
+
+#### Pattern Stacks (patterns/*)
+Each pattern is implemented as a nested stack that contains pattern-specific resources:
+
+- Step Functions State Machine
+- Pattern-specific Lambda Functions:
+  - OCR Processing
+  - Classification
+  - Extraction
+- Pattern-specific CloudWatch Dashboard
+- Model Endpoints and Configurations
+
+Current patterns include:
+- Pattern 1: OCR → UDOP Classification → Bedrock Extraction  ([README](./patterns/pattern-1/README.md))
+- Pattern 2: OCR → Bedrock Classification → Bedrock Extraction ([README](./patterns/pattern-2/README.md))
+
+### Pattern Selection and Deployment
+
+The pattern is selected at deployment time using the `IDPPattern` parameter:
+
+```yaml
+IDPPattern:
+  Type: String
+  Default: Pattern1
+  AllowedValues:
+    - Pattern1
+    - Pattern2
+  Description: Choose from built-in IDP workflow patterns
+```
+
+When deployed, the main stack uses conditions to create the appropriate nested stack:
+
+```yaml
+Conditions:
+  IsPattern1: !Equals [!Ref IDPPattern, "Pattern1"]
+  IsPattern2: !Equals [!Ref IDPPattern, "Pattern2"]
+
+Resources:
+  PATTERN1STACK:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsPattern1
+    Properties:
+      TemplateURL: ./patterns/pattern-1/.aws-sam/packaged.yaml
+      Parameters:
+        # Pattern-specific parameters...
+
+  PATTERN2STACK:
+    Type: AWS::CloudFormation::Stack
+    Condition: IsPattern2
+    Properties:
+      TemplateURL: ./patterns/pattern-2/.aws-sam/packaged.yaml
+      Parameters:
+        # Pattern-specific parameters...
+```
+
+### Integrated Monitoring
+
+The solution creates an integrated CloudWatch dashboard that combines metrics from both the main stack and the selected pattern stack:
+
+1. The main stack creates a dashboard with core metrics:
+   - Queue performance
+   - Overall workflow statistics
+   - General error tracking
+   - Resource utilization
+
+2. Each pattern stack creates its own dashboard with pattern-specific metrics:
+   - OCR performance
+   - Classification accuracy
+   - Extraction stats
+   - Model-specific metrics
+
+3. The `DashboardMerger` Lambda function combines these dashboards:
+   ```yaml
+   DashboardMergerFunction:
+     Type: AWS::Serverless::Function
+     Properties:
+       Handler: index.handler
+       Environment:
+         Variables:
+           STACK_NAME: !Ref AWS::StackName
+
+   MergedDashboard:
+     Type: Custom::DashboardMerger
+     Properties:
+       ServiceToken: !GetAtt DashboardMergerFunction.Arn
+       Dashboard1Name: !Ref MainTemplateSubsetDashboard
+       Dashboard2Name: !If 
+         - IsPattern1
+         - !GetAtt PATTERN1STACK.Outputs.DashboardName
+         - !GetAtt PATTERN2STACK.Outputs.DashboardName
+       MergedDashboardName: !Sub "${AWS::StackName}-Integrated-${AWS::Region}"
+   ```
+
+The merger function:
+- Reads the widgets from both dashboards
+- Arranges them logically by type (time series, tables, etc.)
+- Creates a new dashboard with the combined widgets
+- Updates the integrated dashboard whenever either source dashboard changes
+
+### Adding New Patterns
+
+To add a new processing pattern:
+
+1. Create a new directory under `patterns/`
+2. Implement the pattern-specific resources in a CloudFormation template
+3. Add the pattern to the `IDPPattern` parameter's allowed values
+4. Add pattern-specific parameters to the main template
+5. Create a new condition and nested stack resource for the pattern
+
+The new pattern will automatically inherit all the core infrastructure and monitoring capabilities while maintaining its own specific processing logic and metrics.
+
 ## Concurrency and Throttling Management
 
-### Bedrock Throttling and Retry
-The Bedrock Lambda function implements exponential backoff:
+### Throttling and Retry (Bedrock and/or SageMaker)
+The Classification and Extraction Lambda functions implement exponential backoff:
 ```python
 MAX_RETRIES = 8
 INITIAL_BACKOFF = 2  # seconds
@@ -249,7 +379,7 @@ All include average, p90, and maximum values
 - LLM Tokens processed 
 - SQS Queue metrics (received/deleted)
 - Step Functions execution counts
-- Textract and Bedrock function invocations and durations
+- Lambda function invocations and durations
 
 #### Error Tracking
 - Long-running invocations
@@ -258,11 +388,7 @@ All include average, p90, and maximum values
 
 ### Log Groups
 ```
-/${StackName}/lambda/textract
-/${StackName}/lambda/bedrock
-/${StackName}/lambda/queue-sender
-/${StackName}/lambda/queue-processor
-/${StackName}/lambda/workflow-tracker
+/${StackName}/lambda/*
 /aws/vendedlogs/states/${StackName}-workflow
 ```
 
@@ -312,13 +438,23 @@ All include average, p90, and maximum values
 
 ### Stack Parameters
 ```bash
-  MaxConcurrentWorkflows=800                           # Maximum parallel workflows
-  LogRetentionDays=30                                  # CloudWatch log retention
-  ErrorThreshold=1                                     # Errors before alerting
-  ExecutionTimeThresholdMs=420000                      # Duration threshold in millisecs
-  ExtractionModel='anthropic.claude-3-5-sonnet...'     # Bedrock model for extraction
-  ExtractionPrompts='OCR + Page Images'                 # Optionally exclude images from prompt to trade accuracy for cost/throughput.
+# Main Stack Parameters
+MaxConcurrentWorkflows=800                          # Maximum parallel workflows
+LogRetentionDays=30                                 # CloudWatch log retention
+ErrorThreshold=1                                    # Errors before alerting
+ExecutionTimeThresholdMs=30000                      # Duration threshold in millisecs
+IDPPattern='Pattern1'                               # Choose processing pattern to deploy
+
+# Pattern 1 Parameters (when selected)
+Pattern1UDOPModelArtifactPath='s3://bucket/...'     # UDOP model for classification
+Pattern1ExtractionModel='claude-3-sonnet...'        # Bedrock model for extraction
+
+# Pattern 2 Parameters (when selected) 
+Pattern2ClassificationModel='nova-pro...'           # Model for classification
+Pattern2ExtractionModel='claude-3-sonnet...'        # Model for extraction
 ```
+Each pattern has its own set of parameters that are only required when that pattern is selected via IDPPattern. The main stack parameters apply regardless of the chosen pattern.
+
 
 ### Request Service Quota Limits for high volume processing
 

@@ -1137,8 +1137,8 @@ Resources:
         - IsPattern1
         - !GetAtt PATTERN1STACK.Outputs.DashboardName
         - !GetAtt PATTERN2STACK.Outputs.DashboardName
-      MergedDashboardName: !Sub "${AWS::StackName}-Integrated-${AWS::Region}"
-      ChangeToForceMerge: 21012025-2  # Change this value when either of the two input dashboards have been changed
+      MergedDashboardName: !Sub "${AWS::StackName}-${AWS::Region}"
+      ChangeToForceUpdate: 21012025-2  # Change this value when either of the two input dashboards have been changed
 
   LookupFunction:
     Type: AWS::Serverless::Function
