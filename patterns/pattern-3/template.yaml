@@ -1,0 +1,465 @@
+# Copyright © Amazon.com and Affiliates: This deliverable is considered Developed Content as defined in the AWS Service Terms and the SOW between the parties.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (BDA)
+
+Parameters:
+
+  StackName:
+    Type: String
+
+  InputBucket:
+    Type: String
+
+  WorkingBucket:
+    Type: String
+
+  OutputBucket:
+    Type: String
+
+  CustomerManagedEncryptionKeyArn:
+    Type: String
+
+  LogRetentionDays:
+    Type: Number
+  
+  ExecutionTimeThresholdMs:
+    Type: Number
+    Default: 30000
+
+  DataAutomationProjectArn:
+    Type: String
+    Default: ''
+    Description: Bedrock Data Automation (BDA) project ARN
+
+
+Resources:
+
+
+
+  DocumentProcessingStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachine/workflow.asl.json
+      DefinitionSubstitutions:
+        OCRFunctionArn: !GetAtt OCRFunction.Arn
+        ClassificationFunctionArn: !GetAtt ClassificationFunction.Arn
+        ExtractionFunctionArn: !GetAtt ExtractionFunction.Arn
+        WorkingBucket: !Ref WorkingBucket
+        OutputBucket: !Ref OutputBucket
+      Logging:
+        Level: ALL
+        IncludeExecutionData: true
+        Destinations:
+          - CloudWatchLogsLogGroup: !GetAtt StateMachineLogGroup.Arn
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref OCRFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ClassificationFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ExtractionFunction
+        - CloudWatchLogsFullAccess
+
+  StateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/vendedlogs/states/${AWS::StackName}/workflow"  # required prefix
+      RetentionInDays: !Ref LogRetentionDays
+
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${AWS::StackName}-${AWS::Region}-Pattern1-Subset"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Documents per Minute"}],
+                  ["${AWS::StackName}", "InputDocuments", {"id": "m1", "stat": "Sum", "visible": false}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Input Documents (per Minute)",
+                "view": "timeSeries",
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 0,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Pages per Minute"}],
+                  ["${AWS::StackName}", "InputDocumentPages", {"id": "m1", "stat": "Sum", "visible": false}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Input Document Pages (per Minute)",
+                "view": "timeSeries",
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 0,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [],
+                "region": "${AWS::Region}",
+                "title": "Blank",
+                "view": "timeSeries",
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "N/A"
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Tokens per Minute"}],
+                  ["${AWS::StackName}", "InputTokens", {"id": "m1", "stat": "Sum", "visible": false}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Input Tokens (per Minute)",
+                "view": "timeSeries",
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Tokens per Minute"}],
+                  ["${AWS::StackName}", "OutputTokens", {"id": "m1", "stat": "Sum", "visible": false}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Output Tokens (per Minute)",
+                "view": "timeSeries",
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 6,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Tokens per Minute"}],
+                  ["${AWS::StackName}", "TotalTokens", {"id": "m1", "stat": "Sum", "visible": false}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Total Tokens (per Minute)",
+                "view": "timeSeries",
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 12,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Total per Minute"}],
+                  [{"expression": "m2/PERIOD(m2)*60", "label": "Succeeded per Minute"}],
+                  [{"expression": "m3/PERIOD(m3)*60", "label": "Failed per Minute"}],
+                  ["${AWS::StackName}", "BedrockRequestsTotal", {"id": "m1", "stat": "Sum", "visible": false}],
+                  [".", "BedrockRequestsSucceeded", {"id": "m2", "stat": "Sum", "visible": false}],
+                  [".", "BedrockRequestsFailed", {"id": "m3", "stat": "Sum", "visible": false}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Bedrock Request Status (per Minute)",
+                "view": "timeSeries",
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 12,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [{"expression": "m1/PERIOD(m1)*60", "label": "Throttles per Minute"}],
+                  [{"expression": "m2/PERIOD(m2)*60", "label": "Retry Success per Minute"}],
+                  [{"expression": "m3/PERIOD(m3)*60", "label": "Max Retries Exceeded per Minute"}],
+                  ["${AWS::StackName}", "BedrockThrottles", {"id": "m1", "stat": "Sum", "visible": false}],
+                  [".", "BedrockRetrySuccess", {"id": "m2", "stat": "Sum", "visible": false}],
+                  [".", "BedrockMaxRetriesExceeded", {"id": "m3", "stat": "Sum", "visible": false}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Bedrock Retries (per Minute)",
+                "view": "timeSeries",
+                "period": 60,
+                "yAxis": {
+                  "left": {
+                    "label": "Count per Minute"
+                  }
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 12,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["${AWS::StackName}", "BedrockRequestLatency", {"stat": "Average"}],
+                  [".", "BedrockRequestLatency", {"stat": "p90"}],
+                  [".", "BedrockRequestLatency", {"stat": "Maximum"}],
+                  [".", "BedrockTotalLatency", {"stat": "Average"}],
+                  [".", "BedrockTotalLatency", {"stat": "p90"}],
+                  [".", "BedrockTotalLatency", {"stat": "Maximum"}]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Bedrock Latency - per request, and total (including backoff/retries)",
+                "period": 300,
+                "view": "timeSeries",
+                "stacked": false,
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 18,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${OCRFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "title": "OCR Function Duration",
+                "period": 300,
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                },
+                "stat": "Average",
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 8,
+              "y": 18,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${ClassificationFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Classification Function Duration",
+                "period": 300,
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                },
+                "stat": "Average",
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16,
+              "y": 18,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${ExtractionFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Extraction Function Duration",
+                "period": 300,
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                },
+                "stat": "Average",
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${OCRFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "OCR Lambda Long Running Invocations",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${OCRFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "OCR Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 30,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${ClassificationFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Classification Lambda Long Running Invocations",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 30,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${ClassificationFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Classification Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 36,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${ExtractionFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Extraction Lambda Long Running Invocations",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 36,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${ExtractionFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Extraction Lambda Errors",
+                "view": "table"
+              }
+            }
+
+          ]
+        }
+
+Outputs:
+
+  # Outputs required by main template
+
+  StateMachineName:
+    Description: Step Functions State machine Name
+    Value: !GetAtt DocumentProcessingStateMachine.Name
+
+  StateMachineArn:
+    Description: Step Functions State machine ARN
+    Value: !GetAtt DocumentProcessingStateMachine.Arn
+  
+  StateMachineLogGroup:
+    Description: Step Functions State machine LogGroup
+    Value: !Ref StateMachineLogGroup
+
+  DashboardName:
+    Description: Name of the Pattern 1 CloudWatch Dashboard
+    Value: !Ref Dashboard
+
+  DashboardArn:
+    Description: ARN of the Pattern 1 CloudWatch Dashboard
+    Value: !Sub "arn:aws:cloudwatch::${AWS::AccountId}:dashboard/${Dashboard}"
+

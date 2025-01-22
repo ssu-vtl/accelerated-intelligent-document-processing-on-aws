@@ -116,7 +116,7 @@ fi
 echo "OUTPUTS"
 echo Template URL: $TEMPLATE_URL
 echo CF Launch URL: https://${REGION}.console.aws.amazon.com/cloudformation/home?region=${REGION}#/stacks/create/review?templateURL=${TEMPLATE_URL}\&stackName=IDP
-echo CLI Deploy: aws cloudformation deploy --region $REGION --template-file .aws-sam/${MAIN_TEMPLATE} --s3-bucket ${BUCKET} --s3-prefix ${PREFIX_AND_VERSION} --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --parameter-overrides UDOPModelArtifactPath="s3://bucket-name/path/to/model.tar.gz" <other params> --stack-name "<your-stack-name>"
+echo CLI Deploy: aws cloudformation deploy --region $REGION --template-file .aws-sam/${MAIN_TEMPLATE} --s3-bucket ${BUCKET} --s3-prefix ${PREFIX_AND_VERSION} --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --parameter-overrides UDOPModelArtifactPath="s3://bucket-name/path/to/model.tar.gz" "<other params>" --stack-name "<your-stack-name>"
 echo Done
 exit 0
 
