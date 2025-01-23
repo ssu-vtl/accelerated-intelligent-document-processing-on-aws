@@ -22,7 +22,7 @@ METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
 
 # Initialize clients
 sm_client = boto3.client('sagemaker-runtime', region_name=region)
-cloudwatch_client = boto3.client('cloudwatch')
+cloudwatch_client = boto3.client('cloudwatch', region_name=region)
 s3_client = boto3.client('s3', region_name=region)
 
 logger = logging.getLogger()

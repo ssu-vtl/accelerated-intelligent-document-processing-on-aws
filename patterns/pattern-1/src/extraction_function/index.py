@@ -19,15 +19,14 @@ MAX_RETRIES = 8 # avoid 900sec Lambda time out.
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 300   # 5 minutes
 
-region = os.environ['AWS_REGION']
 model_id = os.environ['EXTRACTION_MODEL_ID']
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
 OCR_TEXT_ONLY = os.environ.get('OCR_TEXT_ONLY', 'false').lower() == 'true'
 
 # Initialize clients without adaptive retry
-bedrock_client = boto3.client(service_name="bedrock-runtime", region_name=region)
+bedrock_client = boto3.client(service_name="bedrock-runtime")
 cloudwatch_client = boto3.client('cloudwatch')
-s3_client = boto3.client('s3', region_name=region)
+s3_client = boto3.client('s3')
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)

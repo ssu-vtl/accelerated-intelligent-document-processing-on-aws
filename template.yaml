@@ -34,11 +34,11 @@ Parameters:
   # Workflow Configuration
   IDPPattern:
     Type: String
-    Default: Pattern1 - Textract, SageMaker(UDOP), and Bedrock
+    Default: Pattern1 - Packet processing with Textract, SageMaker(UDOP), and Bedrock
     AllowedValues:
-      - Pattern1 - Textract, SageMaker(UDOP), and Bedrock
-      - Pattern2 - Textract and Bedrock
-      - Pattern3 - Bedrock Data Automation
+      - Pattern1 - Packet processing with Textract, SageMaker(UDOP), and Bedrock
+      - Pattern2 - Packet processing with Textract and Bedrock
+      - Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA)
     Description: >-
         Built-in IDP workflow patterns - see README for pattern descriptions.
 
@@ -90,10 +90,11 @@ Parameters:
 
 # Pattern 3 Parameters
 
-  Pattern3DataAutomationProjectArn:
+  Pattern3BDAProjectArn:
     Type: String
     Default: ''
-    Description: Bedrock Data Automation (BDA) project ARN
+    AllowedPattern: "^(|^arn:aws:bedrock:[a-z0-9-]+:.+:data-automation-project/.+)$"
+    Description: (Optional) Bedrock Data Automation (BDA) project ARN
 
 Rules:
 
@@ -103,7 +104,7 @@ Rules:
     RuleCondition:
       !Equals [
         !Ref IDPPattern,
-        "Pattern1 - Textract, SageMaker(UDOP), and Bedrock",
+        "Pattern1 - Packet processing with Textract, SageMaker(UDOP), and Bedrock",
       ]
     Assertions:
       - Assert: !Not [!Equals [!Ref Pattern1UDOPModelArtifactPath, ""]]
@@ -127,22 +128,24 @@ Rules:
   Pattern2ExtractionModelArn:
     RuleCondition:
       !Equals [
-        !Ref Pattern2ExtractionModel,
-        "Custom Fine Tuned Extraction Model",
+        !Ref IDPPattern,
+        "Pattern1 - Packet processing with Textract, SageMaker(UDOP), and Bedrock",
       ]
     Assertions:
-      - Assert: !Not [!Equals [!Ref Pattern2CustomExtractionModelARN, ""]]
+      - Assert: !Not [!Equals [!Ref Pattern1UDOPModelArtifactPath, ""]]
         AssertDescription:
-          Pattern2CustomExtractionModelARN is required when 'Custom Fine Tuned Extraction Model'
-          is selected.
+          UDOP Model Artifact Path is required when IDPPattern is 'Pattern1'
 
 # Pattern 3 rules
 
+
+
+
 Conditions:
 
-  IsPattern1: !Equals [!Ref IDPPattern, "Pattern1 - Textract, SageMaker(UDOP), and Bedrock"]
-  IsPattern2: !Equals [!Ref IDPPattern, "Pattern2 - Textract and Bedrock"]
-  IsPattern3: !Equals [!Ref IDPPattern, "Pattern3 - Bedrock Data Automation"]
+  IsPattern1: !Equals [!Ref IDPPattern, "Pattern1 - Packet processing with Textract, SageMaker(UDOP), and Bedrock"]
+  IsPattern2: !Equals [!Ref IDPPattern, "Pattern2 - Packet processing with Textract and Bedrock"]
+  IsPattern3: !Equals [!Ref IDPPattern, "Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA)"]
 
 
 Metadata:
@@ -175,7 +178,7 @@ Metadata:
       - Label:
           default: "Pattern 3 Configuration"
         Parameters:
-          - Pattern3DataAutomationProjectArn
+          - Pattern3BDAProjectArn
 
     ParameterLabels:
       MaxConcurrentWorkflows:
@@ -198,8 +201,8 @@ Metadata:
         default: "Pattern2 - Custom Classification Model ARN"
       Pattern2CustomExtractionModelARN:
         default: "Pattern2 - Custom Extraction Model ARN"
-      Pattern3DataAutomationProjectArn:
-        default: "Pattern3 - Bedrock Data Automation Project ARN"
+      Pattern3BDAProjectArn:
+        default: "Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN"
 
 Resources:
 
@@ -251,10 +254,11 @@ Resources:
         InputBucket: !Ref InputBucket
         WorkingBucket: !Ref WorkingBucket
         OutputBucket: !Ref OutputBucket
+        ExecutionTable: !Ref ExecutionTable
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
-        DataAutomationProjectArn: !Ref Pattern3DataAutomationProjectArn
+        BDAProjectArn: !Ref Pattern3BDAProjectArn
 
   # Main stack resources
 
@@ -1162,7 +1166,7 @@ Resources:
             - !If
               - IsPattern2
               - !GetAtt PATTERN2STACK.Outputs.StateMachineLogGroup
-              - !GetAtt PATTERN3STACK.Outputs.StateMachineLogGroup]]
+              - !GetAtt PATTERN3STACK.Outputs.StateMachineLogGroup
 
   DashboardMergerFunction:
     Type: AWS::Serverless::Function

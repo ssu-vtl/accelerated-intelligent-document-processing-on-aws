@@ -124,10 +124,10 @@ Open the `StateMachineConsoleURL` using the link in the stack Resources tab.
 
 Upload a filled PDF form to the `InputBucket` - there's an example in the `./samples` folder.
 
-Example - to copy the sample file `insurance-bundle.pdf` N times, do:
+Example - to copy the sample file `insurance_package.pdf` N times, do:
 ```
 $ n=10
-$ for i in `seq 1 $n`; do aws s3 cp ./samples/insurance-claim-form.png s3://idp-inputbucket-kmsxxxxxxxxx/insurance-claim-form-$i.png; done
+$ for i in `seq 1 $n`; do aws s3 cp ./samples/insurance_package.pdf s3://idp-inputbucket-kmsxxxxxxxxx/insurance_package-$i.png; done
 ```
 
 The StepFunctions StateMachine should start executing. Open the `Running` execution page to observe the steps in the workflow, trace inputs/outputs, check Lambda code and logs, etc.

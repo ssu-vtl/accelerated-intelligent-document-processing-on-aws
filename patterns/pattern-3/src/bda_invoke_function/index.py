@@ -1,0 +1,184 @@
+import json
+import boto3
+import os
+import logging
+import time
+import random
+from typing import Dict, Any
+from botocore.exceptions import ClientError
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# TODO - consider minimizing retries in lambda / maximize in Step Functions for cost efficiency.
+MAX_RETRIES = 8 # avoid 900sec Lambda time out. 
+INITIAL_BACKOFF = 2  # seconds
+MAX_BACKOFF = 300   # 5 minutes
+
+METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
+
+# Initialize client
+bda_client = boto3.client('bedrock-data-automation-runtime')
+cloudwatch_client = boto3.client('cloudwatch')
+dynamodb = boto3.resource('dynamodb')
+tracking_table = dynamodb.Table(os.environ['TRACKING_TABLE'])
+
+def put_metric(name, value, unit='Count', dimensions=None):
+    dimensions = dimensions or []
+    logger.info(f"Publishing metric {name}: {value}")
+    try:
+        cloudwatch_client.put_metric_data(
+            Namespace=f'{METRIC_NAMESPACE}',
+            MetricData=[{
+                'MetricName': name,
+                'Value': value,
+                'Unit': unit,
+                'Dimensions': dimensions
+            }]
+        )
+    except Exception as e:
+        logger.error(f"Error publishing metric {name}: {e}")
+
+def calculate_backoff(attempt: int) -> float:
+    backoff = min(MAX_BACKOFF, INITIAL_BACKOFF * (2 ** attempt))
+    jitter = random.uniform(0, 0.1 * backoff)
+    return backoff + jitter
+
+def build_s3_uri(bucket: str, key: str) -> str:
+    return f"s3://{bucket}/{key}"
+
+def build_payload(input_s3_uri: str, output_s3_uri: str, data_project_arn: str) -> Dict[str, Any]:
+    return {
+        "inputConfiguration": {
+            "s3Uri": input_s3_uri
+        },
+        "outputConfiguration": {
+            "s3Uri": output_s3_uri
+        },
+        "dataAutomationConfiguration": {
+            "dataAutomationArn": data_project_arn,
+            "stage": "LIVE"
+        },
+        "notificationConfiguration": {
+            "eventBridgeConfiguration": {
+                "eventBridgeEnabled": True
+            }
+        }
+    }
+
+def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
+    retry_count = 0
+    last_exception = None
+    request_start_time = time.time()
+
+    put_metric('BDARequestsTotal', 1)
+
+    while retry_count < MAX_RETRIES:
+        try:
+            logger.info(f"BDA API request attempt {retry_count + 1}/{MAX_RETRIES}")
+            
+            attempt_start_time = time.time()
+            response = bda_client.invoke_data_automation_async(**payload)
+            duration = time.time() - attempt_start_time
+            
+            logger.info(f"BDA API request successful after {retry_count + 1} attempts. "
+                       f"Duration: {duration:.2f}s")
+
+            put_metric('BDARequestsSucceeded', 1)
+            put_metric('BDARequestLatency', duration * 1000, 'Milliseconds')
+            
+            if retry_count > 0:
+                put_metric('BDARetrySuccess', 1)
+
+            total_duration = time.time() - request_start_time
+            put_metric('BDATotalLatency', total_duration * 1000, 'Milliseconds')
+
+            return response
+
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            error_message = e.response['Error']['Message']
+            
+            retryable_errors = [
+                'ThrottlingException',
+                'ServiceQuotaExceededException',
+                'RequestLimitExceeded',
+                'TooManyRequestsException',
+                'InternalServerException'
+            ]
+            
+            if error_code in retryable_errors:
+                retry_count += 1
+                put_metric('BDAThrottles', 1)
+                
+                if retry_count == MAX_RETRIES:
+                    logger.error(f"Max retries ({MAX_RETRIES}) exceeded. Last error: {error_message}")
+                    put_metric('BDARequestsFailed', 1)
+                    put_metric('BDAMaxRetriesExceeded', 1)
+                    raise
+                
+                backoff = calculate_backoff(retry_count)
+                logger.warning(f"BDA API throttling occurred (attempt {retry_count}/{MAX_RETRIES}). "
+                             f"Error: {error_message}. "
+                             f"Backing off for {backoff:.2f}s")
+                
+                time.sleep(backoff)
+                last_exception = e
+            else:
+                logger.error(f"Non-retryable BDA API error: {error_code} - {error_message}")
+                put_metric('BDARequestsFailed', 1)
+                put_metric('BDANonRetryableErrors', 1)
+                raise
+
+        except Exception as e:
+            logger.error(f"Unexpected error invoking BDA API: {str(e)}", exc_info=True)
+            put_metric('BDARequestsFailed', 1)
+            put_metric('BDAUnexpectedErrors', 1)
+            raise
+        
+    if last_exception:
+        raise last_exception
+    
+def track_task_token(object_key: str, task_token: str) -> None:
+    try:
+        logger.info(f"Sending task success for token {task_token}")
+        # Update tracking record
+        update_expression = 'SET #task_token = :task_token'
+        update_values = {
+            ':task_token': task_token
+        }
+        logger.info(f"Updating tracking record with values: {json.dumps(update_values)}")
+        tracking_table.update_item(
+            Key={'object_key': object_key},
+            UpdateExpression=update_expression,
+            ExpressionAttributeNames={'#status': 'status'},
+            ExpressionAttributeValues=update_values
+        )
+    except Exception as e:
+        logger.error(f"Error updating tracking record: {e}")
+        raise
+
+def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    try:
+        logger.info(f"Received event: {json.dumps(event)}")
+        
+        input_bucket = event['input']['detail']['bucket']['name']
+        input_key = event['input']['detail']['object']['key']
+        working_bucket = event['working_bucket']
+        data_project_arn = event['BDAProjectArn']
+        task_token = event['taskToken']
+        
+        input_s3_uri = build_s3_uri(input_bucket, input_key)
+        output_s3_uri = build_s3_uri(working_bucket, f"{input_key}_processed")
+        payload = build_payload(input_s3_uri, output_s3_uri, data_project_arn)
+        
+        response = invoke_data_automation(payload)
+
+        track_task_token(input_key, task_token)
+        
+        logger.info(f"API invocation successful: {json.dumps(response)}")
+        return response
+
+    except Exception as e:
+        logger.error(f"Error processing request: {str(e)}", exc_info=True)
+        raise
