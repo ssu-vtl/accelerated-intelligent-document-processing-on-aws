@@ -85,13 +85,13 @@ def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
                        f"Duration: {duration:.2f}s")
 
             put_metric('BDARequestsSucceeded', 1)
-            put_metric('BDARequestLatency', duration * 1000, 'Milliseconds')
+            put_metric('BDARequestsLatency', duration * 1000, 'Milliseconds')
             
             if retry_count > 0:
-                put_metric('BDARetrySuccess', 1)
+                put_metric('BDARequestsRetrySuccess', 1)
 
             total_duration = time.time() - request_start_time
-            put_metric('BDATotalLatency', total_duration * 1000, 'Milliseconds')
+            put_metric('BDARequestsTotalLatency', total_duration * 1000, 'Milliseconds')
 
             return response
 
@@ -109,12 +109,12 @@ def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
             
             if error_code in retryable_errors:
                 retry_count += 1
-                put_metric('BDAThrottles', 1)
+                put_metric('BDARequestsThrottles', 1)
                 
                 if retry_count == MAX_RETRIES:
                     logger.error(f"Max retries ({MAX_RETRIES}) exceeded. Last error: {error_message}")
                     put_metric('BDARequestsFailed', 1)
-                    put_metric('BDAMaxRetriesExceeded', 1)
+                    put_metric('BDARequestsMaxRetriesExceeded', 1)
                     raise
                 
                 backoff = calculate_backoff(retry_count)
@@ -127,13 +127,13 @@ def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 logger.error(f"Non-retryable BDA API error: {error_code} - {error_message}")
                 put_metric('BDARequestsFailed', 1)
-                put_metric('BDANonRetryableErrors', 1)
+                put_metric('BDARequestsNonRetryableErrors', 1)
                 raise
 
         except Exception as e:
             logger.error(f"Unexpected error invoking BDA API: {str(e)}", exc_info=True)
             put_metric('BDARequestsFailed', 1)
-            put_metric('BDAUnexpectedErrors', 1)
+            put_metric('BDARequestsUnexpectedErrors', 1)
             raise
         
     if last_exception:
@@ -141,7 +141,6 @@ def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
     
 def track_task_token(object_key: str, task_token: str) -> None:
     try:
-        logger.info(f"Sending task success for token {task_token}")
         # Update tracking record
         update_expression = 'SET #task_token = :task_token'
         update_values = {
@@ -151,7 +150,7 @@ def track_task_token(object_key: str, task_token: str) -> None:
         tracking_table.update_item(
             Key={'object_key': object_key},
             UpdateExpression=update_expression,
-            ExpressionAttributeNames={'#status': 'status'},
+            ExpressionAttributeNames={'#task_token': 'task_token'},
             ExpressionAttributeValues=update_values
         )
     except Exception as e:
@@ -163,20 +162,29 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.info(f"Received event: {json.dumps(event)}")
         
         input_bucket = event['input']['detail']['bucket']['name']
-        input_key = event['input']['detail']['object']['key']
+        object_key = event['input']['detail']['object']['key']
         working_bucket = event['working_bucket']
         data_project_arn = event['BDAProjectArn']
         task_token = event['taskToken']
         
-        input_s3_uri = build_s3_uri(input_bucket, input_key)
-        output_s3_uri = build_s3_uri(working_bucket, f"{input_key}_processed")
+        input_s3_uri = build_s3_uri(input_bucket, object_key)
+        output_s3_uri = build_s3_uri(working_bucket, f"{object_key}")
         payload = build_payload(input_s3_uri, output_s3_uri, data_project_arn)
         
-        response = invoke_data_automation(payload)
+        bda_response = invoke_data_automation(payload)
 
-        track_task_token(input_key, task_token)
+        track_task_token(object_key, task_token)
         
-        logger.info(f"API invocation successful: {json.dumps(response)}")
+        response = {
+            "metadata": {
+                "input_bucket": input_bucket, 
+                "object_key": object_key,
+                "working_bucket": working_bucket,
+                "working_prefix": object_key, 
+            },
+            "bda_response": bda_response
+        }
+        logger.info(f"API invocation successful. Response: {json.dumps(bda_response)}")
         return response
 
     except Exception as e:

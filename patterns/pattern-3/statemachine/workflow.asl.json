@@ -32,30 +32,23 @@
             "BackoffRate": 2
           }
         ],
-        "Next": "CheckCompletionStatus"
-      },
-      "CheckCompletionStatus": {
-        "Type": "Choice",
-        "Choices": [
-          {
-            "Variable": "$.BDAResponse.status",
-            "StringEquals": "COMPLETED",
-            "Next": "ProcessResults"
-          },
-          {
-            "Variable": "$.BDAResponse.status",
-            "StringEquals": "FAILED",
-            "Next": "FailState"
-          }
-        ]
+        "Next": "ProcessResults",
+        "Catch": [
+            {
+              "ErrorEquals": [
+                "States.ALL"
+              ],
+              "Next": "FailState"
+            }
+          ]        
       },
       "ProcessResults": {
         "Type": "Task",
         "Resource": "${ProcessResultsLambdaArn}",
         "Parameters": {
           "execution_arn.$": "$$.Execution.Id",
-          "BDAResponse.$": "$.BDAResponse",
-          "output_bucket": "${OutputBucket}"
+          "output_bucket": "${OutputBucket}",
+          "BDAResponse.$": "$.BDAResponse"
         },
         "End": true
       },
