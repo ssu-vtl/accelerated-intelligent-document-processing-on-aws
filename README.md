@@ -239,6 +239,7 @@ IDPPattern:
   AllowedValues:
     - Pattern1
     - Pattern2
+    - Pattern3
   Description: Choose from built-in IDP workflow patterns
 ```
 
@@ -248,6 +249,7 @@ When deployed, the main stack uses conditions to create the appropriate nested s
 Conditions:
   IsPattern1: !Equals [!Ref IDPPattern, "Pattern1"]
   IsPattern2: !Equals [!Ref IDPPattern, "Pattern2"]
+  etc.
 
 Resources:
   PATTERN1STACK:
@@ -265,6 +267,8 @@ Resources:
       TemplateURL: ./patterns/pattern-2/.aws-sam/packaged.yaml
       Parameters:
         # Pattern-specific parameters...
+
+  etc..
 ```
 
 ### Integrated Monitoring
@@ -301,7 +305,10 @@ The solution creates an integrated CloudWatch dashboard that combines metrics fr
        Dashboard2Name: !If 
          - IsPattern1
          - !GetAtt PATTERN1STACK.Outputs.DashboardName
-         - !GetAtt PATTERN2STACK.Outputs.DashboardName
+         - !If
+           - IsPattern2
+           - !GetAtt PATTERN2STACK.Outputs.DashboardName
+         etc.
        MergedDashboardName: !Sub "${AWS::StackName}-Integrated-${AWS::Region}"
    ```
 
