@@ -60,6 +60,52 @@ else
 fi
 
 
+# Functions to check if any source files have been changed
+
+function calculate_hash() {
+  local directory_path=$1
+  local HASH=$(
+    find "$directory_path" \( -name node_modules -o -name build \) -prune -o -type f -print0 | 
+    sort -f -z |
+    xargs -0 sha256sum |
+    sha256sum |
+    cut -d" " -f1 | 
+    cut -c1-16
+  )
+  echo $HASH
+}
+
+haschanged() {
+  local dir=$1
+  local checksum_file="${dir}/.checksum"
+  # Compute current checksum of the directory's modification times excluding specified directories, and the publish target S3 location.
+  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" \) -prune -o -type f ! -name ".checksum" -exec stat --format='%Y' {} \; | sha256sum | awk '{ print $1 }')
+  combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
+  current_checksum=$(echo -n "$combined_string" | sha256sum | awk '{ print $1 }')
+  # Check if the checksum file exists and read the previous checksum
+  if [ -f "$checksum_file" ]; then
+      previous_checksum=$(cat "$checksum_file")
+  else
+      previous_checksum=""
+  fi
+  if [ "$current_checksum" != "$previous_checksum" ]; then
+      return 0  # True, the directory has changed
+  else
+      return 1  # False, the directory has not changed
+  fi
+}
+update_checksum() {
+  local dir=$1
+  local checksum_file="${dir}/.checksum"
+  # Compute current checksum of the directory's modification times excluding specified directories, and the publish target S3 location.
+  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" \) -prune -o -type f ! -name ".checksum" -exec stat --format='%Y' {} \; | sha256sum | awk '{ print $1 }')
+  combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
+  current_checksum=$(echo -n "$combined_string" | sha256sum | awk '{ print $1 }')
+  # Save the current checksum
+  echo "$current_checksum" > "$checksum_file"
+}
+
+
 # Package and publish the artifacts
 is_x86_64() {
   [[ $(uname -m) == "x86_64" ]]
@@ -71,25 +117,36 @@ else
   USE_CONTAINER_FLAG="--use-container "
 fi
 
-for nested in patterns/*; do
-  echo "Building nested template artifacts in $nested" 
-  pushd $nested
-  sam build $USE_CONTAINER_FLAG --template-file template.yaml
-  sam package \
-    --template-file .aws-sam/build/template.yaml \
-    --output-template-file .aws-sam/packaged.yaml \
-    --s3-bucket ${BUCKET} \
-    --s3-prefix ${PREFIX_AND_VERSION}
-  popd
+for dir in patterns/*; do
+  if haschanged $dir; then
+    echo "Building nested template artifacts in $dir" 
+    pushd $dir
+    sam build $USE_CONTAINER_FLAG --template-file template.yaml
+    sam package \
+        --template-file .aws-sam/build/template.yaml \
+        --output-template-file .aws-sam/packaged.yaml \
+        --s3-bucket ${BUCKET} \
+        --s3-prefix ${PREFIX_AND_VERSION}
+    popd
+    update_checksum $dir
+  else
+    echo "SKIPPING $dir (unchanged)"
+  fi
 done
 # build main template
 MAIN_TEMPLATE=idp-main.yaml
 sam build $USE_CONTAINER_FLAG --template-file template.yaml
 sam package \
  --template-file .aws-sam/build/template.yaml \
- --output-template-file .aws-sam/${MAIN_TEMPLATE} \
+ --output-template-file .aws-sam/packaged.yaml \
  --s3-bucket ${BUCKET} \
  --s3-prefix ${PREFIX_AND_VERSION}
+
+HASH=$(calculate_hash ".")
+echo "Inline edit main template to replace "
+echo "   <HASH> with: $HASH"
+cat .aws-sam/packaged.yaml | 
+sed -e "s%<HASH>%$HASH%g" > .aws-sam/${MAIN_TEMPLATE}
 
 # upload main template
 aws s3 cp .aws-sam/${MAIN_TEMPLATE} s3://${BUCKET}/${PREFIX}/${MAIN_TEMPLATE} || exit 1
