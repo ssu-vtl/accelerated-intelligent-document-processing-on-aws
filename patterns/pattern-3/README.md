@@ -2,6 +2,8 @@
 
 This pattern implements an intelligent document processing workflow using Amazon Bedrock Data Automation (BDA) for orchestrating ML-powered document processing tasks.
 
+<img src="../../images/IDP-Pattern3-BDA.drawio.png" alt="Architecture" width="800">
+
 ## Table of Contents
 
 - [Architecture Overview](#architecture-overview)
