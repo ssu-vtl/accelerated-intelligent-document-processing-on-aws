@@ -57,7 +57,7 @@ A scalable, serverless solution for automated document processing and informatio
 ### Key Features
 
 - **Serverless Architecture**: Built entirely on AWS serverless technologies including Lambda, Step Functions, SQS, and DynamoDB, eliminating infrastructure management overhead
-- **Intelligent Extraction**: Combines Amazon Textract for OCR with Anthropic's Claude (via Amazon Bedrock) for advanced information extraction and understanding
+- **Modular, pluggable patterns for classification, splitting, extraction**: Pre-built processing patterns using the latest state of the art models and AWS services.. or create your own.
 - **High Throughput Processing**: Handles large volumes of documents through intelligent queuing and concurrency management
 - **Built-in Resilience**: Features comprehensive error handling, automatic retries, and throttling management
 - **Cost Optimization**: Pay-per-use pricing model with built-in controls to manage service quotas
@@ -223,8 +223,10 @@ Each pattern is implemented as a nested stack that contains pattern-specific res
 - Model Endpoints and Configurations
 
 Current patterns include:
-- Pattern 1: OCR → UDOP Classification → Bedrock Extraction  ([README](./patterns/pattern-1/README.md))
+- Pattern 1: OCR → UDOP Classification (SageMaker) → Bedrock Extraction  ([README](./patterns/pattern-1/README.md))
 - Pattern 2: OCR → Bedrock Classification → Bedrock Extraction ([README](./patterns/pattern-2/README.md))
+- Pattern 3: Packet or Media processing with Bedrock Data Automation (BDA) ([README](./patterns/pattern-3/README.md))
+
 
 ### Pattern Selection and Deployment
 
@@ -466,6 +468,9 @@ Pattern1ExtractionModel='claude-3-sonnet...'        # Bedrock model for extracti
 # Pattern 2 Parameters (when selected) 
 Pattern2ClassificationModel='nova-pro...'           # Model for classification
 Pattern2ExtractionModel='claude-3-sonnet...'        # Model for extraction
+
+# Pattern 3 Parameters (when selected) 
+Pattern3BDAProjectArn=''           # Bedrock Data Automation (BDA) project ARN
 ```
 Each pattern has its own set of parameters that are only required when that pattern is selected via IDPPattern. The main stack parameters apply regardless of the chosen pattern.
 
@@ -474,58 +479,13 @@ Each pattern has its own set of parameters that are only required when that patt
 
 Consider requesting raised quotas for the following services, to avoid throttling errors:
 - Amazon Textract -> DetectDocumentText throttle limit in transactions per second 
-- Amazon Bedrock -> On-demand InvokeModel tokens per minute for Anthropic Claude 3.5 Sonnet V2
-- Amazon Bedrock -> On-demand InvokeModel requests per minute for Anthropic Claude 3.5 Sonnet V2
+- Amazon Bedrock -> On-demand InvokeModel tokens per minute  
+- Amazon Bedrock -> On-demand InvokeModel requests per minute
+- Amazon Bedrock Data Automation -> Concurrent jobs (when using Pattern 3)
 - AWS Lambda -> Concurrent executions
 - Amazon CloudWatch - Rate of PutMetricData requests
 
 Use the CloudWatch Dashboard to check errors reported by Lambda functions during scale testing, to check for these, or other, service quota limit exceptions.
-
-## Customizing Extraction
-
-The system uses a combination of prompt engineering and predefined attributes to extract information from documents. You can customize both to match your specific document types and extraction needs.
-
-### Extraction Prompts
-
-The main extraction prompts are defined in `src/bedrock_function/prompt_catalog.py`:
-
-```python
-DEFAULT_SYSTEM_PROMPT = "You are a document assistant. Respond only with JSON..."
-BASELINE_PROMPT = """
-<background>
-You are an expert in bill of ladings...
-</background>
-...
-```
-To modify the extraction behavior:
-
-1. Edit the `DEFAULT_SYSTEM_PROMPT` to change the AI assistant's basic behavior
-1. Customize the BASELINE_PROMPT to:
-- Provide domain expertise for your document types
-- Add specific instructions for handling edge cases
-- Modify output formatting requirements
-
-
-### Extraction Attributes
-Attributes to be extracted are defined in `src/bedrock_function/attributes.json`. Each attribute has:
-- Field name
-- Description
-- List of aliases (alternate names for the field)
-
-Example attribute definition:
-```json
-{
-    "Field": "BOL Number",
-    "Description": "A unique number assigned to the Bill of Lading for tracking purposes",
-    "Alias": "Shipment ID, Load ID, Waybill Number, B/L Number"
-}
-```
-To customize attributes:
-1. Add, remove, or modify attributes in attributes.json
-2. For each attribute, provide clear descriptions and comprehensive aliases
-3. Deploy the updated function to apply changes
-
-Note: Changes to prompts or attributes require redeployment of the Bedrock Lambda function.
 
 
 ## Troubleshooting Guide

@@ -169,6 +169,53 @@ Key configurable parameters:
 - `LogRetentionDays`: CloudWatch log retention period
 - `ExecutionTimeThresholdMs`: Latency threshold for alerts
 
+## Customizing Extraction
+
+The system uses a combination of prompt engineering and predefined attributes to extract information from documents. You can customize both to match your specific document types and extraction needs.
+
+### Extraction Prompts
+
+The main extraction prompts are defined in `src/bedrock_function/prompt_catalog.py`:
+
+```python
+DEFAULT_SYSTEM_PROMPT = "You are a document assistant. Respond only with JSON..."
+BASELINE_PROMPT = """
+<background>
+You are an expert in bill of ladings...
+</background>
+...
+```
+To modify the extraction behavior:
+
+1. Edit the `DEFAULT_SYSTEM_PROMPT` to change the AI assistant's basic behavior
+1. Customize the BASELINE_PROMPT to:
+- Provide domain expertise for your document types
+- Add specific instructions for handling edge cases
+- Modify output formatting requirements
+
+
+### Extraction Attributes
+Attributes to be extracted are defined in `src/bedrock_function/attributes.json`. Each attribute has:
+- Field name
+- Description
+- List of aliases (alternate names for the field)
+
+Example attribute definition:
+```json
+{
+    "Field": "BOL Number",
+    "Description": "A unique number assigned to the Bill of Lading for tracking purposes",
+    "Alias": "Shipment ID, Load ID, Waybill Number, B/L Number"
+}
+```
+To customize attributes:
+1. Add, remove, or modify attributes in attributes.json
+2. For each attribute, provide clear descriptions and comprehensive aliases
+3. Deploy the updated function to apply changes
+
+Note: Changes to prompts or attributes require redeployment of the Bedrock Lambda function.
+
+
 ## Testing
 
 Use the provided test events in `testing/`:
