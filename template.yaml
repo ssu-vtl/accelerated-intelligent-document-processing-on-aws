@@ -1203,7 +1203,7 @@ Resources:
           - !GetAtt PATTERN2STACK.Outputs.DashboardName
           - !GetAtt PATTERN3STACK.Outputs.DashboardName
       MergedDashboardName: !Sub "${AWS::StackName}-${AWS::Region}"
-      ChangeToForceUpdate: 21012025-2  # Change this value when either of the two input dashboards have been changed
+      ChangeToForceUpdate: <HASH>  # Source code hash set by publish script
 
   LookupFunction:
     Type: AWS::Serverless::Function
@@ -1227,14 +1227,14 @@ Resources:
                 - states:GetExecutionHistory
               Resource: 
                 - !Sub 
-                  - "arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${StateMachineArn}*"
-                  - StateMachineArn: !If
+                  - "arn:aws:states:${AWS::Region}:${AWS::AccountId}:execution:${StateMachineName}*"
+                  - StateMachineName: !If
                     - IsPattern1
-                    - !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+                    - !GetAtt PATTERN1STACK.Outputs.StateMachineName
                     - !If
                       - IsPattern2
-                      - !GetAtt PATTERN2STACK.Outputs.StateMachineArn
-                      - !GetAtt PATTERN3STACK.Outputs.StateMachineArn
+                      - !GetAtt PATTERN2STACK.Outputs.StateMachineName
+                      - !GetAtt PATTERN3STACK.Outputs.StateMachineName
             - Effect: Allow
               Action:
                 - kms:Encrypt
