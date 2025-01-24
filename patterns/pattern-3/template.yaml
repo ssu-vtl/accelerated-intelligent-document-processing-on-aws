@@ -276,9 +276,9 @@ Resources:
                   [{"expression": "m1/PERIOD(m1)*60", "label": "Throttles per Minute"}],
                   [{"expression": "m2/PERIOD(m2)*60", "label": "Retry Success per Minute"}],
                   [{"expression": "m3/PERIOD(m3)*60", "label": "Max Retries Exceeded per Minute"}],
-                  ["${StackName}", "BDAThrottles", {"id": "m1", "stat": "Sum", "visible": false}],
-                  [".", "BDARetrySuccess", {"id": "m2", "stat": "Sum", "visible": false}],
-                  [".", "BDAMaxRetriesExceeded", {"id": "m3", "stat": "Sum", "visible": false}]
+                  ["${StackName}", "BDARequestsThrottles", {"id": "m1", "stat": "Sum", "visible": false}],
+                  [".", "BDARequestsRetrySuccess", {"id": "m2", "stat": "Sum", "visible": false}],
+                  [".", "BDARequestsMaxRetriesExceeded", {"id": "m3", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "BDA API Request Retries (per Minute)",
