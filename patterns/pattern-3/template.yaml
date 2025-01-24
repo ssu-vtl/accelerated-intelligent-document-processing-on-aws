@@ -128,10 +128,12 @@ Resources:
         LogGroup: !Ref ProcessResultsFunctionLogGroup
       Policies:
         - AWSLambdaBasicExecutionRole
-        - S3CrudPolicy:
-            BucketName: !Ref WorkingBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
+        - S3CrudPolicy:
+            BucketName: !Ref WorkingBucket
+        - S3CrudPolicy:
+            BucketName: !Ref OutputBucket
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
@@ -305,7 +307,7 @@ Resources:
                   [".", "BDAJobsFailed", {"id": "m3", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
-                "title": "BDA Jobs Status (per Minute)",
+                "title": "BDA Job Executions (per Minute)",
                 "view": "timeSeries",
                 "period": 60,
                 "yAxis": {
