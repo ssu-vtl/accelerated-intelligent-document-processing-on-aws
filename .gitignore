@@ -1,3 +1,4 @@
 .aws-sam
 build.toml
 model.tar.gz
+.checksum
