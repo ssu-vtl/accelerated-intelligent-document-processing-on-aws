@@ -4,6 +4,7 @@ import os
 import logging
 import time
 import random
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
 from botocore.exceptions import ClientError
 
@@ -141,20 +142,20 @@ def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
     
 def track_task_token(object_key: str, task_token: str) -> None:
     try:
-        # Update tracking record
-        update_expression = 'SET #task_token = :task_token'
-        update_values = {
-            ':task_token': task_token
+
+        # Record in DynamoDB
+        tracking_item = {
+            'PK': f"tasktoken#{object_key}",
+            'SK': 'none',
+            'task_token': task_token,
+            'update_time': datetime.now(timezone.utc).isoformat(),
+            'expires_after': int((datetime.now(timezone.utc) + timedelta(days=1)).timestamp())
         }
-        logger.info(f"Updating tracking record with values: {json.dumps(update_values)}")
-        tracking_table.update_item(
-            Key={'object_key': object_key},
-            UpdateExpression=update_expression,
-            ExpressionAttributeNames={'#task_token': 'task_token'},
-            ExpressionAttributeValues=update_values
-        )
+        logger.info(f"Recording tasktoken entry: {tracking_item}")
+        tracking_table.put_item(Item=tracking_item)
+
     except Exception as e:
-        logger.error(f"Error updating tracking record: {e}")
+        logger.error(f"Error recording tasktoken record: {e}")
         raise
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -167,14 +168,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         data_project_arn = event['BDAProjectArn']
         task_token = event['taskToken']
         
+        track_task_token(object_key, task_token)
+
         input_s3_uri = build_s3_uri(input_bucket, object_key)
         output_s3_uri = build_s3_uri(working_bucket, f"{object_key}")
         payload = build_payload(input_s3_uri, output_s3_uri, data_project_arn)
-        
         bda_response = invoke_data_automation(payload)
 
-        track_task_token(object_key, task_token)
-        
         response = {
             "metadata": {
                 "input_bucket": input_bucket, 

@@ -1,7 +1,42 @@
-type Document {
+interface DynamoDbBase {
+	PK: ID!
+	SK: ID!
+	expires_after: AWSTimestamp
+}
+
+type Document implements DynamoDbBase @aws_cognito_user_pools @aws_iam {
+  PK: ID!
+  SK: ID!
+  object_key: ID
+  status: String
+  initial_event_time: AWSDateTime
+  queued_time: AWSDateTime
+  workflow_start_time: AWSDateTime
+  completion_time: AWSDateTime
+  execution_arn: String
+  workflow_status: String
+  expires_after: AWSTimestamp
+}
+
+input CreateDocumentInput {
+  object_key: ID
+  status: String
+  initial_event_time: AWSDateTime
+  queued_time: AWSDateTime
+  expires_after: AWSTimestamp
+}
+
+type CreateCallOutput @aws_iam {
+  object_key: ID
+  status: String
+  initial_event_time: AWSDateTime
+  queued_time: AWSDateTime
+  expires_after: AWSTimestamp
+}
+
+input UpdateDocumentInput {
   object_key: ID!
-  status: String!
-  initial_event_time: AWSDateTime!
+  status: String
   queued_time: AWSDateTime
   workflow_start_time: AWSDateTime
   completion_time: AWSDateTime
@@ -9,36 +44,22 @@ type Document {
   workflow_status: String
 }
 
-type DocumentConnection {
-  items: [Document!]!
-  nextToken: String
+type Mutation @aws_iam {
+  createDocument(input: CreateDocumentInput!): CreateCallOutput
+  updateDocument(input: UpdateDocumentInput!): Document
 }
 
-input TimeRangeInput {
-  start: AWSDateTime!
-  end: AWSDateTime!
-}
-
-input DocumentFilterInput {
-  nameContains: String
-  status: String
-}
-
-type Query {
+type Query @aws_cognito_user_pools @aws_iam {
   getDocument(object_key: ID!): Document
-  listDocuments(
-    timeRange: TimeRangeInput!
-    filter: DocumentFilterInput
-    nextToken: String
-  ): DocumentConnection!
 }
 
-type Subscription {
+type Subscription @aws_cognito_user_pools @aws_iam {
   onDocumentUpdated: Document
     @aws_subscribe(mutations: ["updateDocument"])
 }
 
 schema {
   query: Query
+  mutation: Mutation
   subscription: Subscription
 }
