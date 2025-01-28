@@ -117,25 +117,32 @@ else
   USE_CONTAINER_FLAG="--use-container "
 fi
 
+# Build patterns and webui templates
 for dir in patterns/*; do
   if haschanged $dir; then
-    echo "Building nested template artifacts in $dir" 
     pushd $dir
+    echo "BUILDING $dir" 
     sam build $USE_CONTAINER_FLAG --template-file template.yaml
+    echo "PACKAGING $dir"
     sam package \
         --template-file .aws-sam/build/template.yaml \
         --output-template-file .aws-sam/packaged.yaml \
         --s3-bucket ${BUCKET} \
         --s3-prefix ${PREFIX_AND_VERSION}
+    echo "DONE $dir"
     popd
     update_checksum $dir
   else
     echo "SKIPPING $dir (unchanged)"
   fi
 done
+
+
 # build main template
 MAIN_TEMPLATE=idp-main.yaml
+echo "BUILDING main" 
 sam build $USE_CONTAINER_FLAG --template-file template.yaml
+echo "PACKAGING main" 
 sam package \
  --template-file .aws-sam/build/template.yaml \
  --output-template-file .aws-sam/packaged.yaml \
@@ -167,7 +174,7 @@ for file in $files
   done
 aws s3api put-object-acl --acl public-read --bucket ${BUCKET} --key ${PREFIX}/${MAIN_TEMPLATE}
 echo ""
-echo "Done."
+echo "Done with ACLs."
 fi
 
 echo "OUTPUTS"

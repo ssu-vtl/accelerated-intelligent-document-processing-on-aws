@@ -1,0 +1,44 @@
+type Document {
+  object_key: ID!
+  status: String!
+  initial_event_time: AWSDateTime!
+  queued_time: AWSDateTime
+  workflow_start_time: AWSDateTime
+  completion_time: AWSDateTime
+  execution_arn: String
+  workflow_status: String
+}
+
+type DocumentConnection {
+  items: [Document!]!
+  nextToken: String
+}
+
+input TimeRangeInput {
+  start: AWSDateTime!
+  end: AWSDateTime!
+}
+
+input DocumentFilterInput {
+  nameContains: String
+  status: String
+}
+
+type Query {
+  getDocument(object_key: ID!): Document
+  listDocuments(
+    timeRange: TimeRangeInput!
+    filter: DocumentFilterInput
+    nextToken: String
+  ): DocumentConnection!
+}
+
+type Subscription {
+  onDocumentUpdated: Document
+    @aws_subscribe(mutations: ["updateDocument"])
+}
+
+schema {
+  query: Query
+  subscription: Subscription
+}

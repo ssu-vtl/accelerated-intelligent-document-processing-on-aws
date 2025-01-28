@@ -6,30 +6,26 @@ Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v0.2.0)
 
 Parameters:
 
-  # Pipeline Configuration
-  MaxConcurrentWorkflows:
-    Type: Number
-    Default: 800
-    Description: Maximum number of concurrent workflow executions allowed
-    MinValue: 1
+  # Auth
 
-  ErrorThreshold:
-    Type: Number
-    Default: 1
-    Description: Number of workflow errors that triggers an alert (per 5 minutes)
-    MinValue: 1
+  AdminEmail:
+    Type: String
+    Description: >-
+      Email address of the admin user (e.g. jdoe+admin@example.com). 
+      An initial temporary password is automatically sent to this user via email.
+    AllowedPattern: '^[\w.+-]+@([\w-]+\.)+[\w-]{2,6}$'
 
-  ExecutionTimeThresholdMs:
-    Type: Number
-    Default: 30000
-    Description: Maximum acceptable execution time in milliseconds before alerting (default 30000 = 30 seconds)
-    MinValue: 1000
-
-  LogRetentionDays:
-    Type: Number
-    Default: 30
-    Description: Number of days to retain CloudWatch logs
-    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
+  AllowedSignUpEmailDomain:
+    Type: String
+    Default: ""
+    Description: >-
+      Email address domain (example.com) or comma separated list of email domains (example1.com,
+      example2.com) allowed to signup using the web UI.
+      If left empty, signup via the web UI is disabled and users will have to be created
+      using Cognito.
+    AllowedPattern: '^(|([\w-]+\.)+[\w-]{2,6}(, *([\w-]+\.)+[\w-]{2,6})*)$'
+    ConstraintDescription: >-
+      Must be empty or a list of comma separated email domains (example1.com, example2.com)
 
   # Workflow Configuration
   IDPPattern:
@@ -96,6 +92,31 @@ Parameters:
     AllowedPattern: "^(|^arn:aws:bedrock:[a-z0-9-]+:.+:data-automation-project/.+)$"
     Description: (Optional) Bedrock Data Automation (BDA) project ARN
 
+  # Pipeline Configuration
+  MaxConcurrentWorkflows:
+    Type: Number
+    Default: 800
+    Description: Maximum number of concurrent workflow executions allowed
+    MinValue: 1
+
+  ErrorThreshold:
+    Type: Number
+    Default: 1
+    Description: Number of workflow errors that triggers an alert (per 5 minutes)
+    MinValue: 1
+
+  ExecutionTimeThresholdMs:
+    Type: Number
+    Default: 30000
+    Description: Maximum acceptable execution time in milliseconds before alerting (default 30000 = 30 seconds)
+    MinValue: 1000
+
+  LogRetentionDays:
+    Type: Number
+    Default: 30
+    Description: Number of days to retain CloudWatch logs
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
+
 Rules:
 
   # Pattern 1 rules 
@@ -146,19 +167,18 @@ Conditions:
   IsPattern1: !Equals [!Ref IDPPattern, "Pattern1 - Packet processing with Textract, SageMaker(UDOP), and Bedrock"]
   IsPattern2: !Equals [!Ref IDPPattern, "Pattern2 - Packet processing with Textract and Bedrock"]
   IsPattern3: !Equals [!Ref IDPPattern, "Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA)"]
+  ShouldAllowSignUpEmailDomain: !Not [!Equals [!Ref AllowedSignUpEmailDomain, ""]]
 
 
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: "Pipeline Configuration"
+          default: "User Authentication"
         Parameters:
-          - MaxConcurrentWorkflows
-          - ErrorThreshold
-          - ExecutionTimeThresholdMs
-          - LogRetentionDays
-
+          - DeployWebUI
+          - AdminEmail
+          - AllowedSignUpEmailDomain
       - Label:
           default: "Workflow Pattern Selection"
         Parameters:
@@ -179,16 +199,21 @@ Metadata:
           default: "Pattern 3 Configuration"
         Parameters:
           - Pattern3BDAProjectArn
+      - Label:
+          default: "Processing Configuration"
+        Parameters:
+          - MaxConcurrentWorkflows
+          - ErrorThreshold
+          - ExecutionTimeThresholdMs
+          - LogRetentionDays
 
     ParameterLabels:
-      MaxConcurrentWorkflows:
-        default: "Maximum Concurrent Workflows"
-      ErrorThreshold:
-        default: "Error Alert Threshold"
-      ExecutionTimeThresholdMs:
-        default: "Execution Time Threshold (ms)"
-      LogRetentionDays:
-        default: "Log Retention Period (days)"
+      DeployWebUI:
+        default: "Deploy Web UI"
+      AdminEmail:
+        default: "Admin Email Address"
+      AllowedSignUpEmailDomain:
+        default: "Allowed Sign Up Email Domain"
       IDPPattern:
         default: "Prefdefined Document Processing Pattern"
       Pattern1UDOPModelArtifactPath:
@@ -203,6 +228,14 @@ Metadata:
         default: "Pattern2 - Custom Extraction Model ARN"
       Pattern3BDAProjectArn:
         default: "Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN"
+      MaxConcurrentWorkflows:
+        default: "Maximum Concurrent Workflows"
+      ErrorThreshold:
+        default: "Error Alert Threshold"
+      ExecutionTimeThresholdMs:
+        default: "Execution Time Threshold (ms)"
+      LogRetentionDays:
+        default: "Log Retention Period (days)"
 
 Resources:
 
@@ -261,6 +294,39 @@ Resources:
         BDAProjectArn: !Ref Pattern3BDAProjectArn
 
   # Main stack resources
+
+  CustomerManagedEncryptionKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: KMS key for DynamoDB encryption
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Allow lambda to access the Keys
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action:
+              - kms:*
+            Resource: '*'
+          - Sid: Allow DynamoDB to use the key
+            Effect: Allow
+            Principal:
+              Service: dynamodb.amazonaws.com
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: '*'
+
+  CustomerManagedEncryptionKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/${AWS::StackName}-customer-encryption-key'
+      TargetKeyId: !Ref CustomerManagedEncryptionKey
 
   LoggingBucket:
     Type: AWS::S3::Bucket
@@ -373,38 +439,22 @@ Resources:
         DestinationBucketName: !Ref LoggingBucket
         LogFilePrefix: output-bucket-logs/
 
-  CustomerManagedEncryptionKey:
-    Type: AWS::KMS::Key
+  WebUIBucket:
+    Type: AWS::S3::Bucket
     Properties:
-      Description: KMS key for DynamoDB encryption
-      EnableKeyRotation: true
-      KeyPolicy:
-        Version: '2012-10-17'
-        Statement:
-          - Sid: Allow lambda to access the Keys
-            Effect: Allow
-            Principal:
-              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
-            Action:
-              - kms:*
-            Resource: '*'
-          - Sid: Allow DynamoDB to use the key
-            Effect: Allow
-            Principal:
-              Service: dynamodb.amazonaws.com
-            Action:
-              - kms:Encrypt
-              - kms:Decrypt
-              - kms:ReEncrypt*
-              - kms:GenerateDataKey*
-              - kms:DescribeKey
-            Resource: '*'
-
-  CustomerManagedEncryptionKeyAlias:
-    Type: AWS::KMS::Alias
-    Properties:
-      AliasName: !Sub 'alias/${AWS::StackName}-customer-encryption-key'
-      TargetKeyId: !Ref CustomerManagedEncryptionKey
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LoggingBucket
+        LogFilePrefix: working-bucket-logs/
 
   ExecutionTable:
     Type: AWS::DynamoDB::Table
@@ -414,6 +464,8 @@ Resources:
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: object_key
+          AttributeType: S
+        - AttributeName: initial_event_time
           AttributeType: S
       KeySchema:
         - AttributeName: object_key
@@ -425,7 +477,14 @@ Resources:
         SSEEnabled: true
         SSEType: KMS
         KMSMasterKeyId: !Ref CustomerManagedEncryptionKey
-  
+      GlobalSecondaryIndexes:
+        - IndexName: event_time_index
+          KeySchema:
+            - AttributeName: initial_event_time
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
   ConcurrencyTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -551,7 +610,7 @@ Resources:
   QueueSender:
    Type: AWS::Serverless::Function 
    Properties:
-     CodeUri: src/queue_sender/
+     CodeUri: src/lambda/queue_sender/
      Handler: index.handler
      Runtime: python3.11
      Timeout: 30
@@ -601,7 +660,7 @@ Resources:
   QueueProcessor:
    Type: AWS::Serverless::Function
    Properties:
-     CodeUri: src/queue_processor/
+     CodeUri: src/lambda/queue_processor/
      Handler: index.handler
      Runtime: python3.11
      Timeout: 30
@@ -669,7 +728,7 @@ Resources:
   WorkflowTracker:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/workflow_tracker/
+      CodeUri: src/lambda/workflow_tracker/
       Handler: index.handler
       Runtime: python3.11
       Timeout: 30
@@ -1171,7 +1230,7 @@ Resources:
   DashboardMergerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/dashboard_merger
+      CodeUri: src/lambda/dashboard_merger
       Handler: index.handler
       Runtime: python3.11
       Timeout: 60
@@ -1208,7 +1267,7 @@ Resources:
   LookupFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/lookup_function/
+      CodeUri: src/lambda/lookup_function/
       Handler: index.handler
       Runtime: python3.11
       Timeout: 30
@@ -1250,7 +1309,558 @@ Resources:
       LogGroupName: !Sub "/${AWS::StackName}/lambda/lookup"
       RetentionInDays: !Ref LogRetentionDays
 
+  # Initialise SettingsParameter as empty (so it never gets replaced)
+  # and use Custom Resource UpdateSettingsFunction to add/update values
+  SettingsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub "${AWS::StackName}-Settings"
+      Value: "{}"
+
+  UpdateSettingsFunctionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: "sts:AssumeRole"
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: updateSSMStore
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:PutParameter
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SettingsParameter}"
+
+  UpdateSettingsFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Role: !GetAtt UpdateSettingsFunctionRole.Arn
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 900
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import json
+          ssm = boto3.client('ssm')
+          def updateSSMParameter(props):
+            parameterName = props['SettingsName']
+            parameterValues = props['SettingsKeyValuePairs']
+            response = ssm.get_parameter(Name=parameterName)
+            settingsJSON = response['Parameter']['Value']
+            settings = json.loads(settingsJSON)
+            print(f"Existing settings: {settings}")
+            for key, value in parameterValues.items():
+              settings[key] = value
+            print(f"Updated settings: {settings}")
+            newSettingsJSON = json.dumps(settings)
+            ssm.put_parameter(Name=parameterName, Value=newSettingsJSON, Overwrite=True)
+                        
+          def handler(event, context):        
+            print(json.dumps(event))
+            status = cfnresponse.SUCCESS
+            responseData = {}
+            reason = "Success"
+            props = event["ResourceProperties"]
+            if event['RequestType'] != 'Delete':
+              try:
+                updateSSMParameter(props)
+              except Exception as e:
+                print(e)
+                reason = f"Exception thrown: {e}"
+                status = cfnresponse.FAILED              
+            cfnresponse.send(event, context, status, responseData, reason=reason)
+      LoggingConfig:
+        LogGroup: !Ref UpdateSettingsFunctionLogGroup
+
+  UpdateSettingsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: !Ref LogRetentionDays
+
+  UpdateSettingsValues:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt UpdateSettingsFunction.Arn
+      SettingsName: !Ref SettingsParameter
+      SettingsKeyValuePairs:
+        # to be extended
+        ShouldUseDocumentKnowledgeBase: False
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  # Cognito resources
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${AWS::StackName}-users
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: !If
+          - ShouldAllowSignUpEmailDomain
+          - false
+          - true
+        InviteMessageTemplate:
+          EmailSubject: Welcome to GenAI-IDP!
+          EmailMessage: !Sub |-
+            <p>Hello {username},</p>
+            <p>Welcome to the AWS GenAI-IDP Solution! Your temporary password is: <strong>{####}</strong></p>
+            <p>When the CloudFormation stack is COMPLETE, use the link below to log in and set your permanent password.
+            <p>     https://${CloudFrontDistribution.DomainName}/
+            <p>Thanks,</p>
+            <p>GenAI-IDP</p>
+      AutoVerifiedAttributes:
+        - email
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      EmailVerificationMessage: >-
+        Please verify your email to complete account registration. Confirmation Code
+        {####}.
+      EmailVerificationSubject: >-
+        Account Verification
+      LambdaConfig: !If
+        - ShouldAllowSignUpEmailDomain
+        - PreAuthentication: !GetAtt CognitoUserPoolEmailDomainVerifyFunction.Arn
+          PreSignUp: !GetAtt CognitoUserPoolEmailDomainVerifyFunction.Arn
+        - !Ref AWS::NoValue
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: false
+          Required: true
+      UsernameConfiguration:
+        CaseSensitive: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "${AWS::StackName}-Client"
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - phone
+        - profile
+      CallbackURLs:
+        - http://localhost:3000
+        - http://localhost:5173
+        - https://bmpfinegchjaiocjnfjfcgeohdiblomp.chromiumapp.org/
+      AccessTokenValidity: 1
+      EnableTokenRevocation: true
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      GenerateSecret: false
+      IdTokenValidity: 1
+      PreventUserExistenceErrors: ENABLED
+      ReadAttributes:
+        - email
+        - email_verified
+        - preferred_username
+      RefreshTokenValidity: 30
+      SupportedIdentityProviders:
+        - COGNITO
+      UserPoolId: !Ref UserPool
+
+  GetDomainLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  GetDomainLambda:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Description: Returns the lowercase version of a string
+      MemorySize: 256
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Role: !GetAtt GetDomainLambdaRole.Arn
+      Timeout: 30
+      Code:
+        ZipFile: |
+          import cfnresponse
+          import time
+          def lambda_handler(event, context):                                                    
+              output = event['ResourceProperties'].get('InputString', '').lower()
+              output = f"{output}-{time.time_ns()}" # make unique
+              responseData = {'OutputString': output}                                            
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
+      LoggingConfig:
+        LogGroup: !Ref GetDomainLambdaLogGroup
+
+  GetDomainLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/GetDomainLambda"
+      RetentionInDays: !Ref LogRetentionDays
+
+  GetDomain:
+    Type: Custom::GetDomain
+    Properties:
+      ServiceToken: !GetAtt GetDomainLambda.Arn
+      InputString: !Ref AWS::StackName
+
+  UserPoolDomain:
+    Type: "AWS::Cognito::UserPoolDomain"
+    Properties:
+      Domain: !GetAtt GetDomain.OutputString
+      UserPoolId: !Ref UserPool
+
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: !Sub "${AWS::StackName}-IdentityPool"
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId: !Ref UserPoolClient
+          ProviderName: !GetAtt UserPool.ProviderName
+
+  CognitoIdentityPoolSetRole:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref IdentityPool
+      Roles:
+        authenticated: !GetAtt CognitoAuthorizedRole.Arn
+
+  CognitoAuthorizedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action:
+              - sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "cognito-identity.amazonaws.com:aud": !Ref IdentityPool
+              "ForAnyValue:StringLike":
+                "cognito-identity.amazonaws.com:amr": authenticated
+      Policies:
+        - PolicyName: accessS3RecordingsPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:GetObject"
+                Resource:
+                  - !Sub "arn:aws:s3:::${InputBucket}"
+                  - !Sub "arn:aws:s3:::${InputBucket}/*"
+                  - !Sub "arn:aws:s3:::${OutputBucket}"
+                  - !Sub "arn:aws:s3:::${OutputBucket}/*"
+        - PolicyName: accessParameterStore
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "ssm:GetParameter"
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SettingsParameter}"
+
+  AdminUser:
+    Type: AWS::Cognito::UserPoolUser
+    DependsOn: CognitoUserPoolEmailDomainVerifyPermissionReady
+    Properties:
+      DesiredDeliveryMediums:
+        - EMAIL
+      UserAttributes:
+        - Name: email
+          Value: !Ref AdminEmail
+      Username: !Ref AdminEmail
+      UserPoolId: !Ref UserPool
+
+  # Create conditional dependency on CognitoUserPoolEmailDomainVerifyPermission
+  CognitoUserPoolEmailDomainVerifyPermissionReady:
+    Type: AWS::CloudFormation::WaitConditionHandle
+    Metadata:
+      ConditionalDependency:
+        !If [
+          ShouldAllowSignUpEmailDomain,
+          !Ref CognitoUserPoolEmailDomainVerifyPermission,
+          "",
+        ]
+
+  AdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      Description: Administrators
+      GroupName: Admin
+      Precedence: 0
+      UserPoolId: !Ref UserPool
+
+  AdminUserToGroupAttachment:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    Properties:
+      GroupName: !Ref AdminGroup
+      Username: !Ref AdminUser
+      UserPoolId: !Ref UserPool
+
+  CognitoUserPoolEmailDomainVerifyFunction:
+    Type: AWS::Serverless::Function
+    Condition: ShouldAllowSignUpEmailDomain
+    Properties:
+      Handler: index.lambda_handler
+      Runtime: python3.11
+      Timeout: 10
+      Environment:
+        Variables:
+          ALLOWED_SIGNUP_EMAIL_DOMAINS: !Ref AllowedSignUpEmailDomain
+      InlineCode: |
+        import os
+        import boto3
+        import json
+        
+        def lambda_handler(event, context):
+            print(json.dumps(event))
+        
+            allowed_domains = [
+                domain.strip() 
+                for domain in os.environ.get('ALLOWED_SIGNUP_EMAIL_DOMAINS', '').split(',')
+            ]
+        
+            user_attributes = event.get('request', {}).get('userAttributes', {})
+            email = user_attributes.get('email')
+        
+            if not email or '@' not in email:
+                raise ValueError('Username does not exist or invalid email address')
+        
+            email_domain = email.split('@')[1]
+        
+            if not email_domain or not allowed_domains:
+                raise ValueError('Server error - invalid configuration')
+        
+            if email_domain not in allowed_domains:
+                raise ValueError('Invalid email address domain')
+        
+            return event
+      LoggingConfig:
+        LogGroup:
+          Fn::Sub: /${AWS::StackName}/lambda/CognitoUserPoolEmailDomainVerifyFunction
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: Customer can use VPC if desired
+          - id: W92
+            reason: Customer can choose reserved concurrency based on their requirement.
+    DependsOn:
+      - CognitoUserPoolEmailDomainVerifyFunctionLogGroup
+
+  CognitoUserPoolEmailDomainVerifyFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/CognitoUserPoolEmailDomainVerifyFunction"
+      RetentionInDays: !Ref LogRetentionDays
+
+  CognitoUserPoolEmailDomainVerifyPermission:
+    Type: AWS::Lambda::Permission
+    Condition: ShouldAllowSignUpEmailDomain
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref CognitoUserPoolEmailDomainVerifyFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !GetAtt UserPool.Arn
+
+  # AppSync API
+  GraphQLApi:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      Name: !Sub ${AWS::StackName}-api
+      AuthenticationType: AMAZON_COGNITO_USER_POOLS
+      UserPoolConfig:
+        UserPoolId: !Ref UserPool
+        AwsRegion: !Ref AWS::Region
+        DefaultAction: ALLOW
+
+  GraphQLSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      DefinitionS3Location: ./src/api/schema.graphql
+      
+  # DynamoDB Data Source
+  DocumentTableDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Name: DocumentTableDataSource
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      DynamoDBConfig:
+        TableName: !Ref ExecutionTable
+        AwsRegion: !Ref AWS::Region
+
+  # AppSync Service Role
+  AppSyncServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: 
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExecutionTable}
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExecutionTable}/index/*
+              - Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:Decrypt
+                  - kms:ReEncrypt*
+                  - kms:GenerateDataKey*
+                  - kms:DescribeKey
+                Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+
+  # Resolvers
+  GetDocumentResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Query
+      FieldName: getDocument
+      DataSourceName: !GetAtt DocumentTableDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2018-05-29",
+          "operation": "GetItem",
+          "key": {
+            "object_key": $util.dynamodb.toDynamoDBJson($ctx.args.object_key)
+          }
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result)
+
+  ListDocumentsResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Query
+      FieldName: listDocuments
+      DataSourceName: !GetAtt DocumentTableDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2018-05-29",
+          "operation": "Query",
+          "index": "event_time_index",
+          "query": {
+            "expression": "#time BETWEEN :start AND :end",
+            "expressionNames": {
+              "#time": "initial_event_time"
+            },
+            "expressionValues": {
+              ":start": $util.dynamodb.toDynamoDBJson($ctx.args.timeRange.start),
+              ":end": $util.dynamodb.toDynamoDBJson($ctx.args.timeRange.end)
+            }
+          }
+          #if($ctx.args.nextToken)
+            ,"nextToken": "$ctx.args.nextToken"
+          #end
+          ,"limit": 50
+        }
+      ResponseMappingTemplate: |
+        {
+          "items": $util.toJson($ctx.result.items),
+          "nextToken": $util.toJson($ctx.result.nextToken)
+        }
+
+  OnDocumentUpdatedResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Subscription
+      FieldName: onDocumentUpdated
+      DataSourceName: !GetAtt DocumentTableDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2018-05-29"
+          "payload": $util.toJson($ctx.args)
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result)
+
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: !GetAtt WebUIBucket.RegionalDomainName
+            Id: S3Origin
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}
+        Enabled: true
+        DefaultRootObject: index.html
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # CORS-S3Origin
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponsePagePath: /index.html
+            ResponseCode: 200
+          - ErrorCode: 404
+            ResponsePagePath: /index.html
+            ResponseCode: 200
+
+  CloudFrontOriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub ${AWS::StackName} OAI
+
 Outputs:
+  ApplicationWebURL:
+    Description: Application Web URL
+    Value: !Sub "https://${CloudFrontDistribution.DomainName}/"
   S3InputBucketName:
     Description: Input S3 bucket name
     Value: !Ref InputBucket
@@ -1320,5 +1930,10 @@ Outputs:
   SQSDocumentQueueConsoleURL:
     Description: SQS Queue console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/sqs/v2/home?region=${AWS::Region}#/queues/${DocumentQueue}
-
+  SettingsParameterName:
+    Description: Name of the Parameter store that holds configuration settings
+    Value: !Ref SettingsParameter
+  GraphQLApiUrl:
+    Description: AppSync GraphQL API URL
+    Value: !GetAtt GraphQLApi.GraphQLUrl
 
