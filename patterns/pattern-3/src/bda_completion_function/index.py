@@ -37,7 +37,7 @@ def get_task_token(object_key: str) -> str:
         key = f"tasktoken#{object_key}"
         logger.info(f"Performing consistent read for tracking record: {key}")
         response = tracking_table.get_item(
-            Key={'PK': key},
+            Key={'PK': key, 'SK': 'none'},
             ConsistentRead=True
         )
         
@@ -47,7 +47,6 @@ def get_task_token(object_key: str) -> str:
             raise Exception(error_msg)
         
         item = response['Item']
-        logger.info(f"Retrieved tracking record: {json.dumps(item)}")
         return item['task_token']
 
     except Exception as e:

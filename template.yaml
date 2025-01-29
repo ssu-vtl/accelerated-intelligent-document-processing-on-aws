@@ -361,6 +361,7 @@ Resources:
 
   LoggingBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: RetainExceptOnCreate
     Properties:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -402,6 +403,7 @@ Resources:
 
   InputBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: RetainExceptOnCreate
     Properties:
       NotificationConfiguration:
         EventBridgeConfiguration:
@@ -431,6 +433,7 @@ Resources:
 
   WorkingBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: RetainExceptOnCreate 
     Properties:
       NotificationConfiguration:
         EventBridgeConfiguration:
@@ -460,6 +463,7 @@ Resources:
 
   OutputBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: RetainExceptOnCreate 
     Properties:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -486,6 +490,7 @@ Resources:
 
   WebUIBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: RetainExceptOnCreate 
     Properties:
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -740,6 +745,11 @@ Resources:
         - Statement:
             - Effect: Allow
               Action:
+                - appsync:GraphQL
+              Resource:
+                - !Sub "${GraphQLApi.Arn}/types/Mutation/*"
+            - Effect: Allow
+              Action:
                 - kms:Encrypt
                 - kms:Decrypt
                 - kms:ReEncrypt*
@@ -796,6 +806,11 @@ Resources:
               Action:
                 - cloudwatch:PutMetricData
               Resource: "*"
+            - Effect: Allow
+              Action:
+                - appsync:GraphQL
+              Resource:
+                - !Sub "${GraphQLApi.Arn}/types/Mutation/*"
             - Effect: Allow
               Action:
                 - kms:Encrypt
@@ -1564,7 +1579,6 @@ Resources:
   GetDomainLambdaLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/lambda/GetDomainLambda"
       RetentionInDays: !Ref LogRetentionDays
 
   GetDomain:
@@ -1833,58 +1847,6 @@ Resources:
                   - kms:DescribeKey
                 Resource: !GetAtt CustomerManagedEncryptionKey.Arn
 
-  # Resolvers
-  GetDocumentResolver:
-    Type: AWS::AppSync::Resolver
-    Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
-      TypeName: Query
-      FieldName: getDocument
-      DataSourceName: !GetAtt TrackingTableDataSource.Name
-      RequestMappingTemplate: |
-        {
-          "version": "2018-05-29",
-          "operation": "GetItem",
-          "key": {
-            "PK": $util.dynamodb.toDynamoDBJson($ctx.args.object_key)
-          }
-        }
-      ResponseMappingTemplate: |
-        $util.toJson($ctx.result)
-
-  ListDocumentsResolver:
-    Type: AWS::AppSync::Resolver
-    Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
-      TypeName: Query
-      FieldName: listDocuments
-      DataSourceName: !GetAtt TrackingTableDataSource.Name
-      RequestMappingTemplate: |
-        {
-          "version": "2018-05-29",
-          "operation": "Query",
-          "index": "event_time_index",
-          "query": {
-            "expression": "#time BETWEEN :start AND :end",
-            "expressionNames": {
-              "#time": "initial_event_time"
-            },
-            "expressionValues": {
-              ":start": $util.dynamodb.toDynamoDBJson($ctx.args.timeRange.start),
-              ":end": $util.dynamodb.toDynamoDBJson($ctx.args.timeRange.end)
-            }
-          }
-          #if($ctx.args.nextToken)
-            ,"nextToken": "$ctx.args.nextToken"
-          #end
-          ,"limit": 50
-        }
-      ResponseMappingTemplate: |
-        {
-          "items": $util.toJson($ctx.result.items),
-          "nextToken": $util.toJson($ctx.result.nextToken)
-        }
-
 # AppSync Resolvers
   CreateDocumentResolver:
     Type: AWS::AppSync::Resolver
@@ -1897,6 +1859,7 @@ Resources:
       # - the doc item (PK = doc#<object_key>) - containing all doc attributes
       # - the list item (PK = list#<date>#s<shardid>) - which associates a time shard to the doc identified by the SK value
       #    - this is used to list documents without resorting to DynamoDB scans 
+      # Because we use !Sub to substitute TrackingTable, we must escape other occurences of ${x} like ${!x}
       RequestMappingTemplate: !Sub |
         #set( $PK = "doc#${!ctx.args.input.object_key}" )
 
@@ -1921,7 +1884,7 @@ Resources:
               "operation": "PutItem",
               "key" : {
                 "PK": $util.dynamodb.toDynamoDBJson($PK),
-                "SK": $util.dynamodb.toDynamoDBJson($PK),
+                "SK": $util.dynamodb.toDynamoDBJson("none"),
               },
               "attributeValues": $util.dynamodb.toMapValuesJson($ctx.args.input),
             },
@@ -1945,6 +1908,7 @@ Resources:
           $util.error($ctx.error.message, $ctx.error.type)
         #end
         $util.toJson($ctx.args.input.object_key)
+
   UpdateDocumentResolver:
     Type: AWS::AppSync::Resolver
     Properties:
@@ -1953,7 +1917,7 @@ Resources:
       FieldName: updateDocument
       DataSourceName: !GetAtt TrackingTableDataSource.Name
       RequestMappingTemplate: |-
-        #set( $PK = "doc#${!ctx.args.input.object_key}" )
+        #set( $PK = "doc#${ctx.args.input.object_key}" )
         #set( $expNames = {} )
         #set( $expValues = {} )
         #set( $expSet = {} )
@@ -1980,9 +1944,9 @@ Resources:
         {
             "version" : "2018-05-29",
             "operation" : "UpdateItem",
-            "key": {
-                "PK": $util.dynamodb.toDynamoDBJson($PK),
-                "SK": $util.dynamodb.toDynamoDBJson($PK),
+            "key" : {
+              "PK": $util.dynamodb.toDynamoDBJson($PK),
+              "SK": $util.dynamodb.toDynamoDBJson("none"),
             },
             "update" : {
                 "expression": "$expression"
@@ -2011,6 +1975,152 @@ Resources:
         }
       ResponseMappingTemplate: |
         $util.toJson($ctx.result)
+
+  GetDocumentResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Query
+      FieldName: getDocument
+      DataSourceName: !GetAtt TrackingTableDataSource.Name
+      RequestMappingTemplate: |
+        #set( $PK = "doc#${ctx.args.input.object_key}" )
+        {
+          "version": "2018-05-29",
+          "operation": "GetItem",
+          "key" : {
+            "PK": $util.dynamodb.toDynamoDBJson($PK),
+            "SK": $util.dynamodb.toDynamoDBJson("none"),
+          }
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result)
+
+  ListDocumentResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Query
+      FieldName: listDocuments
+      DataSourceName: !GetAtt TrackingTableDataSource.Name
+      RequestMappingTemplate: |
+        {
+            "version": "2018-05-29",
+            "operation": "Scan",
+            "filter": {
+                #if($context.arguments.startDateTime && $context.arguments.endDateTime)
+                    "expression": "initial_event_time BETWEEN :startDateTime AND :endDateTime",
+                    "expressionValues": {
+                        ":startDateTime": { "S": "$context.arguments.startDateTime" },
+                        ":endDateTime": { "S": "$context.arguments.endDateTime" }
+                    }
+                #elseif($context.arguments.startDateTime)
+                    "expression": "initial_event_time >= :startDateTime",
+                    "expressionValues": {
+                        ":startDateTime": { "S": "$context.arguments.startDateTime" }
+                    }
+                #elseif($context.arguments.endDateTime)
+                    "expression": "initial_event_time <= :endDateTime",
+                    "expressionValues": {
+                        ":endDateTime": { "S": "$context.arguments.endDateTime" }
+                    }
+                #end
+            },
+            #if($context.prev.result)
+                "nextToken": "$context.prev.result.nextToken",
+            #end
+            "limit": 50,
+            "consistentRead": false,
+            "select": "ALL_ATTRIBUTES"
+        }
+      ResponseMappingTemplate: |
+        {
+            "Documents": $util.toJson($ctx.result.items),
+            "nextToken": $util.toJson($ctx.result.nextToken)
+        }
+
+  ListDocumentDateHourResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Query
+      FieldName: listDocumentsDateHour
+      DataSourceName: !GetAtt TrackingTableDataSource.Name
+      RequestMappingTemplate: |
+        #set( $shardsInDay = 6 )
+        #set( $shardDivider = 24 / $shardsInDay )
+        #set( $Integer = 0 )
+        #set( $now = $util.time.nowISO8601() )
+        #set( $hourNow = $Integer.parseInt($now.substring(11, 13)) )
+        #set( $date = $util.defaultIfNullOrBlank($ctx.args.date, $now.substring(0, 10)) )
+        #set( $hour = $util.defaultIfNull($ctx.args.hour, $hourNow) )
+        #if( $hour < 0 || $hour > 23 )
+          $util.error("Invalid hour parameter - value should be between 0 and 23")
+        #end
+        #set( $hourPad = $date.format("%02d", $hour) )
+        #set( $hourShard = $hour / $shardDivider )
+        #set( $shardPad = $date.format("%02d", $hourShard) )
+
+        #set( $PK = "list#${date}#s#${shardPad}" )
+        #set( $skPrefix = "ts#${date}T${hourPad}" )
+
+        {
+          "version" : "2018-05-29",
+          "operation" : "Query",
+          "query" : {
+            "expression": "PK = :PK and begins_with(SK, :prefix)",
+            "expressionValues": {
+              ":PK": $util.dynamodb.toDynamoDBJson($PK),
+              ":prefix": $util.dynamodb.toDynamoDBJson($skPrefix),
+            },
+          },
+        }
+      ResponseMappingTemplate: |
+        {
+            "Documents": $util.toJson($ctx.result.items),
+            "nextToken": $util.toJson($ctx.result.nextToken)
+        }
+
+  ListDocumentDateShardResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Query
+      FieldName: listDocumentsDateShard
+      DataSourceName: !GetAtt TrackingTableDataSource.Name
+      RequestMappingTemplate: |
+        #set( $shardsInDay = 6 )
+        #set( $shardDivider = 24 / $shardsInDay )
+        #set( $Integer = 0 )
+        #set( $now = $util.time.nowISO8601() )
+        #set( $hourNow = $Integer.parseInt($now.substring(11, 13)) )
+        #set( $shardNow = $hourNow / $shardDivider )
+        #set( $date = $util.defaultIfNullOrBlank($ctx.args.date, $now.substring(0, 10)) )
+        #set( $shard = $util.defaultIfNull($ctx.args.shard, $shardNow) )
+        #if( $shard >= $shardsInDay )
+          $util.error("Invalid shard parameter value - must positive and less than ${shardsInDay}")
+        #end
+        #set( $hourShard = $hour / $shardDivider )
+        #set( $shardPad = $date.format("%02d", $shard) )
+
+        #set( $PK = "list#${date}#s#${shardPad}" )
+
+        {
+          "version" : "2018-05-29",
+          "operation" : "Query",
+          "query" : {
+            "expression": "PK = :PK",
+            "expressionValues": {
+              ":PK": $util.dynamodb.toDynamoDBJson($PK),
+            }
+          }
+        }
+      ResponseMappingTemplate: |
+        {
+            "Documents": $util.toJson($ctx.result.items),
+            "nextToken": $util.toJson($ctx.result.nextToken)
+        }
+
 
   # CloudFront Distribution
   CloudFrontDistribution:

@@ -163,6 +163,7 @@ def process_message(record: Dict[str, Any]) -> Tuple[bool, str]:
         return False, message_id
 
 def handler(event, context):
+    logger.info(f"Processing event: {json.dumps(event)}")
     logger.info(f"Processing batch of {len(event['Records'])} messages")
     
     failed_message_ids = []
