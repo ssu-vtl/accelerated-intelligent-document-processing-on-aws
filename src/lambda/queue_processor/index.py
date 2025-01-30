@@ -95,10 +95,10 @@ def update_document_status(object_key: str, execution_arn: str) -> Dict[str, Any
     """
     update_input = {
         'input': {
-            'object_key': object_key,
-            'status': 'STARTED',
-            'execution_arn': execution_arn,
-            'workflow_start_time': datetime.now(timezone.utc).isoformat()
+            'ObjectKey': object_key,
+            'ObjectStatus': 'STARTED',
+            'WorkflowExecutionArn': execution_arn,
+            'WorkflowStartTime': datetime.now(timezone.utc).isoformat()
         }
     }
     

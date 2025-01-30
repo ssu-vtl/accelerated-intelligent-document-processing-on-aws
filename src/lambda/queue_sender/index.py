@@ -25,15 +25,15 @@ def handler(event, context):
     logger.info(f"Processing file: {object_key}")
     
     # Create document using AppSync mutation
-    expires_after = int((datetime.now(timezone.utc) + timedelta(days=retentionDays)).timestamp())
+    expiresAfter = int((datetime.now(timezone.utc) + timedelta(days=retentionDays)).timestamp())
 
     create_input = {
         'input': {
-            'object_key': object_key,
-            'status': 'QUEUED',
-            'queued_time': datetime.now(timezone.utc).isoformat(),
-            'initial_event_time': event['time'],
-            'expires_after': expires_after
+            'ObjectKey': object_key,
+            'ObjectStatus': 'QUEUED',
+            'QueuedTime': datetime.now(timezone.utc).isoformat(),
+            'InitialEventTime': event['time'],
+            'ExpiresAfter': expiresAfter
         }
     }
     

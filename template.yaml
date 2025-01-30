@@ -524,7 +524,7 @@ Resources:
         - AttributeName: SK
           KeyType: RANGE
       TimeToLiveSpecification:
-        AttributeName: expires_after
+        AttributeName: ExpiresAfter
         Enabled: false
       SSESpecification:
         SSEEnabled: true
@@ -1868,24 +1868,24 @@ Resources:
       FieldName: createDocument
       DataSourceName: !GetAtt TrackingTableDataSource.Name
       # This resolver creates two items in the table
-      # - the doc item (PK = doc#<object_key>) - containing all doc attributes
+      # - the doc item (PK = doc#<ObjectKey>) - containing all doc attributes
       # - the list item (PK = list#<date>#s<shardid>) - which associates a time shard to the doc identified by the SK value
       #    - this is used to list documents without resorting to DynamoDB scans 
       # Because we use !Sub to substitute TrackingTable, we must escape other occurences of ${x} like ${!x}
       RequestMappingTemplate: !Sub |
-        #set( $PK = "doc#${!ctx.args.input.object_key}" )
+        #set( $PK = "doc#${!ctx.args.input.ObjectKey}" )
 
         #set( $shardsInDay = 6 )
         #set( $shardDivider = 24 / $shardsInDay )
         #set( $Integer = 0 )
-        #set( $now = $ctx.args.input.queued_time )
+        #set( $now = $ctx.args.input.QueuedTime )
         #set( $date = $now.substring(0, 10) )
         #set( $hourString = $now.substring(11, 13) )
         #set( $hour = $Integer.parseInt($hourString) )
         #set( $hourShard = $hour / $shardDivider )
         #set( $shardPad = $date.format("%02d", $hourShard) )
         #set( $listPk = "list#${!date}#s#${!shardPad}" )
-        #set( $listSk = "ts#${!now}#id#${!ctx.args.input.object_key}" )
+        #set( $listSk = "ts#${!now}#id#${!ctx.args.input.ObjectKey}" )
 
         {
           "version" : "2018-05-29",
@@ -1908,9 +1908,9 @@ Resources:
                 "SK": $util.dynamodb.toDynamoDBJson($listSk),
               },
               "attributeValues": {
-                "object_key": $util.dynamodb.toDynamoDBJson($ctx.args.input.object_key),
-                "queued_time": $util.dynamodb.toDynamoDBJson($ctx.args.input.queued_time),
-                "expires_after": $util.dynamodb.toDynamoDBJson($ctx.args.input.expires_after),
+                "ObjectKey": $util.dynamodb.toDynamoDBJson($ctx.args.input.ObjectKey),
+                "QueuedTime": $util.dynamodb.toDynamoDBJson($ctx.args.input.QueuedTime),
+                "ExpiresAfter": $util.dynamodb.toDynamoDBJson($ctx.args.input.ExpiresAfter),
               },
             },
           ],
@@ -1919,7 +1919,7 @@ Resources:
         #if($ctx.error)
           $util.error($ctx.error.message, $ctx.error.type)
         #end
-        $util.toJson($ctx.args.input.object_key)
+        $util.toJson({"ObjectKey": $ctx.args.input.ObjectKey})
 
   UpdateDocumentResolver:
     Type: AWS::AppSync::Resolver
@@ -1929,7 +1929,7 @@ Resources:
       FieldName: updateDocument
       DataSourceName: !GetAtt TrackingTableDataSource.Name
       RequestMappingTemplate: |-
-        #set( $PK = "doc#${ctx.args.input.object_key}" )
+        #set( $PK = "doc#${ctx.args.input.ObjectKey}" )
         #set( $expNames = {} )
         #set( $expValues = {} )
         #set( $expSet = {} )
@@ -1996,7 +1996,7 @@ Resources:
       FieldName: getDocument
       DataSourceName: !GetAtt TrackingTableDataSource.Name
       RequestMappingTemplate: |
-        #set( $PK = "doc#${ctx.args.input.object_key}" )
+        #set( $PK = "doc#${context.arguments.ObjectKey}" )
         {
           "version": "2018-05-29",
           "operation": "GetItem",
@@ -2021,18 +2021,18 @@ Resources:
             "operation": "Scan",
             "filter": {
                 #if($context.arguments.startDateTime && $context.arguments.endDateTime)
-                    "expression": "initial_event_time BETWEEN :startDateTime AND :endDateTime",
+                    "expression": "InitialEventTime BETWEEN :startDateTime AND :endDateTime",
                     "expressionValues": {
                         ":startDateTime": { "S": "$context.arguments.startDateTime" },
                         ":endDateTime": { "S": "$context.arguments.endDateTime" }
                     }
                 #elseif($context.arguments.startDateTime)
-                    "expression": "initial_event_time >= :startDateTime",
+                    "expression": "InitialEventTime >= :startDateTime",
                     "expressionValues": {
                         ":startDateTime": { "S": "$context.arguments.startDateTime" }
                     }
                 #elseif($context.arguments.endDateTime)
-                    "expression": "initial_event_time <= :endDateTime",
+                    "expression": "InitialEventTime <= :endDateTime",
                     "expressionValues": {
                         ":endDateTime": { "S": "$context.arguments.endDateTime" }
                     }

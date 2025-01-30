@@ -1,78 +1,74 @@
 interface DynamoDbBase {
 	PK: ID!
 	SK: ID!
-	expires_after: AWSTimestamp
+	ExpiresAfter: AWSTimestamp
 }
 
 type Document implements DynamoDbBase @aws_cognito_user_pools @aws_iam {
   PK: ID!
   SK: ID!
-  object_key: ID
-  status: String
-  initial_event_time: AWSDateTime
-  queued_time: AWSDateTime
-  workflow_start_time: AWSDateTime
-  completion_time: AWSDateTime
-  execution_arn: String
-  workflow_status: String
-  expires_after: AWSTimestamp
+  ObjectKey: ID
+  ObjectStatus: String
+  InitialEventTime: AWSDateTime
+  QueuedTime: AWSDateTime
+  WorkflowStartTime: AWSDateTime
+  CompletionTime: AWSDateTime
+  WorkflowExecutionArn: String
+  WorkflowStatus: String
+  ExpiresAfter: AWSTimestamp
 }
 
-type DocumentList @aws_cognito_user_pools @aws_iam
-@aws_iam {
+type DocumentList @aws_cognito_user_pools @aws_iam {
 	Documents: [DocumentListItem]
 	nextToken: String
 }
 
-type DocumentListItem implements DynamoDbBase @aws_cognito_user_pools @aws_iam
-@aws_iam {
+type DocumentListItem implements DynamoDbBase @aws_cognito_user_pools @aws_iam {
 	PK: ID!
 	SK: ID!
-    object_key: ID
-    initial_event_time: AWSDateTime
-    expires_after: AWSTimestamp
+    ObjectKey: ID
+    InitialEventTime: AWSDateTime
+    ExpiresAfter: AWSTimestamp
 }
 
 input CreateDocumentInput {
-  object_key: ID
-  status: String
-  initial_event_time: AWSDateTime
-  queued_time: AWSDateTime
-  expires_after: AWSTimestamp
+  ObjectKey: ID
+  ObjectStatus: String
+  InitialEventTime: AWSDateTime
+  QueuedTime: AWSDateTime
+  ExpiresAfter: AWSTimestamp
 }
 
-type CreateCallOutput @aws_iam {
-  object_key: ID
-  status: String
-  initial_event_time: AWSDateTime
-  queued_time: AWSDateTime
-  expires_after: AWSTimestamp
+type CreateDocumentOutput @aws_iam {
+  ObjectKey: ID
 }
 
 input UpdateDocumentInput {
-  object_key: ID!
-  status: String
-  queued_time: AWSDateTime
-  workflow_start_time: AWSDateTime
-  completion_time: AWSDateTime
-  execution_arn: String
-  workflow_status: String
+  ObjectKey: ID!
+  ObjectStatus: String
+  QueuedTime: AWSDateTime
+  WorkflowStartTime: AWSDateTime
+  CompletionTime: AWSDateTime
+  WorkflowExecutionArn: String
+  WorkflowStatus: String
 }
 
 type Mutation @aws_iam {
-  createDocument(input: CreateDocumentInput!): CreateCallOutput
+  createDocument(input: CreateDocumentInput!): CreateDocumentOutput
   updateDocument(input: UpdateDocumentInput!): Document
 }
 
 type Query @aws_cognito_user_pools @aws_iam {
-  getDocument(object_key: ID!): Document
+  getDocument(ObjectKey: ID!): Document
   listDocuments(startDateTime: AWSDateTime, endDateTime: AWSDateTime): DocumentList
   listDocumentsDateHour(date: AWSDate, hour: Int): DocumentList
   listDocumentsDateShard(date: AWSDate, shard: Int): DocumentList
 }
 
 type Subscription @aws_cognito_user_pools @aws_iam {
-  onDocumentUpdated: Document
+  onCreateDocument: CreateDocumentOutput
+	@aws_subscribe(mutations: ["createDocument"])
+  onUpdateDocument: Document
     @aws_subscribe(mutations: ["updateDocument"])
 }
 

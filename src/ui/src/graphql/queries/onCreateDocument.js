@@ -3,9 +3,9 @@
 import gql from 'graphql-tag';
 
 export default gql`
-  mutation DeleteDocumentsMutation($input: DeleteDocumentsInput!) {
-    deleteDocuments(input: $input) {
-      Result
+  subscription Subscription {
+    onCreateDocument {
+      ObjectKey
     }
   }
 `;

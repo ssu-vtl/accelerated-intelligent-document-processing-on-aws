@@ -2,40 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React from 'react';
-import { Box, Button, ColumnLayout, Container, Header, SpaceBetween, StatusIndicator } from '@awsui/components-react';
+import { Box, Button, ColumnLayout, Container, SpaceBetween, StatusIndicator } from '@awsui/components-react';
 
-import { InfoLink } from '../common/info-link';
 import './CallPanel.css';
 
-import useDocumentsContext from '../../contexts/documents';
-import { shareModal, deleteModal } from '../common/meeting-controls';
-
 /* eslint-disable react/prop-types, react/destructuring-assignment */
-const CallAttributes = ({ item, setToolsOpen, getDocumentDetailsFromIds }) => {
-  const { calls } = useDocumentsContext();
-  const props = {
-    calls,
-    selectedItems: [item],
-    loading: false,
-    getDocumentDetailsFromIds,
-  };
-
+const CallAttributes = ({ item }) => {
   return (
-    <Container
-      header={
-        <Header
-          variant="h4"
-          info={<InfoLink onFollow={() => setToolsOpen(true)} />}
-          actions={
-            <SpaceBetween size="xxxs" direction="horizontal">
-              {shareModal(props)} {deleteModal(props)}
-            </SpaceBetween>
-          }
-        >
-          Meeting Attributes
-        </Header>
-      }
-    >
+    <Container>
       <ColumnLayout columns={6} variant="text-grid">
         <SpaceBetween size="xs">
           <div>

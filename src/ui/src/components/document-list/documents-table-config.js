@@ -5,53 +5,52 @@ import { Button, ButtonDropdown, CollectionPreferences, Link, SpaceBetween } fro
 
 import { TableHeader } from '../common/table';
 import { DOCUMENTS_PATH } from '../../routes/constants';
-import { shareModal, deleteModal } from '../common/meeting-controls';
 
-export const KEY_COLUMN_ID = 'object_key';
+export const KEY_COLUMN_ID = 'ObjectKey';
 
 export const COLUMN_DEFINITIONS_MAIN = [
   {
     id: KEY_COLUMN_ID,
     header: 'Document ID',
-    cell: (item) => <Link href={`#${DOCUMENTS_PATH}/${item.object_key}`}>{item.object_key}</Link>,
-    sortingField: 'object_key',
+    cell: (item) => <Link href={`#${DOCUMENTS_PATH}/${item.objectKey}`}>{item.objectKey}</Link>,
+    sortingField: 'ObjectKey',
     width: 325,
   },
   {
-    id: 'initial_event_time',
-    header: 'Submission Timestamp',
-    cell: (item) => item.initial_event_time,
-    sortingField: 'initial_event_time',
-    isDescending: false,
-  },
-  {
-    id: 'completion_time',
-    header: 'Completion Timestamp',
-    cell: (item) => item.completion_time,
-    sortingField: 'completion_time',
-    width: 225,
-  },
-  {
-    id: 'status',
+    id: 'Status',
     header: 'Status',
-    cell: (item) => item.status,
-    sortingField: 'status',
+    cell: (item) => item.objectStatus,
+    sortingField: 'Status',
     width: 150,
   },
   {
-    id: 'workflow_duration',
+    id: 'Submitted',
+    header: 'Submitted',
+    cell: (item) => item.initialEventTime,
+    sortingField: 'Submitted',
+    isDescending: false,
+  },
+  {
+    id: 'Completed',
+    header: 'Completed',
+    cell: (item) => item.completionTime,
+    sortingField: 'Completed',
+    width: 225,
+  },
+  {
+    id: 'Duration',
     header: 'Duration',
     cell: () => 'TODO',
-    sortingField: 'workflow_duration',
+    sortingField: 'Duration',
   },
 ];
 
 export const DEFAULT_SORT_COLUMN = COLUMN_DEFINITIONS_MAIN[3];
 
 export const SELECTION_LABELS = {
-  itemSelectionLabel: (data, row) => `select ${row.callId}`,
+  itemSelectionLabel: (data, row) => `select ${row.objectKey}`,
   allItemsSelectionLabel: () => 'select all',
-  selectionGroupLabel: 'Meeting selection',
+  selectionGroupLabel: 'Document selection',
 };
 
 const PAGE_SIZE_OPTIONS = [
@@ -62,18 +61,18 @@ const PAGE_SIZE_OPTIONS = [
 
 const VISIBLE_CONTENT_OPTIONS = [
   {
-    label: 'Meeting list properties',
+    label: 'Document list properties',
     options: [
-      { id: 'object_key', label: 'Document ID', editable: false },
-      { id: 'initial_event_time', label: 'Submission Timestamp' },
-      { id: 'completion_time', label: 'Completion Timestamp' },
-      { id: 'status', label: 'Status' },
-      { id: 'workflow_duration', label: 'Duration' },
+      { id: 'ObjectKey', label: 'Document ID', editable: false },
+      { id: 'Submitted', label: 'Submitted' },
+      { id: 'Completed', label: 'Completed' },
+      { id: 'Status', label: 'Status' },
+      { id: 'Duration', label: 'Duration' },
     ],
   },
 ];
 
-const VISIBLE_CONTENT = ['object_key', 'initial_event_time', 'completion_time', 'status', 'workflow_duration'];
+const VISIBLE_CONTENT = ['ObjectKey', 'Submitted', 'Completed', 'Status', 'Duration'];
 
 export const DEFAULT_PREFERENCES = {
   pageSize: PAGE_SIZE_OPTIONS[0].value,
@@ -111,7 +110,7 @@ export const DocumentsPreferences = ({
   />
 );
 
-// number of shards per day used by the list calls API
+// number of shards per day used by the list documents API
 export const DOCUMENT_LIST_SHARDS_PER_DAY = 6;
 const TIME_PERIOD_DROPDOWN_CONFIG = {
   'refresh-2h': { count: 0.5, text: '2 hrs' },
@@ -163,8 +162,6 @@ export const DocumentsCommonHeader = ({ resourceName = 'Documents', ...props }) 
             loading={props.loading}
             onClick={() => props.downloadToExcel()}
           />
-          {shareModal(props)}
-          {deleteModal(props)}
         </SpaceBetween>
       }
       {...props}

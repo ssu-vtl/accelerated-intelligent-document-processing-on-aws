@@ -3,8 +3,8 @@
 import gql from 'graphql-tag';
 
 export default gql`
-  query Query($objectKey: ID!) {
-    getDocument(ObjectKey: $objectKey) {
+  subscription Subscription {
+    onUpdateDocument {
       ObjectKey
       ObjectStatus
       InitialEventTime

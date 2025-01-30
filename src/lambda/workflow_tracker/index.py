@@ -32,18 +32,18 @@ def put_latency_metrics(item: Dict[str, Any]) -> None:
     """
     try:
         # Validate required timestamps
-        required_timestamps = ['initial_event_time', 'queued_time', 'workflow_start_time']
+        required_timestamps = ['InitialEventTime', 'QueuedTime', 'WorkflowStartTime']
         missing = [ts for ts in required_timestamps if not item.get(ts)]
         if missing:
             raise ValueError(f"Missing required timestamps: {', '.join(missing)}")
 
         now = datetime.now(timezone.utc)
-        initial_time = datetime.fromisoformat(item['initial_event_time'])
-        queued_time = datetime.fromisoformat(item['queued_time'])
-        workflow_start_time = datetime.fromisoformat(item['workflow_start_time'])
+        initial_time = datetime.fromisoformat(item['InitialEventTime'])
+        QueuedTime = datetime.fromisoformat(item['QueuedTime'])
+        WorkflowStartTime = datetime.fromisoformat(item['WorkflowStartTime'])
         
-        queue_latency = (workflow_start_time - queued_time).total_seconds() * 1000
-        workflow_latency = (now - workflow_start_time).total_seconds() * 1000
+        queue_latency = (WorkflowStartTime - QueuedTime).total_seconds() * 1000
+        workflow_latency = (now - WorkflowStartTime).total_seconds() * 1000
         total_latency = (now - initial_time).total_seconds() * 1000
         
         logger.info(
@@ -122,14 +122,14 @@ def update_document_completion(object_key: str, workflow_status: str) -> Dict[st
     Raises:
         AppSyncError: If the GraphQL operation fails
     """
-    completion_time = datetime.now(timezone.utc).isoformat()
+    completionTime = datetime.now(timezone.utc).isoformat()
     
     update_input = {
         'input': {
-            'object_key': object_key,
-            'status': 'COMPLETED' if workflow_status == 'SUCCEEDED' else 'FAILED',
-            'completion_time': completion_time,
-            'workflow_status': workflow_status
+            'ObjectKey': object_key,
+            'ObjectStatus': 'COMPLETED' if workflow_status == 'SUCCEEDED' else 'FAILED',
+            'CompletionTime': completionTime,
+            'WorkflowStatus': workflow_status
         }
     }
     
@@ -196,7 +196,7 @@ def handler(event, context):
                 'body': {
                     'object_key': object_key,
                     'workflow_status': workflow_status,
-                    'completion_time': updated_doc['completion_time'],
+                    'completionTime': updated_doc['completionTime'],
                     'counter_value': counter_value
                 }
             }

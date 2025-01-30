@@ -15,31 +15,33 @@ import CallPanel from '../call-panel';
 
 const logger = new Logger('documentDetails');
 
-const documentDetails = () => {
-  const { callId } = useParams();
-  const { calls, getDocumentDetailsFromIds, setToolsOpen } = useDocumentsContext();
+const DocumentDetails = () => {
+  const { documentId } = useParams();
+  const { documents, getDocumentDetailsFromIds, setToolsOpen } = useDocumentsContext();
   const { settings } = useSettingsContext();
 
-  const [call, setCall] = useState(null);
+  const [document, setCall] = useState(null);
 
   useEffect(async () => {
-    if (!callId || !call || !calls?.length) {
+    if (!documentId || !document || !documents?.length) {
       return;
     }
-    const callsFiltered = calls.filter((c) => c.CallId === callId);
-    if (callsFiltered && callsFiltered?.length) {
-      const callsMap = mapDocumentsAttributes([callsFiltered[0]], settings);
-      const documentDetails = callsMap[0];
-      if (documentDetails?.updatedAt && call.updatedAt < documentDetails.updatedAt) {
-        logger.debug('Updating call', documentDetails);
+    const documentsFiltered = documents.filter((c) => c.ObjectKey === documentId);
+    if (documentsFiltered && documentsFiltered?.length) {
+      const documentsMap = mapDocumentsAttributes([documentsFiltered[0]], settings);
+      const documentDetails = documentsMap[0];
+      if (documentDetails?.updatedAt && document.updatedAt < documentDetails.updatedAt) {
+        logger.debug('Updating document', documentDetails);
         setCall(documentDetails);
       }
     }
-  }, [calls, callId]);
+  }, [documents, documentId]);
 
   return (
-    call && <CallPanel item={call} setToolsOpen={setToolsOpen} getDocumentDetailsFromIds={getDocumentDetailsFromIds} />
+    document && (
+      <CallPanel item={document} setToolsOpen={setToolsOpen} getDocumentDetailsFromIds={getDocumentDetailsFromIds} />
+    )
   );
 };
 
-export default documentDetails;
+export default DocumentDetails;

@@ -12,19 +12,19 @@ logger.setLevel(logging.INFO)
 def calculate_durations(timestamps):
     try:
         durations = {}
-        if 'queued_time' in timestamps and 'workflow_start_time' in timestamps:
-            queue_time = (datetime.fromisoformat(timestamps['workflow_start_time']) - 
-                         datetime.fromisoformat(timestamps['queued_time'])).total_seconds() * 1000
+        if 'QueuedTime' in timestamps and 'WorkflowStartTime' in timestamps:
+            queue_time = (datetime.fromisoformat(timestamps['WorkflowStartTime']) - 
+                         datetime.fromisoformat(timestamps['QueuedTime'])).total_seconds() * 1000
             durations['queue'] = int(queue_time)
             
-        if 'workflow_start_time' in timestamps and 'completion_time' in timestamps:
-            processing_time = (datetime.fromisoformat(timestamps['completion_time']) - 
-                             datetime.fromisoformat(timestamps['workflow_start_time'])).total_seconds() * 1000
+        if 'WorkflowStartTime' in timestamps and 'CompletionTime' in timestamps:
+            processing_time = (datetime.fromisoformat(timestamps['CompletionTime']) - 
+                             datetime.fromisoformat(timestamps['WorkflowStartTime'])).total_seconds() * 1000
             durations['processing'] = int(processing_time)
             
-        if 'initial_event_time' in timestamps and 'completion_time' in timestamps:
-            total_time = (datetime.fromisoformat(timestamps['completion_time']) - 
-                         datetime.fromisoformat(timestamps['initial_event_time'])).total_seconds() * 1000
+        if 'InitialEventTime' in timestamps and 'CompletionTime' in timestamps:
+            total_time = (datetime.fromisoformat(timestamps['CompletionTime']) - 
+                         datetime.fromisoformat(timestamps['InitialEventTime'])).total_seconds() * 1000
             durations['total'] = int(total_time)
             
         return durations
@@ -56,21 +56,21 @@ def handler(event, context):
             
         item = response['Item']
         timestamps = {
-            'initial_event_time': item.get('initial_event_time'),
-            'queued_time': item.get('queued_time'),
-            'workflow_start_time': item.get('workflow_start_time'),
-            'completion_time': item.get('completion_time')
+            'InitialEventTime': item.get('InitialEventTime'),
+            'QueuedTime': item.get('QueuedTime'),
+            'WorkflowStartTime': item.get('WorkflowStartTime'),
+            'CompletionTime': item.get('CompletionTime')
         }
         
         result = {
-            'status': item.get('status'),
+            'status': item.get('ObjectStatus'),
             'timing': {
                 'timestamps': timestamps,
                 'elapsed': calculate_durations(timestamps)
             }
         }
         
-        execution_arn = item.get('execution_arn')
+        execution_arn = item.get('WorkflowExecutionArn')
         if execution_arn:
             try:
                 execution = sfn.describe_execution(executionArn=execution_arn)

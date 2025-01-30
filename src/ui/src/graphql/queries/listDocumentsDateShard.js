@@ -6,7 +6,7 @@ export default gql`
   query Query($date: AWSDate, $shard: Int) {
     listDocumentsDateShard(date: $date, shard: $shard) {
       Documents {
-        object_key
+        ObjectKey
         PK
         SK
       }

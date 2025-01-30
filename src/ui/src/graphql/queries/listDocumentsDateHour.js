@@ -6,7 +6,7 @@ export default gql`
   query Query($date: AWSDate, $hour: Int) {
     listDocumentsDateHour(date: $date, hour: $hour) {
       Documents {
-        object_key
+        ObjectKey
         PK
         SK
       }

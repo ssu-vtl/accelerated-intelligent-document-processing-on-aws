@@ -147,9 +147,9 @@ def track_task_token(object_key: str, task_token: str) -> None:
         tracking_item = {
             'PK': f"tasktoken#{object_key}",
             'SK': 'none',
-            'task_token': task_token,
-            'update_time': datetime.now(timezone.utc).isoformat(),
-            'expires_after': int((datetime.now(timezone.utc) + timedelta(days=1)).timestamp())
+            'TaskToken': task_token,
+            'TaskTokenTime': datetime.now(timezone.utc).isoformat(),
+            'ExpiresAfter': int((datetime.now(timezone.utc) + timedelta(days=1)).timestamp())
         }
         logger.info(f"Recording tasktoken entry: {tracking_item}")
         tracking_table.put_item(Item=tracking_item)

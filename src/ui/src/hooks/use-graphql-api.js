@@ -7,13 +7,10 @@ import useAppContext from '../contexts/app';
 
 import listDocumentsDateShard from '../graphql/queries/listDocumentsDateShard';
 import listDocumentsDateHour from '../graphql/queries/listDocumentsDateHour';
-import listDocuments from '../graphql/queries/listDocuments';
 import getDocument from '../graphql/queries/getDocument';
 
-import onCreateCall from '../graphql/queries/onCreateCall';
-import onUpdateCall from '../graphql/queries/onUpdateCall';
-import onDeleteCall from '../graphql/queries/onDeleteCall';
-import onUnshareCall from '../graphql/queries/onUnshareCall';
+import onCreateDocument from '../graphql/queries/onCreateDocument';
+import onUpdateDocument from '../graphql/queries/onUpdateDocument';
 
 import { DOCUMENT_LIST_SHARDS_PER_DAY } from '../components/document-list/documents-table-config';
 
@@ -25,7 +22,7 @@ const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2
   const [calls, setCalls] = useState([]);
   const { setErrorMessage } = useAppContext();
 
-  const setCallsDeduped = (documentValues) => {
+  const setDocumentsDeduped = (documentValues) => {
     setCalls((currentCalls) => {
       const documentValuesdocumentIds = documentValues.map((c) => c.CallId);
       return [
@@ -39,37 +36,39 @@ const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2
     });
   };
 
-  const getDocumentDetailsFromIds = async (documentIds) => {
+  const getDocumentDetailsFromIds = async (objectKeys) => {
     // prettier-ignore
-    logger.debug('getDocumentDetailsFromIds', documentIds);
-    const getDocumentPromises = documentIds.map((id) => API.graphql({ query: getDocument, variables: { id } }));
+    logger.debug('getDocumentDetailsFromIds', objectKeys);
+    const getDocumentPromises = objectKeys.map((objectKey) =>
+      API.graphql({ query: getDocument, variables: { objectKey } }),
+    );
     const getDocumentResolutions = await Promise.allSettled(getDocumentPromises);
-    const getCallRejected = getDocumentResolutions.filter((r) => r.status === 'rejected');
-    if (getCallRejected.length) {
+    const getDocumentRejected = getDocumentResolutions.filter((r) => r.status === 'rejected');
+    if (getDocumentRejected.length) {
       setErrorMessage('failed to get document details - please try again later');
-      logger.error('get document promises rejected', getCallRejected);
+      logger.error('get document promises rejected', getDocumentRejected);
     }
     const documentValues = getDocumentResolutions
       .filter((r) => r.status === 'fulfilled')
-      .map((r) => r.value?.data?.getCall);
+      .map((r) => r.value?.data?.getDocument);
 
     return documentValues;
   };
 
   useEffect(() => {
-    logger.debug('onCreateCall subscription');
-    const subscription = API.graphql(graphqlOperation(onCreateCall)).subscribe({
+    logger.debug('onCreateDocument subscription');
+    const subscription = API.graphql(graphqlOperation(onCreateDocument)).subscribe({
       next: async ({ provider, value }) => {
-        logger.debug('call list subscription update', { provider, value });
-        const callId = value?.data?.onCreateCall.CallId || '';
-        if (callId) {
-          const documentValues = await getDocumentDetailsFromIds([callId]);
-          setCallsDeduped(documentValues);
+        logger.debug('document list subscription update', { provider, value });
+        const objectKey = value?.data?.onCreateDocument.ObjectKey || '';
+        if (objectKey) {
+          const documentValues = await getDocumentDetailsFromIds([objectKey]);
+          setDocumentsDeduped(documentValues);
         }
       },
       error: (error) => {
         logger.error(error);
-        setErrorMessage('call list network subscription failed - please reload the page');
+        setErrorMessage('document list network subscription failed - please reload the page');
       },
     });
 
@@ -77,56 +76,18 @@ const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2
   }, []);
 
   useEffect(() => {
-    logger.debug('onUpdateCall subscription');
-    const subscription = API.graphql(graphqlOperation(onUpdateCall)).subscribe({
+    logger.debug('onUpdateDocument subscription');
+    const subscription = API.graphql(graphqlOperation(onUpdateDocument)).subscribe({
       next: async ({ provider, value }) => {
-        logger.debug('call update', { provider, value });
-        const callUpdateEvent = value?.data?.onUpdateCall;
-        if (callUpdateEvent?.CallId) {
-          setCallsDeduped([callUpdateEvent]);
+        logger.debug('document update', { provider, value });
+        const documentUpdateEvent = value?.data?.onUpdateDocument;
+        if (documentUpdateEvent?.ObjectKey) {
+          setDocumentsDeduped([documentUpdateEvent]);
         }
       },
       error: (error) => {
         logger.error(error);
-        setErrorMessage('call update network request failed - please reload the page');
-      },
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    logger.debug('onDeleteCall subscription');
-    const subscription = API.graphql(graphqlOperation(onDeleteCall)).subscribe({
-      next: async ({ provider, value }) => {
-        logger.debug('call delete subscription update', { provider, value });
-        const callId = value?.data?.onDeleteCall.CallId || '';
-        if (callId) {
-          setCalls((currentCalls) => currentCalls.filter((c) => c.CallId !== callId));
-        }
-      },
-      error: (error) => {
-        logger.error(error);
-        setErrorMessage('call delete subscription failed - please reload the page');
-      },
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    logger.debug('onUnshareCall subscription');
-    const subscription = API.graphql(graphqlOperation(onUnshareCall)).subscribe({
-      next: async ({ provider, value }) => {
-        logger.debug('call unshare subscription update', { provider, value });
-        const callId = value?.data?.onUnshareCall.CallId || '';
-        if (callId) {
-          setCalls((currentCalls) => currentCalls.filter((c) => c.CallId !== callId));
-        }
-      },
-      error: (error) => {
-        logger.error(error);
-        setErrorMessage('call delete subscription failed - please reload the page');
+        setErrorMessage('document update network request failed - please reload the page');
       },
     });
 
@@ -174,27 +135,6 @@ const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2
     return documentData;
   };
 
-  // eslint-disable-next-line no-unused-vars
-  const listdocumentIds = async () => {
-    // this uses a Scan of dynamoDB - prefer using the shard based queries
-    const listDocumentsPromise = API.graphql({ query: listDocuments });
-    const listDocumentsResolutions = await Promise.allSettled([listDocumentsPromise]);
-
-    const listRejected = listDocumentsResolutions.filter((r) => r.status === 'rejected');
-    if (listRejected.length) {
-      setErrorMessage('failed to list Documents - please try again later');
-      logger.error('list call promises rejected', listRejected);
-    }
-
-    const documentIds = listDocumentsResolutions
-      .filter((r) => r.status === 'fulfilled')
-      .map((r) => r.value?.data?.listDocuments?.Documents || [])
-      .map((items) => items.map((item) => item?.CallId))
-      .reduce((pv, cv) => [...cv, ...pv], []);
-
-    return documentIds;
-  };
-
   const sendSetDocumentsForPeriod = async () => {
     // XXX this logic should be moved to the API
     try {
@@ -226,7 +166,7 @@ const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2
         async (d) => listDocumentIdsByDateShards({ date: d, shards: dateShards[d] }),
       );
 
-      // get contact Ids by hour on residual hours outside of the lower shard date/hour boundary
+      // get document Ids by hour on residual hours outside of the lower shard date/hour boundary
       // or just last n hours when periodsToLoad is less than 1 shard period
       let baseDate;
       let residualHours;
@@ -249,11 +189,12 @@ const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2
       const documentDataPromises = [...documentDataDateShardPromises, documentDataDateHourPromise];
       const documentDetailsPromises = documentDataPromises.map(async (documentDataPromise) => {
         const documentData = await documentDataPromise;
-        const documentIds = documentData.map((item) => item.object_key);
-        const documentDetails = await getDocumentDetailsFromIds(documentIds);
+        const objectKeys = documentData.map((item) => item.ObjectKey);
+        const documentDetails = await getDocumentDetailsFromIds(objectKeys);
+        logger.debug('YYYdocumentDetails', documentDetails);
         // Merge document details with PK and SK
         return documentDetails.map((detail) => {
-          const matchingData = documentData.find((item) => item.object_key === detail.object_key);
+          const matchingData = documentData.find((item) => item.ObjectKey === detail.ObjectKey);
           return { ...detail, ListPK: matchingData.PK, ListSK: matchingData.SK };
         });
       });
@@ -271,12 +212,12 @@ const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2
         .map((r) => r.value)
         .reduce((previous, current) => [...previous, ...current], []);
       logger.debug('documentValuesReduced', documentValuesReduced);
-      setCallsDeduped(documentValuesReduced);
+      setDocumentsDeduped(documentValuesReduced);
       setIsDocumentsListLoading(false);
-      const getCallsRejected = getDocumentsPromiseResolutions.filter((r) => r.status === 'rejected');
-      if (getCallsRejected.length) {
-        setErrorMessage('failed to get call details - please try again later');
-        logger.error('get call promises rejected', getCallsRejected);
+      const getDocumentsRejected = getDocumentsPromiseResolutions.filter((r) => r.status === 'rejected');
+      if (getDocumentsRejected.length) {
+        setErrorMessage('failed to get document details - please try again later');
+        logger.error('get document promises rejected', getDocumentsRejected);
       }
     } catch (error) {
       setIsDocumentsListLoading(false);

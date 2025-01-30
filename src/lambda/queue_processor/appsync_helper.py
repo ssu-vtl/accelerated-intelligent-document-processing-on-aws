@@ -99,11 +99,7 @@ class AppSyncClient:
 CREATE_DOCUMENT = """
 mutation CreateDocument($input: CreateDocumentInput!) {
     createDocument(input: $input) {
-        object_key
-        status
-        initial_event_time
-        queued_time
-        expires_after
+        ObjectKey
     }
 }
 """
@@ -111,14 +107,14 @@ mutation CreateDocument($input: CreateDocumentInput!) {
 UPDATE_DOCUMENT = """
 mutation UpdateDocument($input: UpdateDocumentInput!) {
     updateDocument(input: $input) {
-        object_key
-        status
-        initial_event_time
-        queued_time
-        workflow_start_time
-        completion_time
-        execution_arn
-        workflow_status
+        ObjectKey
+        ObjectStatus
+        InitialEventTime
+        QueuedTime
+        WorkflowStartTime
+        CompletionTime
+        WorkflowExecutionArn
+        WorkflowStatus
     }
 }
 """

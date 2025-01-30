@@ -47,7 +47,7 @@ def get_task_token(object_key: str) -> str:
             raise Exception(error_msg)
         
         item = response['Item']
-        return item['task_token']
+        return item['TaskToken']
 
     except Exception as e:
         logger.error(f"Error retrieving tracking record: {e}")
