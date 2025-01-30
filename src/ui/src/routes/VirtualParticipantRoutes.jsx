@@ -5,7 +5,7 @@ import { Route, Switch, useRouteMatch } from 'react-router-dom';
 import { Logger } from 'aws-amplify';
 
 import VirtualParticipantLayout from '../components/virtual-participant-layout';
-import CallAnalyticsTopNavigation from '../components/call-analytics-top-navigation';
+import GenAIDPTopNavigation from '../components/call-analytics-top-navigation';
 
 const logger = new Logger('VirtualParticipantRoutes');
 
@@ -17,7 +17,7 @@ const VirtualParticipantRoutes = () => {
     <Switch>
       <Route path={path}>
         <div>
-          <CallAnalyticsTopNavigation />
+          <GenAIDPTopNavigation />
           <VirtualParticipantLayout />
         </div>
       </Route>

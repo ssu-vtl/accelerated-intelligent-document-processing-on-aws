@@ -44,7 +44,7 @@ const SignOutModal = ({ visible, setVisible }) => {
   );
 };
 
-const CallAnalyticsTopNavigation = () => {
+const GenAIDPTopNavigation = () => {
   const { user } = useAppContext();
   const userId = user?.attributes?.email || 'user';
   const [isSignOutModalVisible, setIsSignOutModalVisiblesetVisible] = useState(false);
@@ -77,14 +77,14 @@ const CallAnalyticsTopNavigation = () => {
                     {
                       id: 'documentation',
                       text: 'Blog Post',
-                      href: 'https://www.amazon.com/live-meeting-assistant',
+                      href: 'https://www.amazon.com/genaidp',
                       external: true,
                       externalIconAriaLabel: ' (opens in new tab)',
                     },
                     {
                       id: 'source',
                       text: 'Source Code',
-                      href: 'https://github.com/aws-samples/amazon-transcribe-live-meeting-assistant',
+                      href: 'https://gitlab.aws.dev/genaiic-reusable-assets/engagement-artifacts/genaiic-idp-accelerator',
                       external: true,
                       externalIconAriaLabel: ' (opens in new tab)',
                     },
@@ -100,4 +100,4 @@ const CallAnalyticsTopNavigation = () => {
   );
 };
 
-export default CallAnalyticsTopNavigation;
+export default GenAIDPTopNavigation;

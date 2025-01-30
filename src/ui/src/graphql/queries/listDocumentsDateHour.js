@@ -3,10 +3,10 @@
 import gql from 'graphql-tag';
 
 export default gql`
-  query Query($endDateTime: AWSDateTime, $startDateTime: AWSDateTime) {
-    listCalls(endDateTime: $endDateTime, startDateTime: $startDateTime) {
-      Calls {
-        CallId
+  query Query($date: AWSDate, $hour: Int) {
+    listDocumentsDateHour(date: $date, hour: $hour) {
+      Documents {
+        object_key
         PK
         SK
       }

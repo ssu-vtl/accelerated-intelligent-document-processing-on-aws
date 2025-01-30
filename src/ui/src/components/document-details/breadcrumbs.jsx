@@ -6,13 +6,16 @@ import { useParams } from 'react-router-dom';
 import { BreadcrumbGroup } from '@awsui/components-react';
 
 import { DOCUMENTS_PATH } from '../../routes/constants';
-import { callListBreadcrumbItems } from '../call-list/breadcrumbs';
+import { callListBreadcrumbItems } from '../document-list/breadcrumbs';
 
 const Breadcrumbs = () => {
   const { callId } = useParams();
-  const callDetailsBreadcrumbItems = [...callListBreadcrumbItems, { text: callId, href: `#${DOCUMENTS_PATH}/${callId}` }];
+  const documentDetailsBreadcrumbItems = [
+    ...callListBreadcrumbItems,
+    { text: callId, href: `#${DOCUMENTS_PATH}/${callId}` },
+  ];
 
-  return <BreadcrumbGroup ariaLabel="Breadcrumbs" items={callDetailsBreadcrumbItems} />;
+  return <BreadcrumbGroup ariaLabel="Breadcrumbs" items={documentDetailsBreadcrumbItems} />;
 };
 
 export default Breadcrumbs;

@@ -5,7 +5,8 @@ Transform: AWS::Serverless-2016-10-31
 Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v0.2.0)
 
 Parameters:
-  # Auth
+
+  # Authorization params
 
   AdminEmail:
     Type: String
@@ -26,7 +27,7 @@ Parameters:
     ConstraintDescription: >-
       Must be empty or a list of comma separated email domains (example1.com, example2.com)
 
-  # Workflow Configuration
+  # Pattern selection
   IDPPattern:
     Type: String
     Default: Pattern1 - Packet processing with Textract, SageMaker(UDOP), and Bedrock
@@ -91,7 +92,7 @@ Parameters:
     AllowedPattern: "^(|^arn:aws:bedrock:[a-z0-9-]+:.+:data-automation-project/.+)$"
     Description: (Optional) Bedrock Data Automation (BDA) project ARN
 
-  # Pipeline Configuration
+  # General Configuration
   MaxConcurrentWorkflows:
     Type: Number
     Default: 800
@@ -229,7 +230,7 @@ Metadata:
         Parameters:
           - Pattern3BDAProjectArn
       - Label:
-          default: "Processing Configuration"
+          default: "General Configuration"
         Parameters:
           - MaxConcurrentWorkflows
           - DataRetentionInDays
@@ -1647,6 +1648,17 @@ Resources:
                   - "ssm:GetParameter"
                 Resource:
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SettingsParameter}"
+        - PolicyName: GraphQL
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - appsync:GraphQL
+                Resource:
+                  - !Sub "${GraphQLApi.Arn}/types/Query/*"
+                  - !Sub "${GraphQLApi.Arn}/types/Subscription/*"
+
 
   AdminUser:
     Type: AWS::Cognito::UserPoolUser
@@ -2226,9 +2238,12 @@ Outputs:
   SQSDocumentQueueConsoleURL:
     Description: SQS Queue console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/sqs/v2/home?region=${AWS::Region}#/queues/${DocumentQueue}
-  SettingsParameterName:
-    Description: Name of the Parameter store that holds configuration settings
-    Value: !Ref SettingsParameter
-  GraphQLApiUrl:
-    Description: AppSync GraphQL API URL
-    Value: !GetAtt GraphQLApi.GraphQLUrl
+  WebUITestEnvFile:
+    Description: Copy to create .env file for local UI testing
+    Value: !Sub |-
+      REACT_APP_USER_POOL_ID=${UserPool}
+      REACT_APP_USER_POOL_CLIENT_ID=${UserPoolClient}
+      REACT_APP_IDENTITY_POOL_ID=${IdentityPool}
+      REACT_APP_APPSYNC_GRAPHQL_URL=${GraphQLApi.GraphQLUrl}
+      REACT_APP_AWS_REGION=${AWS::Region}
+      REACT_APP_SETTINGS_PARAMETER=${SettingsParameter}

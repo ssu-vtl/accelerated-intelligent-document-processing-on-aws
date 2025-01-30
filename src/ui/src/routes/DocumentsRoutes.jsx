@@ -4,12 +4,12 @@ import React from 'react';
 import { Route, Switch, useRouteMatch } from 'react-router-dom';
 import { Logger } from 'aws-amplify';
 
-import CallAnalyticsLayout from '../components/call-analytics-layout';
-import CallAnalyticsTopNavigation from '../components/genai-idp-top-navigation';
+import GenAIDPLayout from '../components/genaidp-layout';
+import GenAIDPTopNavigation from '../components/genai-idp-top-navigation';
 
-const logger = new Logger('CallsRoutes');
+const logger = new Logger('DocumentsRoutes');
 
-const CallsRoutes = () => {
+const DocumentsRoutes = () => {
   const { path } = useRouteMatch();
   logger.info('path ', path);
 
@@ -17,12 +17,12 @@ const CallsRoutes = () => {
     <Switch>
       <Route path={path}>
         <div>
-          <CallAnalyticsTopNavigation />
-          <CallAnalyticsLayout />
+          <GenAIDPTopNavigation />
+          <GenAIDPLayout />
         </div>
       </Route>
     </Switch>
   );
 };
 
-export default CallsRoutes;
+export default DocumentsRoutes;

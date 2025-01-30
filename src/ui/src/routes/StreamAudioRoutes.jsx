@@ -4,7 +4,7 @@ import React from 'react';
 import { Route, Switch, useRouteMatch } from 'react-router-dom';
 import { Logger } from 'aws-amplify';
 
-import CallAnalyticsTopNavigation from '../components/genai-idp-top-navigation';
+import GenAIDPTopNavigation from '../components/genai-idp-top-navigation';
 
 const logger = new Logger('StreamAudioRoutes');
 
@@ -16,7 +16,7 @@ const StreamAudioRoutes = () => {
     <Switch>
       <Route path={path}>
         <div>
-          <CallAnalyticsTopNavigation />
+          <GenAIDPTopNavigation />
         </div>
       </Route>
     </Switch>

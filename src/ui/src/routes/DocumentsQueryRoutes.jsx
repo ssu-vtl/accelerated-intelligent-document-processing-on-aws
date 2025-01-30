@@ -5,7 +5,7 @@ import { Route, Switch, useRouteMatch } from 'react-router-dom';
 import { Logger } from 'aws-amplify';
 
 import DocumentsQueryLayout from '../components/document-kb-query-layout';
-import CallAnalyticsTopNavigation from '../components/genai-idp-top-navigation';
+import GenAIDPTopNavigation from '../components/genai-idp-top-navigation';
 
 const logger = new Logger('DocumentsQueryRoutes');
 
@@ -17,7 +17,7 @@ const DocumentsQueryRoutes = () => {
     <Switch>
       <Route path={path}>
         <div>
-          <CallAnalyticsTopNavigation />
+          <GenAIDPTopNavigation />
           <DocumentsQueryLayout />
         </div>
       </Route>

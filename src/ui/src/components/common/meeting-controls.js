@@ -101,7 +101,7 @@ export const shareModal = (props) => {
       ? `The following users have access to "${props.selectedItems[0].callId}". Remove users who no longer need access.`
       : `The following users have access to one or more of the selected meetings. If you share the meetings, all users in this list will have access to ${props.selectedItems.length} meetings. If you remove users, they will lose access to ${props.selectedItems.length} meetings.`;
 
-  const { getCallDetailsFromCallIds } = props;
+  const { getDocumentDetailsFromIds } = props;
 
   const parseSharedWith = (sharedWithString) => {
     return (sharedWithString || '')
@@ -114,10 +114,10 @@ export const shareModal = (props) => {
   const openShareSettings = async () => {
     setShare(true);
     setIsLoading(true);
-    const callDetails = await getCallDetailsFromCallIds(props.selectedItems.map((c) => c.callId));
+    const documentDetails = await getDocumentDetailsFromIds(props.selectedItems.map((c) => c.callId));
 
     const recipients = new Set();
-    callDetails.forEach((call) => {
+    documentDetails.forEach((call) => {
       const sharedWithArray = parseSharedWith(call.SharedWith);
       sharedWithArray.forEach((email) => recipients.add(email));
     });
@@ -281,7 +281,7 @@ export const deleteModal = (props) => {
   const [visible, setVisible] = useState(false);
   const [deleteDisabled, setDeleteDisabled] = useState(false);
   const [deleteResult, setDeleteResult] = useState(null);
-  const [deletedCallIds, setDeletedCallIds] = useState([]);
+  const [deleteddocumentIds, setDeleteddocumentIds] = useState([]);
 
   const history = useHistory();
   const { callId } = useParams();
@@ -299,14 +299,14 @@ export const deleteModal = (props) => {
   const openDeleteSettings = async () => {
     setVisible(true);
     setDeleteResult(null);
-    setDeletedCallIds([]);
+    setDeleteddocumentIds([]);
   };
 
   const closeDeleteSettings = () => {
     setDeleteDisabled(false);
     setVisible(false);
     setDeleteResult(null);
-    setDeletedCallIds([]);
+    setDeleteddocumentIds([]);
     if (callId) {
       history.goBack();
     }
@@ -316,7 +316,7 @@ export const deleteModal = (props) => {
     console.log('callID', callId);
     e.preventDefault();
     setDeleteDisabled(true);
-    setDeletedCallIds(props.selectedItems.map((c) => c.callId));
+    setDeleteddocumentIds(props.selectedItems.map((c) => c.callId));
     const result = await invokeDeleteDocuments(props);
     setDeleteResult(result);
   };
@@ -412,7 +412,7 @@ export const deleteModal = (props) => {
           onDismiss={closeDeleteSettings}
           header={
             <h3>
-              Delete {deletedCallIds.length === 1 ? `"${deletedCallIds[0]}"` : `${deletedCallIds.length} meetings`}
+              Delete {deleteddocumentIds.length === 1 ? `"${deleteddocumentIds[0]}"` : `${deleteddocumentIds.length} meetings`}
             </h3>
           }
           closeAriaLabel="Close dialog"

@@ -5,44 +5,44 @@ import { Table, Pagination, TextFilter } from '@awsui/components-react';
 import { useCollection } from '@awsui/collection-hooks';
 import { Logger } from 'aws-amplify';
 
-import useCallsContext from '../../contexts/calls';
+import useDocumentsContext from '../../contexts/documents';
 import useSettingsContext from '../../contexts/settings';
 
-import mapCallsAttributes from '../common/map-call-attributes';
+import mapDocumentsAttributes from '../common/map-document-attributes';
 import { paginationLabels } from '../common/labels';
 import useLocalStorage from '../common/local-storage';
 import { exportToExcel } from '../common/download-func';
 
 import {
-  CallsPreferences,
-  CallsCommonHeader,
+  DocumentsPreferences,
+  DocumentsCommonHeader,
   COLUMN_DEFINITIONS_MAIN,
   KEY_COLUMN_ID,
   SELECTION_LABELS,
   DEFAULT_PREFERENCES,
   DEFAULT_SORT_COLUMN,
-} from './calls-table-config';
+} from './documents-table-config';
 
 import { getFilterCounterText, TableEmptyState, TableNoMatchState } from '../common/table';
 
 import '@awsui/global-styles/index.css';
 
-const logger = new Logger('CallList');
+const logger = new Logger('DocumentList');
 
-const CallList = () => {
-  const [callList, setCallList] = useState([]);
+const DocumentList = () => {
+  const [callList, setDocumentList] = useState([]);
   const { settings } = useSettingsContext();
 
   const {
     calls,
-    isCallsListLoading,
-    setIsCallsListLoading,
+    isDocumentsListLoading,
+    setIsDocumentsListLoading,
     setPeriodsToLoad,
     setSelectedItems,
     setToolsOpen,
     periodsToLoad,
-    getCallDetailsFromCallIds,
-  } = useCallsContext();
+    getDocumentDetailsFromIds,
+  } = useDocumentsContext();
 
   const [preferences, setPreferences] = useLocalStorage('call-list-preferences', DEFAULT_PREFERENCES);
 
@@ -63,13 +63,13 @@ const CallList = () => {
   });
 
   useEffect(() => {
-    if (!isCallsListLoading) {
-      logger.debug('setting meeting list', calls);
-      setCallList(mapCallsAttributes(calls, settings));
+    if (!isDocumentsListLoading) {
+      logger.debug('setting documents list', calls);
+      setDocumentList(mapDocumentsAttributes(calls, settings));
     } else {
-      logger.debug('meeting list is loading');
+      logger.debug('documents list is loading');
     }
-  }, [isCallsListLoading, calls]);
+  }, [isDocumentsListLoading, calls]);
 
   useEffect(() => {
     logger.debug('setting selected items', collectionProps.selectedItems);
@@ -81,24 +81,24 @@ const CallList = () => {
     <Table
       {...collectionProps}
       header={
-        <CallsCommonHeader
+        <DocumentsCommonHeader
           resourceName="Documents"
           calls={calls}
           selectedItems={collectionProps.selectedItems}
           totalItems={callList}
           updateTools={() => setToolsOpen(true)}
-          loading={isCallsListLoading}
-          setIsLoading={setIsCallsListLoading}
+          loading={isDocumentsListLoading}
+          setIsLoading={setIsDocumentsListLoading}
           periodsToLoad={periodsToLoad}
           setPeriodsToLoad={setPeriodsToLoad}
-          getCallDetailsFromCallIds={getCallDetailsFromCallIds}
+          getDocumentDetailsFromIds={getDocumentDetailsFromIds}
           downloadToExcel={() => exportToExcel(callList, 'Meeting-List')}
           // eslint-disable-next-line max-len, prettier/prettier
         />
       }
       columnDefinitions={COLUMN_DEFINITIONS_MAIN}
       items={items}
-      loading={isCallsListLoading}
+      loading={isDocumentsListLoading}
       loadingText="Loading meetings"
       selectionType="multi"
       ariaLabels={SELECTION_LABELS}
@@ -112,7 +112,7 @@ const CallList = () => {
       }
       wrapLines={preferences.wrapLines}
       pagination={<Pagination {...paginationProps} ariaLabels={paginationLabels} />}
-      preferences={<CallsPreferences preferences={preferences} setPreferences={setPreferences} />}
+      preferences={<DocumentsPreferences preferences={preferences} setPreferences={setPreferences} />}
       trackBy={items.callId}
       visibleColumns={[KEY_COLUMN_ID, ...preferences.visibleContent]}
       resizableColumns
@@ -120,4 +120,4 @@ const CallList = () => {
   );
 };
 
-export default CallList;
+export default DocumentList;

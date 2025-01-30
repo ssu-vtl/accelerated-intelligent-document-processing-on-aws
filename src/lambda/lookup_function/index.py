@@ -1,111 +1,105 @@
+# Copyright © Amazon.com and Affiliates: This deliverable is considered Developed Content as defined in the AWS Service Terms and the SOW between the parties.
+
 import boto3
-import os
 import json
+import os
 from datetime import datetime, timezone
 import logging
-from appsync_helper import AppSyncClient, CREATE_DOCUMENT, AppSyncError
-import requests
 
-# Configure logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Initialize clients
-sqs = boto3.client('sqs')
-appsync = AppSyncClient()
-queue_url = os.environ['QUEUE_URL']
-
-def create_document(object_key: str, event_time: str) -> dict:
-    """
-    Create a document record via AppSync
-    
-    Args:
-        object_key: The S3 object key
-        event_time: The original event time
-        
-    Returns:
-        The created document data
-        
-    Raises:
-        AppSyncError: If the GraphQL operation fails
-    """
-    create_input = {
-        'input': {
-            'object_key': object_key,
-            'status': 'QUEUED',
-            'queued_time': datetime.now(timezone.utc).isoformat(),
-            'initial_event_time': event_time
-        }
-    }
-    
-    logger.info(f"Creating document via AppSync: {create_input}")
-    result = appsync.execute_mutation(CREATE_DOCUMENT, create_input)
-    return result['createDocument']
-
-def send_to_sqs(event: dict) -> dict:
-    """
-    Send message to SQS
-    
-    Args:
-        event: The event to send
-        
-    Returns:
-        SQS response
-        
-    Raises:
-        botocore.exceptions.ClientError: If SQS operation fails
-    """
-    message = {
-        'QueueUrl': queue_url,
-        'MessageBody': json.dumps(event)
-    }
-    logger.info(f"Sending SQS message: {message}")
-    return sqs.send_message(**message)
+def calculate_durations(timestamps):
+    try:
+        durations = {}
+        if 'queued_time' in timestamps and 'workflow_start_time' in timestamps:
+            queue_time = (datetime.fromisoformat(timestamps['workflow_start_time']) - 
+                         datetime.fromisoformat(timestamps['queued_time'])).total_seconds() * 1000
+            durations['queue'] = int(queue_time)
+            
+        if 'workflow_start_time' in timestamps and 'completion_time' in timestamps:
+            processing_time = (datetime.fromisoformat(timestamps['completion_time']) - 
+                             datetime.fromisoformat(timestamps['workflow_start_time'])).total_seconds() * 1000
+            durations['processing'] = int(processing_time)
+            
+        if 'initial_event_time' in timestamps and 'completion_time' in timestamps:
+            total_time = (datetime.fromisoformat(timestamps['completion_time']) - 
+                         datetime.fromisoformat(timestamps['initial_event_time'])).total_seconds() * 1000
+            durations['total'] = int(total_time)
+            
+        return durations
+    except Exception as e:
+        logger.error(f"Error calculating durations: {e}", exc_info=True)
+        return {}
 
 def handler(event, context):
-    logger.info(f"Processing event: {json.dumps(event)}")
+
+    logger.info(f"Event: {json.dumps(event)}")
+
+    object_key = event.get('object_key')
+    if not object_key:
+        return {'status': 'ERROR', 'message': 'object_key is required'}
+    
+    dynamodb = boto3.resource('dynamodb')
+    tracking_table = dynamodb.Table(os.environ['TRACKING_TABLE'])
+    sfn = boto3.client('stepfunctions')
     
     try:
-        detail = event['detail']
-        object_key = detail['object']['key']
-        logger.info(f"Processing file: {object_key}")
+        PK = f"doc#{object_key}"
+        response = tracking_table.get_item(
+            Key={'PK': PK, 'SK': "none"},
+            ConsistentRead=True
+        )
         
-        try:
-            # First create document
-            document = create_document(object_key, event['time'])
-            logger.info(f"Document created: {document}")
+        if 'Item' not in response:
+            return {'status': 'NOT_FOUND'}
             
-            # Then send to SQS
-            sqs_response = send_to_sqs(event)
-            logger.info(f"Message sent to SQS: {sqs_response}")
-            
-            return {
-                'statusCode': 200,
-                'body': {
-                    'detail': detail,
-                    'document': document,
-                    'sqs_message_id': sqs_response.get('MessageId')
-                }
+        item = response['Item']
+        timestamps = {
+            'initial_event_time': item.get('initial_event_time'),
+            'queued_time': item.get('queued_time'),
+            'workflow_start_time': item.get('workflow_start_time'),
+            'completion_time': item.get('completion_time')
+        }
+        
+        result = {
+            'status': item.get('status'),
+            'timing': {
+                'timestamps': timestamps,
+                'elapsed': calculate_durations(timestamps)
             }
-            
-        except AppSyncError as e:
-            logger.error(f"Failed to create document in AppSync: {str(e)}")
-            logger.error(f"GraphQL Errors: {e.errors}")
-            raise  # Re-raise to trigger Lambda failure
-            
-        except requests.RequestException as e:
-            logger.error(f"HTTP request to AppSync failed: {str(e)}")
-            raise  # Re-raise to trigger Lambda failure
-            
-        except Exception as e:
-            logger.error(f"Unexpected error processing {object_key}: {str(e)}", exc_info=True)
-            raise  # Re-raise to trigger Lambda failure
-            
-    except KeyError as e:
-        error_msg = f"Invalid event structure - missing key: {str(e)}"
-        logger.error(error_msg)
-        raise ValueError(error_msg)  # Raise as ValueError to indicate invalid input
+        }
+        
+        execution_arn = item.get('execution_arn')
+        if execution_arn:
+            try:
+                execution = sfn.describe_execution(executionArn=execution_arn)
+                history = sfn.get_execution_history(
+                    executionArn=execution_arn,
+                    maxResults=100
+                )
+                
+                result['processingDetail'] = {
+                    'executionArn': execution_arn,
+                    'execution': {k: str(v) if isinstance(v, datetime) else v 
+                                for k, v in execution.items() 
+                                if k != 'ResponseMetadata'},
+                    'events': [{k: str(v) if isinstance(v, datetime) else v 
+                              for k, v in event.items()}
+                              for event in history['events']]
+                }
+            except Exception as e:
+                logger.error(f"Error getting Step Functions details: {e}", exc_info=True)
+                result['processingDetail'] = {
+                    'executionArn': execution_arn,
+                    'error': str(e)
+                }
+        
+        return result
         
     except Exception as e:
-        logger.error(f"Unexpected error in handler: {str(e)}", exc_info=True)
-        raise  # Re-raise to trigger Lambda failure
+        logger.error(f"Error looking up document: {e}", exc_info=True)
+        return {
+            'status': 'ERROR',
+            'message': str(e)
+        }

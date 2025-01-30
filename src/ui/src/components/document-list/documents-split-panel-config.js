@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import React from 'react';
 import { Table, ColumnLayout, Box, Link } from '@awsui/components-react';
-import { SELECTION_LABELS } from './calls-table-config';
+import { SELECTION_LABELS } from './documents-table-config';
 import { DOCUMENTS_PATH } from '../../routes/constants';
 
 import CallPanel from '../call-panel';
-import { IN_PROGRESS_STATUS } from '../common/get-recording-status';
 
 export const SPLIT_PANEL_I18NSTRINGS = {
   preferencesTitle: 'Split panel preferences',
@@ -26,7 +25,7 @@ const EMPTY_PANEL_CONTENT = {
   body: 'Select a meeting to see its details.',
 };
 
-const getPanelContentSingle = ({ items, setToolsOpen, callTranscriptPerCallId, getCallDetailsFromCallIds }) => {
+const getPanelContentSingle = ({ items, setToolsOpen, callTranscriptPerCallId, getDocumentDetailsFromIds }) => {
   if (!items.length) {
     return EMPTY_PANEL_CONTENT;
   }
@@ -40,19 +39,19 @@ const getPanelContentSingle = ({ items, setToolsOpen, callTranscriptPerCallId, g
         item={item}
         setToolsOpen={setToolsOpen}
         callTranscriptPerCallId={callTranscriptPerCallId}
-        getCallDetailsFromCallIds={getCallDetailsFromCallIds}
+        getDocumentDetailsFromIds={getDocumentDetailsFromIds}
       />
     ),
   };
 };
 
-const getPanelContentMultiple = ({ items, setToolsOpen, callTranscriptPerCallId, getCallDetailsFromCallIds }) => {
+const getPanelContentMultiple = ({ items, setToolsOpen, callTranscriptPerCallId, getDocumentDetailsFromIds }) => {
   if (!items.length) {
     return EMPTY_PANEL_CONTENT;
   }
 
   if (items.length === 1) {
-    return getPanelContentSingle({ items, setToolsOpen, callTranscriptPerCallId, getCallDetailsFromCallIds });
+    return getPanelContentSingle({ items, setToolsOpen, callTranscriptPerCallId, getDocumentDetailsFromIds });
   }
 
   return {
@@ -61,13 +60,9 @@ const getPanelContentMultiple = ({ items, setToolsOpen, callTranscriptPerCallId,
       <ColumnLayout columns="4" variant="text-grid">
         <div>
           <Box margin={{ bottom: 'xxxs' }} color="text-label">
-            Live meetings
+            Documents
           </Box>
-          <Link fontSize="display-l" href={`#${DOCUMENTS_PATH}`}>
-            <span className="custom-link-font-weight-light">
-              {items.filter(({ recordingStatusLabel }) => recordingStatusLabel === IN_PROGRESS_STATUS).length}
-            </span>
-          </Link>
+          <Link fontSize="display-l" href={`#${DOCUMENTS_PATH}`} />
         </div>
       </ColumnLayout>
     ),
@@ -75,7 +70,7 @@ const getPanelContentMultiple = ({ items, setToolsOpen, callTranscriptPerCallId,
 };
 
 // XXX to be implemented - not sure if needed
-const getPanelContentComparison = ({ items, getCallDetailsFromCallIds }) => {
+const getPanelContentComparison = ({ items, getDocumentDetailsFromIds }) => {
   if (!items.length) {
     return {
       header: '0 documents selected',
@@ -84,7 +79,7 @@ const getPanelContentComparison = ({ items, getCallDetailsFromCallIds }) => {
   }
 
   if (items.length === 1) {
-    return getPanelContentSingle({ items, getCallDetailsFromCallIds });
+    return getPanelContentSingle({ items, getDocumentDetailsFromIds });
   }
   const keyHeaderMap = {
     callId: 'Document ID',
@@ -128,12 +123,12 @@ const getPanelContentComparison = ({ items, getCallDetailsFromCallIds }) => {
   };
 };
 
-export const getPanelContent = (items, type, setToolsOpen, callTranscriptPerCallId, getCallDetailsFromCallIds) => {
+export const getPanelContent = (items, type, setToolsOpen, callTranscriptPerCallId, getDocumentDetailsFromIds) => {
   if (type === 'single') {
-    return getPanelContentSingle({ items, setToolsOpen, callTranscriptPerCallId, getCallDetailsFromCallIds });
+    return getPanelContentSingle({ items, setToolsOpen, callTranscriptPerCallId, getDocumentDetailsFromIds });
   }
   if (type === 'multiple') {
-    return getPanelContentMultiple({ items, setToolsOpen, callTranscriptPerCallId, getCallDetailsFromCallIds });
+    return getPanelContentMultiple({ items, setToolsOpen, callTranscriptPerCallId, getDocumentDetailsFromIds });
   }
-  return getPanelContentComparison({ items, getCallDetailsFromCallIds });
+  return getPanelContentComparison({ items, getDocumentDetailsFromIds });
 };

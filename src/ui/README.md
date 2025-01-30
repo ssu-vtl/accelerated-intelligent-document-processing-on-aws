@@ -1,8 +1,8 @@
 # How to run IDP UI Locally:
 
-1. To get the IDP UI to run locally, you will need to configure a `.env` file in the `/lma-ai-stack/source/ui/` folder. The contents of the `.env` file must contain the environment variables listed below along with their values. 
+1. To get the IDP UI to run locally, you will need to configure a `.env` file in the `/src/ui/` folder. The contents of the `.env` file must contain the environment variables listed below along with their values. 
 
-The values may be found in the Outputs of the nested AISTACK stack under `LocalUITestingEnv`.
+The values may be found in the Outputs of the GenAIDP stack under `WebUITestEnvFile`.
 Example contents of `.env` file:
 
 ```
@@ -12,7 +12,6 @@ Example contents of `.env` file:
   REACT_APP_APPSYNC_GRAPHQL_URL=https://XXXXXXXXXX.appsync-api.us-west-2.amazonaws.com/graphql
   REACT_APP_AWS_REGION=us-west-2
   REACT_APP_SETTINGS_PARAMETER=CFN-IDPSettingsParameter-XXXXXXXXXXXX
-  REACT_APP_ENABLE_LEX_AGENT_ASSIST=true
 ```
 
 

@@ -6,7 +6,7 @@ import { Logger } from 'aws-amplify';
 
 import { DOCUMENTS_PATH } from '../../routes/constants';
 
-import CallListSplitPanel from '../call-list/CallListSplitPanel';
+import DocumentListSplitPanel from '../document-list/DocumentListSplitPanel';
 
 const logger = new Logger('CallsSplitPanel');
 
@@ -16,7 +16,7 @@ const CallsSplitPanel = () => {
   return (
     <Switch>
       <Route exact path={DOCUMENTS_PATH}>
-        <CallListSplitPanel />
+        <DocumentListSplitPanel />
       </Route>
     </Switch>
   );

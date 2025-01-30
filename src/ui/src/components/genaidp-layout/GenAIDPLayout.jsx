@@ -6,29 +6,29 @@ import { AppLayout, Flashbar } from '@awsui/components-react';
 
 import { Logger } from 'aws-amplify';
 
-import { CallsContext } from '../../contexts/calls';
+import { DocumentsContext } from '../../contexts/documents';
 
 import useNotifications from '../../hooks/use-notifications';
 import useSplitPanel from '../../hooks/use-split-panel';
-import useCallsGraphQlApi from '../../hooks/use-calls-graphql-api';
+import useGraphQlApi from '../../hooks/use-graphql-api';
 
-import CallList from '../call-list';
-import CallDetails from '../call-details';
+import DocumentList from '../document-list';
+import DocumentDetails from '../document-details';
 import DocumentsQueryLayout from '../document-kb-query-layout';
 import { appLayoutLabels } from '../common/labels';
 
 import Navigation from './navigation';
 import Breadcrumbs from './breadcrumbs';
 import ToolsPanel from './tools-panel';
-import SplitPanel from './calls-split-panel';
+import SplitPanel from './documents-split-panel';
 
-import { CALL_LIST_SHARDS_PER_DAY, PERIODS_TO_LOAD_STORAGE_KEY } from '../call-list/calls-table-config';
+import { DOCUMENT_LIST_SHARDS_PER_DAY, PERIODS_TO_LOAD_STORAGE_KEY } from '../document-list/documents-table-config';
 
 import useAppContext from '../../contexts/app';
 
-const logger = new Logger('CallAnalyticsLayout');
+const logger = new Logger('GenAIDPLayout');
 
-const CallAnalyticsLayout = () => {
+const GenAIDPLayout = () => {
   const { navigationOpen, setNavigationOpen } = useAppContext();
 
   const { path } = useRouteMatch();
@@ -47,7 +47,7 @@ const CallAnalyticsLayout = () => {
       if (
         !Number.isSafeInteger(periodsFromStorage)
         // load max of to 30 days
-        || periodsFromStorage > CALL_LIST_SHARDS_PER_DAY * 30
+        || periodsFromStorage > DOCUMENT_LIST_SHARDS_PER_DAY * 30
       ) {
         logger.warn('invalid initialPeriodsToLoad value from local storage');
       } else {
@@ -64,15 +64,12 @@ const CallAnalyticsLayout = () => {
 
   const {
     calls,
-    callTranscriptPerCallId,
-    getCallDetailsFromCallIds,
-    isCallsListLoading,
+    getDocumentDetailsFromIds,
+    isDocumentsListLoading,
     periodsToLoad,
-    setLiveTranscriptCallId,
-    setIsCallsListLoading,
+    setIsDocumentsListLoading,
     setPeriodsToLoad,
-    sendGetTranscriptSegmentsRequest,
-  } = useCallsGraphQlApi({ initialPeriodsToLoad });
+  } = useGraphQlApi({ initialPeriodsToLoad });
 
   // eslint-disable-next-line prettier/prettier
   const {
@@ -85,13 +82,10 @@ const CallAnalyticsLayout = () => {
   // eslint-disable-next-line react/jsx-no-constructed-context-values
   const callsContextValue = {
     calls,
-    callTranscriptPerCallId,
-    getCallDetailsFromCallIds,
-    isCallsListLoading,
+    getDocumentDetailsFromIds,
+    isDocumentsListLoading,
     selectedItems,
-    sendGetTranscriptSegmentsRequest,
-    setIsCallsListLoading,
-    setLiveTranscriptCallId,
+    setIsDocumentsListLoading,
     setPeriodsToLoad,
     setToolsOpen,
     setSelectedItems,
@@ -100,7 +94,7 @@ const CallAnalyticsLayout = () => {
   };
 
   return (
-    <CallsContext.Provider value={callsContextValue}>
+    <DocumentsContext.Provider value={callsContextValue}>
       <AppLayout
         headerSelector="#top-navigation"
         navigation={<Navigation />}
@@ -119,20 +113,20 @@ const CallAnalyticsLayout = () => {
         content={
           <Switch>
             <Route exact path={path}>
-              <CallList />
+              <DocumentList />
             </Route>
             <Route path={`${path}/query`}>
               <DocumentsQueryLayout />
             </Route>
             <Route path={`${path}/:callId`}>
-              <CallDetails />
+              <DocumentDetails />
             </Route>
           </Switch>
         }
         ariaLabels={appLayoutLabels}
       />
-    </CallsContext.Provider>
+    </DocumentsContext.Provider>
   );
 };
 
-export default CallAnalyticsLayout;
+export default GenAIDPLayout;

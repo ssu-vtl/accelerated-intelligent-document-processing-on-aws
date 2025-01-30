@@ -11,7 +11,7 @@ import { SettingsContext } from '../contexts/settings';
 import useParameterStore from '../hooks/use-parameter-store';
 import useAppContext from '../contexts/app';
 
-import CallsRoutes from './CallsRoutes';
+import DocumentsRoutes from './DocumentsRoutes';
 import DocumentsQueryRoutes from './DocumentsQueryRoutes';
 
 import { DOCUMENTS_PATH, DEFAULT_PATH, LOGIN_PATH, LOGOUT_PATH, DOCUMENTS_KB_QUERY_PATH } from './constants';
@@ -32,7 +32,7 @@ const AuthRoutes = ({ redirectParam }) => {
     <SettingsContext.Provider value={settingsContextValue}>
       <Switch>
         <Route path={DOCUMENTS_PATH}>
-          <CallsRoutes />
+          <DocumentsRoutes />
         </Route>
         <Route path={LOGIN_PATH}>
           <Redirect to={!redirectParam || redirectParam === LOGIN_PATH ? DEFAULT_PATH : `${redirectParam}`} />

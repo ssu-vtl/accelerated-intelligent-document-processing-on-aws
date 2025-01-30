@@ -1,11 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import getRecordingStatus from './get-recording-status';
 import { getSentimentTrendLabel, getWeightedSentimentLabel } from './sentiment';
 
 /* Maps call attributes from API to a format that can be used in tables and panel */
 // eslint-disable-next-line arrow-body-style
-const mapCallsAttributes = (calls, settings) => {
+const mapDocumentsAttributes = (calls, settings) => {
   const regex = settings?.CategoryAlertRegex ?? '.*';
   const countAlerts = (categories) => categories.filter((category) => category.match(regex)).length;
 
@@ -29,7 +28,6 @@ const mapCallsAttributes = (calls, settings) => {
       ListPK: listPK,
       ListSK: listSK,
     } = item;
-    const recordingStatus = getRecordingStatus(item);
 
     const callerAverageSentiment = sentiment?.OverallSentiment?.CALLER || 0;
     const callerSentimentLabel = getWeightedSentimentLabel(callerAverageSentiment);
@@ -61,8 +59,6 @@ const mapCallsAttributes = (calls, settings) => {
       sentiment,
       // change callTimestamp to a sortable date format
       initiationTimeStamp: new Date(callTimestamp).toISOString(),
-      recordingStatusLabel: recordingStatus.label,
-      recordingStatusIcon: recordingStatus.icon,
       callerAverageSentiment,
       callerSentimentLabel,
       callerSentimentTrendLabel,
@@ -77,4 +73,4 @@ const mapCallsAttributes = (calls, settings) => {
   });
 };
 
-export default mapCallsAttributes;
+export default mapDocumentsAttributes;

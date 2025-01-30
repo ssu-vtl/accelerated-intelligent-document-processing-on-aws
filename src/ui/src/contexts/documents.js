@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { useContext, createContext } from 'react';
 
-export const CallsContext = createContext(null);
+export const DocumentsContext = createContext(null);
 
-const useCallsContext = () => useContext(CallsContext);
+const useDocumentsContext = () => useContext(DocumentsContext);
 
-export default useCallsContext;
+export default useDocumentsContext;

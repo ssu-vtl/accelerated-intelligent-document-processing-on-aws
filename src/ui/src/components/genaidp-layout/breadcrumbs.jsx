@@ -3,22 +3,22 @@
 import React from 'react';
 import { Route, Switch, useRouteMatch } from 'react-router-dom';
 
-import CallListToolsPanel from '../call-list/tools-panel';
-import CallDetailsToolsPanel from '../call-details/tools-panel';
+import DocumentListBreadCrumbs from '../document-list/breadcrumbs';
+import DocumentDetailsBreadCrumbs from '../document-details/breadcrumbs';
 
-const ToolsPanel = () => {
+const Breadcrumbs = () => {
   const { path } = useRouteMatch();
 
   return (
     <Switch>
       <Route exact path={path}>
-        <CallListToolsPanel />
+        <DocumentListBreadCrumbs />
       </Route>
       <Route path={`${path}/:callId`}>
-        <CallDetailsToolsPanel />
+        <DocumentDetailsBreadCrumbs />
       </Route>
     </Switch>
   );
 };
 
-export default ToolsPanel;
+export default Breadcrumbs;

@@ -1,5 +1,5 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import CallList from './CallList';
+import GenAIDPLayout from './GenAIDPLayout';
 
-export default CallList;
+export default GenAIDPLayout;
