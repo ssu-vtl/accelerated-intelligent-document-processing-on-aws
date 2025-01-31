@@ -37,7 +37,11 @@ const defaultOnFollowHandler = (ev) => {
 };
 
 /* eslint-disable react/prop-types */
-const Navigation = ({ header = documentsNavHeader, items = documentsNavItems, onFollowHandler = defaultOnFollowHandler }) => {
+const Navigation = ({
+  header = documentsNavHeader,
+  items = documentsNavItems,
+  onFollowHandler = defaultOnFollowHandler,
+}) => {
   const location = useLocation();
   const path = location.pathname;
   let activeHref = `#${DEFAULT_PATH}`;

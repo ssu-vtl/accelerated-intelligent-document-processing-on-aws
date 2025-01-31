@@ -271,7 +271,10 @@ Metadata:
         default: "Log Retention Period (days)"
 
 Resources:
+
+  ##########################################################################
   # Nested stack for selected pattern
+  ##########################################################################
 
   PATTERN1STACK:
     Type: AWS::CloudFormation::Stack
@@ -325,7 +328,9 @@ Resources:
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
         BDAProjectArn: !Ref Pattern3BDAProjectArn
 
-  # Main stack resources
+  ##########################################################################
+  # Encryption key
+  ##########################################################################
 
   CustomerManagedEncryptionKey:
     Type: AWS::KMS::Key
@@ -359,6 +364,60 @@ Resources:
     Properties:
       AliasName: !Sub "alias/${AWS::StackName}-customer-encryption-key"
       TargetKeyId: !Ref CustomerManagedEncryptionKey
+
+  ##########################################################################
+  # SSM Parameter for application settings  
+  ##########################################################################
+
+  # Initialise SettingsParameter as empty (so it never gets replaced)
+  # and use Custom Resource UpdateSettingsFunction to add/update values
+  SettingsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub "${AWS::StackName}-Settings"
+      Value: "{}"
+
+  UpdateSettingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 30
+      CodeUri: src/lambda/update_settings
+      LoggingConfig:
+        LogGroup: !Ref UpdateSettingsFunctionLogGroup
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConcurrencyTable
+        - Statement:
+          - Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:PutParameter
+            Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SettingsParameter}"
+
+  UpdateSettingsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: !Ref LogRetentionDays
+
+  UpdateSettingsValues:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt UpdateSettingsFunction.Arn
+      SettingsName: !Ref SettingsParameter
+      SettingsKeyValuePairs:
+        # to be extended
+        ShouldUseDocumentKnowledgeBase: False
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+
+  ##########################################################################
+  # S3 buckets for data processing, webUI static assets, and logging
+  ##########################################################################
 
   LoggingBucket:
     Type: AWS::S3::Bucket
@@ -493,19 +552,51 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: RetainExceptOnCreate 
     Properties:
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: index.html
-      VersioningConfiguration:
-        Status: Enabled
       LoggingConfiguration:
         DestinationBucketName: !Ref LoggingBucket
-        LogFilePrefix: working-bucket-logs/
+        LogFilePrefix: webapp-bucket-logs/
+
+  WebUIBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebUIBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
+            Action: s3:GetObject
+            Resource: !Sub "${WebUIBucket.Arn}/*"
+          - Effect: "Deny"
+            Action:
+              - "s3:*"
+            Principal: "*"
+            Resource:
+              - !GetAtt WebUIBucket.Arn
+              - !Sub "${WebUIBucket.Arn}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": false
+
+  ##########################################################################
+  # DynamoDB table for process tracking
+  ##########################################################################
 
   TrackingTable:
     Type: AWS::DynamoDB::Table
@@ -531,6 +622,10 @@ Resources:
         SSEType: KMS
         KMSMasterKeyId: !Ref CustomerManagedEncryptionKey
 
+  ##############################################################################
+  # DynamoDB table and initialization function for workflow concurrency counter
+  ##############################################################################
+
   ConcurrencyTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -550,63 +645,9 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 30
-      InlineCode: |
-        import boto3
-        import cfnresponse
-        import logging
-        from botocore.exceptions import ClientError
-        import os
-
-        # Initialize logging
-        logger = logging.getLogger()
-        logger.setLevel(logging.INFO)
-
-        # DynamoDB resource
-        dynamodb = boto3.resource('dynamodb')
-        CONCURRENCY_TABLE = os.environ.get('CONCURRENCY_TABLE')
-        concurrency_table = dynamodb.Table(CONCURRENCY_TABLE)
-
-        COUNTER_ID = "workflow_counter"
-
-        def handler(event, context):
-            logger.info(f"Event received: {event}")
-            try:
-                # Handle CloudFormation CREATE events
-                if event['RequestType'] == 'Create':
-                    concurrency_table.put_item(
-                        Item={
-                            'counter_id': COUNTER_ID,
-                            'active_count': 0
-                        },
-                        ConditionExpression='attribute_not_exists(counter_id)'
-                    )
-                    logger.info("Counter initialized")
-
-                elif event['RequestType'] == 'Delete':
-                    # Handle CloudFormation DELETE events
-                    concurrency_table.delete_item(
-                        Key={
-                            'counter_id': COUNTER_ID
-                        }
-                    )
-                    logger.info("Counter deleted")
-
-                # Send a success response to CloudFormation
-                cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
-
-            except ClientError as e:
-                logger.error(f"Error in DynamoDB operation: {e}")
-                # Send a failure response to CloudFormation
-                cfnresponse.send(event, context, cfnresponse.FAILED, {"Error": str(e)})
-                raise
-
-            except Exception as e:
-                logger.error(f"Unexpected error: {e}")
-                # Send a failure response to CloudFormation
-                cfnresponse.send(event, context, cfnresponse.FAILED, {"Error": str(e)})
-                raise
+      CodeUri: src/lambda/dashboard_merger
       Environment:
         Variables:
           CONCURRENCY_TABLE: !Ref ConcurrencyTable
@@ -629,6 +670,10 @@ Resources:
       ServiceToken: !GetAtt InitializeConcurrencyTableLambda.Arn
       TableName: !Ref ConcurrencyTable
 
+  ##########################################################################
+  # SQS Queue for queueing pending documents in order 
+  ##########################################################################
+
   DocumentQueueDLQ:
     Type: AWS::SQS::Queue
     Properties:
@@ -646,6 +691,10 @@ Resources:
         maxReceiveCount: 1000 # should retry up to 8hrs (1000 * 30 sec visibility) before moving to DLQ
         deadLetterTargetArn: !GetAtt DocumentQueueDLQ.Arn
 
+  ##########################################################################
+  # Event triggered Lambdas to publish and consume from the queue  
+  ##########################################################################
+
   QueueSenderDLQ:
     Type: AWS::SQS::Queue
     Properties:
@@ -658,7 +707,7 @@ Resources:
     Properties:
       CodeUri: src/lambda/queue_sender/
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 30
       DeadLetterQueue:
         Type: SQS
@@ -704,7 +753,6 @@ Resources:
   QueueSenderLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/lambda/queue-sender"
       RetentionInDays: !Ref LogRetentionDays
 
   QueueProcessor:
@@ -712,7 +760,7 @@ Resources:
     Properties:
       CodeUri: src/lambda/queue_processor/
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 30
       LoggingConfig:
         LogGroup: !Ref QueueProcessorLogGroup
@@ -770,8 +818,11 @@ Resources:
   QueueProcessorLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/lambda/queue-processor"
       RetentionInDays: !Ref LogRetentionDays
+
+  ##########################################################################
+  # Event triggered Lambda for statemachine workflow tracking updates  
+  ##########################################################################
 
   WorkflowTrackerDLQ:
     Type: AWS::SQS::Queue
@@ -785,7 +836,7 @@ Resources:
     Properties:
       CodeUri: src/lambda/workflow_tracker/
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 30
       DeadLetterQueue:
         Type: SQS
@@ -824,7 +875,6 @@ Resources:
   WorkflowTrackerLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/lambda/workflow-tracker"
       RetentionInDays: !Ref LogRetentionDays
 
   WorkflowStateChangeRule:
@@ -863,6 +913,10 @@ Resources:
       FunctionName: !Ref WorkflowTracker
       Principal: events.amazonaws.com
       SourceArn: !GetAtt WorkflowStateChangeRule.Arn
+
+  ##########################################################################
+  # CloudWatch monitoring  
+  ##########################################################################
 
   AlertsTopic:
     Type: AWS::SNS::Topic
@@ -915,6 +969,7 @@ Resources:
       AlarmActions:
         - !Ref AlertsTopic
 
+  # This dasboard is merged with dashboard created by the pattern stack to create an overall dashboard
   MainTemplateSubsetDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
@@ -1292,7 +1347,7 @@ Resources:
     Properties:
       CodeUri: src/lambda/dashboard_merger
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 60
       MemorySize: 128
       Environment:
@@ -1322,14 +1377,18 @@ Resources:
           - !GetAtt PATTERN2STACK.Outputs.DashboardName
           - !GetAtt PATTERN3STACK.Outputs.DashboardName
       MergedDashboardName: !Sub "${AWS::StackName}-${AWS::Region}"
-      ChangeToForceUpdate: <HASH> # Source code hash set by publish script
+      ChangeToForceUpdate: <HASH_TOKEN> # Source code hash set by publish script
+
+  ##########################################################################
+  # Lambda function that retrieves status details for specified document  
+  ##########################################################################
 
   LookupFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: src/lambda/lookup_function/
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 30
       LoggingConfig:
         LogGroup: !Ref LookupFunctionLogGroup
@@ -1366,102 +1425,12 @@ Resources:
   LookupFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/lambda/lookup"
       RetentionInDays: !Ref LogRetentionDays
 
-  # Initialise SettingsParameter as empty (so it never gets replaced)
-  # and use Custom Resource UpdateSettingsFunction to add/update values
-  SettingsParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub "${AWS::StackName}-Settings"
-      Value: "{}"
 
-  UpdateSettingsFunctionRole:
-    Type: "AWS::IAM::Role"
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Action: "sts:AssumeRole"
-            Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-        Version: 2012-10-17
-      ManagedPolicyArns:
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-      Policies:
-        - PolicyName: updateSSMStore
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ssm:GetParameter
-                  - ssm:PutParameter
-                Resource:
-                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SettingsParameter}"
-
-  UpdateSettingsFunction:
-    Type: "AWS::Lambda::Function"
-    Properties:
-      Role: !GetAtt UpdateSettingsFunctionRole.Arn
-      Handler: index.handler
-      Runtime: python3.12
-      Timeout: 900
-      Code:
-        ZipFile: |
-          import boto3
-          import cfnresponse
-          import json
-          ssm = boto3.client('ssm')
-          def updateSSMParameter(props):
-            parameterName = props['SettingsName']
-            parameterValues = props['SettingsKeyValuePairs']
-            response = ssm.get_parameter(Name=parameterName)
-            settingsJSON = response['Parameter']['Value']
-            settings = json.loads(settingsJSON)
-            print(f"Existing settings: {settings}")
-            for key, value in parameterValues.items():
-              settings[key] = value
-            print(f"Updated settings: {settings}")
-            newSettingsJSON = json.dumps(settings)
-            ssm.put_parameter(Name=parameterName, Value=newSettingsJSON, Overwrite=True)
-                        
-          def handler(event, context):        
-            print(json.dumps(event))
-            status = cfnresponse.SUCCESS
-            responseData = {}
-            reason = "Success"
-            props = event["ResourceProperties"]
-            if event['RequestType'] != 'Delete':
-              try:
-                updateSSMParameter(props)
-              except Exception as e:
-                print(e)
-                reason = f"Exception thrown: {e}"
-                status = cfnresponse.FAILED              
-            cfnresponse.send(event, context, status, responseData, reason=reason)
-      LoggingConfig:
-        LogGroup: !Ref UpdateSettingsFunctionLogGroup
-
-  UpdateSettingsFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      RetentionInDays: !Ref LogRetentionDays
-
-  UpdateSettingsValues:
-    Type: AWS::CloudFormation::CustomResource
-    Properties:
-      ServiceToken: !GetAtt UpdateSettingsFunction.Arn
-      SettingsName: !Ref SettingsParameter
-      SettingsKeyValuePairs:
-        # to be extended
-        ShouldUseDocumentKnowledgeBase: False
-    UpdateReplacePolicy: Delete
-    DeletionPolicy: Delete
-
-  # Cognito resources
+  ##########################################################################
+  # Cognoito user authentication for AppSync API and WebUI 
+  ##########################################################################
 
   UserPool:
     Type: AWS::Cognito::UserPool
@@ -1476,11 +1445,11 @@ Resources:
           EmailSubject: Welcome to GenAI-IDP!
           EmailMessage: !Sub |-
             <p>Hello {username},</p>
-            <p>Welcome to the AWS GenAI-IDP Solution! Your temporary password is: <strong>{####}</strong></p>
+            <p>Welcome to the AWS GenAIDP Solution! Your temporary password is: <strong>{####}</strong></p>
             <p>When the CloudFormation stack is COMPLETE, use the link below to log in and set your permanent password.
             <p>     https://${CloudFrontDistribution.DomainName}/
             <p>Thanks,</p>
-            <p>GenAI-IDP</p>
+            <p>GenAIDP Team</p>
       AutoVerifiedAttributes:
         - email
       EmailConfiguration:
@@ -1524,8 +1493,6 @@ Resources:
         - profile
       CallbackURLs:
         - http://localhost:3000
-        - http://localhost:5173
-        - https://bmpfinegchjaiocjnfjfcgeohdiblomp.chromiumapp.org/
       AccessTokenValidity: 1
       EnableTokenRevocation: true
       ExplicitAuthFlows:
@@ -1543,39 +1510,24 @@ Resources:
         - COGNITO
       UserPoolId: !Ref UserPool
 
-  GetDomainLambdaRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-
   GetDomainLambda:
-    Type: "AWS::Lambda::Function"
+    Type: AWS::Serverless::Function
     Properties:
-      Description: Returns the lowercase version of a string
-      MemorySize: 256
+      Description: Converts Stackname to lowercase and adds unique timestamp
+      Handler: index.handler
       Runtime: python3.12
-      Handler: index.lambda_handler
-      Role: !GetAtt GetDomainLambdaRole.Arn
       Timeout: 30
-      Code:
-        ZipFile: |
-          import cfnresponse
-          import time
-          def lambda_handler(event, context):                                                    
-              output = event['ResourceProperties'].get('InputString', '').lower()
-              output = f"{output}-{time.time_ns()}" # make unique
-              responseData = {'OutputString': output}                                            
-              cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
+      MemorySize: 128
       LoggingConfig:
         LogGroup: !Ref GetDomainLambdaLogGroup
+      InlineCode: |
+        import cfnresponse
+        import time
+        def handler(event, context):                                                    
+            output = event['ResourceProperties'].get('InputString', '').lower()
+            output = f"{output}-{time.time_ns()}" # make unique
+            responseData = {'OutputString': output}                                            
+            cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
 
   GetDomainLambdaLogGroup:
     Type: AWS::Logs::LogGroup
@@ -1702,8 +1654,9 @@ Resources:
     Type: AWS::Serverless::Function
     Condition: ShouldAllowSignUpEmailDomain
     Properties:
+      Description: Verifies email address is in allowed domain
       Handler: index.lambda_handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 10
       Environment:
         Variables:
@@ -1712,47 +1665,28 @@ Resources:
         import os
         import boto3
         import json
-
         def lambda_handler(event, context):
             print(json.dumps(event))
-
             allowed_domains = [
                 domain.strip() 
                 for domain in os.environ.get('ALLOWED_SIGNUP_EMAIL_DOMAINS', '').split(',')
             ]
-
             user_attributes = event.get('request', {}).get('userAttributes', {})
             email = user_attributes.get('email')
-
             if not email or '@' not in email:
                 raise ValueError('Username does not exist or invalid email address')
-
             email_domain = email.split('@')[1]
-
             if not email_domain or not allowed_domains:
                 raise ValueError('Server error - invalid configuration')
-
             if email_domain not in allowed_domains:
                 raise ValueError('Invalid email address domain')
-
             return event
       LoggingConfig:
-        LogGroup:
-          Fn::Sub: /${AWS::StackName}/lambda/CognitoUserPoolEmailDomainVerifyFunction
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: Customer can use VPC if desired
-          - id: W92
-            reason: Customer can choose reserved concurrency based on their requirement.
-    DependsOn:
-      - CognitoUserPoolEmailDomainVerifyFunctionLogGroup
+        LogGroup: !Ref CognitoUserPoolEmailDomainVerifyFunctionLogGroup
 
   CognitoUserPoolEmailDomainVerifyFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/${AWS::StackName}/lambda/CognitoUserPoolEmailDomainVerifyFunction"
       RetentionInDays: !Ref LogRetentionDays
 
   CognitoUserPoolEmailDomainVerifyPermission:
@@ -1765,7 +1699,9 @@ Resources:
       SourceAccount: !Ref AWS::AccountId
       SourceArn: !GetAtt UserPool.Arn
 
-  # AppSync API
+  ##########################################################################
+  # AppSync GraphQL API 
+  ##########################################################################
 
   AppSyncCwlRole:
     Type: AWS::IAM::Role
@@ -1810,7 +1746,6 @@ Resources:
       ApiId: !GetAtt GraphQLApi.ApiId
       DefinitionS3Location: ./src/api/schema.graphql
 
-  # DynamoDB Data Source
   TrackingTableDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
@@ -1822,7 +1757,6 @@ Resources:
         TableName: !Ref TrackingTable
         AwsRegion: !Ref AWS::Region
 
-  # AppSync Service Role
   AppSyncServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -1859,7 +1793,6 @@ Resources:
                   - kms:DescribeKey
                 Resource: !GetAtt CustomerManagedEncryptionKey.Arn
 
-# AppSync Resolvers
   CreateDocumentResolver:
     Type: AWS::AppSync::Resolver
     Properties:
@@ -2133,37 +2066,280 @@ Resources:
             "nextToken": $util.toJson($ctx.result.nextToken)
         }
 
-
-  # CloudFront Distribution
-  CloudFrontDistribution:
-    Type: AWS::CloudFront::Distribution
-    Properties:
-      DistributionConfig:
-        Origins:
-          - DomainName: !GetAtt WebUIBucket.RegionalDomainName
-            Id: S3Origin
-            S3OriginConfig:
-              OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}
-        Enabled: true
-        DefaultRootObject: index.html
-        DefaultCacheBehavior:
-          TargetOriginId: S3Origin
-          ViewerProtocolPolicy: redirect-to-https
-          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
-          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf # CORS-S3Origin
-        CustomErrorResponses:
-          - ErrorCode: 403
-            ResponsePagePath: /index.html
-            ResponseCode: 200
-          - ErrorCode: 404
-            ResponsePagePath: /index.html
-            ResponseCode: 200
+  ##########################################################################
+  # WebUI build and deployment 
+  ##########################################################################
 
   CloudFrontOriginAccessIdentity:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
     Properties:
       CloudFrontOriginAccessIdentityConfig:
-        Comment: !Sub ${AWS::StackName} OAI
+        Comment: !Sub "${AWS::StackName} CloudFront OAI for ${WebUIBucket}"
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub "Web app cloudfront distribution ${AWS::StackName}"
+        CustomErrorResponses:
+          # Send errors to index file
+          - ErrorCachingMinTTL: 300
+            ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCachingMinTTL: 300
+            ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          TargetOriginId: webapp-s3-bucket
+          ViewerProtocolPolicy: redirect-to-https
+          DefaultTTL: 600
+          MinTTL: 300
+          MaxTTL: 900
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - Id: webapp-s3-bucket
+            DomainName: !GetAtt WebUIBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
+        Restrictions: 
+          GeoRestriction:
+            RestrictionType: none
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W70
+            reason:
+              This is using Cloudfront default TLS, can be changed by customer
+              if needed.
+
+  UICodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+      Policies:
+        - PolicyName: ecs-service
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource:
+                  - !Sub "arn:aws:s3:::<ARTIFACT_BUCKET_TOKEN>"
+                  - !Sub "arn:aws:s3:::<ARTIFACT_BUCKET_TOKEN>/<ARTIFACT_PREFIX_TOKEN>/*"
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+                  - s3:PutObject
+                  - s3:ListBucket
+              - Resource:
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*"
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*:*"
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub "arn:aws:s3:::${WebUIBucket}/*"
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
+
+  UICodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${AWS::StackName}-webui-build
+      Description: !Sub >-
+        Web UI build for GenAIDP stack - ${AWS::StackName}
+      ServiceRole: !Ref UICodeBuildServiceRole
+      EncryptionKey: alias/aws/s3
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Source:
+        # Publish script substitutes the tokens in the filename here during package build
+        Location: !Sub "arn:aws:s3:::<ARTIFACT_BUCKET_TOKEN>/<ARTIFACT_PREFIX_TOKEN>/<WEBUI_ZIPFILE_TOKEN>"
+        Type: S3
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo ${SOURCE_CODE_LOCATION}
+                - echo `ls -altr`
+                - echo `pwd`
+                - echo Installing NodeJS
+                - n 18.19.1
+                - npm install -g npm@10.2.4
+                - echo Installing Web UI dependencies
+                - npm install
+            build:
+              commands:
+                - echo Build started on `date`
+                - cd $CODEBUILD_SRC_DIR
+                - echo Building Web UI
+                - npm run build
+                - >
+                  printf '{"RepositoryUri":"%s","ProjectName":"%s","ArtifactBucket":"%s"}'
+                  $REPOSITORY_URI $PROJECT_NAME $ARTIFACT_BUCKET > build.json
+            post_build:
+              commands:
+                - echo Build completed on `date`
+                - echo Copying Web UI
+                - find build -ls
+                - aws s3 cp --recursive build s3://${WEBAPP_BUCKET}/
+                - echo Invalidating CloudFront Distribution
+                - >
+                  aws cloudfront create-invalidation
+                  --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths '/*'
+          artifacts:
+            files:
+              - build.json
+      Environment:
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+        Type: LINUX_CONTAINER
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: SOURCE_CODE_LOCATION
+            Value: !Sub "<ARTIFACT_BUCKET_TOKEN>/<ARTIFACT_PREFIX_TOKEN>"
+          - Name: WEBAPP_BUCKET
+            Value: !Ref WebUIBucket
+          - Name: CLOUDFRONT_DISTRIBUTION_ID
+            Value: !Ref CloudFrontDistribution
+            # These REACT_APP_ variables are used by the web ui in the
+            # aws-exports.js Amplify config. The values are embedded in the
+            # code at build time. See:
+            # https://create-react-app.dev/docs/adding-custom-environment-variables/
+          - Name: REACT_APP_SETTINGS_PARAMETER
+            Value: !Ref SettingsParameter
+          - Name: REACT_APP_USER_POOL_ID
+            Value: !Ref UserPool
+          - Name: REACT_APP_USER_POOL_CLIENT_ID
+            Value: !Ref UserPoolClient
+          - Name: REACT_APP_IDENTITY_POOL_ID
+            Value: !Ref IdentityPool
+          - Name: REACT_APP_APPSYNC_GRAPHQL_URL
+            Value: !GetAtt GraphQLApi.GraphQLUrl
+          - Name: REACT_APP_AWS_REGION
+            Value: !Ref AWS::Region
+          - Name: REACT_APP_SHOULD_HIDE_SIGN_UP
+            Value: !If
+              - ShouldAllowSignUpEmailDomain
+              - "false"
+              - "true"
+          - Name: REACT_APP_CLOUDFRONT_DOMAIN
+            Value: !Sub "https://${CloudFrontDistribution.DomainName}/"
+      TimeoutInMinutes: 10
+
+  StartUICodeBuildExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                Resource: !GetAtt UICodeBuildProject.Arn
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+          # Used by custom resource helper poller
+          # https://github.com/aws-cloudformation/custom-resource-helper
+        - PolicyName: CustomResourcePoller
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutRule
+                  - events:DeleteRule
+                  - events:PutTargets
+                  - events:RemoveTargets
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/*"
+              - Effect: Allow
+                Action:
+                  - lambda:AddPermission
+                  - lambda:RemovePermission
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
+
+  StartUICodeBuild:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role: !GetAtt StartUICodeBuildExecutionRole.Arn
+      Runtime: python3.12
+      Timeout: 60
+      MemorySize: 128
+      Handler: index.handler
+      CodeUri: src/lambda/start_codebuild
+      Description: This AWS Lambda Function kicks off a code build job.
+      LoggingConfig:
+        LogGroup: !Ref StartUICodeBuildLogGroup
+
+  StartUICodeBuildLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: !Ref LogRetentionDays
+
+  CodeBuildRun:
+    Type: Custom::CodeBuildRun
+    Properties:
+      ServiceToken: !GetAtt StartUICodeBuild.Arn
+      BuildProjectName: !Ref UICodeBuildProject
+      SettingsParameter: !Ref SettingsParameter
+      # Force codebuild to rerun when source code changes (filename will change), and to correctly roll back to
+      # previous version if build fails.
+      CodeLocation: "arn:aws:s3:::<ARTIFACT_BUCKET_TOKEN>/<ARTIFACT_PREFIX_TOKEN>/<WEBUI_ZIPFILE_TOKEN>"
 
 Outputs:
   ApplicationWebURL:
