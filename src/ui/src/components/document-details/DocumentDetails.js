@@ -11,7 +11,7 @@ import mapDocumentsAttributes from '../common/map-document-attributes';
 
 import '@awsui/global-styles/index.css';
 
-import CallPanel from '../call-panel';
+import DocumentPanel from '../document-panel';
 
 const logger = new Logger('documentDetails');
 
@@ -23,6 +23,7 @@ const DocumentDetails = () => {
   const [document, setCall] = useState(null);
 
   useEffect(async () => {
+    logger.debug('ZZZZ document', document, 'documentId', documentId);
     if (!documentId || !document || !documents?.length) {
       return;
     }
@@ -39,7 +40,11 @@ const DocumentDetails = () => {
 
   return (
     document && (
-      <CallPanel item={document} setToolsOpen={setToolsOpen} getDocumentDetailsFromIds={getDocumentDetailsFromIds} />
+      <DocumentPanel
+        item={document}
+        setToolsOpen={setToolsOpen}
+        getDocumentDetailsFromIds={getDocumentDetailsFromIds}
+      />
     )
   );
 };

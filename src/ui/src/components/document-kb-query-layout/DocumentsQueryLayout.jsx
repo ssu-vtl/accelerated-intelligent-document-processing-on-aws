@@ -166,7 +166,7 @@ export const DocumentsQueryLayout = () => {
                   <ReactMarkdown
                     rehypePlugins={[rehypeRaw]}
                     components={{
-                      callid: CustomLink,
+                      documentid: CustomLink,
                     }}
                   >
                     {entry.value}

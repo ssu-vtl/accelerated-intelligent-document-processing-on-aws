@@ -52,7 +52,7 @@ const GenAIDPTopNavigation = () => {
     <>
       <div id="top-navigation" style={{ position: 'sticky', top: 0, zIndex: 1002 }}>
         <TopNavigation
-          identity={{ href: '#', title: 'GenAI IDP Console' }}
+          identity={{ href: '#', title: 'GenAIDP Console' }}
           i18nStrings={{ overflowMenuTriggerText: 'More' }}
           utilities={[
             {

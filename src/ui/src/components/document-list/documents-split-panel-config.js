@@ -5,7 +5,7 @@ import { Table, ColumnLayout, Box, Link } from '@awsui/components-react';
 import { SELECTION_LABELS } from './documents-table-config';
 import { DOCUMENTS_PATH } from '../../routes/constants';
 
-import CallPanel from '../call-panel';
+import DocumentPanel from '../document-panel';
 
 export const SPLIT_PANEL_I18NSTRINGS = {
   preferencesTitle: 'Split panel preferences',
@@ -25,7 +25,7 @@ const EMPTY_PANEL_CONTENT = {
   body: 'Select a meeting to see its details.',
 };
 
-const getPanelContentSingle = ({ items, setToolsOpen, callTranscriptPerCallId, getDocumentDetailsFromIds }) => {
+const getPanelContentSingle = ({ items, setToolsOpen, getDocumentDetailsFromIds }) => {
   if (!items.length) {
     return EMPTY_PANEL_CONTENT;
   }
@@ -35,23 +35,18 @@ const getPanelContentSingle = ({ items, setToolsOpen, callTranscriptPerCallId, g
   return {
     header: 'Meeting Details',
     body: (
-      <CallPanel
-        item={item}
-        setToolsOpen={setToolsOpen}
-        callTranscriptPerCallId={callTranscriptPerCallId}
-        getDocumentDetailsFromIds={getDocumentDetailsFromIds}
-      />
+      <DocumentPanel item={item} setToolsOpen={setToolsOpen} getDocumentDetailsFromIds={getDocumentDetailsFromIds} />
     ),
   };
 };
 
-const getPanelContentMultiple = ({ items, setToolsOpen, callTranscriptPerCallId, getDocumentDetailsFromIds }) => {
+const getPanelContentMultiple = ({ items, setToolsOpen, getDocumentDetailsFromIds }) => {
   if (!items.length) {
     return EMPTY_PANEL_CONTENT;
   }
 
   if (items.length === 1) {
-    return getPanelContentSingle({ items, setToolsOpen, callTranscriptPerCallId, getDocumentDetailsFromIds });
+    return getPanelContentSingle({ items, setToolsOpen, getDocumentDetailsFromIds });
   }
 
   return {
@@ -74,7 +69,7 @@ const getPanelContentComparison = ({ items, getDocumentDetailsFromIds }) => {
   if (!items.length) {
     return {
       header: '0 documents selected',
-      body: 'Select a meeting to see its details. Select multiple meetings to compare.',
+      body: 'Select a document to see its details. Select multiple documents to compare.',
     };
   }
 
@@ -82,10 +77,10 @@ const getPanelContentComparison = ({ items, getDocumentDetailsFromIds }) => {
     return getPanelContentSingle({ items, getDocumentDetailsFromIds });
   }
   const keyHeaderMap = {
-    callId: 'Document ID',
+    objectKey: 'Document ID',
     initiationTimeStamp: 'Submission Timestramp',
   };
-  const transformedData = ['callId', 'initiationTimeStamp'].map((key) => {
+  const transformedData = ['objectKey', 'initiationTimeStamp'].map((key) => {
     const data = { comparisonType: keyHeaderMap[key] };
 
     items.forEach((item) => {
@@ -123,12 +118,12 @@ const getPanelContentComparison = ({ items, getDocumentDetailsFromIds }) => {
   };
 };
 
-export const getPanelContent = (items, type, setToolsOpen, callTranscriptPerCallId, getDocumentDetailsFromIds) => {
+export const getPanelContent = (items, type, setToolsOpen, getDocumentDetailsFromIds) => {
   if (type === 'single') {
-    return getPanelContentSingle({ items, setToolsOpen, callTranscriptPerCallId, getDocumentDetailsFromIds });
+    return getPanelContentSingle({ items, setToolsOpen, getDocumentDetailsFromIds });
   }
   if (type === 'multiple') {
-    return getPanelContentMultiple({ items, setToolsOpen, callTranscriptPerCallId, getDocumentDetailsFromIds });
+    return getPanelContentMultiple({ items, setToolsOpen, getDocumentDetailsFromIds });
   }
   return getPanelContentComparison({ items, getDocumentDetailsFromIds });
 };

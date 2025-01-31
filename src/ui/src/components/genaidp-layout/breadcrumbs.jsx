@@ -14,7 +14,7 @@ const Breadcrumbs = () => {
       <Route exact path={path}>
         <DocumentListBreadCrumbs />
       </Route>
-      <Route path={`${path}/:callId`}>
+      <Route path={`${path}/:documentId`}>
         <DocumentDetailsBreadCrumbs />
       </Route>
     </Switch>

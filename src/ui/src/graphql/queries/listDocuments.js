@@ -6,7 +6,7 @@ export default gql`
   query Query($endDateTime: AWSDateTime, $startDateTime: AWSDateTime) {
     listDocuments(endDateTime: $endDateTime, startDateTime: $startDateTime) {
       Calls {
-        CallId
+        ObjectKey
         PK
         SK
       }

@@ -6,46 +6,46 @@ import { Button, ButtonDropdown, CollectionPreferences, Link, SpaceBetween } fro
 import { TableHeader } from '../common/table';
 import { DOCUMENTS_PATH } from '../../routes/constants';
 
-export const KEY_COLUMN_ID = 'ObjectKey';
+export const KEY_COLUMN_ID = 'objectKey';
 
 export const COLUMN_DEFINITIONS_MAIN = [
   {
     id: KEY_COLUMN_ID,
     header: 'Document ID',
     cell: (item) => <Link href={`#${DOCUMENTS_PATH}/${item.objectKey}`}>{item.objectKey}</Link>,
-    sortingField: 'ObjectKey',
+    sortingField: 'objectKey',
     width: 325,
   },
   {
-    id: 'Status',
+    id: 'objectStatus',
     header: 'Status',
     cell: (item) => item.objectStatus,
-    sortingField: 'Status',
+    sortingField: 'objectStatus',
     width: 150,
   },
   {
-    id: 'Submitted',
+    id: 'initialEventTime',
     header: 'Submitted',
     cell: (item) => item.initialEventTime,
-    sortingField: 'Submitted',
+    sortingField: 'initialEventTime',
     isDescending: false,
   },
   {
-    id: 'Completed',
+    id: 'completionTime',
     header: 'Completed',
     cell: (item) => item.completionTime,
-    sortingField: 'Completed',
+    sortingField: 'completionTime',
     width: 225,
   },
   {
-    id: 'Duration',
+    id: 'duration',
     header: 'Duration',
-    cell: () => 'TODO',
-    sortingField: 'Duration',
+    cell: (item) => item.duration,
+    sortingField: 'duration',
   },
 ];
 
-export const DEFAULT_SORT_COLUMN = COLUMN_DEFINITIONS_MAIN[3];
+export const DEFAULT_SORT_COLUMN = COLUMN_DEFINITIONS_MAIN[2];
 
 export const SELECTION_LABELS = {
   itemSelectionLabel: (data, row) => `select ${row.objectKey}`,
@@ -63,16 +63,16 @@ const VISIBLE_CONTENT_OPTIONS = [
   {
     label: 'Document list properties',
     options: [
-      { id: 'ObjectKey', label: 'Document ID', editable: false },
-      { id: 'Submitted', label: 'Submitted' },
-      { id: 'Completed', label: 'Completed' },
-      { id: 'Status', label: 'Status' },
-      { id: 'Duration', label: 'Duration' },
+      { id: 'objectKey', label: 'Document ID', editable: false },
+      { id: 'objectStatus', label: 'Status' },
+      { id: 'initialEventTime', label: 'Submitted' },
+      { id: 'completionTime', label: 'Completed' },
+      { id: 'duration', label: 'Duration' },
     ],
   },
 ];
 
-const VISIBLE_CONTENT = ['ObjectKey', 'Submitted', 'Completed', 'Status', 'Duration'];
+const VISIBLE_CONTENT = ['objectKey', 'objectStatus', 'initialEventTime', 'completionTime', 'duration'];
 
 export const DEFAULT_PREFERENCES = {
   pageSize: PAGE_SIZE_OPTIONS[0].value,

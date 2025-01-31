@@ -19,18 +19,18 @@ const logger = new Logger('useGraphQlApi');
 const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2 } = {}) => {
   const [periodsToLoad, setPeriodsToLoad] = useState(initialPeriodsToLoad);
   const [isDocumentsListLoading, setIsDocumentsListLoading] = useState(false);
-  const [calls, setCalls] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const { setErrorMessage } = useAppContext();
 
   const setDocumentsDeduped = (documentValues) => {
-    setCalls((currentCalls) => {
-      const documentValuesdocumentIds = documentValues.map((c) => c.CallId);
+    setDocuments((currentDocuments) => {
+      const documentValuesdocumentIds = documentValues.map((c) => c.ObjectKey);
       return [
-        ...currentCalls.filter((c) => !documentValuesdocumentIds.includes(c.CallId)),
-        ...documentValues.map((call) => ({
-          ...call,
-          ListPK: call.ListPK || currentCalls.find((c) => c.CallId === call.CallId)?.ListPK,
-          ListSK: call.ListSK || currentCalls.find((c) => c.CallId === call.CallId)?.ListSK,
+        ...currentDocuments.filter((c) => !documentValuesdocumentIds.includes(c.ObjectKey)),
+        ...documentValues.map((document) => ({
+          ...document,
+          ListPK: document.ListPK || currentDocuments.find((c) => c.ObjectKey === document.ObjectKey)?.ListPK,
+          ListSK: document.ListSK || currentDocuments.find((c) => c.ObjectKey === document.ObjectKey)?.ListSK,
         })),
       ];
     });
@@ -222,16 +222,16 @@ const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2
     } catch (error) {
       setIsDocumentsListLoading(false);
       setErrorMessage('failed to list Documents - please try again later');
-      logger.error('error obtaining call list', error);
+      logger.error('error obtaining document list', error);
     }
   };
 
   useEffect(() => {
     if (isDocumentsListLoading) {
-      logger.debug('call list is loading');
+      logger.debug('document list is loading');
       // send in a timeout to avoid blocking rendering
       setTimeout(() => {
-        setCalls([]);
+        setDocuments([]);
         sendSetDocumentsForPeriod();
       }, 1);
     }
@@ -243,7 +243,7 @@ const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2
   }, [periodsToLoad]);
 
   return {
-    calls,
+    documents,
     isDocumentsListLoading,
     getDocumentDetailsFromIds,
     setIsDocumentsListLoading,

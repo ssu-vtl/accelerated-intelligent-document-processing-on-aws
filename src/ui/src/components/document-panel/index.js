@@ -1,5 +1,5 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { CallPanel } from './CallPanel';
+import { DocumentPanel } from './DocumentPanel';
 
-export default CallPanel;
+export default DocumentPanel;

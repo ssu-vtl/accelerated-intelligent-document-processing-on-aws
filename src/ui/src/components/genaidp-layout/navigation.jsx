@@ -6,8 +6,8 @@ import { SideNavigation } from '@awsui/components-react';
 
 import { DOCUMENTS_PATH, DOCUMENTS_KB_QUERY_PATH, DEFAULT_PATH } from '../../routes/constants';
 
-export const callsNavHeader = { text: 'GenAIDP', href: `#${DEFAULT_PATH}` };
-export const callsNavItems = [
+export const documentsNavHeader = { text: 'Tools', href: `#${DEFAULT_PATH}` };
+export const documentsNavItems = [
   { type: 'link', text: 'Document List', href: `#${DOCUMENTS_PATH}` },
   { type: 'link', text: 'Document KB (coming)', href: `#${DOCUMENTS_KB_QUERY_PATH}` },
   {
@@ -37,7 +37,7 @@ const defaultOnFollowHandler = (ev) => {
 };
 
 /* eslint-disable react/prop-types */
-const Navigation = ({ header = callsNavHeader, items = callsNavItems, onFollowHandler = defaultOnFollowHandler }) => {
+const Navigation = ({ header = documentsNavHeader, items = documentsNavItems, onFollowHandler = defaultOnFollowHandler }) => {
   const location = useLocation();
   const path = location.pathname;
   let activeHref = `#${DEFAULT_PATH}`;
@@ -50,8 +50,8 @@ const Navigation = ({ header = callsNavHeader, items = callsNavItems, onFollowHa
     <Switch>
       <Route path={DOCUMENTS_PATH}>
         <SideNavigation
-          items={items || callsNavItems}
-          header={header || callsNavHeader}
+          items={items || documentsNavItems}
+          header={header || documentsNavHeader}
           activeHref={activeHref}
           onFollow={onFollowHandler}
         />

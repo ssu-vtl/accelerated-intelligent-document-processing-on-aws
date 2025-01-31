@@ -63,7 +63,7 @@ const GenAIDPLayout = () => {
   const initialPeriodsToLoad = getInitialPeriodsToLoad();
 
   const {
-    calls,
+    documents,
     getDocumentDetailsFromIds,
     isDocumentsListLoading,
     periodsToLoad,
@@ -80,8 +80,8 @@ const GenAIDPLayout = () => {
   } = useSplitPanel(selectedItems);
 
   // eslint-disable-next-line react/jsx-no-constructed-context-values
-  const callsContextValue = {
-    calls,
+  const documentsContextValue = {
+    documents,
     getDocumentDetailsFromIds,
     isDocumentsListLoading,
     selectedItems,
@@ -94,7 +94,7 @@ const GenAIDPLayout = () => {
   };
 
   return (
-    <DocumentsContext.Provider value={callsContextValue}>
+    <DocumentsContext.Provider value={documentsContextValue}>
       <AppLayout
         headerSelector="#top-navigation"
         navigation={<Navigation />}
@@ -118,7 +118,7 @@ const GenAIDPLayout = () => {
             <Route path={`${path}/query`}>
               <DocumentsQueryLayout />
             </Route>
-            <Route path={`${path}/:callId`}>
+            <Route path={`${path}/:documentId`}>
               <DocumentDetails />
             </Route>
           </Switch>

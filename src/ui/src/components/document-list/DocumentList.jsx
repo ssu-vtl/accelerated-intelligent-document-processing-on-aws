@@ -30,11 +30,11 @@ import '@awsui/global-styles/index.css';
 const logger = new Logger('DocumentList');
 
 const DocumentList = () => {
-  const [callList, setDocumentList] = useState([]);
+  const [documentList, setDocumentList] = useState([]);
   const { settings } = useSettingsContext();
 
   const {
-    calls,
+    documents,
     isDocumentsListLoading,
     setIsDocumentsListLoading,
     setPeriodsToLoad,
@@ -44,12 +44,12 @@ const DocumentList = () => {
     getDocumentDetailsFromIds,
   } = useDocumentsContext();
 
-  const [preferences, setPreferences] = useLocalStorage('call-list-preferences', DEFAULT_PREFERENCES);
+  const [preferences, setPreferences] = useLocalStorage('documents-list-preferences', DEFAULT_PREFERENCES);
 
   // prettier-ignore
   const {
     items, actions, filteredItemsCount, collectionProps, filterProps, paginationProps,
-  } = useCollection(callList, {
+  } = useCollection(documentList, {
     filtering: {
       empty: <TableEmptyState resourceName="Meeting" />,
       noMatch: <TableNoMatchState onClearFilter={() => actions.setFiltering('')} />,
@@ -64,17 +64,31 @@ const DocumentList = () => {
 
   useEffect(() => {
     if (!isDocumentsListLoading) {
-      logger.debug('setting documents list', calls);
-      setDocumentList(mapDocumentsAttributes(calls, settings));
+      logger.debug('setting documents list', documents);
+      setDocumentList(mapDocumentsAttributes(documents, settings));
     } else {
       logger.debug('documents list is loading');
     }
-  }, [isDocumentsListLoading, calls]);
+  }, [isDocumentsListLoading, documents]);
 
   useEffect(() => {
     logger.debug('setting selected items', collectionProps.selectedItems);
     setSelectedItems(collectionProps.selectedItems);
   }, [collectionProps.selectedItems]);
+
+  logger.debug('ZZZZ document list', documentList);
+  logger.debug('ZZZZ collection props', collectionProps);
+  logger.debug('ZZZZ items', items);
+  logger.debug('ZZZZ pagination props', paginationProps);
+  logger.debug('ZZZZ preferences', preferences);
+  logger.debug('ZZZZ selected items', collectionProps.selectedItems);
+  logger.debug(
+    'ZZZZ selected item ids',
+    collectionProps.selectedItems.map((item) => item.objectKey),
+  );
+  logger.debug('ZZZZ COLUMN_DEFINITIONS_MAIN', COLUMN_DEFINITIONS_MAIN);
+  logger.debug('ZZZZ KEY_COLUMN_ID', KEY_COLUMN_ID);
+  logger.debug('ZZZZ SELECTION_LABELS', SELECTION_LABELS);
 
   /* eslint-disable react/jsx-props-no-spreading */
   return (
@@ -83,16 +97,16 @@ const DocumentList = () => {
       header={
         <DocumentsCommonHeader
           resourceName="Documents"
-          calls={calls}
+          documents={documents}
           selectedItems={collectionProps.selectedItems}
-          totalItems={callList}
+          totalItems={documentList}
           updateTools={() => setToolsOpen(true)}
           loading={isDocumentsListLoading}
           setIsLoading={setIsDocumentsListLoading}
           periodsToLoad={periodsToLoad}
           setPeriodsToLoad={setPeriodsToLoad}
           getDocumentDetailsFromIds={getDocumentDetailsFromIds}
-          downloadToExcel={() => exportToExcel(callList, 'Meeting-List')}
+          downloadToExcel={() => exportToExcel(documentList, 'Meeting-List')}
           // eslint-disable-next-line max-len, prettier/prettier
         />
       }
@@ -113,7 +127,7 @@ const DocumentList = () => {
       wrapLines={preferences.wrapLines}
       pagination={<Pagination {...paginationProps} ariaLabels={paginationLabels} />}
       preferences={<DocumentsPreferences preferences={preferences} setPreferences={setPreferences} />}
-      trackBy={items.callId}
+      trackBy={items.objectKey}
       visibleColumns={[KEY_COLUMN_ID, ...preferences.visibleContent]}
       resizableColumns
     />

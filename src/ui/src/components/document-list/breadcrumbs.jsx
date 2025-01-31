@@ -6,11 +6,11 @@ import { BreadcrumbGroup } from '@awsui/components-react';
 
 import { DOCUMENTS_PATH, DEFAULT_PATH } from '../../routes/constants';
 
-export const callListBreadcrumbItems = [
+export const documentListBreadcrumbItems = [
   { text: 'Document Processing', href: `#${DEFAULT_PATH}` },
   { text: 'Documents', href: `#${DOCUMENTS_PATH}` },
 ];
 
-const Breadcrumbs = () => <BreadcrumbGroup ariaLabel="Breadcrumbs" items={callListBreadcrumbItems} />;
+const Breadcrumbs = () => <BreadcrumbGroup ariaLabel="Breadcrumbs" items={documentListBreadcrumbItems} />;
 
 export default Breadcrumbs;

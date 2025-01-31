@@ -3,23 +3,7 @@
 
 // eslint-disable import/prefer-default-export
 
-export const DEFAULT_OTHER_SPEAKER_NAME = 'Other Participant';
-export const DEFAULT_LOCAL_SPEAKER_NAME = 'Me';
 export const SYSTEM = 'System';
-
-export const COMPREHEND_PII_TYPES = [
-  'BANK_ACCOUNT_NUMBER',
-  'BANK_ROUTING',
-  'CREDIT_DEBIT_NUMBER',
-  'CREDIT_DEBIT_CVV',
-  'CREDIT_DEBIT_EXPIRY',
-  'PIN',
-  'EMAIL',
-  'ADDRESS',
-  'NAME',
-  'PHONE',
-  'SSN',
-];
 
 export const LANGUAGE_CODES = [
   { value: '', label: 'Choose a Language' },
