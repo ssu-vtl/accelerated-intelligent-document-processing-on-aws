@@ -5,6 +5,9 @@ import React from 'react';
 import { Box, ColumnLayout, Container, SpaceBetween } from '@awsui/components-react';
 
 import './DocumentPanel.css';
+import { Logger } from 'aws-amplify';
+
+const logger = new Logger('DocumentPanel');
 
 /* eslint-disable react/prop-types, react/destructuring-assignment */
 const DocumentAttributes = ({ item }) => {
@@ -23,18 +26,18 @@ const DocumentAttributes = ({ item }) => {
         <SpaceBetween size="xs">
           <div>
             <Box margin={{ bottom: 'xxxs' }} color="text-label">
-              <strong>Completion Timestamp</strong>
+              <strong>Submitted</strong>
             </Box>
-            <div>{item.initiationTimeStamp}</div>
+            <div>{item.initialEventTime}</div>
           </div>
         </SpaceBetween>
 
         <SpaceBetween size="xs">
           <div>
             <Box margin={{ bottom: 'xxxs' }} color="text-label">
-              <strong>Last Update Timestamp</strong>
+              <strong>Completed</strong>
             </Box>
-            <div>{item.updatedAt}</div>
+            <div>{item.completionTime}</div>
           </div>
         </SpaceBetween>
 
@@ -43,7 +46,7 @@ const DocumentAttributes = ({ item }) => {
             <Box margin={{ bottom: 'xxxs' }} color="text-label">
               <strong>Duration</strong>
             </Box>
-            <div>{item.conversationDurationTimeStamp}</div>
+            <div>{item.duration}</div>
           </div>
         </SpaceBetween>
       </ColumnLayout>
@@ -52,6 +55,7 @@ const DocumentAttributes = ({ item }) => {
 };
 
 export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds }) => {
+  logger.debug('DocumentPanel item', item);
   return (
     <SpaceBetween size="s">
       <DocumentAttributes

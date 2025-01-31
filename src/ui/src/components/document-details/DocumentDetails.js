@@ -20,7 +20,25 @@ const DocumentDetails = () => {
   const { documents, getDocumentDetailsFromIds, setToolsOpen } = useDocumentsContext();
   const { settings } = useSettingsContext();
 
-  const [document, setCall] = useState(null);
+  const [document, setDocument] = useState(null);
+
+  const sendInitDocumentRequests = async () => {
+    const response = await getDocumentDetailsFromIds([documentId]);
+    logger.debug('document detail response', response);
+    const documentsMap = mapDocumentsAttributes(response, settings);
+    const documentDetails = documentsMap[0];
+    if (documentDetails) {
+      setDocument(documentDetails);
+    }
+  };
+
+  useEffect(() => {
+    if (!documentId) {
+      return () => {};
+    }
+    sendInitDocumentRequests();
+    return () => {};
+  }, [documentId]);
 
   useEffect(async () => {
     if (!documentId || !document || !documents?.length) {
@@ -32,10 +50,12 @@ const DocumentDetails = () => {
       const documentDetails = documentsMap[0];
       if (documentDetails?.updatedAt && document.updatedAt < documentDetails.updatedAt) {
         logger.debug('Updating document', documentDetails);
-        setCall(documentDetails);
+        setDocument(documentDetails);
       }
     }
   }, [documents, documentId]);
+
+  logger.debug('useEffect for documentDetails', documentId, document, documents);
 
   return (
     document && (
