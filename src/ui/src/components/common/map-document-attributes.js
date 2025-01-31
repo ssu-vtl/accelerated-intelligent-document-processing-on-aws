@@ -18,22 +18,26 @@ const mapDocumentsAttributes = (documents) => {
       ListSK: listSK,
     } = item;
 
-    const duration = new Date(completionTime) - new Date(initialEventTime);
-    const formattedDuration = `${Math.floor(duration / 60000)}:${String(Math.floor((duration / 1000) % 60)).padStart(
-      2,
-      '0',
-    )}`;
+    const formatDate = (timestamp) => {
+      return timestamp && timestamp !== '0' ? new Date(timestamp).toISOString() : '';
+    };
+
+    const getDuration = (end, start) => {
+      if (!end || end === '0' || !start || start === '0') return '';
+      const duration = new Date(end) - new Date(start);
+      return `${Math.floor(duration / 60000)}:${String(Math.floor((duration / 1000) % 60)).padStart(2, '0')}`;
+    };
 
     const mapping = {
       objectKey,
       objectStatus,
-      initialEventTime: new Date(initialEventTime).toISOString(),
-      queuedTime: new Date(queuedTime).toISOString(),
-      workflowStartTime: new Date(workflowStartTime).toISOString(),
-      completionTime: new Date(completionTime).toISOString(),
+      initialEventTime: formatDate(initialEventTime),
+      queuedTime: formatDate(queuedTime),
+      workflowStartTime: formatDate(workflowStartTime),
+      completionTime: formatDate(completionTime),
       workflowExecutionArn,
       workflowStatus,
-      duration: formattedDuration,
+      duration: getDuration(completionTime, initialEventTime),
       listPK,
       listSK,
     };

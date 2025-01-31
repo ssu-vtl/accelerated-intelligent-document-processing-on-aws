@@ -76,20 +76,6 @@ const DocumentList = () => {
     setSelectedItems(collectionProps.selectedItems);
   }, [collectionProps.selectedItems]);
 
-  logger.debug('ZZZZ document list', documentList);
-  logger.debug('ZZZZ collection props', collectionProps);
-  logger.debug('ZZZZ items', items);
-  logger.debug('ZZZZ pagination props', paginationProps);
-  logger.debug('ZZZZ preferences', preferences);
-  logger.debug('ZZZZ selected items', collectionProps.selectedItems);
-  logger.debug(
-    'ZZZZ selected item ids',
-    collectionProps.selectedItems.map((item) => item.objectKey),
-  );
-  logger.debug('ZZZZ COLUMN_DEFINITIONS_MAIN', COLUMN_DEFINITIONS_MAIN);
-  logger.debug('ZZZZ KEY_COLUMN_ID', KEY_COLUMN_ID);
-  logger.debug('ZZZZ SELECTION_LABELS', SELECTION_LABELS);
-
   /* eslint-disable react/jsx-props-no-spreading */
   return (
     <Table

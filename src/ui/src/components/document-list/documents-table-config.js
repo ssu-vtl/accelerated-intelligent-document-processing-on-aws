@@ -14,7 +14,7 @@ export const COLUMN_DEFINITIONS_MAIN = [
     header: 'Document ID',
     cell: (item) => <Link href={`#${DOCUMENTS_PATH}/${item.objectKey}`}>{item.objectKey}</Link>,
     sortingField: 'objectKey',
-    width: 325,
+    width: 300,
   },
   {
     id: 'objectStatus',
@@ -29,6 +29,7 @@ export const COLUMN_DEFINITIONS_MAIN = [
     cell: (item) => item.initialEventTime,
     sortingField: 'initialEventTime',
     isDescending: false,
+    width: 225,
   },
   {
     id: 'completionTime',
@@ -42,6 +43,7 @@ export const COLUMN_DEFINITIONS_MAIN = [
     header: 'Duration',
     cell: (item) => item.duration,
     sortingField: 'duration',
+    width: 150,
   },
 ];
 

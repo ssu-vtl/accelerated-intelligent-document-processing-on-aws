@@ -23,7 +23,6 @@ const DocumentDetails = () => {
   const [document, setCall] = useState(null);
 
   useEffect(async () => {
-    logger.debug('ZZZZ document', document, 'documentId', documentId);
     if (!documentId || !document || !documents?.length) {
       return;
     }

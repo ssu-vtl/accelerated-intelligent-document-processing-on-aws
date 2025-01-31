@@ -191,7 +191,6 @@ const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2
         const documentData = await documentDataPromise;
         const objectKeys = documentData.map((item) => item.ObjectKey);
         const documentDetails = await getDocumentDetailsFromIds(objectKeys);
-        logger.debug('YYYdocumentDetails', documentDetails);
         // Merge document details with PK and SK
         return documentDetails.map((detail) => {
           const matchingData = documentData.find((item) => item.ObjectKey === detail.ObjectKey);
