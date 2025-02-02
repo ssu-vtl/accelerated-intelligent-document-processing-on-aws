@@ -18,5 +18,5 @@ LOOKUP_FUNCTION=$(aws cloudformation describe-stacks \
 aws lambda invoke \
   --function-name $LOOKUP_FUNCTION \
   --cli-binary-format raw-in-base64-out \
-  --payload "{\"s3_key\":\"${INPUT_OBJECT_KEY}\"}" \
+  --payload "{\"object_key\":\"${INPUT_OBJECT_KEY}\"}" \
   /dev/stdout

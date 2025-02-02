@@ -18,7 +18,7 @@ Parameters:
   OutputBucket:
     Type: String
 
-  ExecutionTable:
+  TrackingTable:
     Type: String
 
   CustomerManagedEncryptionKeyArn:
@@ -78,7 +78,7 @@ Resources:
       MemorySize: 4096
       Environment:
         Variables:
-          TRACKING_TABLE: !Ref ExecutionTable
+          TRACKING_TABLE: !Ref TrackingTable
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
       LoggingConfig:
@@ -90,7 +90,7 @@ Resources:
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
         - DynamoDBCrudPolicy:
-           TableName: !Ref ExecutionTable
+           TableName: !Ref TrackingTable
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
@@ -171,7 +171,7 @@ Resources:
       MemorySize: 4096
       Environment:
         Variables:
-          TRACKING_TABLE: !Ref ExecutionTable
+          TRACKING_TABLE: !Ref TrackingTable
           METRIC_NAMESPACE: !Ref StackName
       DeadLetterQueue:
        Type: SQS
@@ -181,7 +181,7 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - DynamoDBReadPolicy:
-           TableName: !Ref ExecutionTable
+           TableName: !Ref TrackingTable
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData

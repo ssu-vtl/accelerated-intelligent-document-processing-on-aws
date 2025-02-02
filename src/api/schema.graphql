@@ -1,0 +1,79 @@
+interface DynamoDbBase {
+	PK: ID!
+	SK: ID!
+	ExpiresAfter: AWSTimestamp
+}
+
+type Document implements DynamoDbBase @aws_cognito_user_pools @aws_iam {
+  PK: ID!
+  SK: ID!
+  ObjectKey: ID
+  ObjectStatus: String
+  InitialEventTime: AWSDateTime
+  QueuedTime: AWSDateTime
+  WorkflowStartTime: AWSDateTime
+  CompletionTime: AWSDateTime
+  WorkflowExecutionArn: String
+  WorkflowStatus: String
+  ExpiresAfter: AWSTimestamp
+}
+
+type DocumentList @aws_cognito_user_pools @aws_iam {
+	Documents: [DocumentListItem]
+	nextToken: String
+}
+
+type DocumentListItem implements DynamoDbBase @aws_cognito_user_pools @aws_iam {
+	PK: ID!
+	SK: ID!
+    ObjectKey: ID
+    InitialEventTime: AWSDateTime
+    ExpiresAfter: AWSTimestamp
+}
+
+input CreateDocumentInput {
+  ObjectKey: ID
+  ObjectStatus: String
+  InitialEventTime: AWSDateTime
+  QueuedTime: AWSDateTime
+  ExpiresAfter: AWSTimestamp
+}
+
+type CreateDocumentOutput @aws_iam {
+  ObjectKey: ID
+}
+
+input UpdateDocumentInput {
+  ObjectKey: ID!
+  ObjectStatus: String
+  QueuedTime: AWSDateTime
+  WorkflowStartTime: AWSDateTime
+  CompletionTime: AWSDateTime
+  WorkflowExecutionArn: String
+  WorkflowStatus: String
+}
+
+type Mutation @aws_iam {
+  createDocument(input: CreateDocumentInput!): CreateDocumentOutput
+  updateDocument(input: UpdateDocumentInput!): Document
+}
+
+type Query @aws_cognito_user_pools @aws_iam {
+  getDocument(ObjectKey: ID!): Document
+  listDocuments(startDateTime: AWSDateTime, endDateTime: AWSDateTime): DocumentList
+  listDocumentsDateHour(date: AWSDate, hour: Int): DocumentList
+  listDocumentsDateShard(date: AWSDate, shard: Int): DocumentList
+}
+
+type Subscription @aws_cognito_user_pools @aws_iam {
+  onCreateDocument: CreateDocumentOutput
+	@aws_subscribe(mutations: ["createDocument"])
+  onUpdateDocument: Document
+    @aws_subscribe(mutations: ["updateDocument"])
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}

@@ -3,8 +3,9 @@
 import boto3
 import os
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import logging
+from appsync_helper import AppSyncClient, CREATE_DOCUMENT
 
 # Configure logging
 logger = logging.getLogger()
@@ -12,9 +13,9 @@ logger.setLevel(logging.INFO)
 
 # Initialize clients
 sqs = boto3.client('sqs')
-dynamodb = boto3.resource('dynamodb')
-tracking_table = dynamodb.Table(os.environ['TRACKING_TABLE'])
+appsync = AppSyncClient()
 queue_url = os.environ['QUEUE_URL']
+retentionDays = int(os.environ['DATA_RETENTION_IN_DAYS'])
 
 def handler(event, context):
     logger.info(f"Processing event: {json.dumps(event)}")
@@ -23,15 +24,22 @@ def handler(event, context):
     object_key = detail['object']['key']
     logger.info(f"Processing file: {object_key}")
     
-    # Record in DynamoDB
-    tracking_item = {
-        'object_key': object_key,
-        'status': 'QUEUED',
-        'queued_time': datetime.now(timezone.utc).isoformat(),
-        'initial_event_time': event['time']  # Original S3 event time
+    # Create document using AppSync mutation
+    expiresAfter = int((datetime.now(timezone.utc) + timedelta(days=retentionDays)).timestamp())
+
+    create_input = {
+        'input': {
+            'ObjectKey': object_key,
+            'ObjectStatus': 'QUEUED',
+            'QueuedTime': datetime.now(timezone.utc).isoformat(),
+            'InitialEventTime': event['time'],
+            'ExpiresAfter': expiresAfter
+        }
     }
-    logger.info(f"Recording tracking entry: {tracking_item}")
-    tracking_table.put_item(Item=tracking_item)
+    
+    logger.info(f"Creating document via AppSync: {create_input}")
+    result = appsync.execute_mutation(CREATE_DOCUMENT, create_input)
+    logger.info(f"AppSync response: {result}")
     
     # Send to SQS queue
     message = {

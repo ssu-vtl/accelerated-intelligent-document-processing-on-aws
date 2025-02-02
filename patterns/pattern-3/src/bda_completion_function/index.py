@@ -34,20 +34,20 @@ def put_metric(name, value, unit='Count', dimensions=None):
 def get_task_token(object_key: str) -> str:
     try:
         # Get current tracking record using consistent read
-        logger.info(f"Performing consistent read for tracking record: {object_key}")
+        key = f"tasktoken#{object_key}"
+        logger.info(f"Performing consistent read for tracking record: {key}")
         response = tracking_table.get_item(
-            Key={'object_key': object_key},
+            Key={'PK': key, 'SK': 'none'},
             ConsistentRead=True
         )
         
         if 'Item' not in response:
-            error_msg = f"No tracking record found for {object_key} (with consistent read)"
+            error_msg = f"No tracking record found for {key} (with consistent read)"
             logger.error(error_msg)
             raise Exception(error_msg)
         
         item = response['Item']
-        logger.info(f"Retrieved tracking record: {json.dumps(item)}")
-        return item['task_token']
+        return item['TaskToken']
 
     except Exception as e:
         logger.error(f"Error retrieving tracking record: {e}")

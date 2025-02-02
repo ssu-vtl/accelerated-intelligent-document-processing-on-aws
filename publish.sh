@@ -8,31 +8,15 @@
 # Stop the publish process on failures
 set -e
 
+# Check parameters
 USAGE="$0 <cfn_bucket_basename> <cfn_prefix> <region> [public]"
-
-if ! [ -x "$(command -v sam)" ]; then
-  echo 'Error: sam is not installed and required.' >&2
-  echo 'Install: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html' >&2
-  exit 1
-fi
-sam_version=$(sam --version | awk '{print $4}')
-min_sam_version="1.118.0"
-if [[ $(echo -e "$min_sam_version\n$sam_version" | sort -V | tail -n1) == $min_sam_version && $min_sam_version != $sam_version ]]; then
-    echo "Error: sam version >= $min_sam_version is not installed and required. (Installed version is $sam_version)" >&2
-    echo 'Install: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/manage-sam-cli-versions.html' >&2
-    exit 1
-fi
-
 BUCKET_BASENAME=$1
 [ -z "$BUCKET_BASENAME" ] && echo "Cfn bucket name is a required parameter. Usage $USAGE" && exit 1
-
 PREFIX=$2
 [ -z "$PREFIX" ] && echo "Prefix is a required parameter. Usage $USAGE" && exit 1
-
 REGION=$3
 [ -z "$REGION" ] && echo "Region is a required parameter. Usage $USAGE" && exit 1
 export AWS_DEFAULT_REGION=$REGION
-
 ACL=$4
 if [ "$ACL" == "public" ]; then
   echo "Published S3 artifacts will be acessible by public (read-only)"
@@ -42,15 +26,29 @@ else
   PUBLIC=false
 fi
 
+# Check local environment
+check_command() {
+    local cmd=$1
+    if ! [ -x "$(command -v $cmd)" ]; then
+        echo "Error: $cmd is required but not installed" >&2
+        return 1
+    fi
+    return 0
+}
+commands=("aws" "git" "sam" "sha256sum")
+for cmd in "${commands[@]}"; do
+    check_command "$cmd" || exit 1
+done
+
+# Set paths
 # Remove trailing slash from prefix if needed, and append VERSION
 VERSION=$(cat ./VERSION)
 [[ "${PREFIX}" == */ ]] && PREFIX="${PREFIX%?}"
 PREFIX_AND_VERSION=${PREFIX}/${VERSION}
-
 # Append region to bucket basename
 BUCKET=${BUCKET_BASENAME}-${REGION}
 
-# Create bucket if it doesn't already exist
+# Create artifacts bucket if it doesn't already exist
 if [ -x $(aws s3api list-buckets --query 'Buckets[].Name' | grep "\"$BUCKET\"") ]; then
   echo "Creating s3 bucket: $BUCKET"
   aws s3 mb s3://${BUCKET} || exit 1
@@ -74,7 +72,6 @@ function calculate_hash() {
   )
   echo $HASH
 }
-
 haschanged() {
   local dir=$1
   local checksum_file="${dir}/.checksum"
@@ -105,8 +102,9 @@ update_checksum() {
   echo "$current_checksum" > "$checksum_file"
 }
 
-
+####################################
 # Package and publish the artifacts
+####################################
 is_x86_64() {
   [[ $(uname -m) == "x86_64" ]]
 }
@@ -117,25 +115,47 @@ else
   USE_CONTAINER_FLAG="--use-container "
 fi
 
+# Build pattern templates
 for dir in patterns/*; do
   if haschanged $dir; then
-    echo "Building nested template artifacts in $dir" 
     pushd $dir
+    echo "BUILDING $dir" 
     sam build $USE_CONTAINER_FLAG --template-file template.yaml
+    echo "PACKAGING $dir"
     sam package \
         --template-file .aws-sam/build/template.yaml \
         --output-template-file .aws-sam/packaged.yaml \
         --s3-bucket ${BUCKET} \
         --s3-prefix ${PREFIX_AND_VERSION}
+    echo "DONE $dir"
     popd
     update_checksum $dir
   else
     echo "SKIPPING $dir (unchanged)"
   fi
 done
+
+# Build Web UI source code bundle
+dir=src/ui
+pushd $dir
+echo "Computing hash of ui folder contents"
+HASH=$(calculate_hash ".")
+WEBUI_ZIPFILE=src-${HASH}.zip
+echo "PACKAGING $dir"
+echo "Zipping source to .aws-sam/${WEBUI_ZIPFILE}"
+BUNDLE_SRC_FILES=$(git ls-files)
+echo $BUNDLE_SRC_FILES | xargs zip -@ .aws-sam/$WEBUI_ZIPFILE
+echo "Upload source to S3"
+WEBUIUI_SRC_S3_LOCATION=${BUCKET}/${PREFIX_AND_VERSION}/${WEBUI_ZIPFILE}
+aws s3 cp .aws-sam/$WEBUI_ZIPFILE s3://${WEBUIUI_SRC_S3_LOCATION}
+popd
+
+
 # build main template
 MAIN_TEMPLATE=idp-main.yaml
+echo "BUILDING main" 
 sam build $USE_CONTAINER_FLAG --template-file template.yaml
+echo "PACKAGING main" 
 sam package \
  --template-file .aws-sam/build/template.yaml \
  --output-template-file .aws-sam/packaged.yaml \
@@ -144,9 +164,15 @@ sam package \
 
 HASH=$(calculate_hash ".")
 echo "Inline edit main template to replace "
-echo "   <HASH> with: $HASH"
-cat .aws-sam/packaged.yaml | 
-sed -e "s%<HASH>%$HASH%g" > .aws-sam/${MAIN_TEMPLATE}
+echo "   <ARTIFACT_BUCKET_TOKEN> with bucket name: $BUCKET"
+echo "   <ARTIFACT_PREFIX_TOKEN> with prefix: $PREFIX_AND_VERSION"
+echo "   <WEBUI_ZIPFILE_TOKEN> with filename: $WEBUI_ZIPFILE"
+echo "   <HASH_TOKEN> with: $HASH"
+cat .aws-sam/packaged.yaml |
+sed -e "s%<ARTIFACT_BUCKET_TOKEN>%$BUCKET%g" | 
+sed -e "s%<ARTIFACT_PREFIX_TOKEN>%$PREFIX_AND_VERSION%g" |
+sed -e "s%<WEBUI_ZIPFILE_TOKEN>%$WEBUI_ZIPFILE%g" |
+sed -e "s%<HASH_TOKEN>%$HASH%g" > .aws-sam/${MAIN_TEMPLATE}
 
 # upload main template
 aws s3 cp .aws-sam/${MAIN_TEMPLATE} s3://${BUCKET}/${PREFIX}/${MAIN_TEMPLATE} || exit 1
@@ -167,7 +193,7 @@ for file in $files
   done
 aws s3api put-object-acl --acl public-read --bucket ${BUCKET} --key ${PREFIX}/${MAIN_TEMPLATE}
 echo ""
-echo "Done."
+echo "Done with ACLs."
 fi
 
 echo "OUTPUTS"
