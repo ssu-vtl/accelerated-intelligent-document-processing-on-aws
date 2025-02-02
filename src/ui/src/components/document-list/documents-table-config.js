@@ -12,7 +12,7 @@ export const COLUMN_DEFINITIONS_MAIN = [
   {
     id: KEY_COLUMN_ID,
     header: 'Document ID',
-    cell: (item) => <Link href={`#${DOCUMENTS_PATH}/${item.objectKey}`}>{item.objectKey}</Link>,
+    cell: (item) => <Link href={`#${DOCUMENTS_PATH}/${encodeURIComponent(item.objectKey)}`}>{item.objectKey}</Link>,
     sortingField: 'objectKey',
     width: 300,
   },

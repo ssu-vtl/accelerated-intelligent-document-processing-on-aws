@@ -10,9 +10,10 @@ import { documentListBreadcrumbItems } from '../document-list/breadcrumbs';
 
 const Breadcrumbs = () => {
   const { documentId } = useParams();
+  const decodedDocumentId = decodeURIComponent(documentId);
   const documentDetailsBreadcrumbItems = [
     ...documentListBreadcrumbItems,
-    { text: documentId, href: `#${DOCUMENTS_PATH}/${documentId}` },
+    { text: decodedDocumentId, href: `#${DOCUMENTS_PATH}/${documentId}` },
   ];
 
   return <BreadcrumbGroup ariaLabel="Breadcrumbs" items={documentDetailsBreadcrumbItems} />;

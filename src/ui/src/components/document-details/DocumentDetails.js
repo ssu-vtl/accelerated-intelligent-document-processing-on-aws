@@ -16,7 +16,11 @@ import DocumentPanel from '../document-panel';
 const logger = new Logger('documentDetails');
 
 const DocumentDetails = () => {
-  const { documentId } = useParams();
+  let { documentId } = useParams();
+  logger.debug('XXX documentId', documentId);
+  documentId = decodeURIComponent(documentId);
+  logger.debug('XXX Decoded DocumentDetails', documentId);
+
   const { documents, getDocumentDetailsFromIds, setToolsOpen } = useDocumentsContext();
   const { settings } = useSettingsContext();
 
