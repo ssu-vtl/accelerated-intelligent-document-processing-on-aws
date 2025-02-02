@@ -143,7 +143,7 @@ REACT_APP_AWS_REGION=<value>
 REACT_APP_SETTINGS_PARAMETER=<value>
 ```
 3. Install dependencies: `npm install`
-4. Start the development server: `npm start`
+4. Start the development server: `npm run start`
 5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ### Configuration Options
