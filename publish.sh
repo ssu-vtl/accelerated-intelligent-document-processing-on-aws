@@ -142,6 +142,7 @@ echo "Computing hash of ui folder contents"
 HASH=$(calculate_hash ".")
 WEBUI_ZIPFILE=src-${HASH}.zip
 echo "PACKAGING $dir"
+mkdir -p .aws-sam
 echo "Zipping source to .aws-sam/${WEBUI_ZIPFILE}"
 BUNDLE_SRC_FILES=$(git ls-files)
 echo $BUNDLE_SRC_FILES | xargs zip -@ .aws-sam/$WEBUI_ZIPFILE
