@@ -206,7 +206,6 @@ Metadata:
       - Label:
           default: "User Authentication"
         Parameters:
-          - DeployWebUI
           - AdminEmail
           - AllowedSignUpEmailDomain
       - Label:
@@ -239,8 +238,6 @@ Metadata:
           - LogRetentionDays
 
     ParameterLabels:
-      DeployWebUI:
-        default: "Deploy Web UI"
       AdminEmail:
         default: "Admin Email Address"
       AllowedSignUpEmailDomain:
@@ -409,7 +406,9 @@ Resources:
       ServiceToken: !GetAtt UpdateSettingsFunction.Arn
       SettingsName: !Ref SettingsParameter
       SettingsKeyValuePairs:
-        # to be extended
+        InputBucket: !Ref InputBucket
+        WorkingBucket: !Ref WorkingBucket
+        OutputBucket: !Ref OutputBucket
         ShouldUseDocumentKnowledgeBase: False
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
@@ -1579,19 +1578,30 @@ Resources:
               "ForAnyValue:StringLike":
                 "cognito-identity.amazonaws.com:amr": authenticated
       Policies:
-        - PolicyName: accessS3RecordingsPolicy
+        - PolicyName: S3
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Effect: Allow
                 Action:
                   - "s3:GetObject"
+                  - "s3:ListBucket"
                 Resource:
                   - !Sub "arn:aws:s3:::${InputBucket}"
                   - !Sub "arn:aws:s3:::${InputBucket}/*"
+                  - !Sub "arn:aws:s3:::${WorkingBucket}"
+                  - !Sub "arn:aws:s3:::${WorkingBucket}/*"
                   - !Sub "arn:aws:s3:::${OutputBucket}"
                   - !Sub "arn:aws:s3:::${OutputBucket}/*"
-        - PolicyName: accessParameterStore
+              - Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:Decrypt
+                  - kms:ReEncrypt*
+                  - kms:GenerateDataKey*
+                  - kms:DescribeKey
+                Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+        - PolicyName: ParameterStore
           PolicyDocument:
             Version: 2012-10-17
             Statement:

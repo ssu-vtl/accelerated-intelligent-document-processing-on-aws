@@ -14,7 +14,7 @@ const ToolsPanel = () => {
       <Route exact path={path}>
         <DocumentListToolsPanel />
       </Route>
-      <Route path={`${path}/:documentId`}>
+      <Route path={`${path}/:objectKey`}>
         <DocumentDetailsToolsPanel />
       </Route>
     </Switch>

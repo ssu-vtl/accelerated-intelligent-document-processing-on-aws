@@ -6,6 +6,7 @@ import { Box, ColumnLayout, Container, SpaceBetween } from '@awsui/components-re
 
 import './DocumentPanel.css';
 import { Logger } from 'aws-amplify';
+import FileViewer from '../file-viewer/FileViewer';
 
 const logger = new Logger('DocumentPanel');
 
@@ -63,6 +64,7 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds })
         setToolsOpen={setToolsOpen}
         getDocumentDetailsFromIds={getDocumentDetailsFromIds}
       />
+      <FileViewer objectKey={item.objectKey} />
     </SpaceBetween>
   );
 };
