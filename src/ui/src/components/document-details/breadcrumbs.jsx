@@ -9,11 +9,11 @@ import { DOCUMENTS_PATH } from '../../routes/constants';
 import { documentListBreadcrumbItems } from '../document-list/breadcrumbs';
 
 const Breadcrumbs = () => {
-  const { documentId } = useParams();
-  const decodedDocumentId = decodeURIComponent(documentId);
+  const { objectKey } = useParams();
+  const decodedDocumentId = decodeURIComponent(objectKey);
   const documentDetailsBreadcrumbItems = [
     ...documentListBreadcrumbItems,
-    { text: decodedDocumentId, href: `#${DOCUMENTS_PATH}/${documentId}` },
+    { text: decodedDocumentId, href: `#${DOCUMENTS_PATH}/${objectKey}` },
   ];
 
   return <BreadcrumbGroup ariaLabel="Breadcrumbs" items={documentDetailsBreadcrumbItems} />;
