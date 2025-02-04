@@ -16,10 +16,11 @@ import DocumentPanel from '../document-panel';
 const logger = new Logger('documentDetails');
 
 const DocumentDetails = () => {
-  let { documentId } = useParams();
-  logger.debug('XXX documentId', documentId);
-  documentId = decodeURIComponent(documentId);
-  logger.debug('XXX Decoded DocumentDetails', documentId);
+  const params = useParams();
+  let { objectKey } = params;
+  logger.debug('XXX objectKey', objectKey);
+  objectKey = decodeURIComponent(objectKey);
+  logger.debug('XXX Decoded DocumentDetails', objectKey);
 
   const { documents, getDocumentDetailsFromIds, setToolsOpen } = useDocumentsContext();
   const { settings } = useSettingsContext();
@@ -27,7 +28,7 @@ const DocumentDetails = () => {
   const [document, setDocument] = useState(null);
 
   const sendInitDocumentRequests = async () => {
-    const response = await getDocumentDetailsFromIds([documentId]);
+    const response = await getDocumentDetailsFromIds([objectKey]);
     logger.debug('document detail response', response);
     const documentsMap = mapDocumentsAttributes(response, settings);
     const documentDetails = documentsMap[0];
@@ -37,18 +38,18 @@ const DocumentDetails = () => {
   };
 
   useEffect(() => {
-    if (!documentId) {
+    if (!objectKey) {
       return () => {};
     }
     sendInitDocumentRequests();
     return () => {};
-  }, [documentId]);
+  }, [objectKey]);
 
   useEffect(async () => {
-    if (!documentId || !document || !documents?.length) {
+    if (!objectKey || !document || !documents?.length) {
       return;
     }
-    const documentsFiltered = documents.filter((c) => c.ObjectKey === documentId);
+    const documentsFiltered = documents.filter((c) => c.ObjectKey === objectKey);
     if (documentsFiltered && documentsFiltered?.length) {
       const documentsMap = mapDocumentsAttributes([documentsFiltered[0]], settings);
       const documentDetails = documentsMap[0];
@@ -57,9 +58,9 @@ const DocumentDetails = () => {
         setDocument(documentDetails);
       }
     }
-  }, [documents, documentId]);
+  }, [documents, objectKey]);
 
-  logger.debug('useEffect for documentDetails', documentId, document, documents);
+  logger.debug('useEffect for documentDetails', objectKey, document, documents);
 
   return (
     document && (

@@ -118,7 +118,7 @@ const GenAIDPLayout = () => {
             <Route path={`${path}/query`}>
               <DocumentsQueryLayout />
             </Route>
-            <Route path={`${path}/:documentId`}>
+            <Route path={`${path}/:objectKey`}>
               <DocumentDetails />
             </Route>
           </Switch>
