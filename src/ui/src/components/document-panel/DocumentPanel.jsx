@@ -1,16 +1,13 @@
-// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-// SPDX-License-Identifier: Apache-2.0
-
+/* eslint-disable react/prop-types */
 import React from 'react';
 import { Box, ColumnLayout, Container, SpaceBetween } from '@awsui/components-react';
-
-import './DocumentPanel.css';
 import { Logger } from 'aws-amplify';
+import './DocumentPanel.css';
 import FileViewer from '../file-viewer/FileViewer';
+import SectionsPanel from '../sections-panel';
 
 const logger = new Logger('DocumentPanel');
 
-/* eslint-disable react/prop-types, react/destructuring-assignment */
 const DocumentAttributes = ({ item }) => {
   return (
     <Container>
@@ -65,6 +62,7 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds })
         getDocumentDetailsFromIds={getDocumentDetailsFromIds}
       />
       <FileViewer objectKey={item.objectKey} />
+      <SectionsPanel sections={item.sections} />
     </SpaceBetween>
   );
 };

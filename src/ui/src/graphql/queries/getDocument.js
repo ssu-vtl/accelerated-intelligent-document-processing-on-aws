@@ -13,6 +13,19 @@ export default gql`
       CompletionTime
       WorkflowExecutionArn
       WorkflowStatus
+      PageCount
+      Sections {
+        Id
+        PageIds
+        Class
+        OutputJSONUri
+      }
+      Pages {
+        Id
+        Class
+        ImageUri
+        TextUri
+      }
       ExpiresAfter
     }
   }

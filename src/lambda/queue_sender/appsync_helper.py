@@ -115,6 +115,21 @@ mutation UpdateDocument($input: UpdateDocumentInput!) {
         CompletionTime
         WorkflowExecutionArn
         WorkflowStatus
+        PageCount
+        Sections {
+            Id
+            Start
+            End
+            Class
+            OutputJSONUri
+        }
+        Pages {
+            Id
+            Class
+            ImageUri
+            TextUri
+        }
+        ExpiresAfter
     }
 }
 """

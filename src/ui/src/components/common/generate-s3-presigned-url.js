@@ -5,6 +5,9 @@ import { S3RequestPresigner } from '@aws-sdk/s3-request-presigner';
 import { parseUrl } from '@aws-sdk/url-parser';
 import { Sha256 } from '@aws-crypto/sha256-browser';
 import { formatUrl } from '@aws-sdk/util-format-url';
+import { Logger } from 'aws-amplify';
+
+const logger = new Logger('generate-s3-presigned-url');
 
 const generateS3PresignedUrl = async (url, credentials) => {
   // If it's already a special URL (like detailType), return as is
@@ -13,14 +16,15 @@ const generateS3PresignedUrl = async (url, credentials) => {
   }
 
   try {
+    logger.debug('Generating presigned URL for:', url);
     // Parse the URL into components
     const urlObj = new URL(url);
 
     // Extract bucket name from hostname
     const bucketName = urlObj.hostname.split('.')[0];
 
-    // Extract region from hostname
-    const region = urlObj.hostname.split('.')[2];
+    // Extract region from env
+    const region = process.env.REACT_APP_AWS_REGION;
 
     // Remove leading slash and get the full key path
     const key = urlObj.pathname.substring(1);
@@ -30,6 +34,7 @@ const generateS3PresignedUrl = async (url, credentials) => {
 
     // Parse the URL for the presigner
     const s3ObjectUrl = parseUrl(newUrl);
+    logger.debug('Canonical URL:', newUrl);
 
     // Create presigner instance
     const presigner = new S3RequestPresigner({

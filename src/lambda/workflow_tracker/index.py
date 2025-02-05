@@ -6,18 +6,137 @@ import logging
 from appsync_helper import AppSyncClient, UPDATE_DOCUMENT, AppSyncError
 import requests
 from botocore.exceptions import ClientError
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+print("Env vars:", os.environ)
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
+OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET']
 
 dynamodb = boto3.resource('dynamodb')
 cloudwatch = boto3.client('cloudwatch')
+s3 = boto3.client('s3')
 appsync = AppSyncClient()
 concurrency_table = dynamodb.Table(os.environ['CONCURRENCY_TABLE'])
 COUNTER_ID = 'workflow_counter'
+
+def get_sections(object_key: str) -> List[Dict[str, Any]]:
+    """
+    Retrieve and process section data from S3
+    
+    Args:
+        object_key: The document key / root prefix
+        
+    Returns:
+        List of section data conforming to AppSync Section type
+        
+    Raises:
+        ClientError: If S3 operations fail
+        json.JSONDecodeError: If section JSON is invalid
+    """
+    sections = []
+    custom_output_prefix = f"{object_key}/custom_output/"
+    
+    try:
+        # List all section folders
+        response = s3.list_objects_v2(
+            Bucket=OUTPUT_BUCKET,
+            Prefix=custom_output_prefix,
+            Delimiter='/'
+        )
+        
+        # Process each section folder
+        for prefix in response.get('CommonPrefixes', []):
+            section_path = prefix.get('Prefix')
+            if not section_path:
+                continue
+                
+            # Extract section ID from path
+            section_id = section_path.rstrip('/').split('/')[-1]
+            
+            # Get the result.json file
+            result_path = f"{section_path}result.json"
+            try:
+                result_obj = s3.get_object(
+                    Bucket=OUTPUT_BUCKET,
+                    Key=result_path
+                )
+                result_data = json.loads(result_obj['Body'].read().decode('utf-8'))
+                
+                # Extract required fields
+                doc_class = result_data.get('document_class', {}).get('type', '')
+                page_indices = result_data.get('split_document', {}).get('page_indices', [])
+                
+                if page_indices:
+                    page_ids = page_indices
+                else:
+                    page_ids = []
+                
+                # Construct section object
+                section = {
+                    "Id": section_id,
+                    "PageIds": page_ids,
+                    "Class": doc_class,
+                    "OutputJSONUri": f"s3://{OUTPUT_BUCKET}/{result_path}"
+                }
+                sections.append(section)
+                
+            except ClientError as e:
+                logger.error(f"Failed to retrieve result.json for section {section_id}: {e}")
+                continue
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in result.json for section {section_id}: {e}")
+                continue
+                
+        logger.info(f"Retrieved {len(sections)} sections for document {object_key}")
+        return sections
+        
+    except ClientError as e:
+        logger.error(f"Failed to list sections in S3: {e}")
+        raise
+
+def update_document_completion(object_key: str, workflow_status: str) -> Dict[str, Any]:
+    """
+    Update document completion status via AppSync
+    
+    Args:
+        object_key: The document key
+        workflow_status: The final workflow status
+        
+    Returns:
+        The updated document data
+        
+    Raises:
+        AppSyncError: If the GraphQL operation fails
+    """
+    completionTime = datetime.now(timezone.utc).isoformat()
+    
+    # Get sections data if workflow succeeded
+    sections = []
+    if workflow_status == 'SUCCEEDED':
+        try:
+            sections = get_sections(object_key)
+        except Exception as e:
+            logger.error(f"Failed to retrieve sections: {e}")
+            # Continue with empty sections rather than failing
+    
+    update_input = {
+        'input': {
+            'ObjectKey': object_key,
+            'ObjectStatus': 'COMPLETED' if workflow_status == 'SUCCEEDED' else 'FAILED',
+            'CompletionTime': completionTime,
+            'WorkflowStatus': workflow_status,
+            'Sections': sections
+        }
+    }
+    
+    logger.info(f"Updating document via AppSync: {update_input}")
+    result = appsync.execute_mutation(UPDATE_DOCUMENT, update_input)
+    return result['updateDocument']
+
+
 
 def put_latency_metrics(item: Dict[str, Any]) -> None:
     """
@@ -108,35 +227,6 @@ def decrement_counter() -> Optional[int]:
         logger.error(f"Unexpected error decrementing counter: {e}", exc_info=True)
         return None
 
-def update_document_completion(object_key: str, workflow_status: str) -> Dict[str, Any]:
-    """
-    Update document completion status via AppSync
-    
-    Args:
-        object_key: The document key
-        workflow_status: The final workflow status
-        
-    Returns:
-        The updated document data
-        
-    Raises:
-        AppSyncError: If the GraphQL operation fails
-    """
-    completionTime = datetime.now(timezone.utc).isoformat()
-    
-    update_input = {
-        'input': {
-            'ObjectKey': object_key,
-            'ObjectStatus': 'COMPLETED' if workflow_status == 'SUCCEEDED' else 'FAILED',
-            'CompletionTime': completionTime,
-            'WorkflowStatus': workflow_status
-        }
-    }
-    
-    logger.info(f"Updating document via AppSync: {update_input}")
-    result = appsync.execute_mutation(UPDATE_DOCUMENT, update_input)
-    return result['updateDocument']
-
 def extract_object_key(event: Dict[str, Any]) -> str:
     """
     Extract object key from Step Functions event
@@ -196,7 +286,7 @@ def handler(event, context):
                 'body': {
                     'object_key': object_key,
                     'workflow_status': workflow_status,
-                    'completionTime': updated_doc['completionTime'],
+                    'completionTime': updated_doc['CompletionTime'],
                     'counter_value': counter_value
                 }
             }
@@ -204,12 +294,16 @@ def handler(event, context):
         except AppSyncError as e:
             logger.error(f"Failed to update document in AppSync: {str(e)}")
             logger.error(f"GraphQL Errors: {e.errors}")
-            decrement_counter()  # Still try to decrement counter
+            # Always try to decrement counter in case of any error
+            if counter_value is None:
+                decrement_counter()
             raise
             
         except requests.RequestException as e:
             logger.error(f"HTTP request to AppSync failed: {str(e)}")
-            decrement_counter()  # Still try to decrement counter
+            # Always try to decrement counter in case of any error
+            if counter_value is None:
+                decrement_counter()
             raise
             
     except ValueError as e:

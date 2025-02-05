@@ -15,7 +15,24 @@ type Document implements DynamoDbBase @aws_cognito_user_pools @aws_iam {
   CompletionTime: AWSDateTime
   WorkflowExecutionArn: String
   WorkflowStatus: String
+  PageCount: Int
+  Sections: [Section]
+  Pages: [Page]
   ExpiresAfter: AWSTimestamp
+}
+
+type Section @aws_cognito_user_pools @aws_iam {
+  Id: String
+  PageIds: [ Int ]
+  Class: String
+  OutputJSONUri: String
+}
+
+type Page @aws_cognito_user_pools @aws_iam {
+  Id: Int
+  Class: String
+  ImageUri: String
+  TextUri: String
 }
 
 type DocumentList @aws_cognito_user_pools @aws_iam {
@@ -51,6 +68,23 @@ input UpdateDocumentInput {
   CompletionTime: AWSDateTime
   WorkflowExecutionArn: String
   WorkflowStatus: String
+  PageCount: Int
+  Sections: [SectionInput]
+  Pages: [PageInput]
+}
+
+input SectionInput {
+  Id: String
+  PageIds: [ Int ]
+  Class: String
+  OutputJSONUri: String
+}
+
+input PageInput {
+  Id: Int
+  Class: String
+  ImageUri: String
+  TextUri: String
 }
 
 type Mutation @aws_iam {

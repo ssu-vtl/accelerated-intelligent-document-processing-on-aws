@@ -18,9 +18,7 @@ const logger = new Logger('documentDetails');
 const DocumentDetails = () => {
   const params = useParams();
   let { objectKey } = params;
-  logger.debug('XXX objectKey', objectKey);
   objectKey = decodeURIComponent(objectKey);
-  logger.debug('XXX Decoded DocumentDetails', objectKey);
 
   const { documents, getDocumentDetailsFromIds, setToolsOpen } = useDocumentsContext();
   const { settings } = useSettingsContext();

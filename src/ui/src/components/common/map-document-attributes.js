@@ -14,6 +14,9 @@ const mapDocumentsAttributes = (documents) => {
       CompletionTime: completionTime,
       WorkflowExecutionArn: workflowExecutionArn,
       WorkflowStatus: workflowStatus,
+      Sections: sections,
+      Pages: pages,
+      PageCount: pageCount,
       ListPK: listPK,
       ListSK: listSK,
     } = item;
@@ -38,6 +41,9 @@ const mapDocumentsAttributes = (documents) => {
       workflowExecutionArn,
       workflowStatus,
       duration: getDuration(completionTime, initialEventTime),
+      sections,
+      pages,
+      pageCount,
       listPK,
       listSK,
     };
