@@ -38,7 +38,9 @@ def handler(event, context):
                 s3_client.copy_object(
                     CopySource={'Bucket': source_bucket, 'Key': source_key},
                     Bucket=output_bucket,
-                    Key=dest_key
+                    Key=dest_key,
+                    ContentType='application/json',
+                    MetadataDirective='REPLACE'
                 )
                 copied_files += 1
     

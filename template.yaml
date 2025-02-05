@@ -847,6 +847,7 @@ Resources:
           CONCURRENCY_TABLE: !Ref ConcurrencyTable
           METRIC_NAMESPACE: !Ref AWS::StackName
           APPSYNC_API_URL: !GetAtt GraphQLApi.GraphQLUrl
+          OUTPUT_BUCKET: !Ref OutputBucket
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TrackingTable
