@@ -45,7 +45,7 @@ const GenAIDPLayout = () => {
       const periodsFromStorage = Math.abs(JSON.parse(localStorage.getItem(PERIODS_TO_LOAD_STORAGE_KEY)));
       // prettier-ignore
       if (
-        !Number.isSafeInteger(periodsFromStorage)
+        !Number.isFinite(periodsFromStorage)
         // load max of to 30 days
         || periodsFromStorage > DOCUMENT_LIST_SHARDS_PER_DAY * 30
       ) {

@@ -1917,21 +1917,6 @@ Resources:
       ResponseMappingTemplate: |
         $util.toJson($ctx.result)
 
-  onUpdateDocumentResolver:
-    Type: AWS::AppSync::Resolver
-    Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
-      TypeName: Subscription
-      FieldName: onUpdateDocument
-      DataSourceName: !GetAtt TrackingTableDataSource.Name
-      RequestMappingTemplate: |
-        {
-          "version": "2018-05-29"
-          "payload": $util.toJson($ctx.args)
-        }
-      ResponseMappingTemplate: |
-        $util.toJson($ctx.result)
-
   GetDocumentResolver:
     Type: AWS::AppSync::Resolver
     Properties:
