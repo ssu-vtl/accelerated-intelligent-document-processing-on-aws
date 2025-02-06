@@ -21,6 +21,7 @@ Parameters:
     Type: String
     Default: ml.g5.2xlarge
     AllowedValues:
+      - ml.g4dn.2xlarge
       - ml.g5.2xlarge
       - ml.g5.4xlarge
       - ml.g5.8xlarge

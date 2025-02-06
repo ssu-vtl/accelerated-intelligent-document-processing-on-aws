@@ -65,8 +65,10 @@ def classify_single_page(page_number, page_data):
             
             # Prepare inference payload
             payload = {
-                "textract": page_data['textract_document_text_raw_path'],
-                "image": page_data['image_path']
+                "input_image": page_data['image_path'],
+                "input_textract": page_data['textract_document_text_raw_path'],
+                "prompt": '',
+                "debug": 0
             }
             logger.info(f"Payload: {payload}")
             
