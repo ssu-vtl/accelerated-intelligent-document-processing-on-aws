@@ -7,6 +7,7 @@ This pattern implements an intelligent document processing workflow that uses UD
 
 ## Table of Contents
 
+- [Fine tuning a UDOP model]
 - [Architecture Overview](#architecture-overview)
   - [State Machine Workflow](#state-machine-workflow)
   - [Lambda Functions](#lambda-functions)
@@ -22,6 +23,13 @@ This pattern implements an intelligent document processing workflow that uses UD
   - [Configuration](#configuration)
 - [Testing](#testing)
 - [Best Practices](#best-practices)
+
+## Fine tuning a UDOP model for classification
+
+See [Fine-Tuning Models on SageMaker](./fine-tune-sm-udop-classification/README.md) 
+
+Once you have trained the model, deploy the GenAIDP stack for Pattern1 using the path for your new fine tuned model.
+
 
 ## Architecture Overview
 
@@ -181,7 +189,7 @@ The main extraction prompts are defined in `src/bedrock_function/prompt_catalog.
 DEFAULT_SYSTEM_PROMPT = "You are a document assistant. Respond only with JSON..."
 BASELINE_PROMPT = """
 <background>
-You are an expert in bill of ladings...
+You are an expert in lending applications...
 </background>
 ...
 ```
@@ -203,9 +211,9 @@ Attributes to be extracted are defined in `src/bedrock_function/attributes.json`
 Example attribute definition:
 ```json
 {
-    "Field": "BOL Number",
-    "Description": "A unique number assigned to the Bill of Lading for tracking purposes",
-    "Alias": "Shipment ID, Load ID, Waybill Number, B/L Number"
+    "Field": "Driver licence Number",
+    "Description": "A unique number assigned to the drivers licence",
+    "Alias": "Driver Number, Driver ID, ID#"
 }
 ```
 To customize attributes:

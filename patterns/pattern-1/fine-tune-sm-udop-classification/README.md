@@ -135,7 +135,7 @@ python sagemaker_deploy.py \
 #### Example:
 ```
 python sagemaker_deploy.py \
-    --model-artifact s3://udop-finetuning/models/rvl-cdip/output/model.tar.gz \
+    --model-artifact s3://udop-finetuning/rvl-cdip/models/rvl-cdip-1/output/model.tar.gz \
     --endpoint-name udop-inference
 ```
 
@@ -153,8 +153,8 @@ python inference_example.py \
 #### Example:
 ```
 python inference_example.py \
-    --input-image s3://udop-finetuning/dataset/inference/image/0.png \
-    --input-textract s3://udop-finetuning/dataset/inference/textract/0.json \
+    --input-image s3://udop-finetuning/rvl-cdip/training/images/0.png \
+    --input-textract s3://udop-finetuning/rvl-cdip/training/textract/0.json \
     --endpoint-name udop-inference \
     --prompt "Document Classification on RVLCDIP." \
     --debug 1
