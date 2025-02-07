@@ -32,7 +32,7 @@ const COLUMN_DEFINITIONS = [
   },
   {
     id: 'class',
-    header: 'Document Class',
+    header: 'Class/Type',
     cell: (item) => <ClassCell item={item} />,
     sortingField: 'Class',
   },

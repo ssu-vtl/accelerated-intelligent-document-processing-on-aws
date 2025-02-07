@@ -7,13 +7,14 @@ This pattern implements an intelligent document processing workflow that uses UD
 
 ## Table of Contents
 
-- [Fine tuning a UDOP model]
+- [Fine tuning a UDOP model](#fine-tuning-a-udop-model-for-classification)
 - [Architecture Overview](#architecture-overview)
   - [State Machine Workflow](#state-machine-workflow)
   - [Lambda Functions](#lambda-functions)
     - [OCR Function](#ocr-function)
     - [Classification Function](#classification-function)
     - [Extraction Function](#extraction-function)
+    - [ProcessResults Function](#processresults-function)
   - [UDOP Model on SageMaker](#udop-model-on-sagemaker)
   - [Monitoring and Metrics](#monitoring-and-metrics)
     - [Performance Metrics](#performance-metrics)
@@ -80,25 +81,25 @@ Each step includes comprehensive retry logic for handling transient errors:
     },
     "pages": {
       "<PAGE_NUMBER>": {
-        "textract_document_text_raw_path": "<S3_URI>",
-        "textract_document_text_parsed_path": "<S3_URI>",
-        "image_path": "<S3_URI>"
+        "rawTextUri": "<S3_URI>",
+        "parsedTextUri": "<S3_URI>",
+        "imageUri": "<S3_URI>"
       }
     }
   }
   ```
 
 #### Classification Function 
-- **Purpose**: Classifies pages using UDOP model on SageMaker
+- **Purpose**: Classifies pages using UDOP model on SageMaker, and segments into sections using class boundaries
 - **Input**: Output from OCR function plus output bucket
 - **Output**: 
   ```json
   {
     "metadata": "<FROM_OCR>",
-    "pagegroups": [
+    "sections": [
       {
         "id": "<GROUP_ID>",
-        "document_type": "<CLASS>",
+        "class": "<CLASS>",
         "pages": [...]
       }
     ]
@@ -107,35 +108,65 @@ Each step includes comprehensive retry logic for handling transient errors:
 
 #### Extraction Function
 - **Purpose**: Extracts fields using Claude via Amazon Bedrock
-- **Input**: Individual pagegroup from Classification output
+- **Input**: Individual section from Classification output
 - **Output**:
   ```json
-  {
-    "metadata": "<ORIGINAL_METADATA>",
-    "extracted_entities": "<JSON_STRING>",
-    "output_location": "s3://<bucket>/<prefix>/<id>_Pages_<N>_to_<M>.json"
-  }
+    {
+        "section": {
+            "id": <ID>,
+            "class": <CLASS>,
+            "page_ids": [<PAGEID>, ...],
+            "outputJSONUri": <S3_URI>,
+        },
+        "pages": [
+            {
+                "Id": <ID>,
+                "Class": <CLASS>,
+                "RawTextUri": <S3_URI>,
+                "ParsedTextUri": <S3_URI>,
+                "imageUri": <S3_URI>
+            }
+        ]
+    }
   ```
+
+#### ProcessResults Function
+
+- **Purpose**: Aggregates results for all sections
+- **Input**: Extraction output from each section extraction
+- **Output**: Consumed by the GenAIDP parent stack workflow tracker to update job status/UI etc
+  ```json
+        {
+            'Sections': [
+                {
+                    "Id": <ID>,
+                    "PageIds": [<PAGEID>, ...],
+                    "Class": <CLASS>,
+                    "OutputJSONUri": <S3_URI>
+                }
+            ],
+            'Pages': [
+                "Id": <ID>,
+                "Class": <CLASS>,
+                "RawTextUri": <S3_URI>,
+                "ParsedTextUri": <S3_URI>,
+                "ImageUri": <S3_URI>
+            ],
+            'PageCount': <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
+        }
+```
 
 ### UDOP Model on SageMaker
 
 The pattern includes a complete UDOP model deployment:
-
-- **Model Packaging**: `udop_model/package_model.py` handles:
-  - Downloading UDOP model
-  - Packaging with inference code
-  - Creating SageMaker model archive
-
-- **Inference Code**: `udop_model/inference_code/` contains:
-  - `inference.py`: SageMaker entry points
-  - `udop.py`: Model implementation
-  - `utils.py`: Helper functions for preprocessing
 
 - **SageMaker Endpoint**: `sagemaker_classifier_endpoint.yaml` provisions:
   - SageMaker model 
   - Endpoint configuration
   - Endpoint with auto-scaling
   - IAM roles and permissions
+
+To create a new UDOP model fine tuned for your data, see [Fine tuning a UDOP model](#fine-tuning-a-udop-model-for-classification).
 
 ### Monitoring and Metrics
 
@@ -171,7 +202,7 @@ The pattern exports these outputs to the parent stack:
 
 Key configurable parameters:
 
-- `UDOPModelArtifactPath`: S3 path to UDOP model artifacts
+- `UDOPModelArtifactPath`: S3 path to UDOP model artifacts (see [Fine tuning a UDOP model](#fine-tuning-a-udop-model-for-classification))
 - `ExtractionModel`: Bedrock model ID for extraction (Claude)
 - `MaxConcurrentWorkflows`: Workflow concurrency limit
 - `LogRetentionDays`: CloudWatch log retention period

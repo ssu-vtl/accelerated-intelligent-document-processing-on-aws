@@ -11,7 +11,6 @@ from typing import Dict, Any, Optional, List
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-print("Env vars:", os.environ)
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
 OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET']
 
@@ -22,105 +21,23 @@ appsync = AppSyncClient()
 concurrency_table = dynamodb.Table(os.environ['CONCURRENCY_TABLE'])
 COUNTER_ID = 'workflow_counter'
 
-def get_sections(object_key: str) -> List[Dict[str, Any]]:
-    """
-    Retrieve and process section data from S3
-    
-    Args:
-        object_key: The document key / root prefix
-        
-    Returns:
-        List of section data conforming to AppSync Section type
-        
-    Raises:
-        ClientError: If S3 operations fail
-        json.JSONDecodeError: If section JSON is invalid
-    """
-    sections = []
-    custom_output_prefix = f"{object_key}/custom_output/"
-    
-    try:
-        # List all section folders
-        response = s3.list_objects_v2(
-            Bucket=OUTPUT_BUCKET,
-            Prefix=custom_output_prefix,
-            Delimiter='/'
-        )
-        
-        # Process each section folder
-        for prefix in response.get('CommonPrefixes', []):
-            section_path = prefix.get('Prefix')
-            if not section_path:
-                continue
-                
-            # Extract section ID from path
-            section_id = section_path.rstrip('/').split('/')[-1]
-            
-            # Get the result.json file
-            result_path = f"{section_path}result.json"
-            try:
-                result_obj = s3.get_object(
-                    Bucket=OUTPUT_BUCKET,
-                    Key=result_path
-                )
-                result_data = json.loads(result_obj['Body'].read().decode('utf-8'))
-                
-                # Extract required fields
-                doc_class = result_data.get('document_class', {}).get('type', '')
-                page_indices = result_data.get('split_document', {}).get('page_indices', [])
-                
-                if page_indices:
-                    page_ids = page_indices
-                else:
-                    page_ids = []
-                
-                # Construct section object
-                section = {
-                    "Id": section_id,
-                    "PageIds": page_ids,
-                    "Class": doc_class,
-                    "OutputJSONUri": f"s3://{OUTPUT_BUCKET}/{result_path}"
-                }
-                sections.append(section)
-                
-            except ClientError as e:
-                logger.error(f"Failed to retrieve result.json for section {section_id}: {e}")
-                continue
-            except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON in result.json for section {section_id}: {e}")
-                continue
-                
-        logger.info(f"Retrieved {len(sections)} sections for document {object_key}")
-        return sections
-        
-    except ClientError as e:
-        logger.error(f"Failed to list sections in S3: {e}")
-        raise
 
-def update_document_completion(object_key: str, workflow_status: str) -> Dict[str, Any]:
+def update_document_completion(object_key: str, workflow_status: str, output_data: str) -> Dict[str, Any]:
     """
     Update document completion status via AppSync
-    
-    Args:
-        object_key: The document key
-        workflow_status: The final workflow status
-        
-    Returns:
-        The updated document data
-        
-    Raises:
-        AppSyncError: If the GraphQL operation fails
     """
     completionTime = datetime.now(timezone.utc).isoformat()
-    
-    # Get sections data if workflow succeeded
+    pageCount = 0
     sections = []
+    pages = []
+    # Get sections and pages data if workflow succeeded
     if workflow_status == 'SUCCEEDED':
-        try:
-            sections = get_sections(object_key)
-        except Exception as e:
-            logger.error(f"Failed to retrieve sections: {e}")
-            # Continue with empty sections rather than failing
+        processResultsResult = output_data.get("ProcessResultsResult",{})
+        if not processResultsResult:
+            logger.error("processResultsResult is empty or not found in workflow output_data")
+        pageCount = processResultsResult.get("PageCount",0)
+        sections = processResultsResult.get("Sections",[])
+        pages = processResultsResult.get("Pages",[])
     
     update_input = {
         'input': {
@@ -128,14 +45,15 @@ def update_document_completion(object_key: str, workflow_status: str) -> Dict[st
             'ObjectStatus': 'COMPLETED' if workflow_status == 'SUCCEEDED' else 'FAILED',
             'CompletionTime': completionTime,
             'WorkflowStatus': workflow_status,
-            'Sections': sections
+            'PageCount': pageCount,
+            'Sections': sections,
+            'Pages': pages
         }
     }
     
     logger.info(f"Updating document via AppSync: {update_input}")
     result = appsync.execute_mutation(UPDATE_DOCUMENT, update_input)
     return result['updateDocument']
-
 
 
 def put_latency_metrics(item: Dict[str, Any]) -> None:
@@ -227,88 +145,46 @@ def decrement_counter() -> Optional[int]:
         logger.error(f"Unexpected error decrementing counter: {e}", exc_info=True)
         return None
 
-def extract_object_key(event: Dict[str, Any]) -> str:
-    """
-    Extract object key from Step Functions event
-    
-    Args:
-        event: Step Functions state change event
-        
-    Returns:
-        The object key
-        
-    Raises:
-        ValueError: If event structure is invalid
-        json.JSONDecodeError: If input JSON is invalid
-    """
-    try:
-        input_data = json.loads(event['detail']['input'])
-        object_key = input_data['detail']['object']['key']
-        logger.info(f"Extracted object key from event: {object_key}")
-        return object_key
-    except KeyError as e:
-        raise ValueError(f"Missing required field in event: {e}")
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON in event input: {e}")
-
 def handler(event, context):
     logger.info(f"Processing event: {json.dumps(event)}")
     counter_value = None
-    
+
     try:
         # Extract data from event
-        object_key = extract_object_key(event)
+        input_data = json.loads(event['detail']['input'])
+        output_data = json.loads(event['detail']['output'])
+        object_key = input_data['detail']['object']['key']
         workflow_status = event['detail']['status']
         
-        try:
-            # Update document completion status
-            updated_doc = update_document_completion(object_key, workflow_status)
-            
-            # Publish metrics for successful executions
-            if workflow_status == 'SUCCEEDED':
-                try:
-                    logger.info("Workflow succeeded, publishing latency metrics")
-                    put_latency_metrics(updated_doc)
-                except Exception as metrics_error:
-                    logger.error(f"Failed to publish metrics: {metrics_error}", exc_info=True)
-                    # Continue processing even if metrics fail
-            else:
-                logger.info(
-                    f"Workflow did not succeed (status: {workflow_status}), "
-                    "skipping latency metrics"
-                )
-            
-            # Always try to decrement counter
-            counter_value = decrement_counter()
-            
-            return {
-                'statusCode': 200,
-                'body': {
-                    'object_key': object_key,
-                    'workflow_status': workflow_status,
-                    'completionTime': updated_doc['CompletionTime'],
-                    'counter_value': counter_value
-                }
+        # Update document completion status
+        updated_doc = update_document_completion(object_key, workflow_status, output_data)
+        
+        # Publish metrics for successful executions
+        if workflow_status == 'SUCCEEDED':
+            try:
+                logger.info("Workflow succeeded, publishing latency metrics")
+                put_latency_metrics(updated_doc)
+            except Exception as metrics_error:
+                logger.error(f"Failed to publish metrics: {metrics_error}", exc_info=True)
+                # Continue processing even if metrics fail
+        else:
+            logger.info(
+                f"Workflow did not succeed (status: {workflow_status}), "
+                "skipping latency metrics"
+            )
+        
+        # Always decrement counter
+        counter_value = decrement_counter()
+        
+        return {
+            'statusCode': 200,
+            'body': {
+                'object_key': object_key,
+                'workflow_status': workflow_status,
+                'completionTime': updated_doc['CompletionTime'],
+                'counter_value': counter_value
             }
-            
-        except AppSyncError as e:
-            logger.error(f"Failed to update document in AppSync: {str(e)}")
-            logger.error(f"GraphQL Errors: {e.errors}")
-            # Always try to decrement counter in case of any error
-            if counter_value is None:
-                decrement_counter()
-            raise
-            
-        except requests.RequestException as e:
-            logger.error(f"HTTP request to AppSync failed: {str(e)}")
-            # Always try to decrement counter in case of any error
-            if counter_value is None:
-                decrement_counter()
-            raise
-            
-    except ValueError as e:
-        logger.error(f"Invalid event data: {str(e)}")
-        raise
+        }
         
     except Exception as e:
         logger.error(f"Unexpected error in handler: {str(e)}", exc_info=True)
