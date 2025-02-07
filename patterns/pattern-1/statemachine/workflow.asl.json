@@ -106,7 +106,6 @@
                 "metadata.$": "$.ClassificationResult.metadata",
                 "extraction_results.$": "$.ExtractionResults"
             },
-            "ResultPath": "$.ProcessResultsResult",
             "Retry": [
                 {
                     "ErrorEquals": [

@@ -32,12 +32,10 @@ def update_document_completion(object_key: str, workflow_status: str, output_dat
     pages = []
     # Get sections and pages data if workflow succeeded
     if workflow_status == 'SUCCEEDED':
-        processResultsResult = output_data.get("ProcessResultsResult",{})
-        if not processResultsResult:
-            logger.error("processResultsResult is empty or not found in workflow output_data")
-        pageCount = processResultsResult.get("PageCount",0)
-        sections = processResultsResult.get("Sections",[])
-        pages = processResultsResult.get("Pages",[])
+        sections = output_data.get("Sections",[])
+        pages = output_data.get("Pages",[])
+        pageCount = output_data.get("PageCount",0)
+
     
     update_input = {
         'input': {
