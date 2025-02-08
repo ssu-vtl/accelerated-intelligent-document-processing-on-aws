@@ -19,15 +19,14 @@ MAX_RETRIES = 8 # avoid 900sec Lambda time out.
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 300   # 5 minutes
 
-region = os.environ['AWS_REGION']
 model_id = os.environ['EXTRACTION_MODEL_ID']
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
 OCR_TEXT_ONLY = os.environ.get('OCR_TEXT_ONLY', 'false').lower() == 'true'
 
 # Initialize clients without adaptive retry
-bedrock_client = boto3.client(service_name="bedrock-runtime", region_name=region)
+bedrock_client = boto3.client(service_name="bedrock-runtime")
 cloudwatch_client = boto3.client('cloudwatch')
-s3_client = boto3.client('s3', region_name=region)
+s3_client = boto3.client('s3')
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -54,13 +53,13 @@ def put_metric(name, value, unit='Count', dimensions=None):
     except Exception as e:
         logger.error(f"Error publishing metric {name}: {e}")
 
-def invoke_llm(page_images, system_prompts, task_prompt, document_text, attributes):
+def invoke_llm(page_images, class_label, system_prompts, task_prompt, document_text, attributes):
     inference_config = {"temperature": 0.5}
     if model_id.startswith("us.anthropic"):
         additional_model_fields = {"top_k": 200}
     else:
         additional_model_fields = None
-    task_prompt = task_prompt.format(DOCUMENT_TEXT=document_text, ATTRIBUTES=attributes)
+    task_prompt = task_prompt.format(DOCUMENT_CLASS=class_label, DOCUMENT_TEXT=document_text, ATTRIBUTES=attributes)
     system_prompt = [{"text": system_prompts}]
     content = [{"text": task_prompt}]
 
@@ -181,7 +180,7 @@ def get_text_content(s3path):
         content = json.loads(response['Body'].read().decode('utf-8'))
         return content.get('text', '')
     except Exception as e:
-        logger.error(f"Error reading text from {text_path}: {e}")
+        logger.error(f"Error reading text from {s3path}: {e}")
         raise
 
 def get_image_content(s3path, target_width=951, target_height=1268):
@@ -206,7 +205,7 @@ def get_image_content(s3path, target_width=951, target_height=1268):
         return img_byte_array.getvalue()
         
     except Exception as e:
-        logger.error(f"Error reading image from {image_path}: {e}")
+        logger.error(f"Error reading image from {s3path}: {e}")
         raise
 
 def write_json_to_s3(json_string, bucket_name, object_key):
@@ -220,7 +219,7 @@ def write_json_to_s3(json_string, bucket_name, object_key):
 
 def handler(event, context):
     """
-    Input event for single document / pagegroup of given type:
+    Input event for single document / section of given type:
     {
         "output_bucket": <BUCKET>,
         "metadata": {
@@ -231,18 +230,16 @@ def handler(event, context):
             "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
         },
         "execution_arn": <ARN>,
-        "pagegroup": {
+        "section": {
             "id": <ID>,
-            "document_type": <TYPE or CLASS>,
+            "class": <TYPE or CLASS>,
             "pages": [
                 {
-                    "page_number": <NUM>,
-                    "classification": <TYPE or CLASS>,
-                    "paths": {
-                        "textract_document_text_raw_path": <S3_URI>,
-                        "textract_document_text_parsed_path": <S3_URI>,
-                        "image_path": <S3_URI>
-                    }
+                    "page_id": <NUM>,
+                    "class": <TYPE or CLASS>,
+                    "rawTextUri": <S3_URI>,
+                    "parsedTextUri": <S3_URI>,
+                    "imageUri": <S3_URI>
                 }
             ]
         }
@@ -252,25 +249,26 @@ def handler(event, context):
     
     # Get parameters from event
     metadata = event.get("metadata")
-    pagegroup = event.get("pagegroup")
+    section = event.get("section")
     output_bucket = event.get("output_bucket")   
     object_key = metadata.get("object_key")
-    class_label = pagegroup.get("document_type")
-    pages = pagegroup.get("pages")
+    class_label = section.get("class")
+    pages = section.get("pages")
+    page_ids = [page['page_id'] for page in pages]
     output_prefix = object_key
 
 
     # Sort pages by page number
-    sorted_page_numbers = sorted([page['page_number'] for page in pagegroup['pages']], key=int)
-    start_page = int(sorted_page_numbers[0])
-    end_page = int(sorted_page_numbers[-1])
-    logger.info(f"Processing {len(sorted_page_numbers)} pages from {object_key} {pagegroup}, class {class_label}: {start_page}-{end_page}")
+    sorted_page_ids = sorted([page['page_id'] for page in section['pages']], key=int)
+    start_page = int(sorted_page_ids[0])
+    end_page = int(sorted_page_ids[-1])
+    logger.info(f"Processing {len(sorted_page_ids)} pages from {object_key} {section}, class {class_label}: {start_page}-{end_page}")
 
     # Read document text from all pages in order
     t0 = time.time()
     document_texts = []
-    for page in sorted(pagegroup['pages'], key=lambda x: int(x['page_number'])):
-        text_path = page['paths']['textract_document_text_parsed_path']
+    for page in sorted(section['pages'], key=lambda x: int(x['page_id'])):
+        text_path = page['parsedTextUri']
         page_text = get_text_content(text_path)
         document_texts.append(page_text)
     
@@ -280,9 +278,9 @@ def handler(event, context):
 
     # Read page images
     page_images = []
-    for page in sorted(pagegroup['pages'], key=lambda x: int(x['page_number'])):
-        image_path = page['paths']['image_path']
-        image_content = get_image_content(image_path)
+    for page in sorted(section['pages'], key=lambda x: int(x['page_id'])):
+        imageUri = page['imageUri']
+        image_content = get_image_content(imageUri)
         page_images.append(image_content)
     
     t2 = time.time()
@@ -295,6 +293,7 @@ def handler(event, context):
     # Process with LLM
     extracted_entities_str = invoke_llm(
         page_images,
+        class_label,
         DEFAULT_SYSTEM_PROMPT,
         BASELINE_PROMPT,
         document_text,
@@ -303,18 +302,39 @@ def handler(event, context):
     t3 = time.time()
     logger.info(f"Time taken by bedrock/claude: {t3-t2:.2f} seconds")
 
-    # Write results
-    output_key = f"{output_prefix}/{pagegroup['id']}_Pages_{start_page}_to_{end_page}.json"
-    write_json_to_s3(extracted_entities_str, output_bucket, output_key)
+    try:
+        extracted_entities = json.loads(extracted_entities_str)
+    except Exception as e:
+        logger.error(f"Error parsing LLM output - invalid JSON?: {extracted_entities_str}", e)
+        logger.info(f"UsIng unparsed LLM output.")
+        extracted_entities = extracted_entities_str
+
+    # Write results - emulate BDA for pattern consistency
+    output = {
+        "document_class": {
+            "type": class_label
+        },
+        "split_document": {
+            "page_indices": page_ids
+        },
+        "inference_result": extracted_entities
+    }
+    output_key = f"{output_prefix}/custom_output/{section['id']}/result.json"
+    write_json_to_s3(json.dumps(output), output_bucket, output_key)
     
     # Track metrics
     put_metric('InputDocuments', 1)
     put_metric('InputDocumentPages', len(pages))
     
+
     result = {
-        "metadata": metadata, 
-        "extracted_entities": extracted_entities_str,
-        "output_location": f"s3://{output_bucket}/{output_key}"
+        "section": {
+            "id": section['id'],
+            "class": section['class'],
+            "page_ids": page_ids,
+            "outputJSONUri": f"s3://{output_bucket}/{output_key}",
+        },
+        "pages": pages
     }
     
     return result
