@@ -45,23 +45,23 @@ def put_metric(name, value, unit='Count', dimensions=None):
 
 def process_single_page(page_index, pdf_document, working_bucket, prefix):
     t0 = time.time()
-    page_number = page_index + 1
+    page_id = page_index + 1
     
     page = pdf_document.load_page(page_index)
     pix = page.get_pixmap()
     img_bytes = pix.tobytes("jpeg")
     
     # Upload image
-    image_key = f"{prefix}/images/page_{page_number:04d}.jpg"
+    image_key = f"{prefix}/images/page_{page_id:04d}.jpg"
     s3_client.upload_fileobj(io.BytesIO(img_bytes), working_bucket, image_key)        
     t1 = time.time()
-    logger.info(f"Time taken for image conversion (page {page_number}): {t1-t0:.6f} seconds")
+    logger.info(f"Time taken for image conversion (page {page_id}): {t1-t0:.6f} seconds")
     
     # Process with Textract
     textract_result = textract_client.detect_document_text(Document={"Bytes": img_bytes})
     
     # Store raw Textract response
-    raw_text_key = f"{prefix}/textract_document_text_raw/page_{page_number:04d}.json"
+    raw_text_key = f"{prefix}/textract_document_text_raw/page_{page_id:04d}.json"
     s3_client.put_object(
         Bucket=working_bucket,
         Key=raw_text_key,
@@ -70,7 +70,7 @@ def process_single_page(page_index, pdf_document, working_bucket, prefix):
     )
 
     # Store text from parsed Textract response
-    parsed_text_key = f"{prefix}/textract_document_text_parsed/page_{page_number:04d}.json"
+    parsed_text_key = f"{prefix}/textract_document_text_parsed/page_{page_id:04d}.json"
     parsed_result = response_parser.parse(textract_result)
     s3_client.put_object(
         Bucket=working_bucket,
@@ -80,13 +80,13 @@ def process_single_page(page_index, pdf_document, working_bucket, prefix):
     )
 
     t2 = time.time()
-    logger.info(f"Time taken for Textract (page {page_number}): {t2-t1:.6f} seconds")
+    logger.info(f"Time taken for Textract (page {page_id}): {t2-t1:.6f} seconds")
     
     # Return paths for this page
     return {
-        "textract_document_text_raw_path": f"s3://{working_bucket}/{raw_text_key}",
-        "textract_document_text_parsed_path": f"s3://{working_bucket}/{parsed_text_key}",
-        "image_path": f"s3://{working_bucket}/{image_key}"
+        "rawTextUri": f"s3://{working_bucket}/{raw_text_key}",
+        "parsedTextUri": f"s3://{working_bucket}/{parsed_text_key}",
+        "imageUri": f"s3://{working_bucket}/{image_key}"
     }
 
 def get_document_text(pdf_content, working_bucket, prefix, max_workers = MAX_WORKERS):
