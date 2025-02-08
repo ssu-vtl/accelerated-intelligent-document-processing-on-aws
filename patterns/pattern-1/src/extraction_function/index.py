@@ -53,13 +53,13 @@ def put_metric(name, value, unit='Count', dimensions=None):
     except Exception as e:
         logger.error(f"Error publishing metric {name}: {e}")
 
-def invoke_llm(page_images, system_prompts, task_prompt, document_text, attributes):
+def invoke_llm(page_images, class_label, system_prompts, task_prompt, document_text, attributes):
     inference_config = {"temperature": 0.5}
     if model_id.startswith("us.anthropic"):
         additional_model_fields = {"top_k": 200}
     else:
         additional_model_fields = None
-    task_prompt = task_prompt.format(DOCUMENT_TEXT=document_text, ATTRIBUTES=attributes)
+    task_prompt = task_prompt.format(DOCUMENT_CLASS=class_label, DOCUMENT_TEXT=document_text, ATTRIBUTES=attributes)
     system_prompt = [{"text": system_prompts}]
     content = [{"text": task_prompt}]
 
@@ -293,6 +293,7 @@ def handler(event, context):
     # Process with LLM
     extracted_entities_str = invoke_llm(
         page_images,
+        class_label,
         DEFAULT_SYSTEM_PROMPT,
         BASELINE_PROMPT,
         document_text,
