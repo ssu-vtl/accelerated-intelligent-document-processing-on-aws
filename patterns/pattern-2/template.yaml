@@ -101,6 +101,7 @@ Resources:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
+          CLASSIFICATION_MODEL_ID: !Ref ClassificationModel
       LoggingConfig:
         LogGroup: !Ref ClassificationFunctionLogGroup
       Policies:
@@ -121,6 +122,9 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
+          - Effect: Allow
+            Action: bedrock:InvokeModel
+            Resource: '*'
   
   ClassificationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -172,6 +176,46 @@ Resources:
       LogGroupName: !Sub "/${AWS::StackName}/lambda/ExtractionFunction"
       RetentionInDays: !Ref LogRetentionDays
 
+  ProcessResultsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/processresults_function/
+      Handler: index.handler
+      Runtime: python3.11
+      Timeout: 900
+      MemorySize: 4096
+      Environment:
+        Variables:
+          METRIC_NAMESPACE: !Ref StackName
+      LoggingConfig:
+        LogGroup: !Ref ProcessResultsFunctionLogGroup
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3ReadPolicy:
+            BucketName: !Ref InputBucket
+        - S3CrudPolicy:
+            BucketName: !Ref WorkingBucket
+        - S3CrudPolicy:
+            BucketName: !Ref OutputBucket
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: !Ref CustomerManagedEncryptionKeyArn
+
+  ProcessResultsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/ProcessResultsFunction"
+      RetentionInDays: !Ref LogRetentionDays
+
   DocumentProcessingStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
@@ -181,6 +225,7 @@ Resources:
         OCRFunctionArn: !GetAtt OCRFunction.Arn
         ClassificationFunctionArn: !GetAtt ClassificationFunction.Arn
         ExtractionFunctionArn: !GetAtt ExtractionFunction.Arn
+        ProcessResultsLambdaArn: !GetAtt ProcessResultsFunction.Arn
         WorkingBucket: !Ref WorkingBucket
         OutputBucket: !Ref OutputBucket
       Logging:
@@ -195,6 +240,8 @@ Resources:
             FunctionName: !Ref ClassificationFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref ExtractionFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ProcessResultsFunction
         - CloudWatchLogsFullAccess
 
   StateMachineLogGroup:
