@@ -30,7 +30,7 @@ questionnaire
 resume
 memo
 
-Respond only with a JSON object containing the class label. For example: {"class": "letter"}
+Respond only with a JSON object containing the class label. For example: {{"class": "letter"}}
 
 <document_ocr_data>
 {DOCUMENT_TEXT}
