@@ -137,11 +137,11 @@ done
 
 # Build Web UI source code bundle
 dir=src/ui
-pushd $dir
 echo "Computing hash of ui folder contents"
-HASH=$(calculate_hash ".")
-WEBUI_ZIPFILE=src-${HASH}.zip
+UIHASH=$(calculate_hash $dir)
+WEBUI_ZIPFILE=src-${UIHASH}.zip
 echo "PACKAGING $dir"
+pushd $dir
 mkdir -p .aws-sam
 echo "Zipping source to .aws-sam/${WEBUI_ZIPFILE}"
 BUNDLE_SRC_FILES=$(git ls-files)
