@@ -50,6 +50,23 @@
           "output_bucket": "${OutputBucket}",
           "BDAResponse.$": "$.BDAResponse"
         },
+        "Retry": [
+            {
+                "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException",
+                    "ServiceQuotaExceededException",
+                    "ThrottlingException",
+                    "ProvisionedThroughputExceededException",
+                    "RequestLimitExceeded"
+                ],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 10,
+                "BackoffRate": 2
+            }
+        ],
         "End": true
       },
       "FailState": {
