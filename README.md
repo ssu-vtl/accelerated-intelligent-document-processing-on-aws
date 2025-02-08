@@ -70,6 +70,7 @@ A scalable, serverless solution for automated document processing and informatio
 - **Comprehensive Monitoring**: Rich CloudWatch dashboard with detailed metrics, logs, and alerts for end-to-end visibility
 - **Easy Document Tracking**: Built-in tracking system to monitor document status and processing times
 - **Secure by Design**: Implements encryption at rest, access controls, and secure communication between services
+- **Web User Interface**: Secure, modern WebUI for inspecting document workflow status, inputs, and outputs.
 
 ### Use Cases
 
@@ -148,11 +149,10 @@ REACT_APP_SETTINGS_PARAMETER=<value>
 
 ### Configuration Options
 
-The following parameters can be configured during stack deployment:
+The following parameters are configured during stack deployment:
 
 - `AdminEmail`: Email address for the admin user
 - `AllowedSignUpEmailDomain`: Optional comma-separated list of allowed email domains for self-service signup
-- `DeployWebUI`: Whether to deploy the web interface (default: true)
 
 ### Security Considerations
 
@@ -231,10 +231,10 @@ Open the `StateMachineConsoleURL` using the link in the stack Resources tab.
 
 Upload a filled PDF form to the `InputBucket` - there's an example in the `./samples` folder.
 
-Example - to copy the sample file `insurance_package.pdf` N times, do:
+Example - to copy the sample file `lending_package.pdf` N times, do:
 ```
 $ n=10
-$ for i in `seq 1 $n`; do aws s3 cp ./samples/insurance_package.pdf s3://idp-inputbucket-kmsxxxxxxxxx/insurance_package-$i.png; done
+$ for i in `seq 1 $n`; do aws s3 cp ./samples/lending_package.pdf s3://idp-inputbucket-kmsxxxxxxxxx/lending_package-$i.pdf; done
 ```
 
 The StepFunctions StateMachine should start executing. Open the `Running` execution page to observe the steps in the workflow, trace inputs/outputs, check Lambda code and logs, etc.
@@ -349,6 +349,8 @@ IDPPattern:
     - Pattern3
   Description: Choose from built-in IDP workflow patterns
 ```
+
+Provide the additional parameter values specific to the selected pattern.
 
 When deployed, the main stack uses conditions to create the appropriate nested stack:
 

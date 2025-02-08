@@ -124,7 +124,7 @@ Each step includes comprehensive retry logic for handling transient errors:
                 "Class": <CLASS>,
                 "RawTextUri": <S3_URI>,
                 "ParsedTextUri": <S3_URI>,
-                "imageUri": <S3_URI>
+                "ImageUri": <S3_URI>
             }
         ]
     }
@@ -214,13 +214,13 @@ The system uses a combination of prompt engineering and predefined attributes to
 
 ### Extraction Prompts
 
-The main extraction prompts are defined in `src/bedrock_function/prompt_catalog.py`:
+The main extraction prompts are defined in `src/bedrock_function/prompt_catalog.py`. An AI generated sample is provided, with the structure below:
 
 ```python
 DEFAULT_SYSTEM_PROMPT = "You are a document assistant. Respond only with JSON..."
 BASELINE_PROMPT = """
 <background>
-You are an expert in lending applications...
+You are an expert in business document analysis and information extraction. You can understand and extract key information from various types of business documents including letters, memos, financial documents, scientific papers, news articles, advertisements, emails, forms, handwritten notes, invoices, purchase orders, questionnaires, resumes, scientific publications, and specifications...
 </background>
 ...
 ```
@@ -234,18 +234,38 @@ To modify the extraction behavior:
 
 
 ### Extraction Attributes
-Attributes to be extracted are defined in `src/bedrock_function/attributes.json`. Each attribute has:
-- Field name
-- Description
-- List of aliases (alternate names for the field)
+Attributes to be extracted are defined in `src/extraction_function/attributes.json`. An AI generated sample is provided, with the structure below:
 
 Example attribute definition:
 ```json
-{
-    "Field": "Driver licence Number",
-    "Description": "A unique number assigned to the drivers licence",
-    "Alias": "Driver Number, Driver ID, ID#"
-}
+    {
+        "document_class_attributes": {
+            "letter": {
+                "sender_name": ["from", "sender", "authored by", "written by"],
+                "sender_address": ["address", "location", "from address"],
+                "recipient_name": ["to", "recipient", "addressee"],
+                "recipient_address": ["to address", "delivery address"],
+                "date": ["date", "written on", "dated"],
+                "subject": ["subject", "re:", "regarding"],
+                "letter_type": ["type", "category"],
+                "signature": ["signed by", "signature"],
+                "cc": ["cc", "carbon copy", "copy to"],
+                "reference_number": ["ref", "reference", "our ref"]
+            },
+            "form": {
+                "form_type": ["form name", "document type", "form category"],
+                "form_id": ["form number", "id", "reference number"],
+                "submission_date": ["date", "submitted on", "filed on"],
+                "submitter_name": ["name", "submitted by", "filed by"],
+                "submitter_id": ["id number", "identification", "reference"],
+                "approval_status": ["status", "approved", "pending"],
+                "processed_by": ["processor", "handled by", "approved by"],
+                "processing_date": ["processed on", "completion date"],
+                "department": ["dept", "department", "division"],
+                "comments": ["notes", "remarks", "comments"]
+            }
+        }
+    }
 ```
 To customize attributes:
 1. Add, remove, or modify attributes in attributes.json
@@ -255,7 +275,7 @@ To customize attributes:
 Note: Changes to prompts or attributes require redeployment of the Bedrock Lambda function.
 
 
-## Testing
+## Local Testing
 
 Use the provided test events in `testing/`:
 
