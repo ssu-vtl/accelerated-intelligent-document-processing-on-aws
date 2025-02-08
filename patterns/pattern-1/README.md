@@ -7,12 +7,14 @@ This pattern implements an intelligent document processing workflow that uses UD
 
 ## Table of Contents
 
+- [Fine tuning a UDOP model](#fine-tuning-a-udop-model-for-classification)
 - [Architecture Overview](#architecture-overview)
   - [State Machine Workflow](#state-machine-workflow)
   - [Lambda Functions](#lambda-functions)
     - [OCR Function](#ocr-function)
     - [Classification Function](#classification-function)
     - [Extraction Function](#extraction-function)
+    - [ProcessResults Function](#processresults-function)
   - [UDOP Model on SageMaker](#udop-model-on-sagemaker)
   - [Monitoring and Metrics](#monitoring-and-metrics)
     - [Performance Metrics](#performance-metrics)
@@ -22,6 +24,13 @@ This pattern implements an intelligent document processing workflow that uses UD
   - [Configuration](#configuration)
 - [Testing](#testing)
 - [Best Practices](#best-practices)
+
+## Fine tuning a UDOP model for classification
+
+See [Fine-Tuning Models on SageMaker](./fine-tune-sm-udop-classification/README.md) 
+
+Once you have trained the model, deploy the GenAIDP stack for Pattern1 using the path for your new fine tuned model.
+
 
 ## Architecture Overview
 
@@ -72,25 +81,25 @@ Each step includes comprehensive retry logic for handling transient errors:
     },
     "pages": {
       "<PAGE_NUMBER>": {
-        "textract_document_text_raw_path": "<S3_URI>",
-        "textract_document_text_parsed_path": "<S3_URI>",
-        "image_path": "<S3_URI>"
+        "rawTextUri": "<S3_URI>",
+        "parsedTextUri": "<S3_URI>",
+        "imageUri": "<S3_URI>"
       }
     }
   }
   ```
 
 #### Classification Function 
-- **Purpose**: Classifies pages using UDOP model on SageMaker
+- **Purpose**: Classifies pages using UDOP model on SageMaker, and segments into sections using class boundaries
 - **Input**: Output from OCR function plus output bucket
 - **Output**: 
   ```json
   {
     "metadata": "<FROM_OCR>",
-    "pagegroups": [
+    "sections": [
       {
         "id": "<GROUP_ID>",
-        "document_type": "<CLASS>",
+        "class": "<CLASS>",
         "pages": [...]
       }
     ]
@@ -99,35 +108,65 @@ Each step includes comprehensive retry logic for handling transient errors:
 
 #### Extraction Function
 - **Purpose**: Extracts fields using Claude via Amazon Bedrock
-- **Input**: Individual pagegroup from Classification output
+- **Input**: Individual section from Classification output
 - **Output**:
   ```json
-  {
-    "metadata": "<ORIGINAL_METADATA>",
-    "extracted_entities": "<JSON_STRING>",
-    "output_location": "s3://<bucket>/<prefix>/<id>_Pages_<N>_to_<M>.json"
-  }
+    {
+        "section": {
+            "id": <ID>,
+            "class": <CLASS>,
+            "page_ids": [<PAGEID>, ...],
+            "outputJSONUri": <S3_URI>,
+        },
+        "pages": [
+            {
+                "Id": <ID>,
+                "Class": <CLASS>,
+                "RawTextUri": <S3_URI>,
+                "ParsedTextUri": <S3_URI>,
+                "ImageUri": <S3_URI>
+            }
+        ]
+    }
   ```
+
+#### ProcessResults Function
+
+- **Purpose**: Aggregates results for all sections
+- **Input**: Extraction output from each section extraction
+- **Output**: Consumed by the GenAIDP parent stack workflow tracker to update job status/UI etc
+  ```json
+        {
+            'Sections': [
+                {
+                    "Id": <ID>,
+                    "PageIds": [<PAGEID>, ...],
+                    "Class": <CLASS>,
+                    "OutputJSONUri": <S3_URI>
+                }
+            ],
+            'Pages': [
+                "Id": <ID>,
+                "Class": <CLASS>,
+                "RawTextUri": <S3_URI>,
+                "ParsedTextUri": <S3_URI>,
+                "ImageUri": <S3_URI>
+            ],
+            'PageCount': <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
+        }
+```
 
 ### UDOP Model on SageMaker
 
 The pattern includes a complete UDOP model deployment:
-
-- **Model Packaging**: `udop_model/package_model.py` handles:
-  - Downloading UDOP model
-  - Packaging with inference code
-  - Creating SageMaker model archive
-
-- **Inference Code**: `udop_model/inference_code/` contains:
-  - `inference.py`: SageMaker entry points
-  - `udop.py`: Model implementation
-  - `utils.py`: Helper functions for preprocessing
 
 - **SageMaker Endpoint**: `sagemaker_classifier_endpoint.yaml` provisions:
   - SageMaker model 
   - Endpoint configuration
   - Endpoint with auto-scaling
   - IAM roles and permissions
+
+To create a new UDOP model fine tuned for your data, see [Fine tuning a UDOP model](#fine-tuning-a-udop-model-for-classification).
 
 ### Monitoring and Metrics
 
@@ -163,7 +202,7 @@ The pattern exports these outputs to the parent stack:
 
 Key configurable parameters:
 
-- `UDOPModelArtifactPath`: S3 path to UDOP model artifacts
+- `UDOPModelArtifactPath`: S3 path to UDOP model artifacts (see [Fine tuning a UDOP model](#fine-tuning-a-udop-model-for-classification))
 - `ExtractionModel`: Bedrock model ID for extraction (Claude)
 - `MaxConcurrentWorkflows`: Workflow concurrency limit
 - `LogRetentionDays`: CloudWatch log retention period
@@ -175,13 +214,13 @@ The system uses a combination of prompt engineering and predefined attributes to
 
 ### Extraction Prompts
 
-The main extraction prompts are defined in `src/bedrock_function/prompt_catalog.py`:
+The main extraction prompts are defined in `src/bedrock_function/prompt_catalog.py`. An AI generated sample is provided, with the structure below:
 
 ```python
 DEFAULT_SYSTEM_PROMPT = "You are a document assistant. Respond only with JSON..."
 BASELINE_PROMPT = """
 <background>
-You are an expert in bill of ladings...
+You are an expert in business document analysis and information extraction. You can understand and extract key information from various types of business documents including letters, memos, financial documents, scientific papers, news articles, advertisements, emails, forms, handwritten notes, invoices, purchase orders, questionnaires, resumes, scientific publications, and specifications...
 </background>
 ...
 ```
@@ -195,18 +234,38 @@ To modify the extraction behavior:
 
 
 ### Extraction Attributes
-Attributes to be extracted are defined in `src/bedrock_function/attributes.json`. Each attribute has:
-- Field name
-- Description
-- List of aliases (alternate names for the field)
+Attributes to be extracted are defined in `src/extraction_function/attributes.json`. An AI generated sample is provided, with the structure below:
 
 Example attribute definition:
 ```json
-{
-    "Field": "BOL Number",
-    "Description": "A unique number assigned to the Bill of Lading for tracking purposes",
-    "Alias": "Shipment ID, Load ID, Waybill Number, B/L Number"
-}
+    {
+        "document_class_attributes": {
+            "letter": {
+                "sender_name": ["from", "sender", "authored by", "written by"],
+                "sender_address": ["address", "location", "from address"],
+                "recipient_name": ["to", "recipient", "addressee"],
+                "recipient_address": ["to address", "delivery address"],
+                "date": ["date", "written on", "dated"],
+                "subject": ["subject", "re:", "regarding"],
+                "letter_type": ["type", "category"],
+                "signature": ["signed by", "signature"],
+                "cc": ["cc", "carbon copy", "copy to"],
+                "reference_number": ["ref", "reference", "our ref"]
+            },
+            "form": {
+                "form_type": ["form name", "document type", "form category"],
+                "form_id": ["form number", "id", "reference number"],
+                "submission_date": ["date", "submitted on", "filed on"],
+                "submitter_name": ["name", "submitted by", "filed by"],
+                "submitter_id": ["id number", "identification", "reference"],
+                "approval_status": ["status", "approved", "pending"],
+                "processed_by": ["processor", "handled by", "approved by"],
+                "processing_date": ["processed on", "completion date"],
+                "department": ["dept", "department", "division"],
+                "comments": ["notes", "remarks", "comments"]
+            }
+        }
+    }
 ```
 To customize attributes:
 1. Add, remove, or modify attributes in attributes.json
@@ -216,7 +275,7 @@ To customize attributes:
 Note: Changes to prompts or attributes require redeployment of the Bedrock Lambda function.
 
 
-## Testing
+## Local Testing
 
 Use the provided test events in `testing/`:
 

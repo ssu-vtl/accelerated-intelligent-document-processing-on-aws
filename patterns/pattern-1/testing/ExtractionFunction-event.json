@@ -8,17 +8,17 @@
         "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
     },
     "execution_arn": <ARN>,
-    "pagegroup": {
+    "section": {
         "id": <ID>,
-        "document_type": <TYPE or CLASS>,
+        "class": <TYPE or CLASS>,
         "pages": [
             {
-                "page_number": <NUM>,
+                "page_id": <NUM>,
                 "classification": <TYPE or CLASS>,
                 "paths": {
-                    "textract_document_text_raw_path": <S3_URI>,
-                    "textract_document_text_parsed_path": <S3_URI>,
-                    "image_path": <S3_URI>
+                    "rawTextUri": <S3_URI>,
+                    "parsedTextUri": <S3_URI>,
+                    "ImageUri": <S3_URI>
                 }
             }
         ]

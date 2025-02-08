@@ -118,8 +118,7 @@ mutation UpdateDocument($input: UpdateDocumentInput!) {
         PageCount
         Sections {
             Id
-            Start
-            End
+            PageIds
             Class
             OutputJSONUri
         }

@@ -54,19 +54,21 @@ def put_metric(name, value, unit='Count', dimensions=None):
         except Exception as e:
             logger.error(f"Error publishing metric {name}: {e}")
 
-def classify_single_page(page_number, page_data):
+def classify_single_page(page_id, page_data):
     """Classify a single page using the UDOP model"""
     retry_count = 0
     last_exception = None
     
     while retry_count < MAX_RETRIES:
         try:
-            logger.info(f"Classifying page {page_number}")
+            logger.info(f"Classifying page {page_id}")
             
             # Prepare inference payload
             payload = {
-                "textract": page_data['textract_document_text_raw_path'],
-                "image": page_data['image_path']
+                "input_image": page_data['imageUri'],
+                "input_textract": page_data['rawTextUri'],
+                "prompt": '',
+                "debug": 0
             }
             logger.info(f"Payload: {payload}")
             
@@ -84,7 +86,7 @@ def classify_single_page(page_number, page_data):
             logger.info(f"Response body: {response_body}")
             
             # Log success metrics
-            logger.info(f"Page {page_number} classification successful after {retry_count + 1} attempts. "
+            logger.info(f"Page {page_id} classification successful after {retry_count + 1} attempts. "
                        f"Duration: {duration:.2f}s")
             put_metric('ClassificationRequestsSucceeded', 1)
             put_metric('ClassificationLatency', duration * 1000, 'Milliseconds')
@@ -93,9 +95,9 @@ def classify_single_page(page_number, page_data):
             
             # Return classification results along with page data
             return {
-                'page_number': page_number,
-                'classification': response_body['prediction'],
-                'paths': page_data
+                'page_id': page_id,
+                'class': response_body['prediction'],
+                **page_data
             }     
             
         except ClientError as e:
@@ -108,14 +110,14 @@ def classify_single_page(page_number, page_data):
                 put_metric('ClassificationThrottles', 1)
                 
                 if retry_count == MAX_RETRIES:
-                    logger.error(f"Max retries ({MAX_RETRIES}) exceeded for page {page_number}. "
+                    logger.error(f"Max retries ({MAX_RETRIES}) exceeded for page {page_id}. "
                                f"Last error: {error_message}")
                     put_metric('ClassificationRequestsFailed', 1)
                     put_metric('ClassificationMaxRetriesExceeded', 1)
                     raise
                 
                 backoff = calculate_backoff(retry_count)
-                logger.warning(f"Classification throttling occurred for page {page_number} "
+                logger.warning(f"Classification throttling occurred for page {page_id} "
                              f"(attempt {retry_count}/{MAX_RETRIES}). "
                              f"Error: {error_message}. "
                              f"Backing off for {backoff:.2f}s")
@@ -123,14 +125,14 @@ def classify_single_page(page_number, page_data):
                 time.sleep(backoff)
                 last_exception = e
             else:
-                logger.error(f"Non-retryable classification error for page {page_number}: "
+                logger.error(f"Non-retryable classification error for page {page_id}: "
                            f"{error_code} - {error_message}")
                 put_metric('ClassificationRequestsFailed', 1)
                 put_metric('ClassificationNonRetryableErrors', 1)
                 raise
                 
         except Exception as e:
-            logger.error(f"Unexpected error classifying page {page_number}: {str(e)}", 
+            logger.error(f"Unexpected error classifying page {page_id}: {str(e)}", 
                        exc_info=True)
             put_metric('ClassificationRequestsFailed', 1)
             put_metric('ClassificationUnexpectedErrors', 1)
@@ -150,46 +152,46 @@ def write_json_to_s3(json_string, bucket_name, object_key):
 
 def group_consecutive_pages(results):
     """
-    Group consecutive pages with the same classification into pagegroups.
-    Returns a list of pagegroups, each containing an id, document_type, and pages.
+    Group consecutive pages with the same classification into sections.
+    Returns a list of sections, each containing an id, class, and pages.
     """
     # Sort results by page number to ensure proper consecutive grouping
-    sorted_results = sorted(results, key=lambda x: x['page_number'])
+    sorted_results = sorted(results, key=lambda x: x['page_id'])
     
-    pagegroups = []
+    sections = []
     current_group = 1
     
     if not sorted_results:
-        return pagegroups
+        return sections
         
     # Initialize with first result
-    current_class = sorted_results[0]['classification']
+    current_class = sorted_results[0]['class']
     current_pages = [sorted_results[0]]
     
     # Process remaining results
     for result in sorted_results[1:]:
-        if result['classification'] == current_class:
+        if result['class'] == current_class:
             # Add to current group if same class
             current_pages.append(result)
         else:
             # Store current group and start new one
-            pagegroups.append({
-                'id': f"Class_{current_class}_Pagegroup_{current_group}",
-                'document_type': current_class,
+            sections.append({
+                'id': f"{current_group}",
+                'class': current_class,
                 'pages': current_pages
             })
             current_group += 1
-            current_class = result['classification']
+            current_class = result['class']
             current_pages = [result]
     
     # Store final group
-    pagegroups.append({
-        'id': f"{current_class}_pagegroup_{current_group}",
-        'document_type': current_class,
+    sections.append({
+        'id': f"{current_group}",
+        'class': current_class,
         'pages': current_pages
     })
     
-    return pagegroups
+    return sections
 
 def classify_pages_concurrently(pages):
     """Classify multiple pages concurrently using a thread pool"""
@@ -230,9 +232,9 @@ def handler(event, context):
         },
         "pages": {
             <ID>: {
-                        "textract_document_text_raw_path": <S3_URI>,
-                        "textract_document_text_parsed_path": <S3_URI>,
-                        "image_path": <S3_URI>
+                        "rawTextUri": <S3_URI>,
+                        "parsedTextUri": <S3_URI>,
+                        "imageUri": <S3_URI>
             }
         }
     }
@@ -259,11 +261,11 @@ def handler(event, context):
     logger.info(f"Time taken for classification: {t1-t0:.2f} seconds")
 
     # Group consecutive pages with same classification
-    pagegroups = group_consecutive_pages(all_results)
+    sections = group_consecutive_pages(all_results)
     
     response = {
         "metadata": metadata,
-        "pagegroups": pagegroups
+        "sections": sections
     }
 
     # Write results to S3

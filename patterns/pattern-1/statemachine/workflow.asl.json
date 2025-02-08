@@ -59,12 +59,12 @@
         },
         "ProcessPageGroups": {
             "Type": "Map",
-            "ItemsPath": "$.ClassificationResult.pagegroups",
+            "ItemsPath": "$.ClassificationResult.sections",
             "ItemSelector": {
                 "execution_arn.$": "$$.Execution.Id",
                 "output_bucket": "${OutputBucket}",
                 "metadata.$": "$.ClassificationResult.metadata",
-                "pagegroup.$": "$$.Map.Item.Value"
+                "section.$": "$$.Map.Item.Value"
             },
             "MaxConcurrency": 10,
             "Iterator": {
@@ -94,6 +94,35 @@
                     }
                 }
             },
+            "ResultPath": "$.ExtractionResults",
+            "Next": "ProcessResultsStep"
+        },
+        "ProcessResultsStep": {
+            "Type": "Task",
+            "Resource": "${ProcessResultsLambdaArn}",
+            "Parameters": {
+                "execution_arn.$": "$$.Execution.Id",
+                "output_bucket": "${OutputBucket}",
+                "metadata.$": "$.ClassificationResult.metadata",
+                "extraction_results.$": "$.ExtractionResults"
+            },
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException",
+                        "Lambda.TooManyRequestsException",
+                        "ServiceQuotaExceededException",
+                        "ThrottlingException",
+                        "ProvisionedThroughputExceededException",
+                        "RequestLimitExceeded"
+                    ],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 10,
+                    "BackoffRate": 2
+                }
+            ],
             "End": true
         }
     }

@@ -646,7 +646,7 @@ Resources:
       Handler: index.handler
       Runtime: python3.12
       Timeout: 30
-      CodeUri: src/lambda/dashboard_merger
+      CodeUri: src/lambda/initialize_counter
       Environment:
         Variables:
           CONCURRENCY_TABLE: !Ref ConcurrencyTable
@@ -1913,21 +1913,6 @@ Resources:
                 , "expressionValues": $utils.toJson($expValues)
                 #end
             }
-        }
-      ResponseMappingTemplate: |
-        $util.toJson($ctx.result)
-
-  OnDocumentUpdatedResolver:
-    Type: AWS::AppSync::Resolver
-    Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
-      TypeName: Subscription
-      FieldName: onDocumentUpdated
-      DataSourceName: !GetAtt TrackingTableDataSource.Name
-      RequestMappingTemplate: |
-        {
-          "version": "2018-05-29"
-          "payload": $util.toJson($ctx.args)
         }
       ResponseMappingTemplate: |
         $util.toJson($ctx.result)
