@@ -101,12 +101,11 @@ def classify_single_page(page_id, page_data):
     
     while retry_count < MAX_RETRIES:
         try:
-            logger.info(f"Classifying page {page_id}")
+            logger.info(f"Classifying page {page_id}, {page_data}")
             
             # Read text content from S3
-            text_content = get_text_content(page_data['rawTextUri'])
+            text_content = get_text_content(page_data['parsedTextUri'])
             image_content = get_image_content(page_data['imageUri'])
-
             
             # Prepare inference payload
             inference_config = {"temperature": 0.5}
@@ -115,7 +114,8 @@ def classify_single_page(page_id, page_data):
             else:
                 additional_model_fields = None
             system_prompt = [{"text": SYSTEM_PROMPT}]
-            classification_prompt = CLASSIFICATION_PROMPT.format(DOCUMENT_TEXT=document_text)
+
+            classification_prompt = CLASSIFICATION_PROMPT.format(DOCUMENT_TEXT=text_content)
             content = [{"text": classification_prompt}]
             message = {"image": {
                 "format": 'jpeg',
@@ -162,6 +162,7 @@ def classify_single_page(page_id, page_data):
             # Return classification results along with page data
             classification_json = response['output']['message']['content'][0].get("text")
             final_classification = json.loads(classification_json).get("class", "Unknown")
+            logger.info(f"Page {page_id} classified as {final_classification}")
             return {
                 'page_id': page_id,
                 'class': final_classification,
@@ -200,7 +201,7 @@ def classify_single_page(page_id, page_data):
                 raise
                 
         except Exception as e:
-            logger.error(f"Unexpected error classifying page {page_id}: {str(e)}", 
+            logger.error(f"Unexpected error classifying page {page_id}: {e}", 
                        exc_info=True)
             put_metric('ClassificationRequestsFailed', 1)
             put_metric('ClassificationUnexpectedErrors', 1)
