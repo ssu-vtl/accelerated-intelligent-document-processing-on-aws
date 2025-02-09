@@ -282,7 +282,6 @@ Resources:
       Parameters:
         StackName: !Ref AWS::StackName
         InputBucket: !Ref InputBucket
-        WorkingBucket: !Ref WorkingBucket
         OutputBucket: !Ref OutputBucket
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
@@ -298,7 +297,6 @@ Resources:
       Parameters:
         StackName: !Ref AWS::StackName
         InputBucket: !Ref InputBucket
-        WorkingBucket: !Ref WorkingBucket
         OutputBucket: !Ref OutputBucket
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
@@ -317,7 +315,6 @@ Resources:
       Parameters:
         StackName: !Ref AWS::StackName
         InputBucket: !Ref InputBucket
-        WorkingBucket: !Ref WorkingBucket
         OutputBucket: !Ref OutputBucket
         TrackingTable: !Ref TrackingTable
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
@@ -407,7 +404,6 @@ Resources:
       SettingsName: !Ref SettingsParameter
       SettingsKeyValuePairs:
         InputBucket: !Ref InputBucket
-        WorkingBucket: !Ref WorkingBucket
         OutputBucket: !Ref OutputBucket
         ShouldUseDocumentKnowledgeBase: False
     UpdateReplacePolicy: Delete
@@ -487,36 +483,6 @@ Resources:
           - Id: DeleteAfterNDays
             Status: Enabled
             ExpirationInDays: !Ref DataRetentionInDays
-            AbortIncompleteMultipartUpload:
-              DaysAfterInitiation: 1
-
-  WorkingBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: RetainExceptOnCreate 
-    Properties:
-      NotificationConfiguration:
-        EventBridgeConfiguration:
-          EventBridgeEnabled: true
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: aws:kms
-              KMSMasterKeyID: !Ref CustomerManagedEncryptionKey
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      VersioningConfiguration:
-        Status: Enabled
-      LoggingConfiguration:
-        DestinationBucketName: !Ref LoggingBucket
-        LogFilePrefix: working-bucket-logs/
-      LifecycleConfiguration:
-        Rules:
-          - Id: DeleteAfterNDays
-            Status: Enabled
-            ExpirationInDays: 30
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 1
 
@@ -1590,8 +1556,6 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:s3:::${InputBucket}"
                   - !Sub "arn:aws:s3:::${InputBucket}/*"
-                  - !Sub "arn:aws:s3:::${WorkingBucket}"
-                  - !Sub "arn:aws:s3:::${WorkingBucket}/*"
                   - !Sub "arn:aws:s3:::${OutputBucket}"
                   - !Sub "arn:aws:s3:::${OutputBucket}/*"
               - Effect: Allow
@@ -2353,12 +2317,6 @@ Outputs:
   S3OutputBucketConsoleURL:
     Description: Output S3 bucket console URL
     Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${OutputBucket}
-  S3WorkingBucketName:
-    Description: Output S3 bucket name
-    Value: !Ref OutputBucket
-  S3WorkingBucketConsoleURL:
-    Description: Working S3 bucket console URL (stores intermediate files, images and OCR data)
-    Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${WorkingBucket}
   StateMachineArn:
     Description: Step Functions State machine ARN
     Value: !If

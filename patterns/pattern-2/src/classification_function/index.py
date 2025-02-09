@@ -302,15 +302,4 @@ def handler(event, context):
         "sections": sections
     }
 
-    output_key = f'{metadata["working_prefix"]}/classification_results.json'
-    write_json_to_s3(
-        json.dumps(response),
-        metadata["working_bucket"],
-        output_key
-    )
-    
-    t2 = time.time()
-    print("Response: ", response)
-    logger.info(f"Time taken to sort and write results to S3: {t2-t1:.2f} seconds")
-
     return response

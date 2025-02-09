@@ -6,7 +6,7 @@
             "Resource": "${OCRFunctionArn}",
             "Parameters": {
                 "execution_arn.$": "$$.Execution.Id",
-                "working_bucket": "${WorkingBucket}",
+                "output_bucket": "${OutputBucket}",
                 "input.$": "$"
             },
             "ResultPath": "$.OCRResult",

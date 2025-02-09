@@ -307,7 +307,7 @@ The solution uses a modular architecture with nested CloudFormation stacks to su
 #### Main Stack (template.yaml)
 The main template handles all pattern-agnostic resources and infrastructure:
 
-- S3 Buckets (Input, Working, Output)
+- S3 Buckets (Input, Output)
 - SQS Queues and Dead Letter Queues
 - DynamoDB Tables (Execution Tracking, Concurrency)
 - Lambda Functions for:

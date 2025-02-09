@@ -164,14 +164,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         input_bucket = event['input']['detail']['bucket']['name']
         object_key = event['input']['detail']['object']['key']
-        working_bucket = event['working_bucket']
+        output_bucket = event['output_bucket']
         data_project_arn = event['BDAProjectArn']
         task_token = event['taskToken']
         
         track_task_token(object_key, task_token)
 
         input_s3_uri = build_s3_uri(input_bucket, object_key)
-        output_s3_uri = build_s3_uri(working_bucket, f"{object_key}")
+        output_s3_uri = build_s3_uri(output_bucket, f"{object_key}/bda_responses")
         payload = build_payload(input_s3_uri, output_s3_uri, data_project_arn)
         bda_response = invoke_data_automation(payload)
 
@@ -179,8 +179,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             "metadata": {
                 "input_bucket": input_bucket, 
                 "object_key": object_key,
-                "working_bucket": working_bucket,
-                "working_prefix": object_key, 
+                "output_bucket": output_bucket,
+                "output_prefix": object_key, 
             },
             "bda_response": bda_response
         }

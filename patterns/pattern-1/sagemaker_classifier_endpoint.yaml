@@ -6,7 +6,7 @@ Parameters:
   StackName:
     Type: String
 
-  WorkingBucket:
+  S3Bucket:
     Type: String
 
   CustomerManagedEncryptionKeyArn:
@@ -92,8 +92,8 @@ Resources:
                     - - 'arn:aws:s3:::'
                       - !Select [2, !Split ["/", !Ref UDOPModelArtifactPath]]
                       - '/*'
-                  - !Sub 'arn:aws:s3:::${WorkingBucket}'
-                  - !Sub 'arn:aws:s3:::${WorkingBucket}/*'
+                  - !Sub 'arn:aws:s3:::${S3Bucket}'
+                  - !Sub 'arn:aws:s3:::${S3Bucket}/*'
               - Effect: Allow
                 Action:
                   - kms:Encrypt
