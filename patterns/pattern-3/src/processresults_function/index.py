@@ -79,24 +79,44 @@ def get_pages(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
     custom_output_prefix = f"{object_key}/pages/"
     
     try:
-        # List all page folders
+        # List all objects under the prefix
         response = s3_client.list_objects_v2(
+            Bucket=object_bucket,
+            Prefix=custom_output_prefix
+        )
+        
+        # Create a set of all available object keys for faster lookup
+        available_objects = {obj['Key'] for obj in response.get('Contents', [])}
+        
+        # List all page folders
+        folder_response = s3_client.list_objects_v2(
             Bucket=object_bucket,
             Prefix=custom_output_prefix,
             Delimiter='/'
         )
         
         # Process each page folder
-        for prefix in response.get('CommonPrefixes', []):
+        for prefix in folder_response.get('CommonPrefixes', []):
             page_path = prefix.get('Prefix')
             if not page_path:
                 continue
                 
-            # Extract section ID from path
+            # Extract page ID from path
             page_id = page_path.rstrip('/').split('/')[-1]
             
-            # Get the result.json file
+            # Define paths for result.json and image.jpg
             result_path = f"{page_path}result.json"
+            image_path = f"{page_path}image.jpg"
+            
+            # Check if both files exist
+            if result_path not in available_objects:
+                logger.warning(f"result.json not found for page {page_id}")
+                continue
+                
+            if image_path not in available_objects:
+                logger.warning(f"image.jpg not found for page {page_id}")
+                image_path = None
+            
             try:
                 result_obj = s3_client.get_object(
                     Bucket=object_bucket,
@@ -111,17 +131,16 @@ def get_pages(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
                 page = {
                     "Id": page_id,
                     "Class": doc_class,
-                    "ImageUri": None,
+                    "ImageUri": f"s3://{object_bucket}/{image_path}",
                     "TextUri": f"s3://{object_bucket}/{result_path}"
                 }
                 pages.append(page)
-
                 
             except ClientError as e:
-                logger.error(f"Failed to retrieve result.json for pages {page_id}: {e}")
+                logger.error(f"Failed to retrieve result.json for page {page_id}: {e}")
                 continue
             except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON in result.json for pages {page_id}: {e}")
+                logger.error(f"Invalid JSON in result.json for page {page_id}: {e}")
                 continue
                 
         logger.info(f"Retrieved {len(pages)} pages for document {object_key}")
@@ -281,12 +300,12 @@ def handler(event, context):
     )
     logger.info(f"Successfully copied {count1+count2} files")
    
+    count = create_pdf_page_images(input_bucket, output_bucket, object_key)
+    logger.info(f"Successfully created and uploaded {count} page images to S3")
+
     # now get the document sections and pages from the BDA output
     sections = get_sections(output_bucket, object_key)
     pages = get_pages(output_bucket, object_key)
-    
-    count = create_pdf_page_images(input_bucket, output_bucket, object_key)
-    logger.info(f"Successfully created and uploaded {count} page images to S3")
 
     statemachine_output = {
         "Sections": sections,
