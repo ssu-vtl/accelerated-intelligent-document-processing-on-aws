@@ -74,9 +74,16 @@ def get_sections(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
         logger.error(f"Failed to list sections in S3: {e}")
         raise
 
-def get_pages(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
+def get_pages(object_bucket: str, object_key: str, sections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     pages = []
     custom_output_prefix = f"{object_key}/pages/"
+    
+    # Create a mapping of page_id to class from sections
+    page_to_class_map = {}
+    for section in sections:
+        section_class = section.get('Class', '')
+        for page_id in section.get('PageIds', []):
+            page_to_class_map[str(page_id)] = section_class
     
     try:
         # List all objects under the prefix
@@ -118,20 +125,14 @@ def get_pages(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
                 image_path = None
             
             try:
-                result_obj = s3_client.get_object(
-                    Bucket=object_bucket,
-                    Key=result_path
-                )
-                result_data = json.loads(result_obj['Body'].read().decode('utf-8'))
+                # Get the class from the section mapping
+                doc_class = page_to_class_map.get(page_id, '')
                 
-                # Extract required fields
-                doc_class = result_data.get('document_class', {}).get('type', '')
-
-                # Construct section object
+                # Construct page object
                 page = {
                     "Id": page_id,
                     "Class": doc_class,
-                    "ImageUri": f"s3://{object_bucket}/{image_path}",
+                    "ImageUri": f"s3://{object_bucket}/{image_path}" if image_path else None,
                     "TextUri": f"s3://{object_bucket}/{result_path}"
                 }
                 pages.append(page)
@@ -139,12 +140,14 @@ def get_pages(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
             except ClientError as e:
                 logger.error(f"Failed to retrieve result.json for page {page_id}: {e}")
                 continue
-            except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON in result.json for page {page_id}: {e}")
-                continue
                 
         logger.info(f"Retrieved {len(pages)} pages for document {object_key}")
         return pages
+        
+    except ClientError as e:
+        logger.error(f"Failed to list sections in S3: {e}")
+        raise
+
         
     except ClientError as e:
         logger.error(f"Failed to list sections in S3: {e}")
@@ -305,7 +308,7 @@ def handler(event, context):
 
     # now get the document sections and pages from the BDA output
     sections = get_sections(output_bucket, object_key)
-    pages = get_pages(output_bucket, object_key)
+    pages = get_pages(output_bucket, object_key, sections)
 
     statemachine_output = {
         "Sections": sections,
