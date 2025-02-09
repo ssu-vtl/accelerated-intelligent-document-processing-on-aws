@@ -225,8 +225,8 @@ def handler(event, context):
             "metadata": {
                 "input_bucket": <BUCKET>,
                 "object_key": <KEY>,
-                "working_bucket": <BUCKET>,
-                "working_prefix": <PREFIX>,
+                "output_bucket": <BUCKET>,
+                "output_prefix": <PREFIX>,
                 "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
             }
         },
@@ -267,17 +267,5 @@ def handler(event, context):
         "metadata": metadata,
         "sections": sections
     }
-
-    # Write results to S3
-    output_key = f'{metadata["working_prefix"]}/classification_results.json'
-    write_json_to_s3(
-        json.dumps(response),
-        metadata["working_bucket"],
-        output_key
-    )
-    
-    t2 = time.time()
-    print("Response: ", response)
-    logger.info(f"Time taken to sort and write results to S3: {t2-t1:.2f} seconds")
 
     return response

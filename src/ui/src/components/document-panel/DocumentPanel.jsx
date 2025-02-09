@@ -5,6 +5,7 @@ import { Logger } from 'aws-amplify';
 import './DocumentPanel.css';
 import FileViewer from '../file-viewer/FileViewer';
 import SectionsPanel from '../sections-panel';
+import PagesPanel from '../pages-panel';
 
 const logger = new Logger('DocumentPanel');
 
@@ -63,6 +64,7 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds })
       />
       <FileViewer objectKey={item.objectKey} />
       <SectionsPanel sections={item.sections} />
+      <PagesPanel pages={item.pages} />
     </SpaceBetween>
   );
 };
