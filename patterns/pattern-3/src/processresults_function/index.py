@@ -4,6 +4,8 @@ import boto3
 from botocore.exceptions import ClientError
 from typing import Dict, Any, List
 import logging
+import io
+import fitz  # PyMuPDF
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -12,7 +14,7 @@ s3_client = boto3.client('s3')
 
 def get_sections(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
     sections = []
-    custom_output_prefix = f"{object_key}/custom_output/"
+    custom_output_prefix = f"{object_key}/sections/"
     
     try:
         # List all section folders
@@ -74,7 +76,7 @@ def get_sections(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
 
 def get_pages(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
     pages = []
-    custom_output_prefix = f"{object_key}/standard_output/"
+    custom_output_prefix = f"{object_key}/pages/"
     
     try:
         # List all page folders
@@ -104,13 +106,7 @@ def get_pages(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
                 
                 # Extract required fields
                 doc_class = result_data.get('document_class', {}).get('type', '')
-                page_indices = result_data.get('split_document', {}).get('page_indices', [])
-                
-                if page_indices:
-                    page_ids = page_indices
-                else:
-                    page_ids = []
-                
+
                 # Construct section object
                 page = {
                     "Id": page_id,
@@ -136,7 +132,7 @@ def get_pages(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
         raise
 
 
-def copy_s3_objects(source_bucket, source_prefix, output_bucket, object_key):
+def copy_s3_objects(bda_result_bucket, bda_result_prefix, output_bucket, object_key):
     """
     Copy objects from a source S3 location to a destination S3 location.
     """
@@ -145,8 +141,8 @@ def copy_s3_objects(source_bucket, source_prefix, output_bucket, object_key):
         # List all objects in source location using pagination
         paginator = s3_client.get_paginator('list_objects_v2')
         page_iterator = paginator.paginate(
-            Bucket=source_bucket,
-            Prefix=source_prefix
+            Bucket=bda_result_bucket,
+            Prefix=bda_result_prefix
         )
 
         # Process each object in the pages
@@ -155,11 +151,11 @@ def copy_s3_objects(source_bucket, source_prefix, output_bucket, object_key):
                 continue
                 
             for obj in page['Contents']:
-                source_key = obj['Key']
-                relative_path = source_key[len(source_prefix):].lstrip('/')
+                bda_result_key = obj['Key']
+                relative_path = bda_result_key[len(bda_result_prefix):].lstrip('/')
                 dest_key = f"{object_key}/{relative_path}"
                 s3_client.copy_object(
-                    CopySource={'Bucket': source_bucket, 'Key': source_key},
+                    CopySource={'Bucket': bda_result_bucket, 'Key': bda_result_key},
                     Bucket=output_bucket,
                     Key=dest_key,
                     ContentType='application/json',
@@ -174,8 +170,68 @@ def copy_s3_objects(source_bucket, source_prefix, output_bucket, object_key):
         logger.error(f"Error copying files: {str(e)}")
         raise
 
+def create_pdf_page_images(bda_result_bucket, output_bucket, object_key):
+    """
+    Create images for each page of a PDF document and upload them to S3.
+    """
+    try:
+        # Download the PDF from S3
+        pdf_content = s3_client.get_object(Bucket=bda_result_bucket, Key=object_key)['Body'].read()
+        pdf_stream = io.BytesIO(pdf_content)
+
+        # Open the PDF using PyMuPDF
+        pdf_document = fitz.open(stream=pdf_stream, filetype="pdf")
+
+        # Process each page
+        for page_num in range(len(pdf_document)):
+            # Render page to an image (pixmap)
+            pix = pdf_document[page_num].get_pixmap()
+
+            # Save the image to a BytesIO object
+            img_bytes = pix.tobytes("jpeg")
+
+            # Upload the image to S3
+            image_key = f"{object_key}/pages/{page_num}/image.jpg"
+            s3_client.upload_fileobj(
+                io.BytesIO(img_bytes),
+                output_bucket,
+                image_key,
+                ExtraArgs={'ContentType': 'image/jpeg'}
+            ) 
+
+        logger.info(f"Successfully created and uploaded {len(pdf_document)} images to S3")
+        return len(pdf_document)
+
+    except Exception as e:
+        logger.error(f"Error creating page images: {str(e)}")
+        raise
+
+
 def handler(event, context):
     """
+        Input event:
+            {
+                "output_bucket": <BUCKET>,
+                "BDAResponse": {
+                    "status": "SUCCESS",
+                    "job_detail": {
+                        "job_id": <GUID>,
+                        "job_status": "SUCCESS",
+                        "semantic_modality": "Document",
+                        "input_s3_object": {
+                            "s3_bucket": <BUCKET>,
+                            "name": <KEY>
+                        },
+                        "output_s3_location": {
+                            "s3_bucket": <BUCKET>,
+                            "name": <KEY>
+                        },
+                        "error_message": ""
+                    }
+                },
+                "execution_arn": <ARN"
+            }
+
         The Output must observe the structure below.. it is consumed by the GenAIDP parent stack workflow tracker to update job status/UI etc: 
             {
                 'Sections': [
@@ -201,24 +257,37 @@ def handler(event, context):
     # Extract required information
     output_bucket = event['output_bucket']
     object_key = event['BDAResponse']['job_detail']['input_s3_object']['name']
-    source_bucket = event['BDAResponse']['job_detail']['output_s3_location']['s3_bucket']
-    source_prefix = event['BDAResponse']['job_detail']['output_s3_location']['name']
+    input_bucket = event['BDAResponse']['job_detail']['input_s3_object']['s3_bucket']
+    bda_result_bucket = event['BDAResponse']['job_detail']['output_s3_location']['s3_bucket']
+    bda_result_prefix = event['BDAResponse']['job_detail']['output_s3_location']['name']
     
-    logger.info(f"Source bucket: {source_bucket}, prefix: {source_prefix}")
-    logger.info(f"Destination bucket: {output_bucket}, base path: {object_key}")
+    logger.info(f"Input bucket: {input_bucket}, prefix: {object_key}")
+    logger.info(f"BDA Result bucket: {bda_result_bucket}, prefix: {bda_result_prefix}")
+    logger.info(f"Output bucket: {output_bucket}, base path: {object_key}")
 
-    copied_count = copy_s3_objects(
-        source_bucket,
-        source_prefix,
+    # standard_output (pages)
+    count1 = copy_s3_objects(
+        bda_result_bucket,
+        f"{bda_result_prefix}/custom_output",
         output_bucket,
-        object_key
+        f"{object_key}/sections"
     )
-    logger.info(f"Successfully copied {copied_count} files")
+    # custom_output (sections)
+    count2 = copy_s3_objects(
+        bda_result_bucket,
+        f"{bda_result_prefix}/standard_output",
+        output_bucket,
+        f"{object_key}/pages"
+    )
+    logger.info(f"Successfully copied {count1+count2} files")
    
     # now get the document sections and pages from the BDA output
     sections = get_sections(output_bucket, object_key)
     pages = get_pages(output_bucket, object_key)
     
+    count = create_pdf_page_images(input_bucket, output_bucket, object_key)
+    logger.info(f"Successfully created and uploaded {count} page images to S3")
+
     statemachine_output = {
         "Sections": sections,
         "Pages": pages,

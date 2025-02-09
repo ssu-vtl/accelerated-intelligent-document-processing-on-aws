@@ -12,9 +12,6 @@ Parameters:
   InputBucket:
     Type: String
 
-  WorkingBucket:
-    Type: String
-
   OutputBucket:
     Type: String
 
@@ -64,7 +61,7 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - S3CrudPolicy:
-            BucketName: !Ref WorkingBucket
+            BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
         - Statement:
@@ -107,7 +104,7 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - S3CrudPolicy:
-            BucketName: !Ref WorkingBucket
+            BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
         - Statement:
@@ -148,8 +145,6 @@ Resources:
         LogGroup: !Ref ExtractionFunctionLogGroup
       Policies:
       - AWSLambdaBasicExecutionRole
-      - S3CrudPolicy:
-          BucketName: !Ref WorkingBucket
       - S3CrudPolicy:
           BucketName: !Ref OutputBucket
       - S3ReadPolicy:
@@ -194,8 +189,6 @@ Resources:
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
         - S3CrudPolicy:
-            BucketName: !Ref WorkingBucket
-        - S3CrudPolicy:
             BucketName: !Ref OutputBucket
         - Statement:
           - Effect: Allow
@@ -226,7 +219,6 @@ Resources:
         ClassificationFunctionArn: !GetAtt ClassificationFunction.Arn
         ExtractionFunctionArn: !GetAtt ExtractionFunction.Arn
         ProcessResultsLambdaArn: !GetAtt ProcessResultsFunction.Arn
-        WorkingBucket: !Ref WorkingBucket
         OutputBucket: !Ref OutputBucket
       Logging:
         Level: ALL

@@ -12,9 +12,6 @@ Parameters:
   InputBucket:
     Type: String
 
-  WorkingBucket:
-    Type: String
-
   OutputBucket:
     Type: String
 
@@ -47,7 +44,6 @@ Resources:
       DefinitionSubstitutions:
         InvokeBDALambdaArn: !GetAtt InvokeBDAFunction.Arn
         ProcessResultsLambdaArn: !GetAtt ProcessResultsFunction.Arn
-        WorkingBucket: !Ref WorkingBucket
         OutputBucket: !Ref OutputBucket
         BDAProjectArn: !Ref BDAProjectArn
       Logging:
@@ -86,7 +82,7 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - S3CrudPolicy:
-            BucketName: !Ref WorkingBucket
+            BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
         - DynamoDBCrudPolicy:
@@ -130,8 +126,6 @@ Resources:
         - AWSLambdaBasicExecutionRole
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
-        - S3CrudPolicy:
-            BucketName: !Ref WorkingBucket
         - S3CrudPolicy:
             BucketName: !Ref OutputBucket
         - Statement:

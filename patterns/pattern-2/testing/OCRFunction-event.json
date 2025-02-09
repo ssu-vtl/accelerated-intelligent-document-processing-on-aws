@@ -9,5 +9,5 @@
       }
     }
   },
-  "working_bucket": "<WORKING_BUCKET>"
+  "output_bucket": "<OUTPUT_BUCKET>"
 }

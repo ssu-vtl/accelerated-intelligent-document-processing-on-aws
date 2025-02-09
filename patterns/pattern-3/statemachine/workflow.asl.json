@@ -10,7 +10,7 @@
           "Payload": {
             "taskToken.$": "$$.Task.Token",
             "execution_arn.$": "$$.Execution.Id",
-            "working_bucket": "${WorkingBucket}",
+            "output_bucket": "${OutputBucket}",
             "BDAProjectArn": "${BDAProjectArn}",
             "input.$": "$"
           }
