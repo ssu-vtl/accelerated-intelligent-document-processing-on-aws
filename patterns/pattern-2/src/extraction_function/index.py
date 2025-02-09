@@ -225,8 +225,8 @@ def handler(event, context):
         "metadata": {
             "input_bucket": <BUCKET>,
             "object_key": <KEY>,
-            "working_bucket": <BUCKET>,
-            "working_prefix": <PREFIX>,
+            "output_bucket": <BUCKET>,
+            "output_prefix": <PREFIX>,
             "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
         },
         "execution_arn": <ARN>,
@@ -319,7 +319,7 @@ def handler(event, context):
         },
         "inference_result": extracted_entities
     }
-    output_key = f"{output_prefix}/custom_output/{section['id']}/result.json"
+    output_key = f"{output_prefix}/sections/{section['id']}/result.json"
     write_json_to_s3(json.dumps(output), output_bucket, output_key)
     
     # Track metrics

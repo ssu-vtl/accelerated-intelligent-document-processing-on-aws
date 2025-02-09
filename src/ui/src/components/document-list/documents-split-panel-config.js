@@ -22,7 +22,7 @@ export const SPLIT_PANEL_I18NSTRINGS = {
 
 const EMPTY_PANEL_CONTENT = {
   header: '0 documents selected',
-  body: 'Select a meeting to see its details.',
+  body: 'Select a document to see its details.',
 };
 
 const getPanelContentSingle = ({ items, setToolsOpen, getDocumentDetailsFromIds }) => {

@@ -60,7 +60,7 @@ Each step includes comprehensive retry logic for handling transient errors:
   ```json
   {
     "execution_arn": "<ARN>",
-    "working_bucket": "<BUCKET>",
+    "output_bucket": "<BUCKET>",
     "input": {
       "detail": {
         "bucket": { "name": "<BUCKET>" },
@@ -75,8 +75,8 @@ Each step includes comprehensive retry logic for handling transient errors:
     "metadata": {
       "input_bucket": "<BUCKET>",
       "object_key": "<KEY>",
-      "working_bucket": "<BUCKET>",
-      "working_prefix": "<PREFIX>",
+      "output_bucket": "<BUCKET>",
+      "output_prefix": "<PREFIX>",
       "num_pages": "<NUMBER OF PAGES>"
     },
     "pages": {

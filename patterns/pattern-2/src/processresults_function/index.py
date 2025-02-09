@@ -14,8 +14,8 @@ def handler(event, context):
             "metadata": {
                 "input_bucket": <BUCKET>,
                 "object_key": <KEY>,
-                "working_bucket": <BUCKET>,
-                "working_prefix": <PREFIX>,
+                "output_bucket": <BUCKET>,
+                "output_prefix": <PREFIX>,
                 "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
             },
             "extraction_results": [

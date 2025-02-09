@@ -43,7 +43,7 @@ def put_metric(name, value, unit='Count', dimensions=None):
     except Exception as e:
         logger.error(f"Error publishing metric {name}: {e}")
 
-def process_single_page(page_index, pdf_document, working_bucket, prefix):
+def process_single_page(page_index, pdf_document, output_bucket, prefix):
     t0 = time.time()
     page_id = page_index + 1
     
@@ -52,8 +52,13 @@ def process_single_page(page_index, pdf_document, working_bucket, prefix):
     img_bytes = pix.tobytes("jpeg")
     
     # Upload image
-    image_key = f"{prefix}/images/page_{page_id:04d}.jpg"
-    s3_client.upload_fileobj(io.BytesIO(img_bytes), working_bucket, image_key)        
+    image_key = f"{prefix}/pages/{page_id}/image.jpg"
+    s3_client.upload_fileobj(
+        io.BytesIO(img_bytes),
+        output_bucket,
+        image_key,
+        ExtraArgs={'ContentType': 'image/jpeg'}
+    )       
     t1 = time.time()
     logger.info(f"Time taken for image conversion (page {page_id}): {t1-t0:.6f} seconds")
     
@@ -61,19 +66,19 @@ def process_single_page(page_index, pdf_document, working_bucket, prefix):
     textract_result = textract_client.detect_document_text(Document={"Bytes": img_bytes})
     
     # Store raw Textract response
-    raw_text_key = f"{prefix}/textract_document_text_raw/page_{page_id:04d}.json"
+    raw_text_key = f"{prefix}/pages/{page_id}/rawText.json"
     s3_client.put_object(
-        Bucket=working_bucket,
+        Bucket=output_bucket,
         Key=raw_text_key,
         Body=json.dumps(textract_result),
         ContentType='application/json'
     )
 
     # Store text from parsed Textract response
-    parsed_text_key = f"{prefix}/textract_document_text_parsed/page_{page_id:04d}.json"
+    parsed_text_key = f"{prefix}/pages/{page_id}/parsedText.json"
     parsed_result = response_parser.parse(textract_result)
     s3_client.put_object(
-        Bucket=working_bucket,
+        Bucket=output_bucket,
         Key=parsed_text_key,
         Body=json.dumps({"text": parsed_result.text}),
         ContentType='application/json'
@@ -84,19 +89,19 @@ def process_single_page(page_index, pdf_document, working_bucket, prefix):
     
     # Return paths for this page
     return {
-        "rawTextUri": f"s3://{working_bucket}/{raw_text_key}",
-        "parsedTextUri": f"s3://{working_bucket}/{parsed_text_key}",
-        "imageUri": f"s3://{working_bucket}/{image_key}"
+        "rawTextUri": f"s3://{output_bucket}/{raw_text_key}",
+        "parsedTextUri": f"s3://{output_bucket}/{parsed_text_key}",
+        "imageUri": f"s3://{output_bucket}/{image_key}"
     }
 
-def get_document_text(pdf_content, working_bucket, prefix, max_workers = MAX_WORKERS):
+def get_document_text(pdf_content, output_bucket, prefix, max_workers = MAX_WORKERS):
     pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
     num_pages = len(pdf_document)
     page_results = {}
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_page = {
-            executor.submit(process_single_page, i, pdf_document, working_bucket, prefix): i 
+            executor.submit(process_single_page, i, pdf_document, output_bucket, prefix): i 
             for i in range(num_pages)
         }
         
@@ -117,7 +122,7 @@ def handler(event, context):
     Input event for new input object packet/document:
     {
         "execution_arn": <ARN>,
-        "working_bucket": <BUCKET>,
+        "output_bucket": <BUCKET>,
         "input": {
             "detail": {
                 "bucket": {
@@ -132,7 +137,7 @@ def handler(event, context):
     """       
     logger.info(f"Event: {json.dumps(event)}")
     input_bucket = event.get("input").get("detail").get("bucket").get("name")
-    working_bucket = event.get("working_bucket")
+    output_bucket = event.get("output_bucket")
 
     object_key = event.get("input").get("detail").get("object").get("key")
     # Get the PDF from S3
@@ -143,8 +148,8 @@ def handler(event, context):
     logger.info(f"Time taken for S3 GetObject: {t1-t0:.6f} seconds")
     
     # OCR the pages
-    num_pages, page_results = get_document_text(pdf_content, working_bucket, prefix=object_key)
-    logger.info(f"Finished processing {object_key} ({num_pages} pages) - output pages written to s3://{working_bucket}/{object_key}/")   
+    num_pages, page_results = get_document_text(pdf_content, output_bucket, prefix=object_key)
+    logger.info(f"Finished processing {object_key} ({num_pages} pages) - output pages written to s3://{output_bucket}/{object_key}/")   
     
     t2 = time.time()
     logger.info(f"Time taken to process all {num_pages} pages: {t2-t1:.2f} seconds")
@@ -153,8 +158,8 @@ def handler(event, context):
         "metadata": {
             "input_bucket": input_bucket, 
             "object_key": object_key,
-            "working_bucket": working_bucket,
-            "working_prefix": object_key, 
+            "output_bucket": output_bucket,
+            "output_prefix": object_key, 
             "num_pages": num_pages
         },
         "pages": page_results
