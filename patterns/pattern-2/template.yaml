@@ -53,6 +53,8 @@ Resources:
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+          - id: W11
+            reason: "Textract DetectDocumentText API does not support resource-level permissions"
     # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
     # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
@@ -89,11 +91,7 @@ Resources:
           - Effect: Allow
             Action: textract:DetectDocumentText
             Resource: '*'
-    Metadata:
-      cfn-nag:
-        rules_to_suppress:
-          - id: W11
-            reason: "Textract DetectDocumentText API does not support resource-level permissions"
+
   
   OCRFunctionLogGroup:
     Type: AWS::Logs::LogGroup
