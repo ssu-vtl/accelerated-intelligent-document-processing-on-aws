@@ -142,6 +142,33 @@ Parameters:
         3653,
       ]
 
+  CloudFrontPriceClass:
+    Type: String
+    Default: PriceClass_100
+    Description: >-
+      Specify the CloudFront price class. See https://aws.amazon.com/cloudfront/pricing/
+      for a
+      description of each price class.
+    AllowedValues:
+      - PriceClass_100
+      - PriceClass_200
+      - PriceClass_All
+    ConstraintDescription: >-
+      Allowed Price Classes PriceClass_100 PriceClass_200 and PriceClass_All
+
+  CloudFrontAllowedGeos:
+    Type: String
+    Default: ""
+    Description: >-
+      Specify a comma separated list of two letter country codes (uppercase ISO 3166-1)
+      that are
+      allowed to access the web user interface via CloudFront. For example: US,CA.
+      Leave empty if
+      you do not want geo restrictions to be applied.
+    AllowedPattern: "^(|[A-Z]{2}(,[A-Z]{2})*)$"
+    ConstraintDescription: >-
+      Comma separated list of uppercase two letter country codes or empty
+
 Rules:
   # Pattern 1 rules
 
@@ -199,6 +226,7 @@ Conditions:
     ]
   ShouldAllowSignUpEmailDomain:
     !Not [!Equals [!Ref AllowedSignUpEmailDomain, ""]]
+  ShouldEnableGeoRestriction: !Not [!Equals [!Ref CloudFrontAllowedGeos, ""]]
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -236,6 +264,8 @@ Metadata:
           - ErrorThreshold
           - ExecutionTimeThresholdMs
           - LogRetentionDays
+          - CloudFrontPriceClass
+          - CloudFrontAllowedGeos
 
     ParameterLabels:
       AdminEmail:
@@ -266,6 +296,10 @@ Metadata:
         default: "Execution Time Threshold (ms)"
       LogRetentionDays:
         default: "Log Retention Period (days)"
+      CloudFrontPriceClass:
+        default: "CloudFront Price Class"
+      CloudFrontAllowedGeos:
+        default: "CloudFront Allowed Geos"
 
 Resources:
 
@@ -352,6 +386,17 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: "*"
+          - Sid: Allow CloudWatch Logs to use the key
+            Effect: Allow
+            Principal:
+              Service: logs.amazonaws.com
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: "*"
 
   CustomerManagedEncryptionKeyAlias:
     Type: AWS::KMS::Alias
@@ -374,6 +419,13 @@ Resources:
 
   UpdateSettingsFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -395,6 +447,7 @@ Resources:
   UpdateSettingsFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
       RetentionInDays: !Ref LogRetentionDays
 
   UpdateSettingsValues:
@@ -422,18 +475,23 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+      # see https://stackoverflow.com/questions/70645117/enable-s3-acl-access-for-cloudfront-logs
+      # for configuration required by CloudFront logging
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
+        BlockPublicAcls: false # to enable CloudFront to write logs
         BlockPublicPolicy: true
-        IgnorePublicAcls: true
+        IgnorePublicAcls: false # to enable CloudFront to write logs
         RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred # to enable CloudFront to write logs
       VersioningConfiguration:
         Status: Enabled
       LifecycleConfiguration:
         Rules:
           - Id: DeleteOldLogs
             Status: Enabled
-            ExpirationInDays: 90
+            ExpirationInDays: 180
             Prefix: "" # Applies to all objects in the bucket
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
@@ -445,7 +503,7 @@ Resources:
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
-          - Sid: S3ServerAccessLogsPolicy
+          - Sid: AllowS3ServerAccessLogs
             Effect: Allow
             Principal:
               Service: logging.s3.amazonaws.com
@@ -455,9 +513,24 @@ Resources:
             Condition:
               StringEquals:
                 "aws:SourceAccount": !Ref "AWS::AccountId"
+          - Sid: AllowCloudFrontLogs
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action:
+              - s3:PutObject
+            Resource: !Sub "${LoggingBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                "AWS:SourceAccount": !Ref "AWS::AccountId"
 
   InputBucket:
     Type: AWS::S3::Bucket
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W51
+            reason: "Bucket does not require a bucket policy as access is controlled via IAM roles and public access is blocked via PublicAccessBlockConfiguration"
     DeletionPolicy: RetainExceptOnCreate
     Properties:
       NotificationConfiguration:
@@ -488,6 +561,11 @@ Resources:
 
   OutputBucket:
     Type: AWS::S3::Bucket
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W51
+            reason: "Bucket does not require a bucket policy as access is controlled via IAM roles and public access is blocked via PublicAccessBlockConfiguration"
     DeletionPolicy: RetainExceptOnCreate 
     Properties:
       BucketEncryption:
@@ -593,6 +671,11 @@ Resources:
 
   ConcurrencyTable:
     Type: AWS::DynamoDB::Table
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W78
+            reason: "PITR not required for this table as it stores temporary concurrency data that can be recreated"
     Properties:
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
@@ -608,6 +691,15 @@ Resources:
 
   InitializeConcurrencyTableLambda:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -669,6 +761,13 @@ Resources:
 
   QueueSender:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
     Properties:
       CodeUri: src/lambda/queue_sender/
       Handler: index.handler
@@ -718,10 +817,19 @@ Resources:
   QueueSenderLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
       RetentionInDays: !Ref LogRetentionDays
 
   QueueProcessor:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function, as SQS messages remaining in queue will cause retry"
     Properties:
       CodeUri: src/lambda/queue_processor/
       Handler: index.handler
@@ -783,6 +891,7 @@ Resources:
   QueueProcessorLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
       RetentionInDays: !Ref LogRetentionDays
 
   ##########################################################################
@@ -798,6 +907,13 @@ Resources:
 
   WorkflowTracker:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
     Properties:
       CodeUri: src/lambda/workflow_tracker/
       Handler: index.handler
@@ -841,6 +957,7 @@ Resources:
   WorkflowTrackerLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
       RetentionInDays: !Ref LogRetentionDays
 
   WorkflowStateChangeRule:
@@ -886,6 +1003,11 @@ Resources:
 
   AlertsTopic:
     Type: AWS::SNS::Topic
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W47
+            reason: "Default AWS managed key for SNS is sufficient for this use case as it does not handle sensitive data"
     Properties:
       DisplayName: Workflow Alerts
 
@@ -1310,6 +1432,15 @@ Resources:
 
   DashboardMergerFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/lambda/dashboard_merger
       Handler: index.handler
@@ -1351,6 +1482,15 @@ Resources:
 
   LookupFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/lambda/lookup_function/
       Handler: index.handler
@@ -1391,6 +1531,7 @@ Resources:
   LookupFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
       RetentionInDays: !Ref LogRetentionDays
 
 
@@ -1478,6 +1619,15 @@ Resources:
 
   GetDomainLambda:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       Description: Converts Stackname to lowercase and adds unique timestamp
       Handler: index.handler
@@ -1498,6 +1648,7 @@ Resources:
   GetDomainLambdaLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
       RetentionInDays: !Ref LogRetentionDays
 
   GetDomain:
@@ -1627,6 +1778,15 @@ Resources:
 
   CognitoUserPoolEmailDomainVerifyFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Condition: ShouldAllowSignUpEmailDomain
     Properties:
       Description: Verifies email address is in allowed domain
@@ -1662,6 +1822,7 @@ Resources:
   CognitoUserPoolEmailDomainVerifyFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
       RetentionInDays: !Ref LogRetentionDays
 
   CognitoUserPoolEmailDomainVerifyPermission:
@@ -1712,6 +1873,7 @@ Resources:
   GraphQLApiLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
       LogGroupName: !Sub "/aws/appsync/apis/${GraphQLApi.ApiId}"
       RetentionInDays: !Ref LogRetentionDays
 
@@ -2038,9 +2200,14 @@ Resources:
 
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
+    # checkov:skip=CKV_AWS_68: "WAF is optional and can be enabled by customer based on their security requirements and budget"
     Properties:
       DistributionConfig:
         Comment: !Sub "Web app cloudfront distribution ${AWS::StackName}"
+        Logging:
+          Bucket: !Sub "${LoggingBucket}.s3.amazonaws.com"
+          Prefix: "cloudfront-logs"
+          IncludeCookies: true
         CustomErrorResponses:
           # Send errors to index file
           - ErrorCachingMinTTL: 300
@@ -2075,9 +2242,14 @@ Resources:
             DomainName: !GetAtt WebUIBucket.RegionalDomainName
             S3OriginConfig:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
-        Restrictions: 
-          GeoRestriction:
-            RestrictionType: none
+        PriceClass: !Ref CloudFrontPriceClass
+        Restrictions: !If
+          - ShouldEnableGeoRestriction
+          - GeoRestriction:
+              RestrictionType: whitelist
+              Locations: !Split [",", !Ref CloudFrontAllowedGeos]
+          - GeoRestriction:
+              RestrictionType: none
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -2275,6 +2447,15 @@ Resources:
 
   StartUICodeBuild:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       Role: !GetAtt StartUICodeBuildExecutionRole.Arn
       Runtime: python3.12
@@ -2289,6 +2470,7 @@ Resources:
   StartUICodeBuildLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
       RetentionInDays: !Ref LogRetentionDays
 
   CodeBuildRun:
