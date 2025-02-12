@@ -63,7 +63,8 @@ class AppSyncClient:
             response = requests.post(
                 self.api_url,
                 json=data,
-                headers=signed_headers
+                headers=signed_headers,
+                timeout=30
             )
             response.raise_for_status()  # Raises HTTPError for bad status codes
             

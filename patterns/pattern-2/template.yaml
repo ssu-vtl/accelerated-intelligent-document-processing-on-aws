@@ -46,6 +46,15 @@ Resources:
 
   OCRFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/ocr_function/
       Handler: index.handler
@@ -67,7 +76,7 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: '*'
+            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -76,18 +85,34 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
+          # Textract APIs require '*' as they don't support resource-level permissions
           - Effect: Allow
             Action: textract:DetectDocumentText
             Resource: '*'
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Textract DetectDocumentText API does not support resource-level permissions"
   
   OCRFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       LogGroupName: !Sub "/${AWS::StackName}/lambda/OCRFunction"
       RetentionInDays: !Ref LogRetentionDays
 
   ClassificationFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/classification_function/
       Handler: index.handler
@@ -110,7 +135,7 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: '*'
+            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -121,16 +146,26 @@ Resources:
             Resource: !Ref CustomerManagedEncryptionKeyArn
           - Effect: Allow
             Action: bedrock:InvokeModel
-            Resource: '*'
+            Resource: !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${ClassificationModel}"
   
   ClassificationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       LogGroupName: !Sub "/${AWS::StackName}/lambda/ClassificationFunction"
       RetentionInDays: !Ref LogRetentionDays
   
   ExtractionFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/extraction_function/
       Handler: index.handler
@@ -163,16 +198,26 @@ Resources:
           Resource: !Ref CustomerManagedEncryptionKeyArn
         - Effect: Allow
           Action: bedrock:InvokeModel
-          Resource: '*'
+          Resource: !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${ExtractionModel}"
 
   ExtractionFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       LogGroupName: !Sub "/${AWS::StackName}/lambda/ExtractionFunction"
       RetentionInDays: !Ref LogRetentionDays
 
   ProcessResultsFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/processresults_function/
       Handler: index.handler
@@ -193,7 +238,7 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: '*'
+            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -206,6 +251,7 @@ Resources:
   ProcessResultsFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       LogGroupName: !Sub "/${AWS::StackName}/lambda/ProcessResultsFunction"
       RetentionInDays: !Ref LogRetentionDays
 
@@ -239,6 +285,7 @@ Resources:
   StateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       LogGroupName: !Sub "/aws/vendedlogs/states/${AWS::StackName}/workflow"  # required prefix
       RetentionInDays: !Ref LogRetentionDays
 

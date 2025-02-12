@@ -61,11 +61,21 @@ Resources:
   StateMachineLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       LogGroupName: !Sub "/aws/vendedlogs/states/${AWS::StackName}/workflow"  # required prefix
       RetentionInDays: !Ref LogRetentionDays
 
   InvokeBDAFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/bda_invoke_function/
       Handler: index.handler
@@ -90,7 +100,7 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: '*'
+            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -106,11 +116,21 @@ Resources:
   InvokeBDAFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       LogGroupName: !Sub "/${AWS::StackName}/lambda/InvokeBDAFunction"
       RetentionInDays: !Ref LogRetentionDays
   
   ProcessResultsFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"    
     Properties:
       CodeUri: src/processresults_function/
       Handler: index.handler
@@ -131,7 +151,7 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: '*'
+            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -145,6 +165,7 @@ Resources:
   ProcessResultsFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       LogGroupName: !Sub "/${AWS::StackName}/lambda/ProcessResultsFunction"
       RetentionInDays: !Ref LogRetentionDays
 
@@ -157,6 +178,14 @@ Resources:
 
   BDACompletionFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/bda_completion_function/
       Handler: index.handler
@@ -179,12 +208,12 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: '*'
+            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
           - Effect: Allow
             Action: 
               - states:SendTaskSuccess
               - states:SendTaskFailure
-            Resource: '*'
+            Resource: !GetAtt DocumentProcessingStateMachine.Arn
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -198,6 +227,7 @@ Resources:
   BDACompletionFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       LogGroupName: !Sub "/${AWS::StackName}/lambda/BDACompletionFunction"
       RetentionInDays: !Ref LogRetentionDays
 
