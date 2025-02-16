@@ -92,6 +92,15 @@ Parameters:
     AllowedPattern: "^(|^arn:aws:bedrock:[a-z0-9-]+:.+:data-automation-project/.+)$"
     Description: (Optional) Bedrock Data Automation (BDA) project ARN
 
+  # Optional - Post processing Lambda hook
+  PostProcessingLambdaHookFunctionArn:
+    Default: ""
+    Type: String
+    AllowedPattern: "^(|arn:aws:lambda:.*)$"
+    Description: >
+      (Optional) The specified Lambda function is invoked by EventBridge after the document processing workflow is processed.
+      This function can implement custom logic to initiate downstream processing on the output of the processing pattern.
+
   # General Configuration
   MaxConcurrentWorkflows:
     Type: Number
@@ -227,6 +236,7 @@ Conditions:
   ShouldAllowSignUpEmailDomain:
     !Not [!Equals [!Ref AllowedSignUpEmailDomain, ""]]
   ShouldEnableGeoRestriction: !Not [!Equals [!Ref CloudFrontAllowedGeos, ""]]
+  ShouldEnablePostProcessingLambdaHook: !Not [!Equals [!Ref PostProcessingLambdaHookFunctionArn, ""]]
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -257,6 +267,10 @@ Metadata:
         Parameters:
           - Pattern3BDAProjectArn
       - Label:
+          default: "Post Processing Configuration"
+        Parameters:
+          - PostProcessingLambdaHookFunctionArn
+      - Label:
           default: "General Configuration"
         Parameters:
           - MaxConcurrentWorkflows
@@ -286,6 +300,8 @@ Metadata:
         default: "Pattern2 - Custom Extraction Model ARN"
       Pattern3BDAProjectArn:
         default: "Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN"
+      PostProcessingLambdaHookFunctionArn:
+        default: "Post Processing Lambda Hook Function ARN"
       MaxConcurrentWorkflows:
         default: "Maximum Concurrent Workflows"
       DataRetentionInDays:
@@ -996,6 +1012,46 @@ Resources:
       FunctionName: !Ref WorkflowTracker
       Principal: events.amazonaws.com
       SourceArn: !GetAtt WorkflowStateChangeRule.Arn
+
+  ##########################################################################
+  # Optional Post Processing Lambda Hook
+  ##########################################################################
+  PostProcessingLambdaHookRule:
+    Type: AWS::Events::Rule
+    Condition: ShouldEnablePostProcessingLambdaHook
+    Properties:
+      EventPattern:
+        source:
+          - aws.states
+        detail-type:
+          - Step Functions Execution Status Change
+        detail:
+          stateMachineArn:
+            - !If
+              - IsPattern1
+              - !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+              - !If
+                - IsPattern2
+                - !GetAtt PATTERN2STACK.Outputs.StateMachineArn
+                - !GetAtt PATTERN3STACK.Outputs.StateMachineArn
+          status:
+            - SUCCEEDED
+      State: ENABLED
+      Targets:
+        - Arn: !Ref PostProcessingLambdaHookFunctionArn
+          Id: PostProcessingLambdaHookFunction
+          RetryPolicy:
+            MaximumRetryAttempts: 3
+
+  PostProcessingLambdaHookPermission:
+    Type: AWS::Lambda::Permission
+    Condition: ShouldEnablePostProcessingLambdaHook
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref PostProcessingLambdaHookFunctionArn
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt PostProcessingLambdaHookRule.Arn
+
 
   ##########################################################################
   # CloudWatch monitoring  
