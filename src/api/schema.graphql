@@ -98,7 +98,8 @@ type Query @aws_cognito_user_pools @aws_iam {
   getDocument(ObjectKey: ID!): Document
   listDocuments(startDateTime: AWSDateTime, endDateTime: AWSDateTime): DocumentList
   listDocumentsDateHour(date: AWSDate, hour: Int): DocumentList
-  listDocumentsDateShard(date: AWSDate, shard: Int): DocumentList
+  listDocumentsDateShard(date: AWSDate, shard: Int): DocumentList 
+  getFileContents(s3Uri: String!): String
 }
 
 type Subscription @aws_cognito_user_pools @aws_iam {
