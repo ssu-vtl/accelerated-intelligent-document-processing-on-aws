@@ -35,6 +35,7 @@ const DocumentDetails = () => {
     }
   };
 
+  // Initial load
   useEffect(() => {
     if (!objectKey) {
       return () => {};
@@ -43,22 +44,29 @@ const DocumentDetails = () => {
     return () => {};
   }, [objectKey]);
 
-  useEffect(async () => {
-    if (!objectKey || !document || !documents?.length) {
+  // Handle updates from subscription
+  useEffect(() => {
+    if (!objectKey || !documents?.length) {
       return;
     }
+
     const documentsFiltered = documents.filter((c) => c.ObjectKey === objectKey);
     if (documentsFiltered && documentsFiltered?.length) {
       const documentsMap = mapDocumentsAttributes([documentsFiltered[0]], settings);
       const documentDetails = documentsMap[0];
-      if (documentDetails?.updatedAt && document.updatedAt < documentDetails.updatedAt) {
-        logger.debug('Updating document', documentDetails);
+
+      // Check if document content has changed by comparing stringified versions
+      const currentStr = JSON.stringify(document);
+      const newStr = JSON.stringify(documentDetails);
+
+      if (currentStr !== newStr) {
+        logger.debug('Updating document with new data', documentDetails);
         setDocument(documentDetails);
       }
     }
   }, [documents, objectKey]);
 
-  logger.debug('useEffect for documentDetails', objectKey, document, documents);
+  logger.debug('Document details render:', objectKey, document, documents);
 
   return (
     document && (
