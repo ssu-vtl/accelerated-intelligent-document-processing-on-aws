@@ -101,10 +101,54 @@ Parameters:
       (Optional) The specified Lambda function is invoked by EventBridge after the document processing workflow is processed.
       This function can implement custom logic to initiate downstream processing on the output of the processing pattern.
 
+  # Evaluation Configuration
+  EvaluationBaselineBucketName:
+    Type: String
+    Default: ""
+    Description: >-
+      (Optional) Existing bucket used for baseline (ground truth) data for processed documents. Baseline data is used to asess the accuracy 
+      of the processing pattern outputs. 
+      Provide the name of an existing bucket here. Hint: you can use the Output bucket of another GenAIDP stack to compare the outputs from 
+      different patterns and prompts. 
+      Leave blank to automatically create an empty bucket where you can (optionally) place your validated baseline data later.
+
+  EvaluationPattern:
+    Type: String
+    Default: LLM as a judge
+    AllowedValues:
+      - LLM as a judge
+    Description: >-
+      Method used to evaluate the processing pattern outputs. 
+      Currently, only the option 'LLM as a judge' is available.
+
+  EvaluationAutoEnabled:
+    Type: String
+    Default: true
+    AllowedValues:
+        - true
+        - false
+    Description: >- 
+      If true, an evaluation is automatically attempted for each processed document (if the EvaluationBaselineBucket contains baseline data for the document).
+      Set to true during test cycles to evaluate and compare accuracy for different patterns and prompts for each document.
+      If false, evaluation is not automatically attempted for each processed document. Set to false when deployed in production.
+
+  EvaluationModelId:
+    Type: String
+    Default: "us.amazon.nova-pro-v1:0"
+    AllowedValues:
+      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+      - "us.amazon.nova-pro-v1:0"
+    Description: Model to use for Evaluation
+
+  Pattern3CustomEvaluationModelARN:
+    Type: String
+    Default: ""
+    Description: For 'Custom Fine Tuned Evaluation Model', specify Model ARN
+
   # General Configuration
   MaxConcurrentWorkflows:
     Type: Number
-    Default: 800
+    Default: 100
     Description: Maximum number of concurrent workflow executions allowed
     MinValue: 1
 
@@ -237,6 +281,10 @@ Conditions:
     !Not [!Equals [!Ref AllowedSignUpEmailDomain, ""]]
   ShouldEnableGeoRestriction: !Not [!Equals [!Ref CloudFrontAllowedGeos, ""]]
   ShouldEnablePostProcessingLambdaHook: !Not [!Equals [!Ref PostProcessingLambdaHookFunctionArn, ""]]
+  ShouldCreateEvaluationBaselineBucket: !Equals [!Ref EvaluationBaselineBucketName, '']
+  IsEvaluationAutoEnabled: !Equals [!Ref EvaluationAutoEnabled, 'true']
+
+
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -271,6 +319,12 @@ Metadata:
         Parameters:
           - PostProcessingLambdaHookFunctionArn
       - Label:
+          default: "Evaluation Configuration"
+        Parameters:
+          - EvaluationBaselineBucketName
+          - EvaluationPattern
+          - EvaluationAutoEnabled
+      - Label:
           default: "General Configuration"
         Parameters:
           - MaxConcurrentWorkflows
@@ -302,6 +356,12 @@ Metadata:
         default: "Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN"
       PostProcessingLambdaHookFunctionArn:
         default: "Post Processing Lambda Hook Function ARN"
+      EvaluationBaselineBucketName:
+        default: "Evaluation Baseline Bucket Name"
+      EvaluationPattern:
+        default: "Evaluation Pattern"
+      EvaluationAutoEnabled:
+        default: "Evaluation Auto Enabled"
       MaxConcurrentWorkflows:
         default: "Maximum Concurrent Workflows"
       DataRetentionInDays:
@@ -606,6 +666,33 @@ Resources:
             ExpirationInDays: !Ref DataRetentionInDays
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 1
+
+  EvaluationBaselineBucket:
+    Type: AWS::S3::Bucket
+    Condition: ShouldCreateEvaluationBaselineBucket
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W51
+            reason: "Bucket does not require a bucket policy as access is controlled via IAM roles and public access is blocked via PublicAccessBlockConfiguration"
+    DeletionPolicy: RetainExceptOnCreate 
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref CustomerManagedEncryptionKey
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LoggingBucket
+        LogFilePrefix: output-bucket-logs/
+      # No lifecycle policy - retain baseline data permanently
 
   WebUIBucket:
     Type: AWS::S3::Bucket
@@ -1052,6 +1139,123 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt PostProcessingLambdaHookRule.Arn
 
+  ##########################################################################
+  # Evaluation Lambda, optionally triggered on completion of workflow
+  ##########################################################################
+
+  EvaluationFunctionDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId: !Ref CustomerManagedEncryptionKey
+      VisibilityTimeout: 30
+      MessageRetentionPeriod: 345600 # 4 days
+
+  EvaluationFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    Properties:
+      CodeUri: src/lambda/evaluation_function/
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 30
+      DeadLetterQueue:
+        Type: SQS
+        TargetArn: !GetAtt EvaluationFunctionDLQ.Arn
+      LoggingConfig:
+        LogGroup: !Ref EvaluationFunctionLogGroup
+      Environment:
+        Variables:
+          EVALUATION_MODEL_ID: !Ref EvaluationModelId
+          METRIC_NAMESPACE: !Ref AWS::StackName
+          APPSYNC_API_URL: !GetAtt GraphQLApi.GraphQLUrl
+          PROCESSING_OUTPUT_BUCKET: !Ref OutputBucket
+          EVALUATION_OUTPUT_BUCKET: !Ref OutputBucket
+          BASELINE_BUCKET: !If
+            - ShouldCreateEvaluationBaselineBucket
+            - !Ref EvaluationBaselineBucket
+            - !Ref EvaluationBaselineBucketName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TrackingTable
+        - S3ReadPolicy:
+            BucketName: !If
+            - ShouldCreateEvaluationBaselineBucket
+            - !Ref EvaluationBaselineBucket
+            - !Ref EvaluationBaselineBucketName
+        - S3CrudPolicy:
+            BucketName: !Ref OutputBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cloudwatch:PutMetricData
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - appsync:GraphQL
+              Resource:
+                - !Sub "${GraphQLApi.Arn}/types/Mutation/*"
+            - Effect: Allow
+              Action:
+                - kms:Encrypt
+                - kms:Decrypt
+                - kms:ReEncrypt*
+                - kms:GenerateDataKey*
+                - kms:DescribeKey
+              Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: 
+                  - !Sub "arn:aws:bedrock:*::foundation-model/*"
+                  - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+
+  EvaluationFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
+      RetentionInDays: !Ref LogRetentionDays
+
+  EvaluationFunctionRule:
+    Type: AWS::Events::Rule
+    Condition: IsEvaluationAutoEnabled
+    Properties:
+      EventPattern:
+        source:
+          - aws.states
+        detail-type:
+          - Step Functions Execution Status Change
+        detail:
+          stateMachineArn:
+            - !If
+              - IsPattern1
+              - !GetAtt PATTERN1STACK.Outputs.StateMachineArn
+              - !If
+                - IsPattern2
+                - !GetAtt PATTERN2STACK.Outputs.StateMachineArn
+                - !GetAtt PATTERN3STACK.Outputs.StateMachineArn
+          status:
+            - SUCCEEDED
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt EvaluationFunction.Arn
+          Id: InvokeEvaluationFunction
+          RetryPolicy:
+            MaximumRetryAttempts: 3
+
+  EvaluationFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Condition: IsEvaluationAutoEnabled
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref EvaluationFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt EvaluationFunctionRule.Arn
+
 
   ##########################################################################
   # CloudWatch monitoring  
@@ -1460,6 +1664,19 @@ Resources:
                 "type": "log",
                 "x": 12,
                 "y": 24,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "query": "SOURCE '${EvaluationFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
+                  "region": "${AWS::Region}",
+                  "title": "Workflow Tracker Lambda Errors",
+                  "view": "table"
+                }
+              },
+              {
+                "type": "log",
+                "x": 0,
+                "y": 30,
                 "width": 12,
                 "height": 6,
                 "properties": {
@@ -2555,6 +2772,20 @@ Outputs:
   S3OutputBucketConsoleURL:
     Description: Output S3 bucket console URL
     Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${OutputBucket}
+  S3EvaluationBaselineBucketName:
+    Description: Evaluation Baseline S3 bucket name
+    Value: !If
+      - ShouldCreateEvaluationBaselineBucket
+      - !Ref EvaluationBaselineBucket
+      - !Ref EvaluationBaselineBucketName
+  S3EvaluationBaselineBucketConsoleURL:
+    Description: Evaluation Baseline S3 bucket console URL
+    Value: !Sub
+      - https://s3.console.aws.amazon.com/s3/buckets/${Bucket}
+      - Bucket: !If
+          - ShouldCreateEvaluationBaselineBucket
+          - !Ref EvaluationBaselineBucket
+          - !Ref EvaluationBaselineBucketName
   StateMachineArn:
     Description: Step Functions State machine ARN
     Value: !If

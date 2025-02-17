@@ -144,7 +144,9 @@ Resources:
             Resource: !Ref CustomerManagedEncryptionKeyArn
           - Effect: Allow
             Action: bedrock:InvokeModel
-            Resource: !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${ClassificationModel}"
+            Resources:
+              - !Sub "arn:aws:bedrock:*::foundation-model/*"
+              - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
   
   ClassificationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -196,7 +198,9 @@ Resources:
           Resource: !Ref CustomerManagedEncryptionKeyArn
         - Effect: Allow
           Action: bedrock:InvokeModel
-          Resource: !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${ExtractionModel}"
+          Resources:
+            - !Sub "arn:aws:bedrock:*::foundation-model/*"
+            - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
 
   ExtractionFunctionLogGroup:
     Type: AWS::Logs::LogGroup

@@ -18,6 +18,7 @@ type Document implements DynamoDbBase @aws_cognito_user_pools @aws_iam {
   PageCount: Int
   Sections: [Section]
   Pages: [Page]
+  EvaluationReportUri: String
   ExpiresAfter: AWSTimestamp
 }
 
@@ -71,6 +72,7 @@ input UpdateDocumentInput {
   PageCount: Int
   Sections: [SectionInput]
   Pages: [PageInput]
+  EvaluationReportUri: String
 }
 
 input SectionInput {
