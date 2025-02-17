@@ -202,9 +202,9 @@ Resources:
           Resource: !Ref CustomerManagedEncryptionKeyArn
         - Effect: Allow
           Action: bedrock:InvokeModel
-          Resources:
-            - !Sub "arn:aws:bedrock:*::foundation-model/*"
-            - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          Resource: 
+              - !Sub "arn:aws:bedrock:*::foundation-model/*"
+              - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
 
   ExtractionFunctionLogGroup:
     Type: AWS::Logs::LogGroup
