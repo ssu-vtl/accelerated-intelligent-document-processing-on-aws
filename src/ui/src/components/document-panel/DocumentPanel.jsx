@@ -25,6 +25,15 @@ const DocumentAttributes = ({ item }) => {
         <SpaceBetween size="xs">
           <div>
             <Box margin={{ bottom: 'xxxs' }} color="text-label">
+              <strong>Status</strong>
+            </Box>
+            <div>{item.objectStatus}</div>
+          </div>
+        </SpaceBetween>
+
+        <SpaceBetween size="xs">
+          <div>
+            <Box margin={{ bottom: 'xxxs' }} color="text-label">
               <strong>Submitted</strong>
             </Box>
             <div>{item.initialEventTime}</div>

@@ -1,27 +1,73 @@
 /* eslint-disable react/prop-types */
 import React, { useState } from 'react';
 import { Box, SpaceBetween, Button } from '@awsui/components-react';
-import { Logger } from 'aws-amplify';
-import useAppContext from '../../contexts/app';
-import generateS3PresignedUrl from '../common/generate-s3-presigned-url';
+import { API, Logger } from 'aws-amplify';
+import ReactMarkdown from 'react-markdown';
+import getFileContents from '../../graphql/queries/getFileContents';
 
 const logger = new Logger('EvaluationReportViewer');
 
+// Define markdown components outside of render
+const H1 = ({ children }) => <h1 className="text-2xl font-bold mb-4">{children}</h1>;
+
+const H2 = ({ children }) => <h2 className="text-xl font-bold mb-3">{children}</h2>;
+
+const H3 = ({ children }) => <h3 className="text-lg font-bold mb-2">{children}</h3>;
+
+const Paragraph = ({ children }) => <p className="mb-4">{children}</p>;
+
+const UnorderedList = ({ children }) => <ul className="list-disc ml-4 mb-4">{children}</ul>;
+
+const OrderedList = ({ children }) => <ol className="list-decimal ml-4 mb-4">{children}</ol>;
+
+const CodeBlock = ({ inline, children }) => {
+  if (inline) {
+    return <code className="bg-gray-100 px-1 rounded">{children}</code>;
+  }
+  return <code className="block bg-gray-100 p-4 rounded mb-4">{children}</code>;
+};
+
+const MarkdownViewer = ({ content }) => (
+  <Box className="markdown-viewer p-8 bg-white" style={{ maxHeight: '800px', overflowY: 'auto' }}>
+    <ReactMarkdown
+      className="prose prose-sm max-w-none"
+      components={{
+        h1: H1,
+        h2: H2,
+        h3: H3,
+        p: Paragraph,
+        ul: UnorderedList,
+        ol: OrderedList,
+        code: CodeBlock,
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  </Box>
+);
+
 const EvaluationReportViewer = ({ evaluationReportUri }) => {
-  const [presignedUrl, setPresignedUrl] = useState(null);
+  const [reportContent, setReportContent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { currentCredentials } = useAppContext();
 
-  const generateUrl = async () => {
+  const fetchReport = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      logger.info('Generating presigned URL for:', evaluationReportUri);
-      const url = await generateS3PresignedUrl(evaluationReportUri, currentCredentials);
-      setPresignedUrl(url);
+      logger.info('Fetching evaluation report:', evaluationReportUri);
+
+      const response = await API.graphql({
+        query: getFileContents,
+        variables: { s3Uri: evaluationReportUri },
+      });
+
+      const content = response.data.getFileContents;
+      logger.debug('Received report content:', `${content.substring(0, 100)}...`);
+
+      setReportContent(content);
     } catch (err) {
-      logger.error('Error generating presigned URL:', err);
+      logger.error('Error fetching evaluation report:', err);
       setError('Failed to load evaluation report. Please try again.');
     } finally {
       setIsLoading(false);
@@ -29,7 +75,7 @@ const EvaluationReportViewer = ({ evaluationReportUri }) => {
   };
 
   const closeViewer = () => {
-    setPresignedUrl(null);
+    setReportContent(null);
   };
 
   if (!evaluationReportUri) {
@@ -42,8 +88,8 @@ const EvaluationReportViewer = ({ evaluationReportUri }) => {
 
   return (
     <Box className="w-full">
-      {!presignedUrl && (
-        <Button onClick={generateUrl} loading={isLoading} disabled={isLoading}>
+      {!reportContent && (
+        <Button onClick={fetchReport} loading={isLoading} disabled={isLoading}>
           View Evaluation Report
         </Button>
       )}
@@ -54,18 +100,10 @@ const EvaluationReportViewer = ({ evaluationReportUri }) => {
         </Box>
       )}
 
-      {presignedUrl && (
+      {reportContent && (
         <SpaceBetween size="s">
           <Button onClick={closeViewer}>Close Report</Button>
-          <Box className="w-full">
-            <iframe
-              src={presignedUrl}
-              title="Evaluation Report Viewer"
-              width="100%"
-              height="800px"
-              className="border border-solid border-gray-200 rounded-md w-full"
-            />
-          </Box>
+          <MarkdownViewer content={reportContent} />
         </SpaceBetween>
       )}
     </Box>
