@@ -26,6 +26,7 @@ export default gql`
         ImageUri
         TextUri
       }
+      EvaluationReportUri
       ExpiresAfter
     }
   }

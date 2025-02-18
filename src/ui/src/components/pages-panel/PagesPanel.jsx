@@ -1,18 +1,12 @@
 /* eslint-disable react/prop-types */
 import React, { useState } from 'react';
-import { Box, Button, Container, SpaceBetween, Table } from '@awsui/components-react';
+import { Box, Container, SpaceBetween, Table } from '@awsui/components-react';
 import { Logger } from 'aws-amplify';
 import useAppContext from '../../contexts/app';
 import generateS3PresignedUrl from '../common/generate-s3-presigned-url';
+import FileViewer from '../document-viewer/JSONViewer';
 
 const logger = new Logger('PagesPanel');
-
-// Separate component for the ViewTextButton
-const ViewTextButton = ({ page, onView, isLoading, selectedPageId }) => (
-  <Button onClick={() => onView(page)} loading={isLoading && selectedPageId === page.Id}>
-    View Text
-  </Button>
-);
 
 // Cell renderer components
 const IdCell = ({ item }) => <span>{item.Id}</span>;
@@ -44,9 +38,9 @@ const ThumbnailCell = ({ imageUrl }) => (
   </div>
 );
 
-const ActionsCell = ({ item, onView, isLoading, selectedPageId }) =>
+const ActionsCell = ({ item }) =>
   item.TextUri ? (
-    <ViewTextButton page={item} onView={onView} isLoading={isLoading} selectedPageId={selectedPageId} />
+    <FileViewer fileUri={item.TextUri} fileType="json" buttonText="View JSON" />
   ) : (
     <Box color="text-status-inactive">No text available</Box>
   );
@@ -73,16 +67,11 @@ const COLUMN_DEFINITIONS = [
   {
     id: 'actions',
     header: 'Actions',
-    cell: (item, { onView, isLoading, selectedPageId }) => (
-      <ActionsCell item={item} onView={onView} isLoading={isLoading} selectedPageId={selectedPageId} />
-    ),
+    cell: (item) => <ActionsCell item={item} />,
   },
 ];
 
 const PagesPanel = ({ pages }) => {
-  const [selectedPageId, setSelectedPageId] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [textUrl, setTextUrl] = useState(null);
   const [thumbnailUrls, setThumbnailUrls] = useState({});
   const { currentCredentials } = useAppContext();
 
@@ -110,27 +99,11 @@ const PagesPanel = ({ pages }) => {
     loadThumbnails();
   }, [pages]);
 
-  const handleViewText = async (page) => {
-    setIsLoading(true);
-    setSelectedPageId(page.Id);
-    try {
-      const url = await generateS3PresignedUrl(page.TextUri, currentCredentials);
-      setTextUrl(url);
-    } catch (err) {
-      logger.error('Error generating presigned URL:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Create column definitions with necessary context
   const columnDefinitions = COLUMN_DEFINITIONS.map((column) => ({
     ...column,
     cell: (item) =>
       column.cell(item, {
-        onView: handleViewText,
-        isLoading,
-        selectedPageId,
         thumbnailUrls,
       }),
   }));
@@ -153,35 +126,6 @@ const PagesPanel = ({ pages }) => {
           }
         />
       </Container>
-
-      {textUrl && (
-        <Container
-          header={
-            <SpaceBetween size="m" direction="horizontal">
-              <h3>Page {selectedPageId} Text Content</h3>
-              <Button
-                onClick={() => {
-                  setTextUrl(null);
-                  setSelectedPageId(null);
-                }}
-              >
-                Close
-              </Button>
-            </SpaceBetween>
-          }
-        >
-          <iframe
-            src={textUrl}
-            title="Text Viewer"
-            width="100%"
-            height="400px"
-            style={{
-              border: '1px solid #eaeded',
-              borderRadius: '4px',
-            }}
-          />
-        </Container>
-      )}
     </SpaceBetween>
   );
 };
