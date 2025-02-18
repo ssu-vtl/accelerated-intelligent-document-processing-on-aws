@@ -313,6 +313,17 @@ def handler(event, context):
         # Get list of section files
         baseline_files = get_section_files(s3_client, BASELINE_BUCKET, object_key)
         logger.info(f"Found {len(baseline_files)} section files to process")
+
+        isBaselineDataReady = len(baseline_files) > 0
+
+        if not isBaselineDataReady:
+            logger.info(f"No baseline data found for {object_key}. Skipping evaluation.")
+            return {
+                'statusCode': 200,
+                'body': json.dumps({
+                    'message': f'No baseline data for {object_key} in evaluation baseline bucket {BASELINE_BUCKET}'
+                })
+            }
         
         # Store comparisons
         section_comparisons = []
