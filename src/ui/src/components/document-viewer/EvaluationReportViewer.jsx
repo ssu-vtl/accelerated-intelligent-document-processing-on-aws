@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
-import React, { useState } from 'react';
-import { Box, SpaceBetween, Button } from '@awsui/components-react';
+import React, { useState, useEffect } from 'react';
+import { Box } from '@awsui/components-react';
 import { API, Logger } from 'aws-amplify';
 import ReactMarkdown from 'react-markdown';
 import getFileContents from '../../graphql/queries/getFileContents';
@@ -9,17 +9,11 @@ const logger = new Logger('EvaluationReportViewer');
 
 // Define markdown components outside of render
 const H1 = ({ children }) => <h1 className="text-2xl font-bold mb-4">{children}</h1>;
-
 const H2 = ({ children }) => <h2 className="text-xl font-bold mb-3">{children}</h2>;
-
 const H3 = ({ children }) => <h3 className="text-lg font-bold mb-2">{children}</h3>;
-
 const Paragraph = ({ children }) => <p className="mb-4">{children}</p>;
-
 const UnorderedList = ({ children }) => <ul className="list-disc ml-4 mb-4">{children}</ul>;
-
 const OrderedList = ({ children }) => <ol className="list-decimal ml-4 mb-4">{children}</ol>;
-
 const CodeBlock = ({ inline, children }) => {
   if (inline) {
     return <code className="bg-gray-100 px-1 rounded">{children}</code>;
@@ -51,32 +45,34 @@ const EvaluationReportViewer = ({ evaluationReportUri }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchReport = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      logger.info('Fetching evaluation report:', evaluationReportUri);
+  useEffect(() => {
+    const fetchReport = async () => {
+      if (!evaluationReportUri) return;
 
-      const response = await API.graphql({
-        query: getFileContents,
-        variables: { s3Uri: evaluationReportUri },
-      });
+      setIsLoading(true);
+      setError(null);
+      try {
+        logger.info('Fetching evaluation report:', evaluationReportUri);
 
-      const content = response.data.getFileContents;
-      logger.debug('Received report content:', `${content.substring(0, 100)}...`);
+        const response = await API.graphql({
+          query: getFileContents,
+          variables: { s3Uri: evaluationReportUri },
+        });
 
-      setReportContent(content);
-    } catch (err) {
-      logger.error('Error fetching evaluation report:', err);
-      setError('Failed to load evaluation report. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        const content = response.data.getFileContents;
+        logger.debug('Received report content:', `${content.substring(0, 100)}...`);
 
-  const closeViewer = () => {
-    setReportContent(null);
-  };
+        setReportContent(content);
+      } catch (err) {
+        logger.error('Error fetching evaluation report:', err);
+        setError('Failed to load evaluation report. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReport();
+  }, [evaluationReportUri]);
 
   if (!evaluationReportUri) {
     return (
@@ -86,28 +82,23 @@ const EvaluationReportViewer = ({ evaluationReportUri }) => {
     );
   }
 
-  return (
-    <Box className="w-full">
-      {!reportContent && (
-        <Button onClick={fetchReport} loading={isLoading} disabled={isLoading}>
-          View Evaluation Report
-        </Button>
-      )}
+  if (error) {
+    return (
+      <Box color="text-status-error" padding="s">
+        {error}
+      </Box>
+    );
+  }
 
-      {error && (
-        <Box color="text-status-error" padding="s">
-          {error}
-        </Box>
-      )}
+  if (isLoading) {
+    return (
+      <Box textAlign="center" padding="s">
+        Loading evaluation report...
+      </Box>
+    );
+  }
 
-      {reportContent && (
-        <SpaceBetween size="s">
-          <Button onClick={closeViewer}>Close Report</Button>
-          <MarkdownViewer content={reportContent} />
-        </SpaceBetween>
-      )}
-    </Box>
-  );
+  return reportContent && <MarkdownViewer content={reportContent} />;
 };
 
 export default EvaluationReportViewer;
