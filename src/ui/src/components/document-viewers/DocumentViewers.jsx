@@ -1,8 +1,9 @@
 /* eslint-disable react/prop-types */
 import React from 'react';
 import { SpaceBetween, Box } from '@awsui/components-react';
-import FileViewer from '../file-viewer/FileViewer';
-import EvaluationReportViewer from '../evaluation-report-viewer/EvaluationReportViewer';
+// eslint-disable-next-line import/extensions
+import FileViewer from '../document-viewer/FileViewer';
+import EvaluationReportViewer from '../document-viewer/EvaluationReportViewer';
 
 const DocumentViewers = ({ objectKey, evaluationReportUri }) => {
   return (

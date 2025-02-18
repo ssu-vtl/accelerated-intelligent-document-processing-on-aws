@@ -117,7 +117,7 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
   );
 };
 
-const FileViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) => {
+const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) => {
   const [fileContent, setFileContent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -223,4 +223,4 @@ const FileViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) =>
   );
 };
 
-export default FileViewer;
+export default JSONViewer;

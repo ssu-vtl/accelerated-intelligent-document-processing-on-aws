@@ -1,24 +1,35 @@
 /* eslint-disable react/prop-types */
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, Container, SpaceBetween, Table } from '@awsui/components-react';
-import FileViewer from '../file-viewer/FileViewer';
+import { Logger } from 'aws-amplify';
+import useAppContext from '../../contexts/app';
+import generateS3PresignedUrl from '../common/generate-s3-presigned-url';
+import FileViewer from '../document-viewer/JSONViewer';
+
+const logger = new Logger('PagesPanel');
 
 // Cell renderer components
 const IdCell = ({ item }) => <span>{item.Id}</span>;
 const ClassCell = ({ item }) => <span>{item.Class || '-'}</span>;
-const ThumbnailCell = ({ item }) => (
+const ThumbnailCell = ({ imageUrl }) => (
   <div style={{ width: '100px', height: '100px' }}>
-    {item.ImageUri ? (
-      <img
-        src={item.ImageUri}
-        alt="Page thumbnail"
-        style={{
-          maxWidth: '100%',
-          maxHeight: '100%',
-          objectFit: 'contain',
-        }}
-        title="Page thumbnail"
-      />
+    {imageUrl ? (
+      <a href={imageUrl} target="_blank" rel="noopener noreferrer" style={{ cursor: 'pointer' }}>
+        <img
+          src={imageUrl}
+          alt="Page thumbnail"
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            objectFit: 'contain',
+            transition: 'transform 0.2s',
+            ':hover': {
+              transform: 'scale(1.05)',
+            },
+          }}
+          title="Click to view full size image"
+        />
+      </a>
     ) : (
       <Box textAlign="center" color="inherit">
         No image
@@ -51,7 +62,7 @@ const COLUMN_DEFINITIONS = [
   {
     id: 'thumbnail',
     header: 'Thumbnail',
-    cell: (item) => <ThumbnailCell item={item} />,
+    cell: (item, { thumbnailUrls }) => <ThumbnailCell imageUrl={thumbnailUrls[item.Id]} />,
   },
   {
     id: 'actions',
@@ -61,11 +72,47 @@ const COLUMN_DEFINITIONS = [
 ];
 
 const PagesPanel = ({ pages }) => {
+  const [thumbnailUrls, setThumbnailUrls] = useState({});
+  const { currentCredentials } = useAppContext();
+
+  const loadThumbnails = async () => {
+    if (!pages) return;
+
+    const urls = {};
+    await Promise.all(
+      pages.map(async (page) => {
+        if (page.ImageUri) {
+          try {
+            const url = await generateS3PresignedUrl(page.ImageUri, currentCredentials);
+            urls[page.Id] = url;
+          } catch (err) {
+            logger.error('Error generating presigned URL for thumbnail:', err);
+            urls[page.Id] = null;
+          }
+        }
+      }),
+    );
+    setThumbnailUrls(urls);
+  };
+
+  React.useEffect(() => {
+    loadThumbnails();
+  }, [pages]);
+
+  // Create column definitions with necessary context
+  const columnDefinitions = COLUMN_DEFINITIONS.map((column) => ({
+    ...column,
+    cell: (item) =>
+      column.cell(item, {
+        thumbnailUrls,
+      }),
+  }));
+
   return (
     <SpaceBetween size="l">
       <Container header={<h2>Document Pages</h2>}>
         <Table
-          columnDefinitions={COLUMN_DEFINITIONS}
+          columnDefinitions={columnDefinitions}
           items={pages || []}
           sortingDisabled
           variant="embedded"
