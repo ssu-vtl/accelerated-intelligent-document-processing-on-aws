@@ -3,7 +3,7 @@ import React from 'react';
 import { Box, ColumnLayout, Container, SpaceBetween } from '@awsui/components-react';
 import { Logger } from 'aws-amplify';
 import './DocumentPanel.css';
-import FileViewer from '../file-viewer/FileViewer';
+import DocumentViewers from '../document-viewers/DocumentViewers';
 import SectionsPanel from '../sections-panel';
 import PagesPanel from '../pages-panel';
 
@@ -19,6 +19,15 @@ const DocumentAttributes = ({ item }) => {
               <strong>Document ID</strong>
             </Box>
             <div>{item.objectKey}</div>
+          </div>
+        </SpaceBetween>
+
+        <SpaceBetween size="xs">
+          <div>
+            <Box margin={{ bottom: 'xxxs' }} color="text-label">
+              <strong>Status</strong>
+            </Box>
+            <div>{item.objectStatus}</div>
           </div>
         </SpaceBetween>
 
@@ -62,7 +71,7 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds })
         setToolsOpen={setToolsOpen}
         getDocumentDetailsFromIds={getDocumentDetailsFromIds}
       />
-      <FileViewer objectKey={item.objectKey} />
+      <DocumentViewers objectKey={item.objectKey} evaluationReportUri={item.evaluationReportUri} />
       <SectionsPanel sections={item.sections} />
       <PagesPanel pages={item.pages} />
     </SpaceBetween>

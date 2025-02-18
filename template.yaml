@@ -2202,6 +2202,10 @@ Resources:
                   - kms:GenerateDataKey*
                   - kms:DescribeKey
                 Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt GetFileContentsResolverFunction.Arn
 
   CreateDocumentResolver:
     Type: AWS::AppSync::Resolver
@@ -2460,6 +2464,72 @@ Resources:
             "Documents": $util.toJson($ctx.result.items),
             "nextToken": $util.toJson($ctx.result.nextToken)
         }
+
+  GetFileContentsResolverFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
+    Properties:
+      Handler: index.handler
+      Runtime: python3.12
+      CodeUri: ./src/lambda/get_file_contents_resolver
+      Description: Lambda function to return file contents via GraphQL API
+      MemorySize: 512
+      Timeout: 60
+      LoggingConfig:
+        LogGroup: !Ref GetFileContentsResolverFunctionLogGroup
+      Policies:      
+        - S3ReadPolicy:
+            BucketName: !If
+            - ShouldCreateEvaluationBaselineBucket
+            - !Ref EvaluationBaselineBucket
+            - !Ref EvaluationBaselineBucketName
+        - S3ReadPolicy:
+            BucketName: !Ref InputBucket
+        - S3ReadPolicy:
+            BucketName: !Ref OutputBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - kms:Encrypt
+                - kms:Decrypt
+                - kms:ReEncrypt*
+                - kms:GenerateDataKey*
+                - kms:DescribeKey
+              Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+
+  GetFileContentsResolverFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
+      RetentionInDays: !Ref LogRetentionDays
+
+  GetFileContentsDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Name: GetFileContents
+      Description: Lambda function to return file contents via GraphQL API
+      Type: AWS_LAMBDA
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt GetFileContentsResolverFunction.Arn
+
+  GetFileContentsResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: GraphQLSchema
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      DataSourceName: !GetAtt GetFileContentsDataSource.Name
+      TypeName: Query
+      FieldName: getFileContents
 
   ##########################################################################
   # WebUI build and deployment 

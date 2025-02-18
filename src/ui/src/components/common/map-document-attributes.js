@@ -17,6 +17,7 @@ const mapDocumentsAttributes = (documents) => {
       Sections: sections,
       Pages: pages,
       PageCount: pageCount,
+      EvaluationReportUri: evaluationReportUri,
       ListPK: listPK,
       ListSK: listSK,
     } = item;
@@ -44,6 +45,7 @@ const mapDocumentsAttributes = (documents) => {
       sections,
       pages,
       pageCount,
+      evaluationReportUri,
       listPK,
       listSK,
     };
