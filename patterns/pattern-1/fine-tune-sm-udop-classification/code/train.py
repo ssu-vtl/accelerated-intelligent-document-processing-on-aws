@@ -47,9 +47,7 @@ def train(
     )
 
     max_steps = (
-        (max_epochs * len(train_ds))
-        // accumulate_grad_batches
-        // devices
+        (max_epochs * len(train_ds)) // accumulate_grad_batches // devices
     )
 
     model = UDOPModel(
@@ -116,15 +114,15 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--b1", type=float, default=0.9)
     parser.add_argument("--b2", type=float, default=0.999)
-    parser.add_argument("--weight_decay", type=float, default=0.0)
-    parser.add_argument("--lr_warmup_steps", type=int, default=50)
+    parser.add_argument("--weight_decay", type=float, default=1e-4)
+    parser.add_argument("--lr_warmup_steps", type=int, default=60)
     parser.add_argument("--max_epochs", type=int, default=3)
     parser.add_argument("--accumulate_grad_batches", type=int, default=10)
     parser.add_argument("--devices", type=int, default=torch.cuda.device_count())
     parser.add_argument("--dropout_rate", type=float, default=0.2)
     parser.add_argument("--precision", type=str, default="bf16-true")
     parser.add_argument("--distributed_strategy", type=str, default="ddp_find_unused_parameters_true")
-    parser.add_argument("--patience", type=int, default=3)
+    parser.add_argument("--patience", type=int, default=30)
     parser.add_argument("--fast_dev_run", type=int, default=None)
     parser.add_argument("--print_every_n_steps", type=int, default=100)
 

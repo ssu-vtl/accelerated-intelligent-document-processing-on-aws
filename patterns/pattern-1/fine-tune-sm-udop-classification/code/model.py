@@ -104,4 +104,4 @@ class UDOPModel(pl.LightningModule):
             num_training_steps=self.max_steps
         )
         self.scheduler = scheduler
-        return [optimizer], [scheduler]
+        return [optimizer], [{"scheduler": scheduler, "interval": "step"}] # Update LR in each step, not epoch

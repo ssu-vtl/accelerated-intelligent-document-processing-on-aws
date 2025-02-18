@@ -14,8 +14,8 @@ aws configure
 To create a training job, you need to prepare your dataset in an S3 bucket with the following structure:
 
 ```
-bucket
-    ├── dataset/
+<data bucket>/
+    ├── <prefix>/
         ├── validation/
             ├── images/
             ├── labels/  # Label data: {"label": "letter"}
@@ -37,23 +37,23 @@ Metadata Format (`metadata.json`)
 }
 ```
 
-### 1.1.1 Using the sample dataset:
-Use the sample rvl-cdip dataset provided (in the assets folder) if you're not yet ready to train a model with your own data:
+#### 1.1.1 Generating a Demo Dataset for Training and Validation
+If you don’t have a dataset available but still want to test this package, you can use the `generate_demo_data.py` script to create an example dataset for training and validation. The data in the generated demo dataset is the `jordyvl/rvl_cdip_100_examples_per_class` on Hugging Face. Here is how you generate the example data:
+
 ```
-sh upload-dataset.sh \
-   --zip-file rvl-cdip.zip          # Zipfile with dataset
-   --bucket <your-dataset-bucket>   # uses existing bucket, or creates a new one 
-   --bucket-prefix <prefix>         # root prefix for dataset in bucket
-```
-#### Example:
-Upload sample dataset to bucket `udop-finetuning/rvl-cdip` 
-```
-./upload-dataset.sh \
-    --zip-file assets/rvl-cdip.zip \
-    --bucket udop-finetuning \
-    --bucket-prefix rvl-cdip
+python generate_demo_data.py \
+    --data-bucket <dataset bucket> \
+    --data-bucket-prefix <dataset prefix> # Dataset prefix in your S3 \
+    --max-workers <worker number> # Optional, default to 40
 ```
 
+Here is an example:
+```
+python generate_demo_data.py \
+    --data-bucket udop-finetuning \
+    --data-bucket-prefix test-saving-data \
+    --max-workers 40 # Optional, default to 40
+```
 
 ### 1.2. Launching a Training Job
 Run the following command to start fine-tuning:
@@ -75,9 +75,11 @@ python sagemaker_train.py \
 Read data from and save results to `udop-finetuning/rvl-cdip`
 ```
 python sagemaker_train.py \
+    --job-name rvl-cdip-1  \
     --bucket udop-finetuning \
-    --bucket-prefix rvl-cdip/  \
-    --job-name rvl-cdip-1 
+    --bucket-prefix rvl-cdip/results \
+    --max-epochs 30 \
+    --data-bucket-prefix rvl-cdip/data
 ```
 
 #### Results Location
