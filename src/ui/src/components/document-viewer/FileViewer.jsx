@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import React, { useState } from 'react';
-import { Box, SpaceBetween, Button } from '@awsui/components-react';
+import { Box } from '@awsui/components-react';
 import { Logger } from 'aws-amplify';
 import useSettingsContext from '../../contexts/settings';
 import generateS3PresignedUrl from '../common/generate-s3-presigned-url';
@@ -36,31 +36,30 @@ const FileViewer = ({ objectKey }) => {
     }
   };
 
-  const closeViewer = () => {
-    setPresignedUrl(null);
-  };
+  React.useEffect(() => {
+    generateUrl();
+  }, [objectKey]);
+
+  if (error) {
+    return (
+      <Box color="text-status-error" padding="s">
+        {error}
+      </Box>
+    );
+  }
 
   return (
     <Box>
-      {!presignedUrl && (
-        <Button onClick={generateUrl} loading={isLoading} disabled={isLoading}>
-          View Source Document
-        </Button>
-      )}
-
-      {error && (
-        <Box color="text-status-error" padding="s">
-          {error}
+      {isLoading ? (
+        <Box textAlign="center" padding="s">
+          Loading document...
         </Box>
-      )}
-
-      {presignedUrl && (
-        <SpaceBetween size="s">
-          <Button onClick={closeViewer}>Close Viewer</Button>
+      ) : (
+        presignedUrl && (
           <Box className="pdf-container" padding={{ top: 's' }}>
             <iframe src={presignedUrl} title="Document Viewer" width="100%" height="800px" className="h-full w-full" />
           </Box>
-        </SpaceBetween>
+        )
       )}
     </Box>
   );
