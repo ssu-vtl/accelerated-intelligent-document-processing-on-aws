@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 import React from 'react';
 import { Box, Container, SpaceBetween, Table } from '@awsui/components-react';
-import FileViewer from '../file-viewer/FileViewer';
+import FileViewer from '../document-viewer/JSONViewer';
 
 // Cell renderer components
 const IdCell = ({ item }) => <span>{item.Id}</span>;
