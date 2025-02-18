@@ -32,6 +32,12 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
   - [Pattern Selection and Deployment](#pattern-selection-and-deployment)
   - [Integrated Monitoring](#integrated-monitoring)
   - [Adding New Patterns](#adding-new-patterns)
+- [Evaluation Framework](#evaluation-framework)
+  - [How It Works](#how-it-works)
+  - [Configuration](#configuration)
+  - [Viewing Reports](#viewing-reports)
+  - [Best Practices](#best-practices)
+  - [Metrics and Monitoring](#metrics-and-monitoring)
 - [Concurrency and Throttling Management](#concurrency-and-throttling-management)
   - [Throttling and Retry (Bedrock and/or SageMaker)](#throttling-and-retry-bedrock-andor-sagemaker)
   - [Step Functions Retry Configuration](#step-functions-retry-configuration)
@@ -71,6 +77,7 @@ A scalable, serverless solution for automated document processing and informatio
 - **Easy Document Tracking**: Built-in tracking system to monitor document status and processing times
 - **Secure by Design**: Implements encryption at rest, access controls, and secure communication between services
 - **Web User Interface**: Secure, modern WebUI for inspecting document workflow status, inputs, and outputs.
+- **AI-Powered Evaluation**: Built-in framework to assess accuracy by comparing outputs against baseline data, with detailed AI-generated analysis reports
 
 ### Use Cases
 
@@ -438,6 +445,83 @@ To add a new processing pattern:
 5. Create a new condition and nested stack resource for the pattern
 
 The new pattern will automatically inherit all the core infrastructure and monitoring capabilities while maintaining its own specific processing logic and metrics.
+
+## Evaluation Framework
+
+The solution includes a built-in evaluation framework to assess the accuracy of document processing outputs. This allows you to:
+
+- Compare processing outputs against baseline (ground truth) data
+- Generate detailed evaluation reports using AI
+- Track and improve processing accuracy over time
+
+### How It Works
+
+1. **Baseline Data**
+   - Store validated baseline data in a dedicated S3 bucket
+   - Use an existing bucket or let the solution create one
+   - Can use outputs from another GenAIDP stack to compare different patterns/prompts
+
+2. **Automatic Evaluation**
+   - When enabled, automatically evaluates each processed document
+   - Compares against baseline data if available
+   - Generates detailed markdown reports using AI analysis
+
+3. **Evaluation Reports**
+   - Compare section classification accuracy
+   - Analyze extracted field differences 
+   - Identify patterns in discrepancies
+   - Assess severity of differences (cosmetic vs. substantial)
+
+### Configuration
+
+Set the following parameters during stack deployment:
+
+```yaml
+EvaluationBaselineBucketName:
+  Description: Existing bucket with baseline data, or leave empty to create new bucket
+  
+EvaluationPattern: 
+  Default: "LLM as a judge"
+  Description: Evaluation method to use
+
+EvaluationAutoEnabled:
+  Default: true
+  Description: Automatically evaluate each document (if baseline exists)
+  
+EvaluationModelId:
+  Default: "us.amazon.nova-pro-v1:0"
+  Description: Model to use for evaluation reports
+```
+
+### Viewing Reports
+
+1. In the web UI, select a document from the Documents list
+2. Click "View Evaluation Report" button 
+3. The report shows:
+   - Section classification accuracy
+   - Field-by-field comparison 
+   - Analysis of differences
+   - Overall accuracy assessment
+
+### Best Practices
+
+- Enable auto-evaluation during testing/tuning phases
+- Disable auto-evaluation in production for cost efficiency 
+- Use evaluation reports to:
+  - Compare different processing patterns
+  - Test effects of prompt changes
+  - Monitor accuracy over time
+  - Identify areas for improvement
+
+### Metrics and Monitoring
+
+The solution tracks evaluation metrics in CloudWatch:
+- Success/failure rates
+- Processing latency
+- Token usage
+- Error counts
+
+Access these metrics in the integrated CloudWatch dashboard under the "Evaluation Metrics" section.
 
 ## Concurrency and Throttling Management
 
