@@ -35,7 +35,7 @@ check_command() {
     fi
     return 0
 }
-commands=("aws" "git" "sam" "sha256sum")
+commands=("aws" "sam" "sha256sum")
 for cmd in "${commands[@]}"; do
     check_command "$cmd" || exit 1
 done
@@ -144,8 +144,12 @@ echo "PACKAGING $dir"
 pushd $dir
 mkdir -p .aws-sam
 echo "Zipping source to .aws-sam/${WEBUI_ZIPFILE}"
-BUNDLE_SRC_FILES=$(git ls-files)
-echo $BUNDLE_SRC_FILES | xargs zip -@ .aws-sam/$WEBUI_ZIPFILE
+# Create zip file excluding specified directories and files
+zip -r .aws-sam/$WEBUI_ZIPFILE . \
+    -x ".env" \
+    -x ".aws-sam/*" \
+    -x "build/*" \
+    -x "node_modules/*"
 echo "Upload source to S3"
 WEBUIUI_SRC_S3_LOCATION=${BUCKET}/${PREFIX_AND_VERSION}/${WEBUI_ZIPFILE}
 aws s3 cp .aws-sam/$WEBUI_ZIPFILE s3://${WEBUIUI_SRC_S3_LOCATION}
