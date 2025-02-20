@@ -42,7 +42,7 @@ Parameters:
 
   Pattern1UDOPModelArtifactPath:
     Type: String
-    Default: "s3://bobs-artifacts-us-east-1/udop/model.tar.gz"
+    Default: ""
     AllowedPattern: "^(|s3://.*)$"
     Description: For Pattern1, provide S3 path to the UDOP model.tar.gz file (e.g., s3://bucket-name/path/to/model.tar.gz)
 
