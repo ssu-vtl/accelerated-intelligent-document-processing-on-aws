@@ -128,7 +128,7 @@ export const DocumentsQueryLayout = () => {
   // eslint-disable-next-line
   const placeholder =
     settings.ShouldUseDocumentKnowledgeBase === 'true'
-      ? 'Enter a question to query your meeting transcripts knowledge base.'
+      ? 'Enter a question to query your document knowledge base.'
       : 'Document Knowledge Base is set to DISABLED for this GENAIDP deployment.';
   // eslint-disable-next-line
   const initialMsg =

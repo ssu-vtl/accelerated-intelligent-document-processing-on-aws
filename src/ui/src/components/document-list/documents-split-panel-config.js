@@ -33,7 +33,7 @@ const getPanelContentSingle = ({ items, setToolsOpen, getDocumentDetailsFromIds 
   const item = items[0];
 
   return {
-    header: 'Meeting Details',
+    header: 'Document Details',
     body: (
       <DocumentPanel item={item} setToolsOpen={setToolsOpen} getDocumentDetailsFromIds={getDocumentDetailsFromIds} />
     ),
