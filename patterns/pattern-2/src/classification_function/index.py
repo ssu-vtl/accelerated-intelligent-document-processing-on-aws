@@ -108,7 +108,7 @@ def classify_single_page(page_id, page_data):
             image_content = get_image_content(page_data['imageUri'])
             
             # Prepare inference payload
-            inference_config = {"temperature": 0.5}
+            inference_config = {"temperature": 0}
             if CLASSIFICATION_MODEL_ID.startswith("us.anthropic"):
                 additional_model_fields = {"top_k": 200}
             else:

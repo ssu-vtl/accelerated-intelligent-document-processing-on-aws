@@ -54,7 +54,7 @@ def put_metric(name, value, unit='Count', dimensions=None):
         logger.error(f"Error publishing metric {name}: {e}")
 
 def invoke_llm(page_images, class_label, system_prompts, task_prompt, document_text, attributes):
-    inference_config = {"temperature": 0.5}
+    inference_config = {"temperature": 0}
     if model_id.startswith("us.anthropic"):
         additional_model_fields = {"top_k": 200}
     else:
@@ -63,7 +63,7 @@ def invoke_llm(page_images, class_label, system_prompts, task_prompt, document_t
     system_prompt = [{"text": system_prompts}]
     content = [{"text": task_prompt}]
 
-    # Claude currently supports max 20 image attachments
+    # Bedrock currently supports max 20 image attachments
     # Per science team recommendation, we limit image attachments to 1st 20 pages.
     # TODO: Assess potential accuracy impact for longer documents, and if necessary consider alternate approaches 
     if len(page_images) > 20:
@@ -300,12 +300,12 @@ def handler(event, context):
         attributes_list
     )
     t3 = time.time()
-    logger.info(f"Time taken by bedrock/claude: {t3-t2:.2f} seconds")
+    logger.info(f"Time taken by bedrock: {t3-t2:.2f} seconds")
 
     try:
         extracted_entities = json.loads(extracted_entities_str)
     except Exception as e:
-        logger.error(f"Error parsing LLM output - invalid JSON?: {extracted_entities_str}", e)
+        logger.error(f"Error parsing LLM output - invalid JSON?: {extracted_entities_str} - {e}")
         logger.info(f"UsIng unparsed LLM output.")
         extracted_entities = extracted_entities_str
 
