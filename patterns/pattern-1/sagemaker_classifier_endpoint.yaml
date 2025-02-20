@@ -105,6 +105,7 @@ Resources:
 
   UDOPModel:
     Type: AWS::SageMaker::Model
+    # checkov:skip=CKV_AWS_370: "Container requires network access to S3"
     Properties:
       ExecutionRoleArn: !GetAtt UDOPExecutionRole.Arn
       PrimaryContainer:

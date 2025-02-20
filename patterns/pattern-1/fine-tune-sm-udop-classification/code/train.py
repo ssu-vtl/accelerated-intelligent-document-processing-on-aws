@@ -31,6 +31,7 @@ def train(
     train_ds = ClassificationDataset(processor, data_dir, split="training")
     val_ds = ClassificationDataset(processor, data_dir, split="validation")
 
+    # nosec B101
     assert train_ds.prompt.strip() == val_ds.prompt.strip(), (
         "Prompts do not match in training and validation dataset!\nTraining Prompt: {0}\nValidation Prompt: {1}".format(
             train_ds.prompt, val_ds.prompt
