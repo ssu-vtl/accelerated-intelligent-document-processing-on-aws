@@ -475,12 +475,6 @@ Resources:
 
   CustomerManagedEncryptionKey:
     Type: AWS::KMS::Key
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: F14
-            reason: "KMS key requires broad permissions for root user to manage the key"
-    # checkov:skip=CKV_AWS_111: "KMS key requires broad permissions for root user to manage the key"
     Properties:
       Description: KMS key for DynamoDB encryption
       EnableKeyRotation: true
@@ -548,13 +542,6 @@ Resources:
 
   UpdateSettingsFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
-          - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -665,11 +652,6 @@ Resources:
 
   InputBucket:
     Type: AWS::S3::Bucket
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W51
-            reason: "Bucket access is controlled via IAM roles and bucket policy enforces SSL"
     DeletionPolicy: RetainExceptOnCreate
     Properties:
       NotificationConfiguration:
@@ -719,11 +701,6 @@ Resources:
   OutputBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: RetainExceptOnCreate
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W51
-            reason: "Bucket access is controlled via IAM roles and bucket policy enforces SSL"
     Properties:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -770,11 +747,6 @@ Resources:
     Type: AWS::S3::Bucket
     Condition: ShouldCreateEvaluationBaselineBucket
     DeletionPolicy: RetainExceptOnCreate
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W51
-            reason: "Bucket access is controlled via IAM roles and bucket policy enforces SSL"
     Properties:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -891,11 +863,6 @@ Resources:
 
   ConcurrencyTable:
     Type: AWS::DynamoDB::Table
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W78
-            reason: "PITR not required for this table as it stores temporary concurrency data that can be recreated"
     Properties:
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
@@ -911,18 +878,6 @@ Resources:
 
   InitializeConcurrencyTableLambda:
     Type: AWS::Serverless::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
-          - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-          - id: W12
-            reason: "Lambda requires CloudWatch logs permissions"
-    # checkov:skip=CKV_AWS_158: "Lambda requires permissions to create log groups"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
-    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -1035,15 +990,6 @@ Resources:
 
   QueueSender:
     Type: AWS::Serverless::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
-          - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-          - id: W12
-            reason: "Lambda requires CloudWatch logs permissions"
     Properties:
       CodeUri: src/lambda/queue_sender/
       Handler: index.handler
@@ -1098,14 +1044,6 @@ Resources:
 
   QueueProcessor:
     Type: AWS::Serverless::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
-          - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for this function, as SQS messages remaining in queue will cause retry"
     Properties:
       CodeUri: src/lambda/queue_processor/
       Handler: index.handler
@@ -1200,16 +1138,6 @@ Resources:
 
   WorkflowTracker:
     Type: AWS::Serverless::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
-          - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-          - id: W12
-            reason: "Lambda requires CloudWatch logs and metrics permissions"
-    # checkov:skip=CKV_AWS_111: "Lambda requires CloudWatch metrics permissions"
     Properties:
       CodeUri: src/lambda/workflow_tracker/
       Handler: index.handler
@@ -1345,16 +1273,6 @@ Resources:
 
   EvaluationFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
-          - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-          - id: W12
-            reason: "Lambda requires CloudWatch logs and metrics permissions"
-    # checkov:skip=CKV_AWS_111: "Lambda requires CloudWatch metrics permissions"
     Properties:
       CodeUri: src/lambda/evaluation_function/
       Handler: index.handler
@@ -1459,11 +1377,6 @@ Resources:
 
   AlertsTopic:
     Type: AWS::SNS::Topic
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W47
-            reason: "Default AWS managed key for SNS is sufficient for this use case as it does not handle sensitive data"
     Properties:
       DisplayName: Workflow Alerts
 
@@ -1901,18 +1814,6 @@ Resources:
 
   DashboardMergerFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
-          - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-          - id: W12
-            reason: "Function requires permissions to manage CloudWatch dashboards"
-    # checkov:skip=CKV_AWS_111: "Function requires CloudWatch dashboard management permissions"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
-    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/lambda/dashboard_merger
       Handler: index.handler
@@ -1954,15 +1855,6 @@ Resources:
 
   LookupFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
-          - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
-    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/lambda/lookup_function/
       Handler: index.handler
@@ -2013,11 +1905,6 @@ Resources:
 
   UserPool:
     Type: AWS::Cognito::UserPool
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W57  # MFA warning
-            reason: "MFA configuration is customizable via parameter based on security requirements"
     Properties:
       UserPoolName: !Sub ${AWS::StackName}-users
       MfaConfiguration: !Ref MFAConfiguration
@@ -2097,15 +1984,6 @@ Resources:
 
   GetDomainLambda:
     Type: AWS::Serverless::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
-          - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
-    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       Description: Converts Stackname to lowercase and adds unique timestamp
       Handler: index.handler
@@ -2256,15 +2134,6 @@ Resources:
 
   CognitoUserPoolEmailDomainVerifyFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
-          - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
-    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Condition: ShouldAllowSignUpEmailDomain
     Properties:
       Description: Verifies email address is in allowed domain
@@ -2681,7 +2550,6 @@ Resources:
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
           - id: W12
             reason: "Lambda requires CloudWatch logs permissions"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -2799,13 +2667,6 @@ Resources:
               Locations: !Split [",", !Ref CloudFrontAllowedGeos]
           - GeoRestriction:
               RestrictionType: none
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W70
-            reason:
-              This is using Cloudfront default TLS, can be changed by customer
-              if needed.
 
   UICodeBuildServiceRole:
     Type: AWS::IAM::Role
@@ -2946,14 +2807,6 @@ Resources:
 
   StartUICodeBuildExecutionRole:
     Type: AWS::IAM::Role
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W12
-            reason: "Lambda custom resource requires permissions to manage event rules"
-          - id: W76
-            reason: "Lambda custom resource requires dynamic resource names"
-    # checkov:skip=CKV_AWS_111: "Lambda requires dynamic resource permissions for event rules"
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -3004,15 +2857,6 @@ Resources:
 
   StartUICodeBuild:
     Type: AWS::Serverless::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
-          - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
-    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       Role: !GetAtt StartUICodeBuildExecutionRole.Arn
       Runtime: python3.12
