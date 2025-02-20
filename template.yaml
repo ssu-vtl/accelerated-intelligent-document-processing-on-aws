@@ -476,7 +476,7 @@ Resources:
   CustomerManagedEncryptionKey:
     Type: AWS::KMS::Key
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: F14
             reason: "KMS key requires broad permissions for root user to manage the key"
@@ -549,7 +549,7 @@ Resources:
   UpdateSettingsFunction:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -666,7 +666,7 @@ Resources:
   InputBucket:
     Type: AWS::S3::Bucket
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W51
             reason: "Bucket access is controlled via IAM roles and bucket policy enforces SSL"
@@ -720,7 +720,7 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: RetainExceptOnCreate
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W51
             reason: "Bucket access is controlled via IAM roles and bucket policy enforces SSL"
@@ -771,7 +771,7 @@ Resources:
     Condition: ShouldCreateEvaluationBaselineBucket
     DeletionPolicy: RetainExceptOnCreate
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W51
             reason: "Bucket access is controlled via IAM roles and bucket policy enforces SSL"
@@ -892,7 +892,7 @@ Resources:
   ConcurrencyTable:
     Type: AWS::DynamoDB::Table
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W78
             reason: "PITR not required for this table as it stores temporary concurrency data that can be recreated"
@@ -912,14 +912,7 @@ Resources:
   InitializeConcurrencyTableLambda:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
-          - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-    Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -1043,7 +1036,7 @@ Resources:
   QueueSender:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -1106,7 +1099,7 @@ Resources:
   QueueProcessor:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -1208,7 +1201,7 @@ Resources:
   WorkflowTracker:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -1353,7 +1346,7 @@ Resources:
   EvaluationFunction:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -1467,7 +1460,7 @@ Resources:
   AlertsTopic:
     Type: AWS::SNS::Topic
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W47
             reason: "Default AWS managed key for SNS is sufficient for this use case as it does not handle sensitive data"
@@ -1909,7 +1902,7 @@ Resources:
   DashboardMergerFunction:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -1962,7 +1955,7 @@ Resources:
   LookupFunction:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -2021,7 +2014,7 @@ Resources:
   UserPool:
     Type: AWS::Cognito::UserPool
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W57  # MFA warning
             reason: "MFA configuration is customizable via parameter based on security requirements"
@@ -2105,7 +2098,7 @@ Resources:
   GetDomainLambda:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -2264,7 +2257,7 @@ Resources:
   CognitoUserPoolEmailDomainVerifyFunction:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -2680,7 +2673,7 @@ Resources:
   GetFileContentsResolverFunction:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -2954,7 +2947,7 @@ Resources:
   StartUICodeBuildExecutionRole:
     Type: AWS::IAM::Role
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W12
             reason: "Lambda custom resource requires permissions to manage event rules"
@@ -3012,7 +3005,7 @@ Resources:
   StartUICodeBuild:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
