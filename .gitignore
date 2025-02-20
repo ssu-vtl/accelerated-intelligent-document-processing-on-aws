@@ -2,3 +2,5 @@
 build.toml
 model.tar.gz
 .checksum
+.vscode/
+.DS_Store

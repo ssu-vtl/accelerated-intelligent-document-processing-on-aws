@@ -198,8 +198,9 @@ You need to have the following packages installed on your computer:
 
 1. bash shell (Linux, MacOS, Windows-WSL)
 2. aws (AWS CLI)
-3. sam (AWS SAM)
+3. [sam (AWS SAM)](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
 4. python 3.11 or later
+5. A local Docker daemon
 
 Copy the repo to your computer. Either:
 - use the git command to clone the repo, if you have access
@@ -209,6 +210,9 @@ Copy the repo to your computer. Either:
 
 To build and publish your own template, to your own S3 bucket, so that others can easily deploy a stack from your templates, in your preferred region, here's how.
 
+* `cfn_bucket_basename`: A prefix added to the beginning of the bucket name (e.g. `idp-1234567890` to ensure that the resulting bucket name is globally unique) 
+* `cfn_prefix`: A prefix added to Cloudformation resources. (e.g. `idp` or `idp-dev`)
+
 Navigate into the project root directory and, in a bash shell, run:
 
 `./publish.sh <cfn_bucket_basename> <cfn_prefix> <region e.g. us-east-1>`.  
@@ -217,8 +221,13 @@ Navigate into the project root directory and, in a bash shell, run:
     - creates CloudFormation templates and asset zip files
     - publishes the templates and required assets to an S3 bucket in your account called `<cfn_bucket_basename>-<region>` (it creates the bucket if it doesn't already exist)
     - optionally add a final parameter `public` if you want to make the templates public. Note: your bucket and account must be configured not to Block Public Access using new ACLs.
+    - e.g. `./publish.sh idp-1234567890 idp us-east-1`
 
-That's it! There's just one step.
+> * If the process throws an error `Docker daemon is not running` but Docker Desktop or similar is running, it may be necessary to examine the current docker context with the command `docker context ls`. 
+> * In order to set the Docker context daemon, the `docker context use` command can be issues. e.g. `docker context use desktop-linux` if the desktop-linux context should be used.
+> * It is also possible to set the `DOCKER_HOST` to the socket running the desired Docker daemon. e.g. `export DOCKER_HOST=unix:///Users/username/.docker/run/docker.sock`
+
+**This completes the preparation stage of the installation process. The process now proceeds to the Cloudformation stack installation stage.**
   
 When completed, it displays the CloudFormation templates S3 URLs, 1-click URLs for launching the stack creation in CloudFormation console, and a command to deploy from the CLI:
 ```
@@ -228,6 +237,25 @@ CF Launch URL: https://us-east-1.console.aws.amazon.com/cloudformation/home?regi
 CLI Deploy: aws cloudformation deploy --region us-east-1 --template-file /tmp/1132557/packaged.yaml --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --stack-name <your_stack_name>>
 Done
 ```
+
+```bash
+# To install from the CLI the `CLI Deploy` command will be similar to the following:
+aws cloudformation deploy \
+  --region <region> \
+  --template-file <template-file> \
+  --s3-bucket <bucket-name> \
+  --s3-prefix <s3-prefix> \
+  --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+  --parameter-overrides IDPPattern="<the-pattern-name-here>" AdminEmail=<your-email-here> \
+  --stack-name <your-stack-name-here>
+```
+
+**CLI Deploy Notes:**
+* `<the-pattern-name-here>` should be one of the valid pattern names encased in quotes. (Each pattern may have their own required parameter overrides, see README documentation for details.)
+  * `Pattern1 - Packet processing with Textract, SageMaker(UDOP), and Bedrock`
+  * `Pattern2 - Packet processing with Textract and Bedrock`
+    * (This is a great pattern to start with to try out the solution because it has not further dependencies.)
+  * `Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA)`
 
 After you have deployed the stack, check the Outputs tab to inspect names and links to the dashboards, buckets, workflows and other solution resources.
 
