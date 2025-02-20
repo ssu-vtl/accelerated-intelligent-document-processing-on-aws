@@ -549,6 +549,9 @@ Resources:
             reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
           - id: W92
             reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for these functions as they are either idempotent or have error handling"
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -597,6 +600,7 @@ Resources:
         rules_to_suppress:
           - id: W35
             reason: "This is the logging destination bucket - does not require its own access logging"
+    # checkov:skip=CKV_AWS_18: "This is the logging destination bucket - does not require its own access logging"
     DeletionPolicy: RetainExceptOnCreate
     Properties:
       BucketEncryption:
@@ -880,6 +884,7 @@ Resources:
         rules_to_suppress:
           - id: W78
             reason: "Point-in-time recovery not required for concurrency tracking table as data is transient"
+    # checkov:skip=CKV_AWS_28: "Point-in-time recovery not required for concurrency tracking table as data is transient"
     Properties:
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
@@ -902,6 +907,8 @@ Resources:
             reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
           - id: W92
             reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -1021,6 +1028,8 @@ Resources:
             reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
           - id: W92
             reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       CodeUri: src/lambda/queue_sender/
       Handler: index.handler
@@ -1082,6 +1091,8 @@ Resources:
             reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
           - id: W92
             reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       CodeUri: src/lambda/queue_processor/
       Handler: index.handler
@@ -1185,6 +1196,8 @@ Resources:
             reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
           - id: W92
             reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       CodeUri: src/lambda/workflow_tracker/
       Handler: index.handler
@@ -1329,6 +1342,8 @@ Resources:
             reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
           - id: W92
             reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       CodeUri: src/lambda/evaluation_function/
       Handler: index.handler
@@ -1438,6 +1453,7 @@ Resources:
         rules_to_suppress:
           - id: W47
             reason: "KMS encryption not required for basic notification alerts"
+    # checkov:skip=CKV_AWS_26: "KMS encryption not required for basic notification alerts"
     Properties:
       DisplayName: Workflow Alerts
 
@@ -1884,6 +1900,8 @@ Resources:
             reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
           - id: W92
             reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       CodeUri: src/lambda/dashboard_merger
       Handler: index.handler
@@ -1932,6 +1950,8 @@ Resources:
             reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
           - id: W92
             reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       CodeUri: src/lambda/lookup_function/
       Handler: index.handler
@@ -2068,6 +2088,8 @@ Resources:
             reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
           - id: W92
             reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       Description: Converts Stackname to lowercase and adds unique timestamp
       Handler: index.handler
@@ -2225,6 +2247,8 @@ Resources:
             reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
           - id: W92
             reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
     Condition: ShouldAllowSignUpEmailDomain
     Properties:
       Description: Verifies email address is in allowed domain
@@ -2294,6 +2318,7 @@ Resources:
 
   GraphQLApi:
     Type: AWS::AppSync::GraphQLApi
+    # checkov:skip=CKV2_AWS_33: "WAF protection is optional and can be enabled by customer based on their security requirements"
     Properties:
       Name: !Sub ${AWS::StackName}-api
       AuthenticationType: AMAZON_COGNITO_USER_POOLS
@@ -2641,6 +2666,8 @@ Resources:
             reason: "Function does not require reserved concurrency as it scales based on demand"
           - id: W12
             reason: "Lambda requires CloudWatch logs permissions"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -2708,15 +2735,13 @@ Resources:
 
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W70
-            reason: "TLS 1.2 is not required for this distribution as it serves static content and supports legacy clients"
     # checkov:skip=CKV_AWS_68: "WAF is optional and can be enabled by customer based on their security requirements and budget. WAF must be created in us-east-1 for CLOUDFRONT."
     Properties:
       DistributionConfig:
         Comment: !Sub "Web app cloudfront distribution ${AWS::StackName}"
+        ViewerCertificate:
+          MinimumProtocolVersion: TLSv1.2_2021
+          CloudFrontDefaultCertificate: true
         Logging:
           Bucket: !Sub "${LoggingBucket}.s3.amazonaws.com"
           Prefix: "cloudfront-logs"
@@ -2908,6 +2933,7 @@ Resources:
         rules_to_suppress:
           - id: W11
             reason: "Role requires * resource access for CloudWatch Logs and CloudFormation custom resource operations"
+    # checkov:skip=CKV_AWS_111: "Write access required for CloudWatch Logs and CloudFormation custom resource operations"
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -2965,6 +2991,8 @@ Resources:
             reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
           - id: W92
             reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       Role: !GetAtt StartUICodeBuildExecutionRole.Arn
       Runtime: python3.12
