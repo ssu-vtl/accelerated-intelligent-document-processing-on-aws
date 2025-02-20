@@ -150,7 +150,9 @@ def handler(event, context):
     try:
         # Extract data from event
         input_data = json.loads(event['detail']['input'])
-        output_data = json.loads(event['detail']['output'])
+        output_data = None
+        if event['detail'].get('output'):
+            output_data = json.loads(event['detail']['output'])
         object_key = input_data['detail']['object']['key']
         workflow_status = event['detail']['status']
         
