@@ -51,7 +51,7 @@ const DocumentList = () => {
     items, actions, filteredItemsCount, collectionProps, filterProps, paginationProps,
   } = useCollection(documentList, {
     filtering: {
-      empty: <TableEmptyState resourceName="Meeting" />,
+      empty: <TableEmptyState resourceName="Document" />,
       noMatch: <TableNoMatchState onClearFilter={() => actions.setFiltering('')} />,
     },
     pagination: { pageSize: preferences.pageSize },
@@ -92,21 +92,21 @@ const DocumentList = () => {
           periodsToLoad={periodsToLoad}
           setPeriodsToLoad={setPeriodsToLoad}
           getDocumentDetailsFromIds={getDocumentDetailsFromIds}
-          downloadToExcel={() => exportToExcel(documentList, 'Meeting-List')}
+          downloadToExcel={() => exportToExcel(documentList, 'Document-List')}
           // eslint-disable-next-line max-len, prettier/prettier
         />
       }
       columnDefinitions={COLUMN_DEFINITIONS_MAIN}
       items={items}
       loading={isDocumentsListLoading}
-      loadingText="Loading meetings"
+      loadingText="Loading documents"
       selectionType="multi"
       ariaLabels={SELECTION_LABELS}
       filter={
         <TextFilter
           {...filterProps}
-          filteringAriaLabel="Filter meetings"
-          filteringPlaceholder="Find meetings"
+          filteringAriaLabel="Filter documents"
+          filteringPlaceholder="Find documents"
           countText={getFilterCounterText(filteredItemsCount)}
         />
       }
