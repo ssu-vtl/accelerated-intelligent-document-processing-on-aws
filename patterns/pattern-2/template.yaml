@@ -47,7 +47,7 @@ Resources:
   OCRFunction:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -103,7 +103,7 @@ Resources:
   ClassificationFunction:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -158,7 +158,7 @@ Resources:
   ExtractionFunction:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
@@ -212,7 +212,7 @@ Resources:
   ProcessResultsFunction:
     Type: AWS::Serverless::Function
     Metadata:
-      cfn-nag:
+      cfn_nag:
         rules_to_suppress:
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
