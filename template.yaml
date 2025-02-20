@@ -222,6 +222,37 @@ Parameters:
     ConstraintDescription: >-
       Comma separated list of uppercase two letter country codes or empty
 
+  WAFAllowedIPv4Ranges:
+    Type: String
+    Default: "0.0.0.0/0"
+    Description: >-
+      Comma-separated list of IPv4 CIDR ranges to allow. Default (0.0.0.0/0) allows all IPs.
+      Example to restrict: "192.168.1.0/24, 10.0.0.0/16"
+    AllowedPattern: '^([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}(,\s*([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2})*$'
+    ConstraintDescription: Must be valid comma-separated list of IPv4 CIDR ranges
+
+  WAFAllowedIPv6Ranges:
+    Type: String
+    Default: "::/0"
+    Description: >-
+      Comma-separated list of IPv6 CIDR ranges to allow. Default (::/0) allows all IPv6 addresses.
+      Example to restrict: "2001:db8::/32, 2001:db8:1234::/48"
+    AllowedPattern: '^([0-9a-fA-F:]+)\/([0-9]{1,3})(,\s*([0-9a-fA-F:]+)\/([0-9]{1,3}))*$'
+    ConstraintDescription: Must be valid comma-separated list of IPv6 CIDR ranges
+
+  MFAConfiguration:
+    Type: String
+    Default: "OPTIONAL"
+    AllowedValues:
+      - "OFF"
+      - "OPTIONAL"
+      - "ON"
+    Description: >-
+      MFA configuration for Cognito user pool. 
+      OFF - No MFA. 
+      OPTIONAL - Users can configure MFA (recommended). 
+      ON - MFA is required for all users.
+
 Rules:
   # Pattern 1 rules
 
@@ -334,6 +365,8 @@ Metadata:
           - LogRetentionDays
           - CloudFrontPriceClass
           - CloudFrontAllowedGeos
+          - WAFAllowedIPv4Ranges
+          - WAFAllowedIPv6Ranges
 
     ParameterLabels:
       AdminEmail:
@@ -376,6 +409,10 @@ Metadata:
         default: "CloudFront Price Class"
       CloudFrontAllowedGeos:
         default: "CloudFront Allowed Geos"
+      WAFAllowedIPv4Ranges:
+        default: "WAF Allowed IPv4 Ranges"
+      WAFAllowedIPv6Ranges:
+        default: "WAF Allowed IPv6 Ranges"
 
 Resources:
 
@@ -438,18 +475,34 @@ Resources:
 
   CustomerManagedEncryptionKey:
     Type: AWS::KMS::Key
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: F14
+            reason: "KMS key requires broad permissions for root user to manage the key"
+    # checkov:skip=CKV_AWS_111: "KMS key requires broad permissions for root user to manage the key"
     Properties:
       Description: KMS key for DynamoDB encryption
       EnableKeyRotation: true
       KeyPolicy:
         Version: "2012-10-17"
         Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: kms:*
+            Resource: "*"
           - Sid: Allow lambda to access the Keys
             Effect: Allow
             Principal:
               AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
             Action:
-              - kms:*
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
             Resource: "*"
           - Sid: Allow DynamoDB to use the key
             Effect: Allow
@@ -554,9 +607,9 @@ Resources:
       # see https://stackoverflow.com/questions/70645117/enable-s3-acl-access-for-cloudfront-logs
       # for configuration required by CloudFront logging
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: false # to enable CloudFront to write logs
+        BlockPublicAcls: true
         BlockPublicPolicy: true
-        IgnorePublicAcls: false # to enable CloudFront to write logs
+        IgnorePublicAcls: true
         RestrictPublicBuckets: true
       OwnershipControls:
         Rules:
@@ -599,6 +652,16 @@ Resources:
             Condition:
               StringEquals:
                 "AWS:SourceAccount": !Ref "AWS::AccountId"
+          - Sid: EnforceSSLOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: 
+              - !Sub "${LoggingBucket.Arn}/*"
+              - !Sub "${LoggingBucket.Arn}"
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
 
   InputBucket:
     Type: AWS::S3::Bucket
@@ -606,7 +669,7 @@ Resources:
       cfn-nag:
         rules_to_suppress:
           - id: W51
-            reason: "Bucket does not require a bucket policy as access is controlled via IAM roles and public access is blocked via PublicAccessBlockConfiguration"
+            reason: "Bucket access is controlled via IAM roles and bucket policy enforces SSL"
     DeletionPolicy: RetainExceptOnCreate
     Properties:
       NotificationConfiguration:
@@ -634,15 +697,33 @@ Resources:
             ExpirationInDays: !Ref DataRetentionInDays
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 1
+  
+  InputBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref InputBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnforceSSLOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: 
+              - !Sub "${InputBucket.Arn}/*"
+              - !Sub "${InputBucket.Arn}"
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
 
   OutputBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: RetainExceptOnCreate
     Metadata:
       cfn-nag:
         rules_to_suppress:
           - id: W51
-            reason: "Bucket does not require a bucket policy as access is controlled via IAM roles and public access is blocked via PublicAccessBlockConfiguration"
-    DeletionPolicy: RetainExceptOnCreate 
+            reason: "Bucket access is controlled via IAM roles and bucket policy enforces SSL"
     Properties:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -667,15 +748,33 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 1
 
+  OutputBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref OutputBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnforceSSLOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: 
+              - !Sub "${OutputBucket.Arn}/*"
+              - !Sub "${OutputBucket.Arn}"
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
+
   EvaluationBaselineBucket:
     Type: AWS::S3::Bucket
     Condition: ShouldCreateEvaluationBaselineBucket
+    DeletionPolicy: RetainExceptOnCreate
     Metadata:
       cfn-nag:
         rules_to_suppress:
           - id: W51
-            reason: "Bucket does not require a bucket policy as access is controlled via IAM roles and public access is blocked via PublicAccessBlockConfiguration"
-    DeletionPolicy: RetainExceptOnCreate 
+            reason: "Bucket access is controlled via IAM roles and bucket policy enforces SSL"
     Properties:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -693,6 +792,24 @@ Resources:
         DestinationBucketName: !Ref LoggingBucket
         LogFilePrefix: output-bucket-logs/
       # No lifecycle policy - retain baseline data permanently
+
+  EvaluationBaselineBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref EvaluationBaselineBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnforceSSLOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: 
+              - !Sub "${EvaluationBaselineBucket.Arn}/*"
+              - !Sub "${EvaluationBaselineBucket.Arn}"
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
 
   WebUIBucket:
     Type: AWS::S3::Bucket
@@ -801,6 +918,16 @@ Resources:
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+          - id: W12
+            reason: "Lambda requires CloudWatch logs permissions"
+    # checkov:skip=CKV_AWS_158: "Lambda requires permissions to create log groups"
     # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
     # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
@@ -841,6 +968,23 @@ Resources:
       VisibilityTimeout: 30
       MessageRetentionPeriod: 345600 # 4 days
 
+  DocumentQueueDLQPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref DocumentQueueDLQ
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnforceSSLOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 'sqs:*'
+            Resource: !GetAtt DocumentQueueDLQ.Arn
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
+
   DocumentQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -850,6 +994,23 @@ Resources:
       RedrivePolicy:
         maxReceiveCount: 1000 # should retry up to 8hrs (1000 * 30 sec visibility) before moving to DLQ
         deadLetterTargetArn: !GetAtt DocumentQueueDLQ.Arn
+
+  DocumentQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref DocumentQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnforceSSLOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 'sqs:*'
+            Resource: !GetAtt DocumentQueue.Arn
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
 
   ##########################################################################
   # Event triggered Lambdas to publish and consume from the queue  
@@ -862,6 +1023,23 @@ Resources:
       VisibilityTimeout: 30
       MessageRetentionPeriod: 345600 # 4 days
 
+  QueueSenderDLQPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref QueueSenderDLQ
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnforceSSLOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 'sqs:*'
+            Resource: !GetAtt QueueSenderDLQ.Arn
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
+
   QueueSender:
     Type: AWS::Serverless::Function
     Metadata:
@@ -871,6 +1049,8 @@ Resources:
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+          - id: W12
+            reason: "Lambda requires CloudWatch logs permissions"
     Properties:
       CodeUri: src/lambda/queue_sender/
       Handler: index.handler
@@ -1008,6 +1188,23 @@ Resources:
       VisibilityTimeout: 30
       MessageRetentionPeriod: 345600 # 4 days
 
+  WorkflowTrackerDLQPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref WorkflowTrackerDLQ
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnforceSSLOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 'sqs:*'
+            Resource: !GetAtt WorkflowTrackerDLQ.Arn
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
+
   WorkflowTracker:
     Type: AWS::Serverless::Function
     Metadata:
@@ -1017,6 +1214,9 @@ Resources:
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+          - id: W12
+            reason: "Lambda requires CloudWatch logs and metrics permissions"
+    # checkov:skip=CKV_AWS_111: "Lambda requires CloudWatch metrics permissions"
     Properties:
       CodeUri: src/lambda/workflow_tracker/
       Handler: index.handler
@@ -1159,6 +1359,9 @@ Resources:
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+          - id: W12
+            reason: "Lambda requires CloudWatch logs and metrics permissions"
+    # checkov:skip=CKV_AWS_111: "Lambda requires CloudWatch metrics permissions"
     Properties:
       CodeUri: src/lambda/evaluation_function/
       Handler: index.handler
@@ -1712,6 +1915,9 @@ Resources:
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+          - id: W12
+            reason: "Function requires permissions to manage CloudWatch dashboards"
+    # checkov:skip=CKV_AWS_111: "Function requires CloudWatch dashboard management permissions"
     # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
     # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
@@ -1814,8 +2020,14 @@ Resources:
 
   UserPool:
     Type: AWS::Cognito::UserPool
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W57  # MFA warning
+            reason: "MFA configuration is customizable via parameter based on security requirements"
     Properties:
       UserPoolName: !Sub ${AWS::StackName}-users
+      MfaConfiguration: !Ref MFAConfiguration
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: !If
           - ShouldAllowSignUpEmailDomain
@@ -2474,8 +2686,9 @@ Resources:
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+          - id: W12
+            reason: "Lambda requires CloudWatch logs permissions"
     # checkov:skip=CKV_AWS_116: "DLQ not required for this function"
-    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -2543,7 +2756,7 @@ Resources:
 
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
-    # checkov:skip=CKV_AWS_68: "WAF is optional and can be enabled by customer based on their security requirements and budget"
+    # checkov:skip=CKV_AWS_68: "WAF is optional and can be enabled by customer based on their security requirements and budget. WAF must be created in us-east-1 for CLOUDFRONT."
     Properties:
       DistributionConfig:
         Comment: !Sub "Web app cloudfront distribution ${AWS::StackName}"
@@ -2740,6 +2953,14 @@ Resources:
 
   StartUICodeBuildExecutionRole:
     Type: AWS::IAM::Role
+    Metadata:
+      cfn-nag:
+        rules_to_suppress:
+          - id: W12
+            reason: "Lambda custom resource requires permissions to manage event rules"
+          - id: W76
+            reason: "Lambda custom resource requires dynamic resource names"
+    # checkov:skip=CKV_AWS_111: "Lambda requires dynamic resource permissions for event rules"
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
