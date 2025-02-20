@@ -542,6 +542,13 @@ Resources:
 
   UpdateSettingsFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -585,6 +592,11 @@ Resources:
 
   LoggingBucket:
     Type: AWS::S3::Bucket
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: "This is the logging destination bucket - does not require its own access logging"
     DeletionPolicy: RetainExceptOnCreate
     Properties:
       BucketEncryption:
@@ -863,6 +875,11 @@ Resources:
 
   ConcurrencyTable:
     Type: AWS::DynamoDB::Table
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W78
+            reason: "Point-in-time recovery not required for concurrency tracking table as data is transient"
     Properties:
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
@@ -878,6 +895,13 @@ Resources:
 
   InitializeConcurrencyTableLambda:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -990,6 +1014,13 @@ Resources:
 
   QueueSender:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       CodeUri: src/lambda/queue_sender/
       Handler: index.handler
@@ -1044,6 +1075,13 @@ Resources:
 
   QueueProcessor:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       CodeUri: src/lambda/queue_processor/
       Handler: index.handler
@@ -1138,6 +1176,15 @@ Resources:
 
   WorkflowTracker:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Role requires * resource access for CloudWatch Metrics and Logs"
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       CodeUri: src/lambda/workflow_tracker/
       Handler: index.handler
@@ -1273,6 +1320,15 @@ Resources:
 
   EvaluationFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Role requires * resource access for CloudWatch Metrics and Logs"
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       CodeUri: src/lambda/evaluation_function/
       Handler: index.handler
@@ -1377,6 +1433,11 @@ Resources:
 
   AlertsTopic:
     Type: AWS::SNS::Topic
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W47
+            reason: "KMS encryption not required for basic notification alerts"
     Properties:
       DisplayName: Workflow Alerts
 
@@ -1814,6 +1875,15 @@ Resources:
 
   DashboardMergerFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Role requires * resource access for CloudWatch Dashboards"
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       CodeUri: src/lambda/dashboard_merger
       Handler: index.handler
@@ -1855,6 +1925,13 @@ Resources:
 
   LookupFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       CodeUri: src/lambda/lookup_function/
       Handler: index.handler
@@ -1984,6 +2061,13 @@ Resources:
 
   GetDomainLambda:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       Description: Converts Stackname to lowercase and adds unique timestamp
       Handler: index.handler
@@ -2134,6 +2218,13 @@ Resources:
 
   CognitoUserPoolEmailDomainVerifyFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
     Condition: ShouldAllowSignUpEmailDomain
     Properties:
       Description: Verifies email address is in allowed domain
@@ -2545,9 +2636,9 @@ Resources:
       cfn_nag:
         rules_to_suppress:
           - id: W89
-            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
           - id: W92
-            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+            reason: "Function does not require reserved concurrency as it scales based on demand"
           - id: W12
             reason: "Lambda requires CloudWatch logs permissions"
     Properties:
@@ -2617,6 +2708,11 @@ Resources:
 
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W70
+            reason: "TLS 1.2 is not required for this distribution as it serves static content and supports legacy clients"
     # checkov:skip=CKV_AWS_68: "WAF is optional and can be enabled by customer based on their security requirements and budget. WAF must be created in us-east-1 for CLOUDFRONT."
     Properties:
       DistributionConfig:
@@ -2807,6 +2903,11 @@ Resources:
 
   StartUICodeBuildExecutionRole:
     Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Role requires * resource access for CloudWatch Logs and CloudFormation custom resource operations"
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -2857,6 +2958,13 @@ Resources:
 
   StartUICodeBuild:
     Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
     Properties:
       Role: !GetAtt StartUICodeBuildExecutionRole.Arn
       Runtime: python3.12
