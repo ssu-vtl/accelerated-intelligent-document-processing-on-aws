@@ -119,6 +119,7 @@ Resources:
   UDOPEndpointConfig:
     Type: AWS::SageMaker::EndpointConfig
     Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       ProductionVariants:
         - InitialInstanceCount: 1
           InstanceType: !Ref InstanceType
