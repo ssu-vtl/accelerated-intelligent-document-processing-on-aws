@@ -35,7 +35,7 @@ metric_lock = Lock()
 def calculate_backoff(attempt):
     """Calculate exponential backoff with jitter"""
     backoff = min(MAX_BACKOFF, INITIAL_BACKOFF * (2 ** attempt))
-    jitter = random.uniform(0, 0.1 * backoff)  # 10% jitter
+    jitter = random.uniform(0, 0.1 * backoff)  # 10% jitter # nosec B311
     return backoff + jitter
 
 def put_metric(name, value, unit='Count', dimensions=None):

@@ -42,7 +42,7 @@ def put_metric(name, value, unit='Count', dimensions=None):
 
 def calculate_backoff(attempt: int) -> float:
     backoff = min(MAX_BACKOFF, INITIAL_BACKOFF * (2 ** attempt))
-    jitter = random.uniform(0, 0.1 * backoff)
+    jitter = random.uniform(0, 0.1 * backoff) # nosec B311
     return backoff + jitter
 
 def build_s3_uri(bucket: str, key: str) -> str:

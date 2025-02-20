@@ -55,6 +55,8 @@ python generate_demo_data.py \
     --max-workers 40 # Optional, default to 40
 ```
 
+**Note**: If you get `ModuleNotFoundError: No module named 'datasets'`, please run `pip install datasets`.
+
 ### 1.2. Launching a Training Job
 Run the following command to start fine-tuning:
 
