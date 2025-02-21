@@ -119,8 +119,12 @@ Resources:
 
   UDOPEndpointConfig:
     Type: AWS::SageMaker::EndpointConfig
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W1200
+            reason: "KMS key fails deployment - not supported for NVMe instance storage."
     Properties:
-      # KmsKeyId: !Ref CustomerManagedEncryptionKeyArn  # KMS key is not supported for NVMe instance storage. 
       ProductionVariants:
         - InitialInstanceCount: 1
           InstanceType: !Ref InstanceType
