@@ -120,7 +120,7 @@ Resources:
   UDOPEndpointConfig:
     Type: AWS::SageMaker::EndpointConfig
     Properties:
-      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
+      # KmsKeyId: !Ref CustomerManagedEncryptionKeyArn  # KMS key is not supported for NVMe instance storage. 
       ProductionVariants:
         - InitialInstanceCount: 1
           InstanceType: !Ref InstanceType
