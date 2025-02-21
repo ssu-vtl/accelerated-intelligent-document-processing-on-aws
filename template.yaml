@@ -253,6 +253,7 @@ Parameters:
       OPTIONAL - Users can configure MFA (recommended). 
       ON - MFA is required for all users.
 
+
 Rules:
   # Pattern 1 rules
 
@@ -2310,24 +2311,8 @@ Resources:
   # AppSync GraphQL API 
   ##########################################################################
 
-  AppSyncCwlRole:
-    Type: AWS::IAM::Role
-    Properties:
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - sts:AssumeRole
-            Principal:
-              Service:
-                - appsync.amazonaws.com
-
   GraphQLApi:
     Type: AWS::AppSync::GraphQLApi
-    # checkov:skip=CKV2_AWS_33: "WAF protection is optional and can be enabled by customer based on their security requirements"
     Properties:
       Name: !Sub ${AWS::StackName}-api
       AuthenticationType: AMAZON_COGNITO_USER_POOLS
@@ -2348,6 +2333,78 @@ Resources:
       KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
       LogGroupName: !Sub "/aws/appsync/apis/${GraphQLApi.ApiId}"
       RetentionInDays: !Ref LogRetentionDays
+
+  AppSyncCwlRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - appsync.amazonaws.com
+
+  # Secure API with WAF
+
+  WAFIPSet:
+    Type: AWS::WAFv2::IPSet
+    Properties:
+      Name: !Sub ${AWS::StackName}-allowed-ips
+      Description: IP ranges allowed to access the AppSync API
+      Scope: REGIONAL
+      IPAddressVersion: IPV4
+      Addresses: !Split [",", !Ref WAFAllowedIPv4Ranges]
+
+  WAFIPv6Set:
+    Type: AWS::WAFv2::IPSet
+    Properties:
+      Name: !Sub ${AWS::StackName}-allowed-ipv6s
+      Description: IPv6 ranges allowed to access the AppSync API
+      Scope: REGIONAL
+      IPAddressVersion: IPV6
+      Addresses: !Split [",", !Ref WAFAllowedIPv6Ranges]
+
+  WAFWebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub ${AWS::StackName}-appsync-acl
+      Description: Web ACL for AppSync API
+      Scope: REGIONAL
+      DefaultAction:
+        Block: {}
+      Rules:
+        - Name: AllowListedIPs
+          Priority: 1
+          Statement:
+            OrStatement:
+              Statements:
+                - IPSetReferenceStatement:
+                    Arn: !GetAtt WAFIPSet.Arn
+                - IPSetReferenceStatement:
+                    Arn: !GetAtt WAFIPv6Set.Arn
+          Action:
+            Allow: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AllowListedIPsRule
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: APIAccessControl
+
+  WAFWebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !GetAtt GraphQLApi.Arn
+      WebACLArn: !GetAtt WAFWebACL.Arn
+
+  # Api Schema, datasource, resolvers
 
   GraphQLSchema:
     Type: AWS::AppSync::GraphQLSchema
@@ -2745,12 +2802,16 @@ Resources:
 
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W70
+            reason: "Minimum TLS version is determined by CloudFrontDefaultCertificate true"
     # checkov:skip=CKV_AWS_68: "WAF is optional and can be enabled by customer based on their security requirements and budget. WAF must be created in us-east-1 for CLOUDFRONT."
     Properties:
       DistributionConfig:
         Comment: !Sub "Web app cloudfront distribution ${AWS::StackName}"
         ViewerCertificate:
-          MinimumProtocolVersion: TLSv1.2_2021
           CloudFrontDefaultCertificate: true
         Logging:
           Bucket: !Sub "${LoggingBucket}.s3.amazonaws.com"
