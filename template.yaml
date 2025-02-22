@@ -538,8 +538,6 @@ Resources:
       LoggingConfig:
         LogGroup: !Ref UpdateSettingsFunctionLogGroup
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConcurrencyTable
         - Statement:
           - Effect: Allow
             Action:
