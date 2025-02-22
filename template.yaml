@@ -226,32 +226,10 @@ Parameters:
     Type: String
     Default: "0.0.0.0/0"
     Description: >-
-      Comma-separated list of IPv4 CIDR ranges to allow. Default (0.0.0.0/0) allows all IPs.
+      Comma-separated list of IPv4 CIDR ranges to allow. Default (0.0.0.0/0) disables WAF and allows all IPs.
       Example to restrict: "192.168.1.0/24, 10.0.0.0/16"
     AllowedPattern: '^([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}(,\s*([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2})*$'
     ConstraintDescription: Must be valid comma-separated list of IPv4 CIDR ranges
-
-  WAFAllowedIPv6Ranges:
-    Type: String
-    Default: "::/0"
-    Description: >-
-      Comma-separated list of IPv6 CIDR ranges to allow. Default (::/0) allows all IPv6 addresses.
-      Example to restrict: "2001:db8::/32, 2001:db8:1234::/48"
-    AllowedPattern: '^([0-9a-fA-F:]+)\/([0-9]{1,3})(,\s*([0-9a-fA-F:]+)\/([0-9]{1,3}))*$'
-    ConstraintDescription: Must be valid comma-separated list of IPv6 CIDR ranges
-
-  MFAConfiguration:
-    Type: String
-    Default: "OPTIONAL"
-    AllowedValues:
-      - "OFF"
-      - "OPTIONAL"
-      - "ON"
-    Description: >-
-      MFA configuration for Cognito user pool. 
-      OFF - No MFA. 
-      OPTIONAL - Users can configure MFA (recommended). 
-      ON - MFA is required for all users.
 
 
 Rules:
@@ -309,13 +287,15 @@ Conditions:
       !Ref IDPPattern,
       "Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA)",
     ]
+
+  # General rules
   ShouldAllowSignUpEmailDomain:
     !Not [!Equals [!Ref AllowedSignUpEmailDomain, ""]]
   ShouldEnableGeoRestriction: !Not [!Equals [!Ref CloudFrontAllowedGeos, ""]]
   ShouldEnablePostProcessingLambdaHook: !Not [!Equals [!Ref PostProcessingLambdaHookFunctionArn, ""]]
   ShouldCreateEvaluationBaselineBucket: !Equals [!Ref EvaluationBaselineBucketName, '']
   IsEvaluationAutoEnabled: !Equals [!Ref EvaluationAutoEnabled, 'true']
-
+  IsWafEnabled: !Not [!Equals [!Ref WAFAllowedIPv4Ranges, "0.0.0.0/0"]]
 
 
 Metadata:
@@ -367,7 +347,6 @@ Metadata:
           - CloudFrontPriceClass
           - CloudFrontAllowedGeos
           - WAFAllowedIPv4Ranges
-          - WAFAllowedIPv6Ranges
 
     ParameterLabels:
       AdminEmail:
@@ -412,8 +391,6 @@ Metadata:
         default: "CloudFront Allowed Geos"
       WAFAllowedIPv4Ranges:
         default: "WAF Allowed IPv4 Ranges"
-      WAFAllowedIPv6Ranges:
-        default: "WAF Allowed IPv6 Ranges"
 
 Resources:
 
@@ -2009,9 +1986,14 @@ Resources:
 
   UserPool:
     Type: AWS::Cognito::UserPool
+    Metadata:
+        cfn-nag:
+          rules_to_suppress:
+            - id: W57  # MFA warning
+              reason: "MFA configurations specific to target environment - disabled by default"
     Properties:
       UserPoolName: !Sub ${AWS::StackName}-users
-      MfaConfiguration: !Ref MFAConfiguration
+      MfaConfiguration: OFF
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: !If
           - ShouldAllowSignUpEmailDomain
@@ -2349,28 +2331,21 @@ Resources:
               Service:
                 - appsync.amazonaws.com
 
-  # Secure API with WAF
+  # Optionally Secure API with WAF
 
-  WAFIPSet:
+  WAFIPV4Set:
     Type: AWS::WAFv2::IPSet
+    Condition: IsWafEnabled
     Properties:
       Name: !Sub ${AWS::StackName}-allowed-ips
       Description: IP ranges allowed to access the AppSync API
       Scope: REGIONAL
       IPAddressVersion: IPV4
-      Addresses: !Split [",", !Ref WAFAllowedIPv4Ranges]
-
-  WAFIPv6Set:
-    Type: AWS::WAFv2::IPSet
-    Properties:
-      Name: !Sub ${AWS::StackName}-allowed-ipv6s
-      Description: IPv6 ranges allowed to access the AppSync API
-      Scope: REGIONAL
-      IPAddressVersion: IPV6
-      Addresses: !Split [",", !Ref WAFAllowedIPv6Ranges]
+      Addresses: [!Ref WAFAllowedIPv4Ranges]
 
   WAFWebACL:
     Type: AWS::WAFv2::WebACL
+    Condition: IsWafEnabled
     Properties:
       Name: !Sub ${AWS::StackName}-appsync-acl
       Description: Web ACL for AppSync API
@@ -2384,9 +2359,7 @@ Resources:
             OrStatement:
               Statements:
                 - IPSetReferenceStatement:
-                    Arn: !GetAtt WAFIPSet.Arn
-                - IPSetReferenceStatement:
-                    Arn: !GetAtt WAFIPv6Set.Arn
+                    Arn: !GetAtt WAFIPV4Set.Arn
           Action:
             Allow: {}
           VisibilityConfig:
@@ -2400,6 +2373,7 @@ Resources:
 
   WAFWebACLAssociation:
     Type: AWS::WAFv2::WebACLAssociation
+    Condition: IsWafEnabled
     Properties:
       ResourceArn: !GetAtt GraphQLApi.Arn
       WebACLArn: !GetAtt WAFWebACL.Arn
