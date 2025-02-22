@@ -845,7 +845,7 @@ Resources:
           KeyType: RANGE
       TimeToLiveSpecification:
         AttributeName: ExpiresAfter
-        Enabled: false
+        Enabled: true
       SSESpecification:
         SSEEnabled: true
         SSEType: KMS
