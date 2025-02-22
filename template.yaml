@@ -1993,7 +1993,6 @@ Resources:
               reason: "MFA configurations specific to target environment - disabled by default"
     Properties:
       UserPoolName: !Sub ${AWS::StackName}-users
-      MfaConfiguration: OFF
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: !If
           - ShouldAllowSignUpEmailDomain
