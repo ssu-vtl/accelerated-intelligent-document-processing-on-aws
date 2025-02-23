@@ -35,6 +35,9 @@ Parameters:
 
   UpdateConfigurationFunctionArn:
     Type: String
+  
+  ConfigurationTable:
+    Type: String
 
 
 Resources:
@@ -50,20 +53,22 @@ Resources:
         S3Bucket: !Ref OutputBucket
         CustomerManagedEncryptionKeyArn: !Ref CustomerManagedEncryptionKeyArn
 
-  UpdatePatternConfigValues:
+  # JSON Schema which defines the structure of the pattern configuration settings
+  # used by the UI to allow the configuration to be inspected and customized.
+  UpdateSchemaConfig:
     Type: AWS::CloudFormation::CustomResource
     Properties:
-      ServiceToken: !Ref UpdatePatternConfigFunctionArn
+      ServiceToken: !Ref UpdateConfigurationFunctionArn
       Schema:
         type: object
         required:
-          - Info
-          - Extraction
+          - info
+          - extraction
         properties:
-          Info:
+          info:
             type: string
             description: Description of the configuration section
-          Extraction:
+          extraction:
             type: object
             required:
               - model
@@ -74,40 +79,32 @@ Resources:
             properties:
               model:
                 type: string
-                description: Model identifier to use for extraction
+                description: Model identifier
               temperature:
                 type: number
                 minimum: 0
                 maximum: 1
-                description: Sampling temperature for model inference
+                description: Sampling temperature
               top_k:
                 type: integer
                 minimum: 1
                 description: Top K parameter for sampling
               system_prompt:
                 type: string
-                description: System prompt for the model
+                description: System prompt
               task_prompt:
-                type: object
-                properties:
-                  background:
-                    type: string
-                    description: Background context for the task
-                  document_class:
-                    type: string
-                    description: Class of document being processed
-                  document_ocr_data:
-                    type: string
-                    description: OCR text from the document
-                  task:
-                    type: string
-                    description: Task description and guidelines
-                  attributes:
-                    type: string
-                    description: Attributes to extract based on document class
+                type: string
+                description: Task prompt - include parameters {DOCUMENT_CLASS} and {DOCUMENT_TEXT}
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  UpdateDefaultConfig:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !Ref UpdateConfigurationFunctionArn
       Default:
-        Info: Default inference settings for extraction
-        Extraction:
+        info: Default inference settings for extraction
+        extraction:
           model: !Ref ExtractionModel
           temperature: 0
           top_k: 200
@@ -145,7 +142,7 @@ Resources:
             <attributes>
             {
                 "document_class_attributes": {
-                  "letter": {
+                    "letter": {
                     "sender_name": ["from", "sender", "authored by", "written by"],
                     "sender_address": ["address", "location", "from address"],
                     "recipient_name": ["to", "recipient", "addressee"],
@@ -156,8 +153,8 @@ Resources:
                     "signature": ["signed by", "signature"],
                     "cc": ["cc", "carbon copy", "copy to"],
                     "reference_number": ["ref", "reference", "our ref"]
-                  },
-                  "form": {
+                    },
+                    "form": {
                     "form_type": ["form name", "document type", "form category"],
                     "form_id": ["form number", "id", "reference number"],
                     "submission_date": ["date", "submitted on", "filed on"],
@@ -168,8 +165,8 @@ Resources:
                     "processing_date": ["processed on", "completion date"],
                     "department": ["dept", "department", "division"],
                     "comments": ["notes", "remarks", "comments"]
-                  },
-                  "invoice": {
+                    },
+                    "invoice": {
                     "invoice_number": ["invoice no", "invoice #", "bill number"],
                     "invoice_date": ["date", "invoice date", "billing date"],
                     "due_date": ["due date", "payment due", "payable by"],
@@ -185,8 +182,8 @@ Resources:
                     "total_amount": ["total", "grand total", "amount due"],
                     "payment_terms": ["terms", "payment terms", "conditions"],
                     "po_number": ["po", "purchase order", "order reference"]
-                  },
-                  "resume": {
+                    },
+                    "resume": {
                     "full_name": ["name", "applicant name"],
                     "contact_info": ["contact", "phone", "email", "address"],
                     "objective": ["objective", "summary", "profile"],
@@ -197,8 +194,8 @@ Resources:
                     "languages": ["languages", "language proficiency"],
                     "references": ["references", "referees"],
                     "achievements": ["achievements", "accomplishments", "awards"]
-                  },
-                  "scientific_publication": {
+                    },
+                    "scientific_publication": {
                     "title": ["title", "paper title", "article title"],
                     "authors": ["authors", "contributors", "researchers"],
                     "abstract": ["abstract", "summary"],
@@ -212,8 +209,8 @@ Resources:
                     "funding": ["funding", "grants", "financial support"],
                     "corresponding_author": ["corresponding author", "contact author"],
                     "institutions": ["affiliations", "institutions"]
-                  },
-                  "memo": {
+                    },
+                    "memo": {
                     "memo_date": ["date", "memo date"],
                     "from": ["from", "sender", "author"],
                     "to": ["to", "recipient", "addressee"],
@@ -224,8 +221,8 @@ Resources:
                     "reference_number": ["reference", "ref no"],
                     "department": ["department", "dept", "division"],
                     "action_required": ["action", "response needed", "next steps"]
-                  },
-                  "advertisement": {
+                    },
+                    "advertisement": {
                     "product_name": ["product", "item", "service"],
                     "brand": ["brand", "company", "manufacturer"],
                     "price": ["price", "cost", "special offer"],
@@ -236,8 +233,8 @@ Resources:
                     "terms_conditions": ["terms", "conditions", "restrictions"],
                     "call_to_action": ["call now", "visit today", "order now"],
                     "disclaimer": ["disclaimer", "terms apply", "conditions apply"]
-                  },
-                  "email": {
+                    },
+                    "email": {
                     "from_address": ["from", "sender", "sent by"],
                     "to_address": ["to", "recipient", "sent to"],
                     "cc_address": ["cc", "carbon copy"],
@@ -248,8 +245,8 @@ Resources:
                     "priority": ["priority", "importance"],
                     "thread_id": ["thread", "conversation"],
                     "message_id": ["message id", "email id"]
-                  },
-                  "questionnaire": {
+                    },
+                    "questionnaire": {
                     "form_title": ["title", "survey name", "questionnaire name"],
                     "respondent_info": ["respondent", "participant", "name"],
                     "submission_date": ["date", "completed on", "submitted"],
@@ -260,8 +257,8 @@ Resources:
                     "instructions": ["instructions", "directions", "guidelines"],
                     "survey_id": ["survey id", "reference number", "form id"],
                     "completion_status": ["status", "completion", "progress"]
-                  },
-                  "specification": {
+                    },
+                    "specification": {
                     "product_name": ["product", "item", "model"],
                     "version": ["version", "revision", "release"],
                     "technical_details": ["specifications", "tech specs", "details"],
@@ -272,8 +269,8 @@ Resources:
                     "standards": ["standards", "certifications", "compliance"],
                     "revision_history": ["revisions", "changes", "updates"],
                     "approval_info": ["approved by", "certified by", "validated"]
-                  },
-                  "generic": {
+                    },
+                    "generic": {
                     "document_type": ["type", "category", "class"],
                     "document_date": ["date", "created on", "issued on"],
                     "document_id": ["id", "reference", "number"],
@@ -284,14 +281,11 @@ Resources:
                     "status": ["status", "state", "condition"],
                     "department": ["department", "dept", "division"],
                     "comments": ["notes", "remarks", "comments"]
-                  }
+                    }
                 }
             }
             </attributes>
             </task>
-      Custom:
-        Info: Custom inference settings
-        # custom settings intentionally left blank
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
@@ -320,6 +314,7 @@ Resources:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
+          CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
       LoggingConfig:
         LogGroup: !Ref OCRFunctionLogGroup
       Policies:
@@ -328,6 +323,8 @@ Resources:
             BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigurationTable
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
@@ -377,6 +374,7 @@ Resources:
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
           SAGEMAKER_ENDPOINT_NAME: !GetAtt SAGEMAKERCLASSIFIERSTACK.Outputs.EndpointName
+          CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
       LoggingConfig:
         LogGroup: !Ref ClassificationFunctionLogGroup
       Policies:
@@ -385,6 +383,8 @@ Resources:
             BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigurationTable
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
@@ -429,33 +429,35 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
-          EXTRACTION_MODEL_ID: !Ref ExtractionModel
           METRIC_NAMESPACE: !Ref StackName
+          CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
       LoggingConfig:
         LogGroup: !Ref ExtractionFunctionLogGroup
       Policies:
-      - AWSLambdaBasicExecutionRole
-      - S3CrudPolicy:
-          BucketName: !Ref OutputBucket
-      - S3ReadPolicy:
-          BucketName: !Ref InputBucket
-      - Statement:
-        - Effect: Allow
-          Action: cloudwatch:PutMetricData
-          Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
-        - Effect: Allow
-          Action:
-            - kms:Encrypt
-            - kms:Decrypt
-            - kms:ReEncrypt*
-            - kms:GenerateDataKey*
-            - kms:DescribeKey
-          Resource: !Ref CustomerManagedEncryptionKeyArn
-        - Effect: Allow
-          Action: bedrock:InvokeModel
-          Resource: 
-              - !Sub "arn:aws:bedrock:*::foundation-model/*"
-              - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+        - AWSLambdaBasicExecutionRole
+        - S3CrudPolicy:
+            BucketName: !Ref OutputBucket
+        - S3ReadPolicy:
+            BucketName: !Ref InputBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigurationTable
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: !Ref CustomerManagedEncryptionKeyArn
+          - Effect: Allow
+            Action: bedrock:InvokeModel
+            Resource: 
+                - !Sub "arn:aws:bedrock:*::foundation-model/*"
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
 
   ExtractionFunctionLogGroup:
     Type: AWS::Logs::LogGroup
