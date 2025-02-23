@@ -414,6 +414,7 @@ Resources:
         UDOPModelArtifactPath: !Ref Pattern1UDOPModelArtifactPath
         ExtractionModel: !Ref Pattern1ExtractionModel
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
+        ConfigurationTable: !Ref ConfigurationTable
 
   PATTERN2STACK:
     Type: AWS::CloudFormation::Stack
@@ -432,6 +433,7 @@ Resources:
         CustomClassificationModelARN: !Ref Pattern2CustomClassificationModelARN
         CustomExtractionModelARN: !Ref Pattern2CustomExtractionModelARN
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
+        ConfigurationTable: !Ref ConfigurationTable
 
 
   PATTERN3STACK:
@@ -450,6 +452,7 @@ Resources:
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
         BDAProjectArn: !Ref Pattern3BDAProjectArn
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
+        ConfigurationTable: !Ref ConfigurationTable
 
 
   ##########################################################################
@@ -911,6 +914,15 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ConfigurationTable
+        - Statement:
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: !GetAtt CustomerManagedEncryptionKey.Arn
 
   UpdateConfigurationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
