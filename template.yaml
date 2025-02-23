@@ -413,6 +413,7 @@ Resources:
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
         UDOPModelArtifactPath: !Ref Pattern1UDOPModelArtifactPath
         ExtractionModel: !Ref Pattern1ExtractionModel
+        UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
 
   PATTERN2STACK:
     Type: AWS::CloudFormation::Stack
@@ -430,6 +431,8 @@ Resources:
         ExtractionModel: !Ref Pattern2ExtractionModel
         CustomClassificationModelARN: !Ref Pattern2CustomClassificationModelARN
         CustomExtractionModelARN: !Ref Pattern2CustomExtractionModelARN
+        UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
+
 
   PATTERN3STACK:
     Type: AWS::CloudFormation::Stack
@@ -446,6 +449,8 @@ Resources:
         LogRetentionDays: !Ref LogRetentionDays
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
         BDAProjectArn: !Ref Pattern3BDAProjectArn
+        UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
+
 
   ##########################################################################
   # Encryption key
@@ -504,65 +509,6 @@ Resources:
     Properties:
       AliasName: !Sub "alias/${AWS::StackName}-customer-encryption-key"
       TargetKeyId: !Ref CustomerManagedEncryptionKey
-
-  ##########################################################################
-  # SSM Parameter for application settings  
-  ##########################################################################
-
-  # Initialise SettingsParameter as empty (so it never gets replaced)
-  # and use Custom Resource UpdateSettingsFunction to add/update values
-  SettingsParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Type: String
-      Name: !Sub "${AWS::StackName}-Settings"
-      Value: "{}"
-
-  UpdateSettingsFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W89
-            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
-          - id: W92
-            reason: "Function does not require reserved concurrency as it scales based on demand"
-    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
-    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for these functions as they are either idempotent or have error handling"
-    Properties:
-      Handler: index.handler
-      Runtime: python3.12
-      Timeout: 30
-      CodeUri: src/lambda/update_settings
-      LoggingConfig:
-        LogGroup: !Ref UpdateSettingsFunctionLogGroup
-      Policies:
-        - Statement:
-          - Effect: Allow
-            Action:
-              - ssm:GetParameter
-              - ssm:PutParameter
-            Resource:
-              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SettingsParameter}"
-
-  UpdateSettingsFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
-      RetentionInDays: !Ref LogRetentionDays
-
-  UpdateSettingsValues:
-    Type: AWS::CloudFormation::CustomResource
-    Properties:
-      ServiceToken: !GetAtt UpdateSettingsFunction.Arn
-      SettingsName: !Ref SettingsParameter
-      SettingsKeyValuePairs:
-        InputBucket: !Ref InputBucket
-        OutputBucket: !Ref OutputBucket
-        ShouldUseDocumentKnowledgeBase: False
-    UpdateReplacePolicy: Delete
-    DeletionPolicy: Delete
 
 
   ##########################################################################
@@ -913,6 +859,129 @@ Resources:
     Properties:
       ServiceToken: !GetAtt InitializeConcurrencyTableLambda.Arn
       TableName: !Ref ConcurrencyTable
+
+  ##########################################################################
+  # Configuration table, for pattern specific prompts and config
+  ##########################################################################
+
+   # Valid values for 'Configuration' (PK) are Schema, Default, Custom
+   # Schema, and Default are set by pattern templates during stack deploy/update
+   # Custom is left for user to define during stack deploy/update
+
+  ConfigurationTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: Configuration 
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: Configuration
+          AttributeType: S
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref CustomerManagedEncryptionKey
+
+  UpdateConfigurationFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for Custom Resource function"
+    Properties:
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 30
+      CodeUri: src/lambda/update_configuration
+      Environment:
+        Variables:
+          CONFIGURATION_TABLE_NAME:
+            Ref: ConfigurationTable
+      LoggingConfig:
+        LogGroup: !Ref UpdateConfigurationFunctionLogGroup
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigurationTable
+
+  UpdateConfigurationFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
+      RetentionInDays: !Ref LogRetentionDays
+
+  # Pattern stacks can update the Configuration table with a CustomResource, using the 
+  # UpdateConfigurationFunctionArn parameter passed to them. See examples in provided 
+  # pattern templates.
+
+
+  ##########################################################################
+  # SSM Parameter for application settings  
+  ##########################################################################
+
+  # Initialise SettingsParameter as empty (so it never gets replaced)
+  # and use Custom Resource UpdateSettingsFunction to add/update values
+  SettingsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Name: !Sub "${AWS::StackName}-Settings"
+      Value: "{}"
+
+  UpdateSettingsFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for Custom Resource function"
+    Properties:
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 30
+      CodeUri: src/lambda/update_settings
+      LoggingConfig:
+        LogGroup: !Ref UpdateSettingsFunctionLogGroup
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:PutParameter
+            Resource:
+              - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${SettingsParameter}"
+
+  UpdateSettingsFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
+      RetentionInDays: !Ref LogRetentionDays
+
+  UpdateSettingsValues:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt UpdateSettingsFunction.Arn
+      SettingsName: !Ref SettingsParameter
+      SettingsKeyValuePairs:
+        InputBucket: !Ref InputBucket
+        OutputBucket: !Ref OutputBucket
+        ShouldUseDocumentKnowledgeBase: False
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
 
   ##########################################################################
   # SQS Queue for queueing pending documents in order 
