@@ -9,9 +9,11 @@ from PIL import Image
 from botocore.exceptions import ClientError
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
-from prompt_catalog import SYSTEM_PROMPT, CLASSIFICATION_PROMPT
+from get_config import get_config
+
 
 # Configuration
+CONFIG = get_config()
 MAX_RETRIES = 8 
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 300   # 5 minutes
@@ -19,7 +21,6 @@ MAX_WORKERS = 20     # Adjust based on your needs
 
 region = os.environ['AWS_REGION']
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
-CLASSIFICATION_MODEL_ID = os.environ['CLASSIFICATION_MODEL_ID']
 
 # Initialize clients
 bedrock_client = boto3.client('bedrock-runtime', region_name=region)
@@ -98,43 +99,49 @@ def classify_single_page(page_id, page_data):
     """Classify a single page using Bedrock"""
     retry_count = 0
     last_exception = None
+
+    # Read text content from S3
+    text_content = get_text_content(page_data['parsedTextUri'])
+    image_content = get_image_content(page_data['imageUri'])
+
+    classification_config = CONFIG["classification"]
+    model_id = classification_config["model"]
+    temperature = float(classification_config["temperature"])
+    top_k = float(classification_config["top_k"])
+    system_prompt = [{"text": classification_config["system_prompt"]}]
+    prompt_template = classification_config["task_prompt"].replace("{DOCUMENT_TEXT}", "%(DOCUMENT_TEXT)s")
+    task_prompt = prompt_template % {
+        "DOCUMENT_TEXT": text_content
+    }
+    content = [{"text": task_prompt}]
+
+    inference_config = {"temperature": temperature}
+    if "anthropic" in model_id.lower():
+        additional_model_fields = {"top_k": top_k}
+    else:
+        additional_model_fields = None
+    message = {"image": {
+        "format": 'jpeg',
+        "source": {"bytes": image_content}}}
+    content.append(message)
+    message = {
+        "role": "user",
+        "content": content
+    }
+    messages = [message]
     
     while retry_count < MAX_RETRIES:
         try:
             logger.info(f"Classifying page {page_id}, {page_data}")
             
-            # Read text content from S3
-            text_content = get_text_content(page_data['parsedTextUri'])
-            image_content = get_image_content(page_data['imageUri'])
-            
-            # Prepare inference payload
-            inference_config = {"temperature": 0}
-            if CLASSIFICATION_MODEL_ID.startswith("us.anthropic"):
-                additional_model_fields = {"top_k": 200}
-            else:
-                additional_model_fields = None
-            system_prompt = [{"text": SYSTEM_PROMPT}]
-
-            classification_prompt = CLASSIFICATION_PROMPT.format(DOCUMENT_TEXT=text_content)
-            content = [{"text": classification_prompt}]
-            message = {"image": {
-                "format": 'jpeg',
-                "source": {"bytes": image_content}}}
-            content.append(message)
-            message = {
-                "role": "user",
-                "content": content
-            }
-            messages = [message]
-            
             # Invoke Bedrock
             logger.info(f"Bedrock request attempt {retry_count + 1}/{MAX_RETRIES} - "
-                       f"model: {CLASSIFICATION_MODEL_ID}, "
+                       f"model: {model_id}, "
                        f"inferenceConfig: {inference_config}, "
                        f"additionalFields: {additional_model_fields}")
             attempt_start_time = time.time()
             response = bedrock_client.converse(
-                modelId=CLASSIFICATION_MODEL_ID,
+                modelId=model_id,
                 messages=messages,
                 system=system_prompt,
                 inferenceConfig=inference_config,
@@ -278,6 +285,7 @@ def classify_pages_concurrently(pages):
 def handler(event, context):
     """Lambda handler function"""
     logger.info(f"Event: {json.dumps(event)}")
+    logger.info(f"Config: {json.dumps(CONFIG)}")  
     
     metadata = event.get("OCRResult", {}).get("metadata")
     pages = event.get("OCRResult", {}).get("pages")

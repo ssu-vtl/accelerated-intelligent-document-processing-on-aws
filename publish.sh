@@ -95,7 +95,7 @@ update_checksum() {
   local dir=$1
   local checksum_file="${dir}/.checksum"
   # Compute current checksum of the directory's modification times excluding specified directories, and the publish target S3 location.
-  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" \) -prune -o -type f ! -name ".checksum" -exec stat --format='%Y' {} \; | sha256sum | awk '{ print $1 }')
+  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec stat --format='%Y' {} \; | sha256sum | awk '{ print $1 }')
   combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
   current_checksum=$(echo -n "$combined_string" | sha256sum | awk '{ print $1 }')
   # Save the current checksum
