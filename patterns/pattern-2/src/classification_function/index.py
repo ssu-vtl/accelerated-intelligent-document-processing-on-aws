@@ -109,7 +109,10 @@ def classify_single_page(page_id, page_data):
     temperature = classification_config["temperature"]
     top_k = classification_config["top_k"]
     system_prompt = [{"text": classification_config["system_prompt"]}]
-    task_prompt = classification_config["task_prompt"].format(DOCUMENT_TEXT=text_content)
+    prompt_template = classification_config["task_prompt"].replace("{DOCUMENT_TEXT}", "%(DOCUMENT_TEXT)s")
+    task_prompt = prompt_template % {
+        "DOCUMENT_TEXT": text_content
+    }
     content = [{"text": task_prompt}]
 
     inference_config = {"temperature": temperature}
