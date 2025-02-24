@@ -392,7 +392,7 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
+            Resource: '*'
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -451,7 +451,7 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
+            Resource: '*'
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -566,7 +566,7 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
+            Resource: '*'
           - Effect: Allow
             Action:
               - kms:Encrypt
