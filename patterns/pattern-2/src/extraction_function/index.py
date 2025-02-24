@@ -20,7 +20,6 @@ MAX_RETRIES = 8 # avoid 900sec Lambda time out.
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 300   # 5 minutes
 
-model_id = os.environ['EXTRACTION_MODEL_ID']
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
 OCR_TEXT_ONLY = os.environ.get('OCR_TEXT_ONLY', 'false').lower() == 'true'
 
