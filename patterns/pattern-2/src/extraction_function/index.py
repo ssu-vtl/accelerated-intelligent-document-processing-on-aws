@@ -2,15 +2,16 @@
 
 import boto3
 import os
-import fitz  # PyMuPDF
 import time
 import json
 import logging
 import random
 import io
 from botocore.exceptions import ClientError
-from prompt_catalog import DEFAULT_SYSTEM_PROMPT, BASELINE_PROMPT
 from PIL import Image
+from get_config import get_config    
+
+CONFIG = get_config()
 
 print("Boto3 version: ", boto3.__version__)
 
@@ -19,7 +20,6 @@ MAX_RETRIES = 8 # avoid 900sec Lambda time out.
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 300   # 5 minutes
 
-model_id = os.environ['EXTRACTION_MODEL_ID']
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
 OCR_TEXT_ONLY = os.environ.get('OCR_TEXT_ONLY', 'false').lower() == 'true'
 
@@ -53,15 +53,24 @@ def put_metric(name, value, unit='Count', dimensions=None):
     except Exception as e:
         logger.error(f"Error publishing metric {name}: {e}")
 
-def invoke_llm(page_images, class_label, system_prompts, task_prompt, document_text, attributes):
-    inference_config = {"temperature": 0}
-    if model_id.startswith("us.anthropic"):
-        additional_model_fields = {"top_k": 200}
+def invoke_llm(page_images, class_label, document_text):
+    extraction_config = CONFIG["extraction"]
+    model_id = extraction_config["model"]
+    temperature = float(extraction_config["temperature"])
+    top_k = float(extraction_config["top_k"])
+    system_prompt = [{"text": extraction_config["system_prompt"]}]
+    prompt_template = extraction_config["task_prompt"].replace("{DOCUMENT_TEXT}", "%(DOCUMENT_TEXT)s").replace("{DOCUMENT_CLASS}", "%(DOCUMENT_CLASS)s")
+    task_prompt = prompt_template % {
+        "DOCUMENT_TEXT": document_text,
+        "DOCUMENT_CLASS": class_label
+    }
+    content = [{"text": task_prompt}]
+
+    inference_config = {"temperature": temperature}
+    if "anthropic" in model_id.lower():
+        additional_model_fields = {"top_k": top_k}
     else:
         additional_model_fields = None
-    task_prompt = task_prompt.format(DOCUMENT_CLASS=class_label, DOCUMENT_TEXT=document_text, ATTRIBUTES=attributes)
-    system_prompt = [{"text": system_prompts}]
-    content = [{"text": task_prompt}]
 
     # Bedrock currently supports max 20 image attachments
     # Per science team recommendation, we limit image attachments to 1st 20 pages.
@@ -169,7 +178,6 @@ def invoke_llm(page_images, class_label, system_prompts, task_prompt, document_t
     if last_exception:
         raise last_exception
 
-
 def get_text_content(s3path):
     """Read text content from a single S3 path"""
     try:
@@ -246,6 +254,7 @@ def handler(event, context):
     }
     """
     logger.info(f"Event: {json.dumps(event)}")
+    logger.info(f"Config: {json.dumps(CONFIG)}")  
     
     # Get parameters from event
     metadata = event.get("metadata")
@@ -294,10 +303,7 @@ def handler(event, context):
     extracted_entities_str = invoke_llm(
         page_images,
         class_label,
-        DEFAULT_SYSTEM_PROMPT,
-        BASELINE_PROMPT,
         document_text,
-        attributes_list
     )
     t3 = time.time()
     logger.info(f"Time taken by bedrock: {t3-t2:.2f} seconds")

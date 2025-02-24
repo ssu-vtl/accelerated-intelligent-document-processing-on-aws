@@ -33,8 +33,39 @@ Parameters:
     Default: ''
     Description: Bedrock Data Automation (BDA) project ARN
 
+  UpdateConfigurationFunctionArn:
+    Type: String
+
+  ConfigurationTable:
+    Type: String
+
 
 Resources:
+
+  # JSON Schema which defines the structure of the pattern configuration settings
+  # used by the UI to allow the configuration to be inspected and customized.
+  # For BDA, this is a no-op, since project configuration is contained in BDA project settings.
+  UpdateSchemaConfig:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !Ref UpdateConfigurationFunctionArn
+      Schema:
+        type: object
+        required:
+          - info
+        properties:
+          info:
+            type: string
+            description: Description of the configuration section
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  UpdateDefaultConfig:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !Ref UpdateConfigurationFunctionArn
+      Default:
+        Info: !Sub "Processing configuration in BDA project: ${BDAProjectArn}"
 
   DocumentProcessingStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -70,6 +101,8 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W11
+            reason: "Cloudwatch does not support resource-level permissions"
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
@@ -102,7 +135,7 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
+            Resource: '*'
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -127,6 +160,8 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W11
+            reason: "Cloudwatch does not support resource-level permissions"
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
@@ -155,7 +190,7 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
+            Resource: '*'
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -185,6 +220,8 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W11
+            reason: "Cloudwatch does not support resource-level permissions"
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
@@ -214,7 +251,7 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
+            Resource: '*'
           - Effect: Allow
             Action: 
               - states:SendTaskSuccess
