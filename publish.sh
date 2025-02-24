@@ -82,6 +82,8 @@ haschanged() {
   # Check if the checksum file exists and read the previous checksum
   if [ -f "$checksum_file" ]; then
       previous_checksum=$(cat "$checksum_file")
+      echo "XXXX Previous checksum: $previous_checksum"
+      echo "XXXX Current checksum: $current_checksum"
   else
       previous_checksum=""
   fi
@@ -95,7 +97,7 @@ update_checksum() {
   local dir=$1
   local checksum_file="${dir}/.checksum"
   # Compute current checksum of the directory's modification times excluding specified directories, and the publish target S3 location.
-  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" \) -prune -o -type f ! -name ".checksum" -exec stat --format='%Y' {} \; | sha256sum | awk '{ print $1 }')
+  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec stat --format='%Y' {} \; | sha256sum | awk '{ print $1 }')
   combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
   current_checksum=$(echo -n "$combined_string" | sha256sum | awk '{ print $1 }')
   # Save the current checksum
