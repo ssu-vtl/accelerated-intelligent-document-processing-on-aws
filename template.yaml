@@ -3220,6 +3220,9 @@ Outputs:
   DynamoDBConcurrencyTableConsoleURL:
     Description: DynamoDB table console URL
     Value: !Sub https://${AWS::Region}.console.aws.amazon.com/dynamodbv2/home?region=${AWS::Region}#item-explorer?maximize=true&operation=QUERY&table=${ConcurrencyTable}
+  DynamoDBConfigurationTableConsoleURL:
+    Description: DynamoDB table console URL
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/dynamodbv2/home?region=${AWS::Region}#item-explorer?maximize=true&operation=QUERY&table=${ConfigurationTable}
   LambdaLookupFunctionName:
     Description: Name of the Lookup function
     Value: !Ref LookupFunction
