@@ -1,3 +1,2 @@
-PyMuPDF
 boto3
 pillow
