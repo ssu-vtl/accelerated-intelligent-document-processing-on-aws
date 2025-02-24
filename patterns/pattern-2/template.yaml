@@ -363,7 +363,7 @@ Resources:
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
           - id: W11
-            reason: "Textract DetectDocumentText API does not support resource-level permissions"
+            reason: "Textract DetectDocumentText API and Cloudwatch APIs do not support resource-level permissions"
     # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
     # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
@@ -419,6 +419,8 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W11
+            reason: "Cloudwatch does not support resource-level permissions"
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
@@ -483,7 +485,7 @@ Resources:
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
           - id: W11
-            reason: "Function should support any enabled Bedrock model_id or inference profile"
+            reason: "Cloudwatch does not support resource-level permissions, and Bedrock should support any enabled Bedrock model_id or inference profile"
     # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
     # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
@@ -538,6 +540,8 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W11
+            reason: "Cloudwatch does not support resource-level permissions"
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
