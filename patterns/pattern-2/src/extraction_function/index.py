@@ -2,16 +2,14 @@
 
 import boto3
 import os
-import fitz  # PyMuPDF
 import time
 import json
 import logging
 import random
 import io
 from botocore.exceptions import ClientError
-from prompt_catalog import DEFAULT_SYSTEM_PROMPT, BASELINE_PROMPT
 from PIL import Image
-from utils import get_config    
+from get_config import get_config    
 
 CONFIG = get_config()
 
