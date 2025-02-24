@@ -32,10 +32,13 @@ Parameters:
   ExtractionModel:
     Type: String
     Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
-    AllowedValues:
-      - 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
-      - 'us.amazon.nova-pro-v1:0'
-    Description: Bedrock Model ID to use for Extraction
+
+  UpdateConfigurationFunctionArn:
+    Type: String
+  
+  ConfigurationTable:
+    Type: String
+
 
 Resources:
 
@@ -50,21 +53,257 @@ Resources:
         S3Bucket: !Ref OutputBucket
         CustomerManagedEncryptionKeyArn: !Ref CustomerManagedEncryptionKeyArn
 
+  # JSON Schema which defines the structure of the pattern configuration settings
+  # used by the UI to allow the configuration to be inspected and customized.
+  UpdateSchemaConfig:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !Ref UpdateConfigurationFunctionArn
+      Schema:
+        type: object
+        required:
+          - info
+          - extraction
+        properties:
+          info:
+            type: string
+            description: Description of the configuration section
+          extraction:
+            type: object
+            required:
+              - model
+              - temperature
+              - top_k
+              - system_prompt
+              - task_prompt
+            properties:
+              model:
+                type: string
+                description: Model identifier
+              temperature:
+                type: number
+                minimum: 0
+                maximum: 1
+                description: Sampling temperature
+              top_k:
+                type: integer
+                minimum: 1
+                description: Top K parameter for sampling
+              system_prompt:
+                type: string
+                description: System prompt
+              task_prompt:
+                type: string
+                description: Task prompt - include parameters {DOCUMENT_CLASS} and {DOCUMENT_TEXT}
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  UpdateDefaultConfig:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !Ref UpdateConfigurationFunctionArn
+      Default:
+        info: Default inference settings for extraction
+        extraction:
+          model: !Ref ExtractionModel
+          temperature: 0
+          top_k: 200
+          system_prompt: |
+            You are a document assistant. Respond only with JSON. Never make up data, only provide data found in the document being provided.
+          task_prompt: |
+            <background>
+            You are an expert in business document analysis and information extraction. You can understand and extract key information from various types of business documents including letters, memos, financial documents, scientific papers, news articles, advertisements, emails, forms, handwritten notes, invoices, purchase orders, questionnaires, resumes, scientific publications, and specifications.
+            A business document serves multiple purposes:
+            Communication of information between parties
+            Record keeping of business transactions or decisions
+            Legal documentation of agreements or requirements
+            Historical archival of business activities
+            Reference material for future use
+            Each document type has its own structure, purpose, and key information elements that need to be extracted.
+            </background>
+            <document_class>
+            {DOCUMENT_CLASS}
+            </document_class>
+            <document_ocr_data>
+            {DOCUMENT_TEXT}
+            </document_ocr_data>
+            <task>
+            Your task is to take the unstructured text provided and convert it into a well-organized table format using JSON. Identify the main entities, attributes, or categories mentioned in the text based on the document class and use them as keys in the JSON object. Then, extract the relevant information from the text and populate the corresponding values in the JSON object. 
+            Guidelines:
+            Ensure that the data is accurately represented and properly formatted within the JSON structure
+            Include double quotes around all keys and values
+            Do not make up data - only extract information explicitly found in the document
+            Do not use /n for new lines, use a space instead
+            If a field is not found or if unsure, return null
+            All dates should be in MM/DD/YYYY format
+            Do not perform calculations or summations unless totals are explicitly given
+            If an alias is not found in the document, return null
+            Here are the attributes you should extract based on the document class:
+            <attributes>
+            {
+                "document_class_attributes": {
+                    "letter": {
+                    "sender_name": ["from", "sender", "authored by", "written by"],
+                    "sender_address": ["address", "location", "from address"],
+                    "recipient_name": ["to", "recipient", "addressee"],
+                    "recipient_address": ["to address", "delivery address"],
+                    "date": ["date", "written on", "dated"],
+                    "subject": ["subject", "re:", "regarding"],
+                    "letter_type": ["type", "category"],
+                    "signature": ["signed by", "signature"],
+                    "cc": ["cc", "carbon copy", "copy to"],
+                    "reference_number": ["ref", "reference", "our ref"]
+                    },
+                    "form": {
+                    "form_type": ["form name", "document type", "form category"],
+                    "form_id": ["form number", "id", "reference number"],
+                    "submission_date": ["date", "submitted on", "filed on"],
+                    "submitter_name": ["name", "submitted by", "filed by"],
+                    "submitter_id": ["id number", "identification", "reference"],
+                    "approval_status": ["status", "approved", "pending"],
+                    "processed_by": ["processor", "handled by", "approved by"],
+                    "processing_date": ["processed on", "completion date"],
+                    "department": ["dept", "department", "division"],
+                    "comments": ["notes", "remarks", "comments"]
+                    },
+                    "invoice": {
+                    "invoice_number": ["invoice no", "invoice #", "bill number"],
+                    "invoice_date": ["date", "invoice date", "billing date"],
+                    "due_date": ["due date", "payment due", "payable by"],
+                    "vendor_name": ["vendor", "seller", "supplier"],
+                    "vendor_address": ["address", "location", "business address"],
+                    "customer_name": ["customer", "buyer", "bill to"],
+                    "customer_address": ["billing address", "ship to"],
+                    "items": ["description", "item details", "products"],
+                    "quantities": ["qty", "quantity", "amount"],
+                    "unit_prices": ["price", "rate", "unit cost"],
+                    "subtotal": ["subtotal", "net amount"],
+                    "tax": ["tax", "vat", "gst"],
+                    "total_amount": ["total", "grand total", "amount due"],
+                    "payment_terms": ["terms", "payment terms", "conditions"],
+                    "po_number": ["po", "purchase order", "order reference"]
+                    },
+                    "resume": {
+                    "full_name": ["name", "applicant name"],
+                    "contact_info": ["contact", "phone", "email", "address"],
+                    "objective": ["objective", "summary", "profile"],
+                    "education": ["education", "academic background", "qualifications"],
+                    "experience": ["experience", "work history", "employment"],
+                    "skills": ["skills", "competencies", "expertise"],
+                    "certifications": ["certifications", "certificates", "credentials"],
+                    "languages": ["languages", "language proficiency"],
+                    "references": ["references", "referees"],
+                    "achievements": ["achievements", "accomplishments", "awards"]
+                    },
+                    "scientific_publication": {
+                    "title": ["title", "paper title", "article title"],
+                    "authors": ["authors", "contributors", "researchers"],
+                    "abstract": ["abstract", "summary"],
+                    "keywords": ["keywords", "key terms"],
+                    "publication_date": ["published", "publication date"],
+                    "journal_name": ["journal", "publication"],
+                    "volume": ["volume", "vol"],
+                    "issue": ["issue", "no"],
+                    "pages": ["pages", "pp"],
+                    "doi": ["doi", "digital object identifier"],
+                    "funding": ["funding", "grants", "financial support"],
+                    "corresponding_author": ["corresponding author", "contact author"],
+                    "institutions": ["affiliations", "institutions"]
+                    },
+                    "memo": {
+                    "memo_date": ["date", "memo date"],
+                    "from": ["from", "sender", "author"],
+                    "to": ["to", "recipient", "addressee"],
+                    "subject": ["subject", "re:", "regarding"],
+                    "memo_type": ["type", "category"],
+                    "priority": ["priority", "urgency"],
+                    "distribution_list": ["distribution", "cc", "copy"],
+                    "reference_number": ["reference", "ref no"],
+                    "department": ["department", "dept", "division"],
+                    "action_required": ["action", "response needed", "next steps"]
+                    },
+                    "advertisement": {
+                    "product_name": ["product", "item", "service"],
+                    "brand": ["brand", "company", "manufacturer"],
+                    "price": ["price", "cost", "special offer"],
+                    "promotion_details": ["promotion", "offer", "deal"],
+                    "validity_period": ["valid until", "offer ends", "expires"],
+                    "contact_info": ["contact", "call", "visit"],
+                    "features": ["features", "benefits", "highlights"],
+                    "terms_conditions": ["terms", "conditions", "restrictions"],
+                    "call_to_action": ["call now", "visit today", "order now"],
+                    "disclaimer": ["disclaimer", "terms apply", "conditions apply"]
+                    },
+                    "email": {
+                    "from_address": ["from", "sender", "sent by"],
+                    "to_address": ["to", "recipient", "sent to"],
+                    "cc_address": ["cc", "carbon copy"],
+                    "bcc_address": ["bcc", "blind copy"],
+                    "subject": ["subject", "re:", "regarding"],
+                    "date_sent": ["date", "sent on", "received"],
+                    "attachments": ["attached", "attachment", "enclosed"],
+                    "priority": ["priority", "importance"],
+                    "thread_id": ["thread", "conversation"],
+                    "message_id": ["message id", "email id"]
+                    },
+                    "questionnaire": {
+                    "form_title": ["title", "survey name", "questionnaire name"],
+                    "respondent_info": ["respondent", "participant", "name"],
+                    "submission_date": ["date", "completed on", "submitted"],
+                    "section_headers": ["section", "part", "segment"],
+                    "question_types": ["type", "question format", "response format"],
+                    "response_options": ["options", "choices", "answers"],
+                    "required_fields": ["required", "mandatory", "must answer"],
+                    "instructions": ["instructions", "directions", "guidelines"],
+                    "survey_id": ["survey id", "reference number", "form id"],
+                    "completion_status": ["status", "completion", "progress"]
+                    },
+                    "specification": {
+                    "product_name": ["product", "item", "model"],
+                    "version": ["version", "revision", "release"],
+                    "technical_details": ["specifications", "tech specs", "details"],
+                    "requirements": ["requirements", "prerequisites", "needed"],
+                    "compatibility": ["compatible with", "works with", "supports"],
+                    "dimensions": ["dimensions", "size", "measurements"],
+                    "materials": ["materials", "composition", "made from"],
+                    "standards": ["standards", "certifications", "compliance"],
+                    "revision_history": ["revisions", "changes", "updates"],
+                    "approval_info": ["approved by", "certified by", "validated"]
+                    },
+                    "generic": {
+                    "document_type": ["type", "category", "class"],
+                    "document_date": ["date", "created on", "issued on"],
+                    "document_id": ["id", "reference", "number"],
+                    "title": ["title", "heading", "subject"],
+                    "author": ["author", "creator", "sender"],
+                    "recipient": ["recipient", "to", "addressee"],
+                    "content_summary": ["summary", "abstract", "overview"],
+                    "status": ["status", "state", "condition"],
+                    "department": ["department", "dept", "division"],
+                    "comments": ["notes", "remarks", "comments"]
+                    }
+                }
+            }
+            </attributes>
+            </task>
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
   OCRFunction:
     Type: AWS::Serverless::Function
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W11
+            reason: "Textract DetectDocumentText API and CloudWatch APIs do not support resource-level permissions"
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-          - id: W11
-            reason: "Textract DetectDocumentText API does not support resource-level permissions"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
-    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
-    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
     # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/ocr_function/
       Handler: index.handler
@@ -75,6 +314,7 @@ Resources:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
+          CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
       LoggingConfig:
         LogGroup: !Ref OCRFunctionLogGroup
       Policies:
@@ -83,10 +323,12 @@ Resources:
             BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigurationTable
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
+            Resource: '*'
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -113,14 +355,16 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W11
+            reason: "Textract DetectDocumentText API and CloudWatch APIs do not support resource-level permissions"
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
-    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
-    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
     # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/classification_function/
       Handler: index.handler
@@ -132,6 +376,7 @@ Resources:
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
           SAGEMAKER_ENDPOINT_NAME: !GetAtt SAGEMAKERCLASSIFIERSTACK.Outputs.EndpointName
+          CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
       LoggingConfig:
         LogGroup: !Ref ClassificationFunctionLogGroup
       Policies:
@@ -140,10 +385,12 @@ Resources:
             BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigurationTable
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
+            Resource: '*'
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -168,14 +415,16 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W11
+            reason: "Cloudwatch does not support resource-level permissions"
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
-    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
-    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
     # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/extraction_function/
       Handler: index.handler
@@ -184,33 +433,35 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
-          EXTRACTION_MODEL_ID: !Ref ExtractionModel
           METRIC_NAMESPACE: !Ref StackName
+          CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
       LoggingConfig:
         LogGroup: !Ref ExtractionFunctionLogGroup
       Policies:
-      - AWSLambdaBasicExecutionRole
-      - S3CrudPolicy:
-          BucketName: !Ref OutputBucket
-      - S3ReadPolicy:
-          BucketName: !Ref InputBucket
-      - Statement:
-        - Effect: Allow
-          Action: cloudwatch:PutMetricData
-          Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
-        - Effect: Allow
-          Action:
-            - kms:Encrypt
-            - kms:Decrypt
-            - kms:ReEncrypt*
-            - kms:GenerateDataKey*
-            - kms:DescribeKey
-          Resource: !Ref CustomerManagedEncryptionKeyArn
-        - Effect: Allow
-          Action: bedrock:InvokeModel
-          Resource: 
-              - !Sub "arn:aws:bedrock:*::foundation-model/*"
-              - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+        - AWSLambdaBasicExecutionRole
+        - S3CrudPolicy:
+            BucketName: !Ref OutputBucket
+        - S3ReadPolicy:
+            BucketName: !Ref InputBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigurationTable
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: !Ref CustomerManagedEncryptionKeyArn
+          - Effect: Allow
+            Action: bedrock:InvokeModel
+            Resource: 
+                - !Sub "arn:aws:bedrock:*::foundation-model/*"
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
 
   ExtractionFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -224,14 +475,16 @@ Resources:
     Metadata:
       cfn_nag:
         rules_to_suppress:
+          - id: W11
+            reason: "Cloudwatch does not support resource-level permissions"
           - id: W89
             reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
           - id: W92
             reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
-    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
-    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
-    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
     # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       CodeUri: src/processresults_function/
       Handler: index.handler
@@ -252,7 +505,7 @@ Resources:
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
-            Resource: !Sub 'arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:*'
+            Resource: '*'
           - Effect: Allow
             Action:
               - kms:Encrypt
