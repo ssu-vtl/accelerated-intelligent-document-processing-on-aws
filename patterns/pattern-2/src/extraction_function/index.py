@@ -59,8 +59,8 @@ def put_metric(name, value, unit='Count', dimensions=None):
 def invoke_llm(page_images, class_label, document_text):
     extraction_config = CONFIG["extraction"]
     model_id = extraction_config["model"]
-    temperature = extraction_config["temperature"]
-    top_k = extraction_config["top_k"]
+    temperature = float(extraction_config["temperature"])
+    top_k = float(extraction_config["top_k"])
     system_prompt = [{"text": extraction_config["system_prompt"]}]
     prompt_template = extraction_config["task_prompt"].replace("{DOCUMENT_TEXT}", "%(DOCUMENT_TEXT)s").replace("{DOCUMENT_CLASS}", "%(DOCUMENT_CLASS)s")
     task_prompt = prompt_template % {
