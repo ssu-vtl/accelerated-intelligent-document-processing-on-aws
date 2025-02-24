@@ -59,7 +59,11 @@ def invoke_llm(page_images, class_label, document_text):
     temperature = extraction_config["temperature"]
     top_k = extraction_config["top_k"]
     system_prompt = [{"text": extraction_config["system_prompt"]}]
-    task_prompt = extraction_config["task_prompt"].format(DOCUMENT_CLASS=class_label, DOCUMENT_TEXT=document_text)
+    prompt_template = extraction_config["task_prompt"].replace("{DOCUMENT_TEXT}", "%(DOCUMENT_TEXT)s").replace("{DOCUMENT_CLASS}", "%(DOCUMENT_CLASS)s")
+    task_prompt = prompt_template % {
+        "DOCUMENT_TEXT": document_text,
+        "DOCUMENT_CLASS": class_label
+    }
     content = [{"text": task_prompt}]
 
     inference_config = {"temperature": temperature}
