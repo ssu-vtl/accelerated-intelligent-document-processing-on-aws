@@ -106,8 +106,8 @@ def classify_single_page(page_id, page_data):
 
     classification_config = CONFIG["classification"]
     model_id = classification_config["model"]
-    temperature = classification_config["temperature"]
-    top_k = classification_config["top_k"]
+    temperature = float(classification_config["temperature"])
+    top_k = float(classification_config["top_k"])
     system_prompt = [{"text": classification_config["system_prompt"]}]
     prompt_template = classification_config["task_prompt"].replace("{DOCUMENT_TEXT}", "%(DOCUMENT_TEXT)s")
     task_prompt = prompt_template % {

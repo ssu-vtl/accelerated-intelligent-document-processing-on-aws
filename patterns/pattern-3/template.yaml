@@ -33,6 +33,12 @@ Parameters:
     Default: ''
     Description: Bedrock Data Automation (BDA) project ARN
 
+  UpdateConfigurationFunctionArn:
+    Type: String
+
+  ConfigurationTable:
+    Type: String
+
 
 Resources:
 
