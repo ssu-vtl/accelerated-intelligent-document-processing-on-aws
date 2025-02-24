@@ -82,8 +82,6 @@ haschanged() {
   # Check if the checksum file exists and read the previous checksum
   if [ -f "$checksum_file" ]; then
       previous_checksum=$(cat "$checksum_file")
-      echo "XXXX Previous checksum: $previous_checksum"
-      echo "XXXX Current checksum: $current_checksum"
   else
       previous_checksum=""
   fi
