@@ -2519,7 +2519,9 @@ Resources:
               - Effect: Allow
                 Action:
                   - lambda:InvokeFunction
-                Resource: !GetAtt GetFileContentsResolverFunction.Arn
+                Resource: 
+                  - !GetAtt GetFileContentsResolverFunction.Arn
+                  - !GetAtt ConfigurationResolverFunction.Arn
 
   CreateDocumentResolver:
     Type: AWS::AppSync::Resolver
@@ -2847,6 +2849,81 @@ Resources:
       DataSourceName: !GetAtt GetFileContentsDataSource.Name
       TypeName: Query
       FieldName: getFileContents
+
+  ConfigurationResolverFunction:
+      Type: AWS::Serverless::Function
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W89
+              reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+            - id: W92
+              reason: "Function does not require reserved concurrency as it scales based on demand"
+            - id: W12
+              reason: "Lambda requires CloudWatch logs permissions"
+      # checkov:skip=CKV_AWS_116: "DLQ not required for AppSync resolver function"
+      # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+      # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+      Properties:
+        Handler: index.handler
+        Runtime: python3.12
+        CodeUri: ./src/lambda/configuration_resolver
+        Description: Lambda function to manage configuration through GraphQL API
+        MemorySize: 512
+        Timeout: 60
+        Environment:
+          Variables:
+            CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
+        LoggingConfig:
+          LogGroup: !Ref ConfigurationResolverFunctionLogGroup
+        Policies:
+          - DynamoDBCrudPolicy:
+              TableName: !Ref ConfigurationTable
+          - Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:Decrypt
+                  - kms:ReEncrypt*
+                  - kms:GenerateDataKey*
+                  - kms:DescribeKey
+                Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+
+  ConfigurationResolverFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
+      RetentionInDays: !Ref LogRetentionDays
+
+  ConfigurationDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Name: ConfigurationDataSource
+      Description: Lambda function to manage configuration via GraphQL API
+      Type: AWS_LAMBDA
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt ConfigurationResolverFunction.Arn
+
+  GetConfigurationResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: GraphQLSchema
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      DataSourceName: !GetAtt ConfigurationDataSource.Name
+      TypeName: Query
+      FieldName: getConfiguration
+
+  UpdateConfigurationResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: GraphQLSchema
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      DataSourceName: !GetAtt ConfigurationDataSource.Name
+      TypeName: Mutation
+      FieldName: updateConfiguration
+
 
   ##########################################################################
   # WebUI build and deployment 

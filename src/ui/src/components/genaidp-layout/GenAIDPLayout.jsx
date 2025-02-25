@@ -21,6 +21,7 @@ import Navigation from './navigation';
 import Breadcrumbs from './breadcrumbs';
 import ToolsPanel from './tools-panel';
 import SplitPanel from './documents-split-panel';
+import ConfigurationLayout from '../configuration-layout';
 
 import { DOCUMENT_LIST_SHARDS_PER_DAY, PERIODS_TO_LOAD_STORAGE_KEY } from '../document-list/documents-table-config';
 
@@ -117,6 +118,9 @@ const GenAIDPLayout = () => {
             </Route>
             <Route path={`${path}/query`}>
               <DocumentsQueryLayout />
+            </Route>
+            <Route path={`${path}/config`}>
+              <ConfigurationLayout />
             </Route>
             <Route path={`${path}/:objectKey`}>
               <DocumentDetails />

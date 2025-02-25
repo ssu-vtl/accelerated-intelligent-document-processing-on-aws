@@ -49,6 +49,12 @@ type DocumentListItem implements DynamoDbBase @aws_cognito_user_pools @aws_iam {
     ExpiresAfter: AWSTimestamp
 }
 
+type ConfigurationResponse @aws_cognito_user_pools @aws_iam {
+  Schema: AWSJSON
+  Default: AWSJSON
+  Custom: AWSJSON
+}
+
 input CreateDocumentInput {
   ObjectKey: ID
   ObjectStatus: String
@@ -89,9 +95,10 @@ input PageInput {
   TextUri: String
 }
 
-type Mutation @aws_iam {
-  createDocument(input: CreateDocumentInput!): CreateDocumentOutput
-  updateDocument(input: UpdateDocumentInput!): Document
+type Mutation  {
+  createDocument(input: CreateDocumentInput!): CreateDocumentOutput @aws_iam
+  updateDocument(input: UpdateDocumentInput!): Document @aws_iam
+  updateConfiguration(customConfig: AWSJSON!): Boolean @aws_cognito_user_pools
 }
 
 type Query @aws_cognito_user_pools @aws_iam {
@@ -100,6 +107,7 @@ type Query @aws_cognito_user_pools @aws_iam {
   listDocumentsDateHour(date: AWSDate, hour: Int): DocumentList
   listDocumentsDateShard(date: AWSDate, shard: Int): DocumentList 
   getFileContents(s3Uri: String!): String
+  getConfiguration: ConfigurationResponse
 }
 
 type Subscription @aws_cognito_user_pools @aws_iam {
