@@ -206,99 +206,6 @@ const ConfigurationLayout = () => {
     }, formValues);
   };
 
-  // Render form fields function
-  const renderFormFields = () => {
-    // Check if schema is actually a string disguised as an object
-    if (typeof schema === 'string') {
-      try {
-        // Try to parse it directly
-        const parsedSchema = JSON.parse(schema);
-        console.log('Successfully parsed schema string:', parsedSchema);
-
-        // If it parses successfully, use it instead of the original schema
-        if (parsedSchema && parsedSchema.properties) {
-          return renderSchemaProperties(parsedSchema.properties);
-        }
-      } catch (e) {
-        console.error('Failed to parse schema string:', e);
-      }
-    }
-
-    // Check if schema is missing properties
-    if (!schema || !schema.properties) {
-      console.error('Schema or schema.properties is undefined:', schema);
-      return (
-        <Alert type="error" header="Schema Error">
-          <p>Invalid schema structure. Properties not found.</p>
-          <p>Schema type: {typeof schema}</p>
-          <pre>{JSON.stringify(schema, null, 2)}</pre>
-
-          {typeof schema === 'string' && (
-            <div>
-              <p>Attempting to parse the string...</p>
-              <Button
-                onClick={() => {
-                  try {
-                    const parsed = JSON.parse(schema);
-                    console.log('Manual parse result:', parsed);
-                    alert('Schema parsed successfully! See console for details.');
-                  } catch (e) {
-                    console.error('Manual parse failed:', e);
-                    alert(`Parse failed: ${e.message}`);
-                  }
-                }}
-              >
-                Try Parse Manually
-              </Button>
-            </div>
-          )}
-        </Alert>
-      );
-    }
-
-    return renderSchemaProperties(schema.properties);
-  };
-
-  // Helper function to render properties from schema
-  const renderSchemaProperties = (properties) => {
-    return Object.entries(properties).map(([topLevelKey, topLevelProperty], index) => {
-      // For top level properties
-      if (topLevelProperty.type !== 'object') {
-        const path = topLevelKey;
-        const value = getValueAtPath(path);
-        const customized = isCustomized(path);
-
-        return renderField(`${path}-${index}`, topLevelProperty, value, customized, path);
-      }
-
-      // For object properties (like "extraction")
-      return (
-        <Box key={`${topLevelKey}-${index}`} padding={{ bottom: 'm' }}>
-          <Header variant="h3">
-            {topLevelProperty.title || topLevelKey}
-            {topLevelProperty.description && (
-              <Box padding={{ top: 'xxs' }} color="text-body-secondary" fontSize="body-s">
-                {topLevelProperty.description}
-              </Box>
-            )}
-          </Header>
-
-          {topLevelProperty.properties && (
-            <SpaceBetween size="m">
-              {Object.entries(topLevelProperty.properties).map(([childKey, childProperty], childIndex) => {
-                const fullPath = `${topLevelKey}.${childKey}`;
-                const value = getValueAtPath(fullPath);
-                const customized = isCustomized(fullPath);
-
-                return renderField(`${fullPath}-${childIndex}`, childProperty, value, customized, fullPath);
-              })}
-            </SpaceBetween>
-          )}
-        </Box>
-      );
-    });
-  };
-
   // Helper function to render a specific field based on its type
   const renderField = (key, property, currentValue, isCustomValue, fullPath) => {
     console.log(`Rendering field: ${fullPath}, type: ${property.type}, value:`, currentValue);
@@ -408,6 +315,99 @@ const ConfigurationLayout = () => {
         </div>
       </FormField>
     );
+  };
+
+  // Helper function to render properties from schema
+  const renderSchemaProperties = (properties) => {
+    return Object.entries(properties).map(([topLevelKey, topLevelProperty]) => {
+      // For top level properties
+      if (topLevelProperty.type !== 'object') {
+        const path = topLevelKey;
+        const value = getValueAtPath(path);
+        const customized = isCustomized(path);
+
+        return renderField(`${path}`, topLevelProperty, value, customized, path);
+      }
+
+      // For object properties (like "extraction")
+      return (
+        <Box key={`${topLevelKey}`} padding={{ bottom: 'm' }}>
+          <Header variant="h3">
+            {topLevelProperty.title || topLevelKey}
+            {topLevelProperty.description && (
+              <Box padding={{ top: 'xxs' }} color="text-body-secondary" fontSize="body-s">
+                {topLevelProperty.description}
+              </Box>
+            )}
+          </Header>
+
+          {topLevelProperty.properties && (
+            <SpaceBetween size="m">
+              {Object.entries(topLevelProperty.properties).map(([childKey, childProperty]) => {
+                const fullPath = `${topLevelKey}.${childKey}`;
+                const value = getValueAtPath(fullPath);
+                const customized = isCustomized(fullPath);
+
+                return renderField(`${fullPath}`, childProperty, value, customized, fullPath);
+              })}
+            </SpaceBetween>
+          )}
+        </Box>
+      );
+    });
+  };
+
+  // Render form fields function
+  const renderFormFields = () => {
+    // Check if schema is actually a string disguised as an object
+    if (typeof schema === 'string') {
+      try {
+        // Try to parse it directly
+        const parsedSchema = JSON.parse(schema);
+        console.log('Successfully parsed schema string:', parsedSchema);
+
+        // If it parses successfully, use it instead of the original schema
+        if (parsedSchema && parsedSchema.properties) {
+          return renderSchemaProperties(parsedSchema.properties);
+        }
+      } catch (e) {
+        console.error('Failed to parse schema string:', e);
+      }
+    }
+
+    // Check if schema is missing properties
+    if (!schema || !schema.properties) {
+      console.error('Schema or schema.properties is undefined:', schema);
+      return (
+        <Alert type="error" header="Schema Error">
+          <p>Invalid schema structure. Properties not found.</p>
+          <p>Schema type: {typeof schema}</p>
+          <pre>{JSON.stringify(schema, null, 2)}</pre>
+
+          {typeof schema === 'string' && (
+            <div>
+              <p>Attempting to parse the string...</p>
+              <Button
+                onClick={() => {
+                  try {
+                    const parsed = JSON.parse(schema);
+                    console.log('Manual parse result:', parsed);
+                    alert('Schema parsed successfully! See console for details.');
+                  } catch (e) {
+                    console.error('Manual parse failed:', e);
+                    alert(`Parse failed: ${e.message}`);
+                  }
+                }}
+              >
+                Try Parse Manually
+              </Button>
+            </div>
+          )}
+        </Alert>
+      );
+    }
+
+    return renderSchemaProperties(schema.properties);
   };
 
   return (
