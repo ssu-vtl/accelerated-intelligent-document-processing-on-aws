@@ -1,23 +1,9 @@
 import { useState, useEffect } from 'react';
 import { API, graphqlOperation, Logger } from 'aws-amplify';
+import getConfigurationQuery from '../graphql/queries/getConfiguration';
+import updateConfigurationMutation from '../graphql/queries/updateConfiguration';
 
 const logger = new Logger('useConfiguration');
-
-const GET_CONFIGURATION = `
-  query GetConfiguration {
-    getConfiguration {
-      Schema
-      Default
-      Custom
-    }
-  }
-`;
-
-const UPDATE_CONFIGURATION = `
-  mutation UpdateConfiguration($customConfig: AWSJSON!) {
-    updateConfiguration(customConfig: $customConfig)
-  }
-`;
 
 // Deep merge function for combining default and custom configurations
 const deepMerge = (target, source) => {
@@ -55,7 +41,7 @@ const useConfiguration = () => {
     setError(null);
     try {
       logger.debug('Fetching configuration...');
-      const result = await API.graphql(graphqlOperation(GET_CONFIGURATION));
+      const result = await API.graphql(graphqlOperation(getConfigurationQuery));
       logger.debug('API response:', result);
 
       const { Schema, Default, Custom } = result.data.getConfiguration;
@@ -145,7 +131,7 @@ const useConfiguration = () => {
       // Ensure we're sending a JSON string
       const configString = typeof newCustomConfig === 'string' ? newCustomConfig : JSON.stringify(newCustomConfig);
 
-      const result = await API.graphql(graphqlOperation(UPDATE_CONFIGURATION, { customConfig: configString }));
+      const result = await API.graphql(graphqlOperation(updateConfigurationMutation, { customConfig: configString }));
 
       if (result.data.updateConfiguration) {
         setCustomConfig(newCustomConfig);
