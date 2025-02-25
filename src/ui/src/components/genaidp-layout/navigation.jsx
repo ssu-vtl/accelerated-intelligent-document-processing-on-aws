@@ -10,6 +10,7 @@ export const documentsNavHeader = { text: 'Tools', href: `#${DEFAULT_PATH}` };
 export const documentsNavItems = [
   { type: 'link', text: 'Document List', href: `#${DOCUMENTS_PATH}` },
   { type: 'link', text: 'Document KB (coming)', href: `#${DOCUMENTS_KB_QUERY_PATH}` },
+  { type: 'link', text: 'Configuration', href: `#${DOCUMENTS_PATH}/config` },
   {
     type: 'section',
     text: 'Resources',
