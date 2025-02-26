@@ -15,6 +15,7 @@ import useGraphQlApi from '../../hooks/use-graphql-api';
 import DocumentList from '../document-list';
 import DocumentDetails from '../document-details';
 import DocumentsQueryLayout from '../document-kb-query-layout';
+import UploadDocumentPanel from '../upload-document';
 import { appLayoutLabels } from '../common/labels';
 
 import Navigation from './navigation';
@@ -24,6 +25,7 @@ import SplitPanel from './documents-split-panel';
 import ConfigurationLayout from '../configuration-layout';
 
 import { DOCUMENT_LIST_SHARDS_PER_DAY, PERIODS_TO_LOAD_STORAGE_KEY } from '../document-list/documents-table-config';
+import { UPLOAD_DOCUMENT_PATH } from '../../routes/constants';
 
 import useAppContext from '../../contexts/app';
 
@@ -121,6 +123,9 @@ const GenAIDPLayout = () => {
             </Route>
             <Route path={`${path}/config`}>
               <ConfigurationLayout />
+            </Route>
+            <Route path={UPLOAD_DOCUMENT_PATH}>
+              <UploadDocumentPanel />
             </Route>
             <Route path={`${path}/:objectKey`}>
               <DocumentDetails />
