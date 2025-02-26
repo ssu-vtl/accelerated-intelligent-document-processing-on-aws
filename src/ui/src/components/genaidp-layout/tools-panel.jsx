@@ -5,6 +5,7 @@ import { Route, Switch, useRouteMatch } from 'react-router-dom';
 
 import DocumentListToolsPanel from '../document-list/tools-panel';
 import DocumentDetailsToolsPanel from '../document-details/tools-panel';
+import ConfigurationToolsPanel from '../configuration-layout/tools-panel';
 
 const ToolsPanel = () => {
   const { path } = useRouteMatch();
@@ -13,6 +14,9 @@ const ToolsPanel = () => {
     <Switch>
       <Route exact path={path}>
         <DocumentListToolsPanel />
+      </Route>
+      <Route path={`${path}/config`}>
+        <ConfigurationToolsPanel />
       </Route>
       <Route path={`${path}/:objectKey`}>
         <DocumentDetailsToolsPanel />
