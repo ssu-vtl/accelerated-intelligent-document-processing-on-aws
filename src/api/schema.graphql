@@ -67,6 +67,12 @@ type CreateDocumentOutput @aws_iam {
   ObjectKey: ID
 }
 
+type PresignedUrlResponse @aws_cognito_user_pools {
+  presignedUrl: String!
+  objectKey: String!
+  usePostMethod: String!
+}
+
 input UpdateDocumentInput {
   ObjectKey: ID!
   ObjectStatus: String
@@ -99,6 +105,7 @@ type Mutation  {
   createDocument(input: CreateDocumentInput!): CreateDocumentOutput @aws_iam
   updateDocument(input: UpdateDocumentInput!): Document @aws_iam
   updateConfiguration(customConfig: AWSJSON!): Boolean @aws_cognito_user_pools
+  uploadDocument(fileName: String!, contentType: String, prefix: String): PresignedUrlResponse! @aws_cognito_user_pools
 }
 
 type Query @aws_cognito_user_pools @aws_iam {
