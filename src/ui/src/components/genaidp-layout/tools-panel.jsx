@@ -6,6 +6,8 @@ import { Route, Switch, useRouteMatch } from 'react-router-dom';
 import DocumentListToolsPanel from '../document-list/tools-panel';
 import DocumentDetailsToolsPanel from '../document-details/tools-panel';
 import ConfigurationToolsPanel from '../configuration-layout/tools-panel';
+import UploadDocumentToolsPanel from '../upload-document/tools-panel';
+import { UPLOAD_DOCUMENT_PATH } from '../../routes/constants';
 
 const ToolsPanel = () => {
   const { path } = useRouteMatch();
@@ -17,6 +19,9 @@ const ToolsPanel = () => {
       </Route>
       <Route path={`${path}/config`}>
         <ConfigurationToolsPanel />
+      </Route>
+      <Route path={UPLOAD_DOCUMENT_PATH}>
+        <UploadDocumentToolsPanel />
       </Route>
       <Route path={`${path}/:objectKey`}>
         <DocumentDetailsToolsPanel />
