@@ -98,6 +98,10 @@ The solution includes a responsive web-based user interface built with React tha
 - Secure authentication using Amazon Cognito
 - Searchable document history
 - Detailed document processing metrics and status information
+- Inspection of processing outputs for section classification and information extraction
+- Accuracy evaluation reports, when baseline data is provided
+- Configurable inference settings and LLM prompts for the deployed pattern
+- Document upload from local computer  
 
 <img src="./images/WebUI.png" alt="WebUI" width="800" style="border: 1px solid black;">
 
