@@ -164,6 +164,7 @@ const UploadDocumentPanel = () => {
             <h3>Upload Results:</h3>
             <SpaceBetween size="s">
               {uploadStatus.map((item, index) => (
+                // eslint-disable-next-line react/no-array-index-key
                 <div key={index}>
                   <StatusIndicator type={item.status === 'success' ? 'success' : 'error'}>
                     {item.file}: {item.status === 'success' ? 'Uploaded successfully' : `Failed - ${item.error}`}
