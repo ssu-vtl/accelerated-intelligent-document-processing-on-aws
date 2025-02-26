@@ -6,6 +6,8 @@ import { Route, Switch, useRouteMatch } from 'react-router-dom';
 import DocumentListBreadCrumbs from '../document-list/breadcrumbs';
 import DocumentDetailsBreadCrumbs from '../document-details/breadcrumbs';
 import ConfigurationBreadCrumbs from '../configuration-layout/breadcrumbs';
+import UploadDocumentBreadCrumbs from '../upload-document/breadcrumbs';
+import { UPLOAD_DOCUMENT_PATH } from '../../routes/constants';
 
 const Breadcrumbs = () => {
   const { path } = useRouteMatch();
@@ -17,6 +19,9 @@ const Breadcrumbs = () => {
       </Route>
       <Route path={`${path}/config`}>
         <ConfigurationBreadCrumbs />
+      </Route>
+      <Route path={UPLOAD_DOCUMENT_PATH}>
+        <UploadDocumentBreadCrumbs />
       </Route>
       <Route path={`${path}/:objectKey`}>
         <DocumentDetailsBreadCrumbs />
