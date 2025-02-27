@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 
 import { Auth, Logger } from 'aws-amplify';
-import { AuthState } from '@aws-amplify/ui-components';
+import { useAuthenticator } from '@aws-amplify/ui-react';
 
 const DEFAULT_CREDS_REFRESH_INTERVAL_IN_MS = 60 * 15 * 1000;
 
 const logger = new Logger('useCurrentSessionCreds');
 
-const useCurrentSessionCreds = ({ authState, credsIntervalInMs = DEFAULT_CREDS_REFRESH_INTERVAL_IN_MS }) => {
+const useCurrentSessionCreds = ({ credsIntervalInMs = DEFAULT_CREDS_REFRESH_INTERVAL_IN_MS }) => {
+  const { authStatus } = useAuthenticator((context) => [context.authStatus]);
   const [currentSession, setCurrentSession] = useState();
   const [currentCredentials, setCurrentCredentials] = useState();
   let interval;
@@ -32,7 +33,7 @@ const useCurrentSessionCreds = ({ authState, credsIntervalInMs = DEFAULT_CREDS_R
   };
 
   useEffect(() => {
-    if (authState === AuthState.SignedIn) {
+    if (authStatus === 'authenticated') {
       if (!interval) {
         refreshCredentials();
         interval = setInterval(refreshCredentials, credsIntervalInMs);
@@ -43,7 +44,7 @@ const useCurrentSessionCreds = ({ authState, credsIntervalInMs = DEFAULT_CREDS_R
     } else {
       clearRefreshInterval();
     }
-    if (authState === AuthState.SignedOut) {
+    if (authStatus === 'unauthenticated') {
       clearRefreshInterval();
       setCurrentSession();
       setCurrentCredentials();
@@ -52,7 +53,7 @@ const useCurrentSessionCreds = ({ authState, credsIntervalInMs = DEFAULT_CREDS_R
     return () => {
       clearRefreshInterval();
     };
-  }, [authState, credsIntervalInMs]);
+  }, [authStatus, credsIntervalInMs]);
 
   return { currentSession, currentCredentials };
 };

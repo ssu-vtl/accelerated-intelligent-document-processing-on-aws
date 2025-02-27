@@ -4,38 +4,38 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { Redirect, Route, Switch } from 'react-router-dom';
 
-import { AmplifyAuthContainer, AmplifyAuthenticator, AmplifySignIn, AmplifySignUp } from '@aws-amplify/ui-react';
+import { Authenticator } from '@aws-amplify/ui-react';
 
 import { LOGIN_PATH, LOGOUT_PATH, REDIRECT_URL_PARAM } from './constants';
 
 // this is set at build time depending on the AllowedSignUpEmailDomain CloudFormation parameter
 const { REACT_APP_SHOULD_HIDE_SIGN_UP = 'true' } = process.env;
 
+const AuthHeader = () => (
+  <h1 style={{ textAlign: 'center', margin: '2rem 0' }}>Welcome to GenAI Intelligent Document Processing!</h1>
+);
+
 const UnauthRoutes = ({ location }) => (
   <Switch>
     <Route path={LOGIN_PATH}>
-      <AmplifyAuthContainer>
-        <AmplifyAuthenticator>
-          <AmplifySignIn
-            headerText="Welcome to GenAI Intelligent Document Processing!"
-            hideSignUp={REACT_APP_SHOULD_HIDE_SIGN_UP}
-            slot="sign-in"
-          />
-          <AmplifySignUp
-            headerText="Welcome to GenAI Intelligent Document Processing!"
-            slot="sign-up"
-            h
-            usernameAlias="email"
-            formFields={[
-              {
-                type: 'email',
-                inputProps: { required: true, autocomplete: 'email' },
-              },
-              { type: 'password' },
-            ]}
-          />
-        </AmplifyAuthenticator>
-      </AmplifyAuthContainer>
+      <Authenticator
+        initialState="signIn"
+        components={{
+          Header: AuthHeader,
+        }}
+        services={{
+          async validateCustomSignUp(formData) {
+            if (formData.email) {
+              return undefined;
+            }
+            return {
+              email: 'Email is required',
+            };
+          },
+        }}
+        signUpAttributes={['email']}
+        hideSignUp={REACT_APP_SHOULD_HIDE_SIGN_UP === 'true'}
+      />
     </Route>
     <Route path={LOGOUT_PATH}>
       <Redirect to={LOGIN_PATH} />

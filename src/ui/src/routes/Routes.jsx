@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Logger } from 'aws-amplify';
-import { AuthState } from '@aws-amplify/ui-components';
+import { useAuthenticator } from '@aws-amplify/ui-react';
 
 import UnauthRoutes from './UnauthRoutes';
 
@@ -15,7 +15,8 @@ import { REDIRECT_URL_PARAM } from './constants';
 const logger = new Logger('Routes');
 
 const Routes = () => {
-  const { authState, user, currentCredentials } = useAppContext();
+  const { user, currentCredentials } = useAppContext();
+  const { authStatus } = useAuthenticator((context) => [context.authStatus]);
   const location = useLocation();
   const [urlSearchParams, setUrlSearchParams] = useState(new URLSearchParams({}));
   const [redirectParam, setRedirectParam] = useState('');
@@ -38,7 +39,7 @@ const Routes = () => {
     setRedirectParam(redirect);
   }, [urlSearchParams]);
 
-  return !(authState === AuthState.SignedIn && user && currentCredentials) ? (
+  return !(authStatus === 'authenticated' && user && currentCredentials) ? (
     <UnauthRoutes location={location} />
   ) : (
     <AuthRoutes redirectParam={redirectParam} />
