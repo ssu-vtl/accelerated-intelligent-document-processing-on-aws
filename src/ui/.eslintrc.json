@@ -13,7 +13,7 @@
     "ecmaVersion": 12,
     "sourceType": "module"
   },
-  "plugins": ["react", "prettier", "eslint-plugin-jest"],
+  "plugins": ["react", "prettier", "eslint-plugin-jest", "import"],
   "rules": {
     "no-console": "off",
     "no-alert": "off",
@@ -49,6 +49,12 @@
       "error",
       {
         "namedComponents": "arrow-function"
+      }
+    ],
+    "import/no-unresolved": [
+      "error",
+      {
+        "ignore": ["\\.css$"]
       }
     ]
   }
