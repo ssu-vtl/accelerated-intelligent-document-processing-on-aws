@@ -3,10 +3,10 @@
 import React, { useState } from 'react';
 import { Amplify, Logger } from 'aws-amplify';
 import { HashRouter } from 'react-router-dom';
+import { Authenticator, ThemeProvider, useAuthenticator } from '@aws-amplify/ui-react';
+import '@aws-amplify/ui-react/styles.css';
 
 import { AppContext } from './contexts/app';
-
-import useUserAuthState from './hooks/use-user-auth-state';
 import useAwsConfig from './hooks/use-aws-config';
 import useCurrentSessionCreds from './hooks/use-current-session-creds';
 
@@ -17,9 +17,9 @@ import './App.css';
 Amplify.Logger.LOG_LEVEL = process.env.NODE_ENV === 'development' ? 'DEBUG' : 'WARNING';
 const logger = new Logger('App');
 
-const App = () => {
+const AppContent = () => {
   const awsConfig = useAwsConfig();
-  const { authState, user } = useUserAuthState(awsConfig);
+  const { authStatus: authState, user } = useAuthenticator((context) => [context.authStatus, context.user]);
   const { currentSession, currentCredentials } = useCurrentSessionCreds({ authState });
   const [errorMessage, setErrorMessage] = useState();
   const [navigationOpen, setNavigationOpen] = useState(true);
@@ -46,6 +46,16 @@ const App = () => {
         </HashRouter>
       </AppContext.Provider>
     </div>
+  );
+};
+
+const App = () => {
+  return (
+    <ThemeProvider>
+      <Authenticator.Provider>
+        <AppContent />
+      </Authenticator.Provider>
+    </ThemeProvider>
   );
 };
 
