@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
 import { Logger } from 'aws-amplify';
 import { Redirect, Route, Switch } from 'react-router-dom';
 
-import { AmplifySignOut } from '@aws-amplify/ui-react';
+import { Button, useAuthenticator } from '@aws-amplify/ui-react';
 
 import { SettingsContext } from '../contexts/settings';
 import useParameterStore from '../hooks/use-parameter-store';
@@ -21,6 +21,7 @@ const logger = new Logger('AuthRoutes');
 const AuthRoutes = ({ redirectParam }) => {
   const { currentCredentials } = useAppContext();
   const settings = useParameterStore(currentCredentials);
+  const { signOut } = useAuthenticator();
 
   // eslint-disable-next-line react/jsx-no-constructed-context-values
   const settingsContextValue = {
@@ -38,7 +39,7 @@ const AuthRoutes = ({ redirectParam }) => {
           <Redirect to={!redirectParam || redirectParam === LOGIN_PATH ? DEFAULT_PATH : `${redirectParam}`} />
         </Route>
         <Route path={LOGOUT_PATH}>
-          <AmplifySignOut />
+          <Button onClick={signOut}>Sign Out</Button>
         </Route>
         <Route path={DOCUMENTS_KB_QUERY_PATH}>
           <DocumentsQueryRoutes />

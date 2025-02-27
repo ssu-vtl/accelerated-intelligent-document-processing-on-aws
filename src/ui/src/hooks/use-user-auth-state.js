@@ -1,33 +1,29 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { useState, useEffect } from 'react';
-import { onAuthUIStateChange } from '@aws-amplify/ui-components';
+import { useAuthenticator } from '@aws-amplify/ui-react';
 import { Logger } from 'aws-amplify';
 
 const logger = new Logger('useUserAuthState');
 
-const useUserAuthState = (awsconfig) => {
-  const [authState, setAuthState] = useState();
-  const [user, setUser] = useState();
+const useUserAuthState = () => {
+  const { authStatus, user } = useAuthenticator((context) => [context.authStatus, context.user]);
 
-  useEffect(() => {
-    onAuthUIStateChange((nextAuthState, authData) => {
-      logger.debug('auth state change nextAuthState:', nextAuthState);
-      logger.debug('auth state change authData:', authData);
-      setAuthState(nextAuthState);
-      setUser(authData);
-      if (authData) {
-        // prettier-ignore
-        localStorage.setItem(`${authData.pool.clientId}idtokenjwt`, authData.signInUserSession.idToken.jwtToken);
-        // prettier-ignore
-        localStorage.setItem(`${authData.pool.clientId}accesstokenjwt`, authData.signInUserSession.accessToken.jwtToken);
-        // prettier-ignore
-        localStorage.setItem(`${authData.pool.clientId}refreshtoken`, authData.signInUserSession.refreshToken.jwtToken);
-      }
-    });
-  }, [awsconfig]);
+  logger.debug('auth status:', authStatus);
+  logger.debug('auth user:', user);
 
-  return { authState, user };
+  if (user?.signInUserSession) {
+    const { clientId } = user.pool;
+    const { idToken, accessToken, refreshToken } = user.signInUserSession;
+
+    // prettier-ignore
+    localStorage.setItem(`${clientId}idtokenjwt`, idToken.jwtToken);
+    // prettier-ignore
+    localStorage.setItem(`${clientId}accesstokenjwt`, accessToken.jwtToken);
+    // prettier-ignore
+    localStorage.setItem(`${clientId}refreshtoken`, refreshToken.token);
+  }
+
+  return { authState: authStatus, user };
 };
 
 export default useUserAuthState;
