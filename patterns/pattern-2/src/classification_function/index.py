@@ -198,7 +198,7 @@ def classify_single_page(page_id, page_data):
                              f"Error: {error_message}. "
                              f"Backing off for {backoff:.2f}s")
                 
-                time.sleep(backoff)
+                time.sleep(backoff) # semgrep-ignore: arbitrary-sleep - Intentional delay backoff/retry. Duration is algorithmic and not user-controlled.
                 last_exception = e
             else:
                 logger.error(f"Non-retryable classification error for page {page_id}: "

@@ -76,7 +76,7 @@ def create_sagemaker_role(role_name, bucket, data_bucket):
         
         # Wait for policy attachments to propagate
         import time
-        time.sleep(10)  # Wait 10 seconds for IAM propagation
+        time.sleep(10)   # semgrep-ignore: arbitrary-sleep - Intentional delay. Duration is hardcoded and not user-controlled.
         
         return response['Role']['Arn']
         

@@ -189,6 +189,6 @@ def handler(event, context):
     except Exception as e:
         logger.error(f"Unexpected error in handler: {str(e)}", exc_info=True)
         # Always try to decrement counter in case of any error
-        if counter_value is None:
+        if counter_value is None: # semgrep-ignore: identical-is-comparison - Correctly checking for None.
             decrement_counter()
         raise
