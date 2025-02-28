@@ -1,11 +1,26 @@
 /* eslint-disable react/prop-types */
 import React, { useState } from 'react';
-import { SpaceBetween, Box, Button } from '@awsui/components-react';
+import { SpaceBetween, Box, Button, StatusIndicator } from '@awsui/components-react';
+import { Logger } from 'aws-amplify';
+import useCurrentSessionCreds from '../../hooks/use-current-session-creds';
+import useAwsConfig from '../../hooks/use-aws-config';
+import useSettingsContext from '../../contexts/settings';
+import copyToEvaluationBaseline from '../common/s3-operations';
 import FileViewer from '../document-viewer/FileViewer';
 import EvaluationReportViewer from '../document-viewer/EvaluationReportViewer';
 
-const ViewerControls = ({ onViewSource, onViewReport, isSourceVisible, isReportVisible, evaluationReportUri }) => (
-  <div className="flex flex-row gap-4 items-center">
+const logger = new Logger('DocumentViewers');
+
+const ViewerControls = ({
+  onViewSource,
+  onViewReport,
+  onSetAsBaseline,
+  isSourceVisible,
+  isReportVisible,
+  evaluationReportUri,
+  copyStatus,
+}) => (
+  <SpaceBetween direction="horizontal" size="xs">
     <Button onClick={onViewSource} variant={isSourceVisible ? 'primary' : 'normal'}>
       {isSourceVisible ? 'Close Source Document' : 'View Source Document'}
     </Button>
@@ -14,7 +29,13 @@ const ViewerControls = ({ onViewSource, onViewReport, isSourceVisible, isReportV
         {isReportVisible ? 'Close Evaluation Report' : 'View Evaluation Report'}
       </Button>
     )}
-  </div>
+    <Button onClick={onSetAsBaseline} disabled={copyStatus === 'in-progress'}>
+      Use as Evaluation Baseline
+    </Button>
+    {copyStatus === 'in-progress' && <StatusIndicator type="in-progress">Copying...</StatusIndicator>}
+    {copyStatus === 'success' && <StatusIndicator type="success">Copy successful</StatusIndicator>}
+    {copyStatus === 'error' && <StatusIndicator type="error">Copy failed</StatusIndicator>}
+  </SpaceBetween>
 );
 
 const ViewerContent = ({ isSourceVisible, isReportVisible, objectKey, evaluationReportUri }) => {
@@ -43,8 +64,12 @@ const ViewerContent = ({ isSourceVisible, isReportVisible, objectKey, evaluation
 };
 
 const DocumentViewers = ({ objectKey, evaluationReportUri }) => {
+  const { currentCredentials } = useCurrentSessionCreds({});
+  const awsConfig = useAwsConfig();
+  const { settings } = useSettingsContext();
   const [isSourceVisible, setIsSourceVisible] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
+  const [copyStatus, setCopyStatus] = useState(null);
 
   const handleViewSource = () => {
     setIsSourceVisible(!isSourceVisible);
@@ -54,15 +79,46 @@ const DocumentViewers = ({ objectKey, evaluationReportUri }) => {
     setIsReportVisible(!isReportVisible);
   };
 
+  const handleSetAsBaseline = async () => {
+    if (!currentCredentials || !awsConfig || !settings) {
+      logger.error('Missing required configuration');
+      return;
+    }
+
+    setCopyStatus('in-progress');
+    try {
+      const result = await copyToEvaluationBaseline(
+        currentCredentials,
+        awsConfig.aws_project_region,
+        settings.OutputBucket,
+        objectKey,
+        settings.EvaluationBaselineBucket,
+      );
+
+      if (result.success) {
+        setCopyStatus('success');
+        setTimeout(() => setCopyStatus(null), 3000);
+      } else {
+        setCopyStatus('error');
+        logger.error('Failed to copy:', result.error);
+      }
+    } catch (error) {
+      setCopyStatus('error');
+      logger.error('Error copying to evaluation baseline:', error);
+    }
+  };
+
   return (
     <Box>
       <SpaceBetween size="s">
         <ViewerControls
           onViewSource={handleViewSource}
           onViewReport={handleViewReport}
+          onSetAsBaseline={handleSetAsBaseline}
           isSourceVisible={isSourceVisible}
           isReportVisible={isReportVisible}
           evaluationReportUri={evaluationReportUri}
+          copyStatus={copyStatus}
         />
         <ViewerContent
           isSourceVisible={isSourceVisible}

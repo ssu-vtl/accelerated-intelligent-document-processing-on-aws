@@ -1048,6 +1048,7 @@ Resources:
       SettingsKeyValuePairs:
         InputBucket: !Ref InputBucket
         OutputBucket: !Ref OutputBucket
+        EvaluationBaselineBucket: !Ref EvaluationBaselineBucket
         ShouldUseDocumentKnowledgeBase: False
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
