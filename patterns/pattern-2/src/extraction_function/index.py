@@ -161,7 +161,7 @@ def invoke_llm(page_images, class_label, document_text):
                              f"Error: {error_message}. "
                              f"Backing off for {backoff:.2f}s")
                 
-                time.sleep(backoff)
+                time.sleep(backoff) # semgrep-ignore: arbitrary-sleep - Intentional delay backoff/retry. Duration is algorithmic and not user-controlled.
                 last_exception = e
             else:
                 logger.error(f"Non-retryable Bedrock error: {error_code} - {error_message}")

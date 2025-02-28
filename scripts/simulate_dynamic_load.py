@@ -73,7 +73,7 @@ def log_progress(stats, schedule):
         target = schedule.get(current_minute, 0)
         current = stats.get_minute_copies(current_minute)
         print(f"[{minutes:02d}:{seconds:02d}] Minute {current_minute}: {current}/{target} files copied (Total: {total})")
-        time.sleep(5)
+        time.sleep(5)  # semgrep-ignore: arbitrary-sleep - Intentional delay for simulation. Duration is hardcoded and not user-controlled.
 
 def read_schedule(csv_file):
     schedule = {}
@@ -124,7 +124,7 @@ def stress_test(source_bucket, source_key, dest_bucket, dest_prefix, schedule_fi
                 
                 completed = sum(1 for f in as_completed(futures) if f.result())
             
-            time.sleep(0.01)
+            time.sleep(0.01) # semgrep-ignore: arbitrary-sleep - Intentional delay to avoid tight loop. Duration is hardcoded and not user-controlled.
     
     final_total = stats.get_total()
     total_time = time.time() - start_time

@@ -60,7 +60,7 @@ def log_progress(stats, target_rate):
         rate = stats.get_current_rate()
         minutes, seconds = stats.get_elapsed_time()
         print(f"[{minutes:02d}:{seconds:02d}] Files copied: {total}, Current rate: {rate:.1f} files/minute (target: {target_rate})")
-        time.sleep(10)
+        time.sleep(10) # semgrep-ignore: arbitrary-sleep - Intentional delay for periodic logging. Duration is hardcoded and not user-controlled.
 
 def stress_test(source_bucket, source_key, dest_bucket, dest_prefix='', copies_per_minute=2500, duration_minutes=1):
     s3_client = boto3.client('s3')
@@ -94,7 +94,7 @@ def stress_test(source_bucket, source_key, dest_bucket, dest_prefix='', copies_p
                 ))
             
             completed = sum(1 for f in futures if f.result())
-            time.sleep(0.1)
+            time.sleep(0.1) # semgrep-ignore: arbitrary-sleep - Intentional delay to avoid tight loop. Duration is hardcoded and not user-controlled.
     
     final_total = stats.get_total()
     total_time = time.time() - start_time
