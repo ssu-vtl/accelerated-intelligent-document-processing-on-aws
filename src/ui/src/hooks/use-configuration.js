@@ -13,17 +13,19 @@ const deepMerge = (target, source) => {
     return result;
   }
 
-  Object.keys(source).forEach((key) => {
-    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-      if (target[key] && typeof target[key] === 'object') {
-        result[key] = deepMerge(target[key], source[key]);
+  Object.keys(source)
+    .filter((key) => Object.hasOwn(source, key))
+    .forEach((key) => {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        if (Object.hasOwn(target, key) && target[key] && typeof target[key] === 'object') {
+          result[key] = deepMerge(target[key], source[key]);
+        } else {
+          result[key] = { ...source[key] };
+        }
       } else {
-        result[key] = { ...source[key] };
+        result[key] = source[key];
       }
-    } else {
-      result[key] = source[key];
-    }
-  });
+    });
 
   return result;
 };
@@ -224,15 +226,15 @@ const useConfiguration = () => {
     // Navigate through the custom config to check if the path exists
     // Use reduce instead of for...of loop to comply with eslint
     return pathSegments.reduce((exists, segment, index, array) => {
-      if (!exists) return false;
+      if (!exists || !Object.hasOwn(exists, segment)) return false;
 
       if (index === array.length - 1) {
         // At the last segment, check if it exists in the current object
         return exists[segment] !== undefined;
       }
 
-      // Continue navigating if this segment exists
-      return exists[segment] || false;
+      // Continue navigating if this segment exists and is an object
+      return typeof exists[segment] === 'object' ? exists[segment] : false;
     }, customConfig);
   };
 

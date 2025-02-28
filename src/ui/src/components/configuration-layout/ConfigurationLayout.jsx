@@ -91,7 +91,7 @@ const ConfigurationLayout = () => {
     let current = newFormValues;
 
     pathSegments.slice(0, -1).forEach((segment) => {
-      if (!current[segment]) {
+      if (!Object.hasOwn(current, segment) || !current[segment]) {
         current[segment] = {};
       }
       current = current[segment];
@@ -127,38 +127,40 @@ const ConfigurationLayout = () => {
       // Find differences between form values and default config
       const findDifferences = (formObj, defaultObj, currentPath = '', result = {}) => {
         // Make sure we go through all keys in the form values
-        Object.keys(formObj).forEach((key) => {
-          const newPath = currentPath ? `${currentPath}.${key}` : key;
+        Object.keys(formObj)
+          .filter((key) => Object.hasOwn(formObj, key))
+          .forEach((key) => {
+            const newPath = currentPath ? `${currentPath}.${key}` : key;
 
-          if (
-            typeof formObj[key] === 'object' &&
-            formObj[key] !== null &&
-            !Array.isArray(formObj[key]) &&
-            defaultObj &&
-            typeof defaultObj[key] === 'object' &&
-            defaultObj[key] !== null
-          ) {
-            // Recurse for nested objects
-            findDifferences(formObj[key], defaultObj[key], newPath, result);
-          } else if (
-            defaultObj === undefined ||
-            defaultObj[key] === undefined ||
-            JSON.stringify(formObj[key]) !== JSON.stringify(defaultObj[key])
-          ) {
-            // Set value at path in result
-            let resultCurrent = result;
-            const segments = newPath.split('.');
+            if (
+              typeof formObj[key] === 'object' &&
+              formObj[key] !== null &&
+              !Array.isArray(formObj[key]) &&
+              defaultObj &&
+              typeof defaultObj[key] === 'object' &&
+              defaultObj[key] !== null
+            ) {
+              // Recurse for nested objects
+              findDifferences(formObj[key], defaultObj[key], newPath, result);
+            } else if (
+              defaultObj === undefined ||
+              defaultObj[key] === undefined ||
+              JSON.stringify(formObj[key]) !== JSON.stringify(defaultObj[key])
+            ) {
+              // Set value at path in result
+              let resultCurrent = result;
+              const segments = newPath.split('.');
 
-            segments.slice(0, -1).forEach((segment) => {
-              if (!resultCurrent[segment]) {
-                resultCurrent[segment] = {};
-              }
-              resultCurrent = resultCurrent[segment];
-            });
+              segments.slice(0, -1).forEach((segment) => {
+                if (!Object.hasOwn(resultCurrent, segment) || !resultCurrent[segment]) {
+                  resultCurrent[segment] = {};
+                }
+                resultCurrent = resultCurrent[segment];
+              });
 
-            resultCurrent[segments[segments.length - 1]] = formObj[key];
-          }
-        });
+              resultCurrent[segments[segments.length - 1]] = formObj[key];
+            }
+          });
 
         return result;
       };
