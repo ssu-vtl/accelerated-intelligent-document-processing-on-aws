@@ -1,11 +1,8 @@
 /* eslint-disable react/prop-types */
 import React, { useState } from 'react';
 import { SpaceBetween, Box, Button, StatusIndicator } from '@awsui/components-react';
-import { Logger } from 'aws-amplify';
-import useCurrentSessionCreds from '../../hooks/use-current-session-creds';
-import useAwsConfig from '../../hooks/use-aws-config';
-import useSettingsContext from '../../contexts/settings';
-import copyToEvaluationBaseline from '../common/s3-operations';
+import { API, graphqlOperation, Logger } from 'aws-amplify';
+import copyToBaselineMutation from '../../graphql/queries/copyToBaseline';
 import FileViewer from '../document-viewer/FileViewer';
 import EvaluationReportViewer from '../document-viewer/EvaluationReportViewer';
 
@@ -64,9 +61,6 @@ const ViewerContent = ({ isSourceVisible, isReportVisible, objectKey, evaluation
 };
 
 const DocumentViewers = ({ objectKey, evaluationReportUri }) => {
-  const { currentCredentials } = useCurrentSessionCreds({});
-  const awsConfig = useAwsConfig();
-  const { settings } = useSettingsContext();
   const [isSourceVisible, setIsSourceVisible] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
   const [copyStatus, setCopyStatus] = useState(null);
@@ -80,27 +74,20 @@ const DocumentViewers = ({ objectKey, evaluationReportUri }) => {
   };
 
   const handleSetAsBaseline = async () => {
-    if (!currentCredentials || !awsConfig || !settings) {
-      logger.error('Missing required configuration');
-      return;
-    }
-
     setCopyStatus('in-progress');
     try {
-      const result = await copyToEvaluationBaseline(
-        currentCredentials,
-        awsConfig.aws_project_region,
-        settings.OutputBucket,
-        objectKey,
-        settings.EvaluationBaselineBucket,
+      const result = await API.graphql(
+        graphqlOperation(copyToBaselineMutation, {
+          objectKey,
+        }),
       );
 
-      if (result.success) {
+      if (result.data.copyToBaseline.success) {
         setCopyStatus('success');
         setTimeout(() => setCopyStatus(null), 3000);
       } else {
         setCopyStatus('error');
-        logger.error('Failed to copy:', result.error);
+        logger.error('Failed to copy:', result.data.copyToBaseline.message);
       }
     } catch (error) {
       setCopyStatus('error');
