@@ -39,11 +39,15 @@ def handler(event, context):
         if not file_name:
             raise ValueError("fileName is required")
         
-        # Get input bucket from environment variable
-        bucket_name = os.environ.get('INPUT_BUCKET')
+        # Get bucket from arguments or fallback to INPUT_BUCKET if needed by patterns
+        bucket_name = arguments.get('bucket')
         
-        if not bucket_name:
-            raise ValueError("INPUT_BUCKET environment variable not set")
+        if not bucket_name and os.environ.get('INPUT_BUCKET'):
+            # Support legacy pattern usage that relies on INPUT_BUCKET
+            bucket_name = os.environ.get('INPUT_BUCKET')
+            logger.info(f"Using INPUT_BUCKET fallback: {bucket_name}")
+        elif not bucket_name:
+            raise ValueError("bucket parameter is required when INPUT_BUCKET is not configured")
         
         # Sanitize file name to avoid URL encoding issues
         sanitized_file_name = file_name.replace(' ', '_')
