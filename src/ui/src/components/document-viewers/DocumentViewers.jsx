@@ -1,11 +1,23 @@
 /* eslint-disable react/prop-types */
 import React, { useState } from 'react';
-import { SpaceBetween, Box, Button } from '@awsui/components-react';
+import { SpaceBetween, Box, Button, StatusIndicator } from '@awsui/components-react';
+import { API, graphqlOperation, Logger } from 'aws-amplify';
+import copyToBaselineMutation from '../../graphql/queries/copyToBaseline';
 import FileViewer from '../document-viewer/FileViewer';
 import EvaluationReportViewer from '../document-viewer/EvaluationReportViewer';
 
-const ViewerControls = ({ onViewSource, onViewReport, isSourceVisible, isReportVisible, evaluationReportUri }) => (
-  <div className="flex flex-row gap-4 items-center">
+const logger = new Logger('DocumentViewers');
+
+const ViewerControls = ({
+  onViewSource,
+  onViewReport,
+  onSetAsBaseline,
+  isSourceVisible,
+  isReportVisible,
+  evaluationReportUri,
+  copyStatus,
+}) => (
+  <SpaceBetween direction="horizontal" size="xs">
     <Button onClick={onViewSource} variant={isSourceVisible ? 'primary' : 'normal'}>
       {isSourceVisible ? 'Close Source Document' : 'View Source Document'}
     </Button>
@@ -14,7 +26,13 @@ const ViewerControls = ({ onViewSource, onViewReport, isSourceVisible, isReportV
         {isReportVisible ? 'Close Evaluation Report' : 'View Evaluation Report'}
       </Button>
     )}
-  </div>
+    <Button onClick={onSetAsBaseline} disabled={copyStatus === 'in-progress'}>
+      Use as Evaluation Baseline
+    </Button>
+    {copyStatus === 'in-progress' && <StatusIndicator type="in-progress">Copying...</StatusIndicator>}
+    {copyStatus === 'success' && <StatusIndicator type="success">Copy successful</StatusIndicator>}
+    {copyStatus === 'error' && <StatusIndicator type="error">Copy failed</StatusIndicator>}
+  </SpaceBetween>
 );
 
 const ViewerContent = ({ isSourceVisible, isReportVisible, objectKey, evaluationReportUri }) => {
@@ -45,6 +63,7 @@ const ViewerContent = ({ isSourceVisible, isReportVisible, objectKey, evaluation
 const DocumentViewers = ({ objectKey, evaluationReportUri }) => {
   const [isSourceVisible, setIsSourceVisible] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
+  const [copyStatus, setCopyStatus] = useState(null);
 
   const handleViewSource = () => {
     setIsSourceVisible(!isSourceVisible);
@@ -54,15 +73,39 @@ const DocumentViewers = ({ objectKey, evaluationReportUri }) => {
     setIsReportVisible(!isReportVisible);
   };
 
+  const handleSetAsBaseline = async () => {
+    setCopyStatus('in-progress');
+    try {
+      const result = await API.graphql(
+        graphqlOperation(copyToBaselineMutation, {
+          objectKey,
+        }),
+      );
+
+      if (result.data.copyToBaseline.success) {
+        setCopyStatus('success');
+        setTimeout(() => setCopyStatus(null), 3000);
+      } else {
+        setCopyStatus('error');
+        logger.error('Failed to copy:', result.data.copyToBaseline.message);
+      }
+    } catch (error) {
+      setCopyStatus('error');
+      logger.error('Error copying to evaluation baseline:', error);
+    }
+  };
+
   return (
     <Box>
       <SpaceBetween size="s">
         <ViewerControls
           onViewSource={handleViewSource}
           onViewReport={handleViewReport}
+          onSetAsBaseline={handleSetAsBaseline}
           isSourceVisible={isSourceVisible}
           isReportVisible={isReportVisible}
           evaluationReportUri={evaluationReportUri}
+          copyStatus={copyStatus}
         />
         <ViewerContent
           isSourceVisible={isSourceVisible}

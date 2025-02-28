@@ -12,13 +12,23 @@ import {
 } from '@awsui/components-react';
 import { API, graphqlOperation } from 'aws-amplify';
 import uploadDocument from '../../graphql/queries/uploadDocument';
+import useSettingsContext from '../../contexts/settings';
 
 const UploadDocumentPanel = () => {
+  const { settings } = useSettingsContext();
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState([]);
   const [error, setError] = useState(null);
   const [prefix, setPrefix] = useState('');
+
+  if (!settings.InputBucket) {
+    return (
+      <Container header={<Header variant="h2">Upload Documents</Header>}>
+        <Alert type="error">Input bucket not configured</Alert>
+      </Container>
+    );
+  }
 
   const handleFileChange = (e) => {
     setSelectedFiles(Array.from(e.target.files));
@@ -58,6 +68,7 @@ const UploadDocumentPanel = () => {
               fileName: file.name,
               contentType: file.type,
               prefix: prefix || '', // Use the user-provided prefix or empty string
+              bucket: settings.InputBucket, // Explicitly pass the input bucket
             }),
           );
 
