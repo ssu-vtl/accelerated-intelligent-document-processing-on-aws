@@ -146,7 +146,12 @@ Resources:
             Resource: !Ref CustomerManagedEncryptionKeyArn
           - Effect: Allow
             Action: bedrock:InvokeDataAutomationAsync
-            Resource: !Ref BDAProjectArn
+            Resource: 
+              - !Ref BDAProjectArn
+              - !Sub "arn:aws:bedrock:us-east-1:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
+              - !Sub "arn:aws:bedrock:us-east-2:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
+              - !Sub "arn:aws:bedrock:us-west-1:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
+              - !Sub "arn:aws:bedrock:us-west-2:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
   
   InvokeBDAFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -279,9 +284,11 @@ Resources:
     Properties:
       EventPattern:
         source:
-          - aws.bedrock-data-insights
+          - aws.bedrock
         detail-type:
-          - Insights Extraction Job Completed
+          - Bedrock Data Automation Job Succeeded
+          - Bedrock Data Automation Job Failed With Client Error
+          - Bedrock Data Automation Job Failed With Service Error
       State: ENABLED
       Targets:
         - Arn: !GetAtt BDACompletionFunction.Arn
