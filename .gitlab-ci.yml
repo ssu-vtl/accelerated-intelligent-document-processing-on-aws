@@ -1,0 +1,65 @@
+# Any publicly available image
+image: public.ecr.aws/docker/library/python:3.13-bookworm
+
+# Change pip's cache directory to be inside the project directory since we can
+# only cache local items.
+# variables:
+#   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+# https://pip.pypa.io/en/stable/topics/caching/
+# cache:
+#   paths:
+#     - .cache/pip
+
+stages:
+  - deploy_s3
+
+deploy_s3:
+  stage: deploy_s3
+  variables:
+    AWS_CREDS_TARGET_ROLE: arn:aws:iam::715841340161:role/idp-sdlc-GitLab
+    AWS_DEFAULT_REGION: us-east-1
+  
+  # Add rules to only run on develop branch
+  rules:
+    # - if: $CI_COMMIT_BRANCH == "null" # Let's turn off builds
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+  before_script:
+    - python --version
+    - apt-get update -y
+    - apt-get install zip unzip curl make -y
+    # - apt-get install zip unzip curl make software-properties-common -y
+    
+    # Install Python 3.13
+    # - add-apt-repository ppa:deadsnakes/ppa -y
+    # - apt-get update -y
+    # - apt-get install python3.13 python3.13-venv python3.13-dev python3-pip -y
+    # - ln -sf /usr/bin/python3.13 /usr/bin/python
+    # - ln -sf /usr/bin/python3.13 /usr/bin/python3
+    # - python --version
+    
+    # Install Poetry
+    - curl -sSL https://install.python-poetry.org | python3 -
+    - export PATH="/root/.local/bin:$PATH"
+    - poetry --version
+
+    
+    # Install AWS CLI
+    - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    - unzip awscliv2.zip
+    - ./aws/install
+    
+    # Install AWS SAM CLI
+    # - curl -L "https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip" -o "aws-sam-cli.zip"
+    # - unzip aws-sam-cli.zip -d sam-installation
+    # - ./sam-installation/install
+    # - sam --version
+
+  script:
+    - aws --version
+    - aws sts get-caller-identity --no-cli-pager
+    - cd ./scripts/sdlc/idp-cli
+    - poetry install
+    - make put
+    - make wait
