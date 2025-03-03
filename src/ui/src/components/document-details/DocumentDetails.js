@@ -1,13 +1,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useHistory } from 'react-router-dom';
 import { Logger } from 'aws-amplify';
 
 import useDocumentsContext from '../../contexts/documents';
 import useSettingsContext from '../../contexts/settings';
 
 import mapDocumentsAttributes from '../common/map-document-attributes';
+import DeleteDocumentModal from '../common/DeleteDocumentModal';
+import { DOCUMENTS_PATH } from '../../routes/constants';
 
 import '@awsui/global-styles/index.css';
 
@@ -17,13 +19,15 @@ const logger = new Logger('documentDetails');
 
 const DocumentDetails = () => {
   const params = useParams();
+  const history = useHistory();
   let { objectKey } = params;
   objectKey = decodeURIComponent(objectKey);
 
-  const { documents, getDocumentDetailsFromIds, setToolsOpen } = useDocumentsContext();
+  const { documents, getDocumentDetailsFromIds, setToolsOpen, deleteDocuments } = useDocumentsContext();
   const { settings } = useSettingsContext();
 
   const [document, setDocument] = useState(null);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
 
   const sendInitDocumentRequests = async () => {
     const response = await getDocumentDetailsFromIds([objectKey]);
@@ -68,14 +72,39 @@ const DocumentDetails = () => {
 
   logger.debug('Document details render:', objectKey, document, documents);
 
+  const handleDeleteConfirm = async () => {
+    logger.debug('Deleting document', objectKey);
+
+    const result = await deleteDocuments([objectKey]);
+    logger.debug('Delete result', result);
+
+    // Navigate back to document list
+    history.push(DOCUMENTS_PATH);
+  };
+
+  // Function to show delete modal
+  const handleDeleteClick = () => {
+    setIsDeleteModalVisible(true);
+  };
+
   return (
-    document && (
-      <DocumentPanel
-        item={document}
-        setToolsOpen={setToolsOpen}
-        getDocumentDetailsFromIds={getDocumentDetailsFromIds}
+    <>
+      {document && (
+        <DocumentPanel
+          item={document}
+          setToolsOpen={setToolsOpen}
+          getDocumentDetailsFromIds={getDocumentDetailsFromIds}
+          onDelete={handleDeleteClick}
+        />
+      )}
+
+      <DeleteDocumentModal
+        visible={isDeleteModalVisible}
+        onDismiss={() => setIsDeleteModalVisible(false)}
+        onConfirm={handleDeleteConfirm}
+        selectedItems={document ? [document] : []}
       />
-    )
+    </>
   );
 };
 
