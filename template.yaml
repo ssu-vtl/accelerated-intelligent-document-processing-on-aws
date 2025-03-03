@@ -3439,6 +3439,15 @@ Outputs:
   ApplicationWebURL:
     Description: Application Web URL
     Value: !Sub "https://${CloudFrontDistribution.DomainName}/"
+  S3InstallBucket:
+    Description: Install S3 bucket name
+    Value: !Ref InputBucket
+  S3LoggingBucket:
+    Description: Logging S3 bucket name
+    Value: !Ref LoggingBucket
+  S3WebUIBucket:
+    Description: WebUI S3 bucket name
+    Value: !Ref WebUIBucket
   S3InputBucketName:
     Description: Input S3 bucket name
     Value: !Ref InputBucket

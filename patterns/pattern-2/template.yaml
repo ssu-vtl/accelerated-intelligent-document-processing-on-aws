@@ -371,7 +371,7 @@ Resources:
     Properties:
       CodeUri: src/ocr_function/
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
@@ -432,7 +432,7 @@ Resources:
     Properties:
       CodeUri: src/classification_function/
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
@@ -493,7 +493,7 @@ Resources:
     Properties:
       CodeUri: src/extraction_function/
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 512
       Environment:
@@ -553,7 +553,7 @@ Resources:
     Properties:
       CodeUri: src/processresults_function/
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
