@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import React from 'react';
-import { Box, ColumnLayout, Container, SpaceBetween } from '@awsui/components-react';
+import { Box, ColumnLayout, Container, SpaceBetween, Button, Header } from '@awsui/components-react';
 import { Logger } from 'aws-amplify';
 import './DocumentPanel.css';
 import DocumentViewers from '../document-viewers/DocumentViewers';
@@ -62,15 +62,32 @@ const DocumentAttributes = ({ item }) => {
   );
 };
 
-export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds }) => {
+export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, onDelete }) => {
   logger.debug('DocumentPanel item', item);
   return (
     <SpaceBetween size="s">
-      <DocumentAttributes
-        item={item}
-        setToolsOpen={setToolsOpen}
-        getDocumentDetailsFromIds={getDocumentDetailsFromIds}
-      />
+      <Container
+        header={
+          <Header
+            variant="h2"
+            actions={
+              onDelete && (
+                <Button iconName="remove" variant="normal" onClick={onDelete}>
+                  Delete
+                </Button>
+              )
+            }
+          >
+            Document Details
+          </Header>
+        }
+      >
+        <DocumentAttributes
+          item={item}
+          setToolsOpen={setToolsOpen}
+          getDocumentDetailsFromIds={getDocumentDetailsFromIds}
+        />
+      </Container>
       <DocumentViewers objectKey={item.objectKey} evaluationReportUri={item.evaluationReportUri} />
       <SectionsPanel sections={item.sections} />
       <PagesPanel pages={item.pages} />

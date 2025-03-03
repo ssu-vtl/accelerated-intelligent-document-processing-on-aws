@@ -132,7 +132,7 @@ const TIME_PERIOD_DROPDOWN_ITEMS = Object.keys(TIME_PERIOD_DROPDOWN_CONFIG).map(
 // local storage key to persist the last periods to load
 export const PERIODS_TO_LOAD_STORAGE_KEY = 'periodsToLoad';
 
-export const DocumentsCommonHeader = ({ resourceName = 'Documents', ...props }) => {
+export const DocumentsCommonHeader = ({ resourceName = 'Documents', selectedItems = [], onDelete, ...props }) => {
   const onPeriodToLoadChange = ({ detail }) => {
     const { id } = detail;
     const shardCount = TIME_PERIOD_DROPDOWN_CONFIG[id].count;
@@ -143,6 +143,8 @@ export const DocumentsCommonHeader = ({ resourceName = 'Documents', ...props }) 
   // eslint-disable-next-line
   const periodText =
     TIME_PERIOD_DROPDOWN_ITEMS.filter((i) => i.count === props.periodsToLoad)[0]?.text || '';
+
+  const hasSelectedItems = selectedItems.length > 0;
 
   return (
     <TableHeader
@@ -164,6 +166,7 @@ export const DocumentsCommonHeader = ({ resourceName = 'Documents', ...props }) 
             loading={props.loading}
             onClick={() => props.downloadToExcel()}
           />
+          {onDelete && <Button iconName="remove" variant="normal" disabled={!hasSelectedItems} onClick={onDelete} />}
         </SpaceBetween>
       }
       {...props}
