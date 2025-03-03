@@ -114,7 +114,7 @@ Resources:
     Properties:
       CodeUri: src/bda_invoke_function/
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
@@ -173,7 +173,7 @@ Resources:
     Properties:
       CodeUri: src/processresults_function/
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
@@ -232,7 +232,7 @@ Resources:
     Properties:
       CodeUri: src/bda_completion_function/
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
