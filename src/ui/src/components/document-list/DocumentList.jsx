@@ -12,6 +12,7 @@ import mapDocumentsAttributes from '../common/map-document-attributes';
 import { paginationLabels } from '../common/labels';
 import useLocalStorage from '../common/local-storage';
 import { exportToExcel } from '../common/download-func';
+import DeleteDocumentModal from '../common/DeleteDocumentModal';
 
 import {
   DocumentsPreferences,
@@ -31,6 +32,7 @@ const logger = new Logger('DocumentList');
 
 const DocumentList = () => {
   const [documentList, setDocumentList] = useState([]);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const { settings } = useSettingsContext();
 
   const {
@@ -42,6 +44,7 @@ const DocumentList = () => {
     setToolsOpen,
     periodsToLoad,
     getDocumentDetailsFromIds,
+    deleteDocuments,
   } = useDocumentsContext();
 
   const [preferences, setPreferences] = useLocalStorage('documents-list-preferences', DEFAULT_PREFERENCES);
@@ -76,47 +79,71 @@ const DocumentList = () => {
     setSelectedItems(collectionProps.selectedItems);
   }, [collectionProps.selectedItems]);
 
+  const handleDeleteConfirm = async () => {
+    const objectKeys = collectionProps.selectedItems.map((item) => item.objectKey);
+    logger.debug('Deleting documents', objectKeys);
+
+    const result = await deleteDocuments(objectKeys);
+    logger.debug('Delete result', result);
+
+    // Close the modal
+    setIsDeleteModalVisible(false);
+
+    // Clear selection after deletion
+    actions.setSelectedItems([]);
+  };
+
   /* eslint-disable react/jsx-props-no-spreading */
   return (
-    <Table
-      {...collectionProps}
-      header={
-        <DocumentsCommonHeader
-          resourceName="Documents"
-          documents={documents}
-          selectedItems={collectionProps.selectedItems}
-          totalItems={documentList}
-          updateTools={() => setToolsOpen(true)}
-          loading={isDocumentsListLoading}
-          setIsLoading={setIsDocumentsListLoading}
-          periodsToLoad={periodsToLoad}
-          setPeriodsToLoad={setPeriodsToLoad}
-          getDocumentDetailsFromIds={getDocumentDetailsFromIds}
-          downloadToExcel={() => exportToExcel(documentList, 'Document-List')}
-          // eslint-disable-next-line max-len, prettier/prettier
-        />
-      }
-      columnDefinitions={COLUMN_DEFINITIONS_MAIN}
-      items={items}
-      loading={isDocumentsListLoading}
-      loadingText="Loading documents"
-      selectionType="multi"
-      ariaLabels={SELECTION_LABELS}
-      filter={
-        <TextFilter
-          {...filterProps}
-          filteringAriaLabel="Filter documents"
-          filteringPlaceholder="Find documents"
-          countText={getFilterCounterText(filteredItemsCount)}
-        />
-      }
-      wrapLines={preferences.wrapLines}
-      pagination={<Pagination {...paginationProps} ariaLabels={paginationLabels} />}
-      preferences={<DocumentsPreferences preferences={preferences} setPreferences={setPreferences} />}
-      trackBy={items.objectKey}
-      visibleColumns={[KEY_COLUMN_ID, ...preferences.visibleContent]}
-      resizableColumns
-    />
+    <>
+      <Table
+        {...collectionProps}
+        header={
+          <DocumentsCommonHeader
+            resourceName="Documents"
+            documents={documents}
+            selectedItems={collectionProps.selectedItems}
+            totalItems={documentList}
+            updateTools={() => setToolsOpen(true)}
+            loading={isDocumentsListLoading}
+            setIsLoading={setIsDocumentsListLoading}
+            periodsToLoad={periodsToLoad}
+            setPeriodsToLoad={setPeriodsToLoad}
+            getDocumentDetailsFromIds={getDocumentDetailsFromIds}
+            downloadToExcel={() => exportToExcel(documentList, 'Document-List')}
+            onDelete={() => setIsDeleteModalVisible(true)}
+            // eslint-disable-next-line max-len, prettier/prettier
+          />
+        }
+        columnDefinitions={COLUMN_DEFINITIONS_MAIN}
+        items={items}
+        loading={isDocumentsListLoading}
+        loadingText="Loading documents"
+        selectionType="multi"
+        ariaLabels={SELECTION_LABELS}
+        filter={
+          <TextFilter
+            {...filterProps}
+            filteringAriaLabel="Filter documents"
+            filteringPlaceholder="Find documents"
+            countText={getFilterCounterText(filteredItemsCount)}
+          />
+        }
+        wrapLines={preferences.wrapLines}
+        pagination={<Pagination {...paginationProps} ariaLabels={paginationLabels} />}
+        preferences={<DocumentsPreferences preferences={preferences} setPreferences={setPreferences} />}
+        trackBy={items.objectKey}
+        visibleColumns={[KEY_COLUMN_ID, ...preferences.visibleContent]}
+        resizableColumns
+      />
+
+      <DeleteDocumentModal
+        visible={isDeleteModalVisible}
+        onDismiss={() => setIsDeleteModalVisible(false)}
+        onConfirm={handleDeleteConfirm}
+        selectedItems={collectionProps.selectedItems}
+      />
+    </>
   );
 };
 

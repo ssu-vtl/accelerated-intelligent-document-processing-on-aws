@@ -8,6 +8,7 @@ import useAppContext from '../contexts/app';
 import listDocumentsDateShard from '../graphql/queries/listDocumentsDateShard';
 import listDocumentsDateHour from '../graphql/queries/listDocumentsDateHour';
 import getDocument from '../graphql/queries/getDocument';
+import deleteDocument from '../graphql/queries/deleteDocument';
 
 import onCreateDocument from '../graphql/queries/onCreateDocument';
 import onUpdateDocument from '../graphql/queries/onUpdateDocument';
@@ -241,6 +242,23 @@ const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2
     setIsDocumentsListLoading(true);
   }, [periodsToLoad]);
 
+  const deleteDocuments = async (objectKeys) => {
+    try {
+      logger.debug('Deleting documents', objectKeys);
+      const result = await API.graphql(graphqlOperation(deleteDocument, { objectKeys }));
+      logger.debug('Delete documents result', result);
+
+      // Refresh the document list after deletion
+      setIsDocumentsListLoading(true);
+
+      return result.data.deleteDocument;
+    } catch (error) {
+      setErrorMessage('Failed to delete document(s) - please try again later');
+      logger.error('Error deleting documents', error);
+      return false;
+    }
+  };
+
   return {
     documents,
     isDocumentsListLoading,
@@ -248,6 +266,7 @@ const useGraphQlApi = ({ initialPeriodsToLoad = DOCUMENT_LIST_SHARDS_PER_DAY * 2
     setIsDocumentsListLoading,
     setPeriodsToLoad,
     periodsToLoad,
+    deleteDocuments,
   };
 };
 

@@ -72,6 +72,7 @@ const GenAIDPLayout = () => {
     periodsToLoad,
     setIsDocumentsListLoading,
     setPeriodsToLoad,
+    deleteDocuments,
   } = useGraphQlApi({ initialPeriodsToLoad });
 
   // eslint-disable-next-line prettier/prettier
@@ -94,6 +95,7 @@ const GenAIDPLayout = () => {
     setSelectedItems,
     periodsToLoad,
     toolsOpen,
+    deleteDocuments,
   };
 
   return (
