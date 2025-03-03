@@ -49,6 +49,9 @@ def build_s3_uri(bucket: str, key: str) -> str:
     return f"s3://{bucket}/{key}"
 
 def build_payload(input_s3_uri: str, output_s3_uri: str, data_project_arn: str) -> Dict[str, Any]:
+    region = os.environ.get('AWS_REGION', 'us-east-1')
+    account_id = boto3.client('sts').get_caller_identity().get('Account')
+    
     return {
         "inputConfiguration": {
             "s3Uri": input_s3_uri
@@ -57,9 +60,10 @@ def build_payload(input_s3_uri: str, output_s3_uri: str, data_project_arn: str) 
             "s3Uri": output_s3_uri
         },
         "dataAutomationConfiguration": {
-            "dataAutomationArn": data_project_arn,
-            "stage": "LIVE"
+            "dataAutomationProjectArn": data_project_arn,
+            "stage": "LIVE",
         },
+        "dataAutomationProfileArn": f"arn:aws:bedrock:{region}:{account_id}:data-automation-profile/us.data-automation-v1",
         "notificationConfiguration": {
             "eventBridgeConfiguration": {
                 "eventBridgeEnabled": True
