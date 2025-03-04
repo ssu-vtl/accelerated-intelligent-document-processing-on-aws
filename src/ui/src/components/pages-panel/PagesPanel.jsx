@@ -40,7 +40,7 @@ const ThumbnailCell = ({ imageUrl }) => (
 
 const ActionsCell = ({ item }) =>
   item.TextUri ? (
-    <FileViewer fileUri={item.TextUri} fileType="json" buttonText="View JSON" />
+    <FileViewer fileUri={item.TextUri} fileType="json" buttonText="View/Edit Data" />
   ) : (
     <Box color="text-status-inactive">No text available</Box>
   );
@@ -52,22 +52,34 @@ const COLUMN_DEFINITIONS = [
     header: 'Page ID',
     cell: (item) => <IdCell item={item} />,
     sortingField: 'Id',
+    minWidth: 160,
+    width: 160,
+    isResizable: true,
   },
   {
     id: 'class',
     header: 'Class/Type',
     cell: (item) => <ClassCell item={item} />,
     sortingField: 'Class',
+    minWidth: 200,
+    width: 200,
+    isResizable: true,
   },
   {
     id: 'thumbnail',
     header: 'Thumbnail',
     cell: (item, { thumbnailUrls }) => <ThumbnailCell imageUrl={thumbnailUrls[item.Id]} />,
+    minWidth: 240,
+    width: 240,
+    isResizable: true,
   },
   {
     id: 'actions',
     header: 'Actions',
     cell: (item) => <ActionsCell item={item} />,
+    minWidth: 400,
+    width: 400,
+    isResizable: true,
   },
 ];
 
@@ -116,6 +128,8 @@ const PagesPanel = ({ pages }) => {
           items={pages || []}
           sortingDisabled
           variant="embedded"
+          resizableColumns
+          stickyHeader
           empty={
             <Box textAlign="center" color="inherit">
               <b>No pages</b>
@@ -124,6 +138,7 @@ const PagesPanel = ({ pages }) => {
               </Box>
             </Box>
           }
+          wrapLines
         />
       </Container>
     </SpaceBetween>
