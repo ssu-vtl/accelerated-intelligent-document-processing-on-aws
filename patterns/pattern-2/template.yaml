@@ -700,7 +700,7 @@ Resources:
               "properties": {
                 "metrics": [
                   [{"expression": "m1/PERIOD(m1)*60", "label": "Tokens per Minute"}],
-                  ["${AWS::StackName}", "InputTokens", {"id": "m1", "stat": "Sum", "visible": false}]
+                  ["${StackName}", "InputTokens", {"id": "m1", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Input Tokens (per Minute)",
@@ -722,7 +722,7 @@ Resources:
               "properties": {
                 "metrics": [
                   [{"expression": "m1/PERIOD(m1)*60", "label": "Tokens per Minute"}],
-                  ["${AWS::StackName}", "OutputTokens", {"id": "m1", "stat": "Sum", "visible": false}]
+                  ["${StackName}", "OutputTokens", {"id": "m1", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Output Tokens (per Minute)",
@@ -744,7 +744,7 @@ Resources:
               "properties": {
                 "metrics": [
                   [{"expression": "m1/PERIOD(m1)*60", "label": "Tokens per Minute"}],
-                  ["${AWS::StackName}", "TotalTokens", {"id": "m1", "stat": "Sum", "visible": false}]
+                  ["${StackName}", "TotalTokens", {"id": "m1", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Total Tokens (per Minute)",
@@ -768,7 +768,7 @@ Resources:
                   [{"expression": "m1/PERIOD(m1)*60", "label": "Total per Minute"}],
                   [{"expression": "m2/PERIOD(m2)*60", "label": "Succeeded per Minute"}],
                   [{"expression": "m3/PERIOD(m3)*60", "label": "Failed per Minute"}],
-                  ["${AWS::StackName}", "BedrockRequestsTotal", {"id": "m1", "stat": "Sum", "visible": false}],
+                  ["${StackName}", "BedrockRequestsTotal", {"id": "m1", "stat": "Sum", "visible": false}],
                   [".", "BedrockRequestsSucceeded", {"id": "m2", "stat": "Sum", "visible": false}],
                   [".", "BedrockRequestsFailed", {"id": "m3", "stat": "Sum", "visible": false}]
                 ],
@@ -794,7 +794,7 @@ Resources:
                   [{"expression": "m1/PERIOD(m1)*60", "label": "Throttles per Minute"}],
                   [{"expression": "m2/PERIOD(m2)*60", "label": "Retry Success per Minute"}],
                   [{"expression": "m3/PERIOD(m3)*60", "label": "Max Retries Exceeded per Minute"}],
-                  ["${AWS::StackName}", "BedrockThrottles", {"id": "m1", "stat": "Sum", "visible": false}],
+                  ["${StackName}", "BedrockThrottles", {"id": "m1", "stat": "Sum", "visible": false}],
                   [".", "BedrockRetrySuccess", {"id": "m2", "stat": "Sum", "visible": false}],
                   [".", "BedrockMaxRetriesExceeded", {"id": "m3", "stat": "Sum", "visible": false}]
                 ],
@@ -817,7 +817,7 @@ Resources:
               "height": 6,
               "properties": {
                 "metrics": [
-                  ["${AWS::StackName}", "BedrockRequestLatency", {"stat": "Average"}],
+                  ["${StackName}", "BedrockRequestLatency", {"stat": "Average"}],
                   [".", "BedrockRequestLatency", {"stat": "p90"}],
                   [".", "BedrockRequestLatency", {"stat": "Maximum"}],
                   [".", "BedrockTotalLatency", {"stat": "Average"}],
