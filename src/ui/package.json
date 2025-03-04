@@ -19,8 +19,6 @@
     "@awsui/components-react": "^3.0.1455",
     "@awsui/global-styles": "^1.0.25",
     "@monaco-editor/react": "^4.7.0",
-    "@rjsf/core": "^4.2.3",
-    "@rjsf/validator-ajv8": "^4.2.3",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^12.1.5",
     "@testing-library/user-event": "^13.5.0",
