@@ -152,10 +152,10 @@ def classify_single_page(page_id, page_data):
             # Log success metrics
             logger.info(f"Page {page_id} classification successful after {retry_count + 1} attempts. "
                        f"Duration: {duration:.2f}s")
-            put_metric('ClassificationRequestsSucceeded', 1)
-            put_metric('ClassificationLatency', duration * 1000, 'Milliseconds')
+            put_metric('BedrockRequestsSucceeded', 1)
+            put_metric('BedrockRequestLatency', duration * 1000, 'Milliseconds')
             if retry_count > 0:
-                put_metric('ClassificationRetrySuccess', 1)
+                put_metric('BedrockRetrySuccess', 1)
 
             # Track token usage
             if 'usage' in response:
@@ -183,13 +183,13 @@ def classify_single_page(page_id, page_data):
             if error_code in ['ThrottlingException', 'ServiceQuotaExceededException',
                             'RequestLimitExceeded', 'TooManyRequestsException']:
                 retry_count += 1
-                put_metric('ClassificationThrottles', 1)
+                put_metric('BedrockThrottles', 1)
                 
                 if retry_count == MAX_RETRIES:
                     logger.error(f"Max retries ({MAX_RETRIES}) exceeded for page {page_id}. "
                                f"Last error: {error_message}")
-                    put_metric('ClassificationRequestsFailed', 1)
-                    put_metric('ClassificationMaxRetriesExceeded', 1)
+                    put_metric('BedrockRequestsFailed', 1)
+                    put_metric('BedrockMaxRetriesExceeded', 1)
                     raise
                 
                 backoff = calculate_backoff(retry_count)
@@ -203,15 +203,15 @@ def classify_single_page(page_id, page_data):
             else:
                 logger.error(f"Non-retryable classification error for page {page_id}: "
                            f"{error_code} - {error_message}")
-                put_metric('ClassificationRequestsFailed', 1)
-                put_metric('ClassificationNonRetryableErrors', 1)
+                put_metric('BedrockRequestsFailed', 1)
+                put_metric('BedrockNonRetryableErrors', 1)
                 raise
                 
         except Exception as e:
             logger.error(f"Unexpected error classifying page {page_id}: {e}", 
                        exc_info=True)
-            put_metric('ClassificationRequestsFailed', 1)
-            put_metric('ClassificationUnexpectedErrors', 1)
+            put_metric('BedrockRequestsFailed', 1)
+            put_metric('BedrockUnexpectedErrors', 1)
             raise
             
     if last_exception:
@@ -296,7 +296,7 @@ def handler(event, context):
     t0 = time.time()
     
     total_pages = len(pages)
-    put_metric('ClassificationRequestsTotal', total_pages)
+    put_metric('BedrockRequestsTotal', total_pages)
     
     all_results = classify_pages_concurrently(pages)
     
