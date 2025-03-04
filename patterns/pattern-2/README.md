@@ -131,7 +131,7 @@ Each step includes comprehensive retry logic for handling transient errors:
 
 #### ProcessResults Function
 - **Purpose**: Consolidates results from all sections
-- **Output**: Standardized format for GenAIDP parent stack:
+- **Output**: Standardized format for GenAIIDP parent stack:
   ```json
   {
     "Sections": [{

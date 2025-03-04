@@ -29,9 +29,9 @@ import { UPLOAD_DOCUMENT_PATH } from '../../routes/constants';
 
 import useAppContext from '../../contexts/app';
 
-const logger = new Logger('GenAIDPLayout');
+const logger = new Logger('GenAIIDPLayout');
 
-const GenAIDPLayout = () => {
+const GenAIIDPLayout = () => {
   const { navigationOpen, setNavigationOpen } = useAppContext();
 
   const { path } = useRouteMatch();
@@ -140,4 +140,4 @@ const GenAIDPLayout = () => {
   );
 };
 
-export default GenAIDPLayout;
+export default GenAIIDPLayout;
