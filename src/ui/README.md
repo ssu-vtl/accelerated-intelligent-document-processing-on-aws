@@ -2,7 +2,7 @@
 
 1. To get the IDP UI to run locally, you will need to configure a `.env` file in the `/src/ui/` folder. The contents of the `.env` file must contain the environment variables listed below along with their values. 
 
-The values may be found in the Outputs of the GenAIDP stack under `WebUITestEnvFile`.
+The values may be found in the Outputs of the GenAIIDP stack under `WebUITestEnvFile`.
 Example contents of `.env` file:
 
 ```

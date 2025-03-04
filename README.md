@@ -1,4 +1,4 @@
-# Gen AI Intelligent Document Processing (GenAIDP)
+# Gen AI Intelligent Document Processing (GenAIIDP)
 
 Copyright © Amazon.com and Affiliates: This deliverable is considered Developed Content as defined in the AWS Service Terms and the SOW between the parties
 
@@ -491,7 +491,7 @@ The solution includes a built-in evaluation framework to assess the accuracy of 
 1. **Baseline Data**
    - Store validated baseline data in a dedicated S3 bucket
    - Use an existing bucket or let the solution create one
-   - Can use outputs from another GenAIDP stack to compare different patterns/prompts
+   - Can use outputs from another GenAIIDP stack to compare different patterns/prompts
 
 2. **Automatic Evaluation**
    - When enabled, automatically evaluates each processed document

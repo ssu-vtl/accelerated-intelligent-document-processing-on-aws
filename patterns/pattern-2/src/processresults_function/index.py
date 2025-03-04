@@ -40,7 +40,7 @@ def handler(event, context):
             ]
         }
 
-    The Output must observe the structure below.. it is consumed by the GenAIDP parent stack workflow tracker to update job status/UI etc: 
+    The Output must observe the structure below.. it is consumed by the GenAIIDP parent stack workflow tracker to update job status/UI etc: 
         {
             'Sections': [
                 {
