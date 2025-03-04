@@ -35,8 +35,8 @@ const COLUMN_DEFINITIONS = [
     id: 'pageIds',
     header: 'Page IDs',
     cell: (item) => <PageIdsCell item={item} />,
-    minWidth: 240,
-    width: 240,
+    minWidth: 120,
+    width: 120,
     isResizable: true,
   },
   {
