@@ -53,6 +53,6 @@ class UninstallService():
 
     def uninstall(self):
         self.get_outputs()
+        self.delete_stack(wait=True)
         self.get_buckets()
         self.delete_buckets()
-        self.delete_stack(wait=True)
