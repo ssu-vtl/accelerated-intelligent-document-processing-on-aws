@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
-import React, { useState, useRef, useEffect } from 'react';
-import { Box, SpaceBetween, Button, Toggle } from '@awsui/components-react';
+import React, { useState, useEffect } from 'react';
+import { Box, SpaceBetween, Button, Toggle, Alert } from '@awsui/components-react';
 import { API, Logger } from 'aws-amplify';
 import { Editor } from '@monaco-editor/react';
 import getFileContents from '../../graphql/queries/getFileContents';
@@ -10,86 +10,74 @@ const logger = new Logger('FileEditor');
 
 const EDITOR_DEFAULT_HEIGHT = '600px';
 
-const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = 'text' }) => {
-  const [isValid, setIsValid] = useState(true);
+// Import the necessary packages in package.json before using:
+// npm install --save react-json-view
+
+// Lazy load the JsonView component to avoid importing it if not needed
+const ReactJsonView = React.lazy(() => import('react-json-view'));
+
+const JsonEditorView = ({ jsonData, onChange, isReadOnly }) => {
+  return (
+    <Box
+      style={{
+        height: EDITOR_DEFAULT_HEIGHT,
+        position: 'relative',
+        overflow: 'auto',
+        padding: '10px',
+        backgroundColor: '#f8f8f8',
+        border: '2px solid #e9ebed',
+        borderRadius: '4px',
+      }}
+    >
+      <React.Suspense fallback={<Box padding="s">Loading JSON editor...</Box>}>
+        <ReactJsonView
+          src={jsonData}
+          name={false}
+          theme="rjv-default"
+          collapsed={false}
+          displayDataTypes={false}
+          enableClipboard={false}
+          onEdit={isReadOnly ? false : onChange}
+          onAdd={isReadOnly ? false : onChange}
+          onDelete={isReadOnly ? false : onChange}
+          style={{ fontSize: '14px' }}
+        />
+      </React.Suspense>
+    </Box>
+  );
+};
+
+const TextEditorView = ({ fileContent, onChange, isReadOnly, fileType }) => {
   const [isEditorReady, setIsEditorReady] = useState(false);
-  const editorRef = useRef(null);
-  const containerRef = useRef(null);
 
   useEffect(() => {
     let timeoutId;
     if (isEditorReady) {
       timeoutId = setTimeout(() => {
-        if (editorRef.current) {
-          editorRef.current.layout();
+        if (window.monacoEditor) {
+          window.monacoEditor.layout();
         }
       }, 100);
     }
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [isEditorReady]);
 
   const handleEditorDidMount = (editor) => {
-    editorRef.current = editor;
-    // Set initial layout
+    window.monacoEditor = editor;
     editor.layout();
     setIsEditorReady(true);
   };
 
-  const handleEditorChange = (value) => {
-    if (fileType === 'json') {
-      try {
-        JSON.parse(value);
-        setIsValid(true);
-        if (onChange) {
-          onChange(value);
-        }
-      } catch (error) {
-        setIsValid(false);
-        logger.error('Invalid JSON:', error);
-      }
-    } else {
-      setIsValid(true);
-      if (onChange) {
-        onChange(value);
-      }
-    }
-  };
-
-  const formatContent = (rawContent) => {
-    if (fileType === 'json') {
-      try {
-        const parsed = JSON.parse(rawContent);
-        return JSON.stringify(parsed, null, 2);
-      } catch (error) {
-        logger.error('Error formatting JSON:', error);
-        return rawContent;
-      }
-    }
-    return rawContent;
-  };
-
   return (
-    <Box
-      className="file-editor-container"
-      style={{ border: `2px solid ${isValid ? '#e9ebed' : '#d13212'}` }}
-      ref={containerRef}
-    >
-      <div
-        style={{
-          height: EDITOR_DEFAULT_HEIGHT,
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
+    <Box className="file-editor-container" style={{ border: '2px solid #e9ebed' }}>
+      <div style={{ height: EDITOR_DEFAULT_HEIGHT, position: 'relative', overflow: 'hidden' }}>
         <Editor
           height="100%"
           defaultLanguage={fileType}
-          value={formatContent(fileContent)}
-          onChange={handleEditorChange}
+          value={fileContent}
+          onChange={onChange}
           onMount={handleEditorDidMount}
           options={{
             readOnly: isReadOnly,
@@ -109,10 +97,103 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
           loading={<Box padding="s">Loading editor...</Box>}
         />
       </div>
+    </Box>
+  );
+};
+
+const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = 'text' }) => {
+  const [isValid, setIsValid] = useState(true);
+  const [jsonData, setJsonData] = useState(null);
+  const [viewMode, setViewMode] = useState('structured');
+
+  useEffect(() => {
+    if (fileType === 'json') {
+      try {
+        const parsed = typeof fileContent === 'string' ? JSON.parse(fileContent) : fileContent;
+        setJsonData(parsed);
+        setIsValid(true);
+      } catch (error) {
+        setIsValid(false);
+        logger.error('Invalid JSON:', error);
+      }
+    }
+  }, [fileContent, fileType]);
+
+  const handleJsonEditorChange = (edit) => {
+    try {
+      // Update the JSON data
+      setJsonData(edit.updated_src);
+      setIsValid(true);
+
+      // Convert to string for the onChange handler
+      const jsonString = JSON.stringify(edit.updated_src, null, 2);
+      if (onChange) {
+        onChange(jsonString);
+      }
+    } catch (error) {
+      setIsValid(false);
+      logger.error('Error updating JSON:', error);
+    }
+  };
+
+  const handleTextEditorChange = (value) => {
+    if (fileType === 'json') {
+      try {
+        const parsed = JSON.parse(value);
+        setJsonData(parsed);
+        setIsValid(true);
+        if (onChange) {
+          onChange(value);
+        }
+      } catch (error) {
+        setIsValid(false);
+        logger.error('Invalid JSON:', error);
+      }
+    } else if (onChange) {
+      onChange(value);
+    }
+  };
+
+  const toggleViewMode = () => {
+    setViewMode(viewMode === 'structured' ? 'text' : 'structured');
+  };
+
+  if (fileType !== 'json') {
+    return (
+      <TextEditorView
+        fileContent={fileContent}
+        onChange={handleTextEditorChange}
+        isReadOnly={isReadOnly}
+        fileType={fileType}
+      />
+    );
+  }
+
+  return (
+    <Box>
+      {fileType === 'json' && (
+        <SpaceBetween direction="horizontal" size="xs" alignItems="center">
+          <Button onClick={toggleViewMode} variant="link">
+            Switch to {viewMode === 'structured' ? 'text' : 'structured'} view
+          </Button>
+        </SpaceBetween>
+      )}
+
       {!isValid && (
-        <Box color="text-status-error" padding="s">
-          Invalid {fileType.toUpperCase()} format
-        </Box>
+        <Alert type="error" header="Invalid JSON format">
+          The JSON content is invalid. Please correct any syntax errors.
+        </Alert>
+      )}
+
+      {viewMode === 'structured' && isValid && fileType === 'json' ? (
+        <JsonEditorView jsonData={jsonData} onChange={handleJsonEditorChange} isReadOnly={isReadOnly} />
+      ) : (
+        <TextEditorView
+          fileContent={typeof fileContent === 'string' ? fileContent : JSON.stringify(fileContent, null, 2)}
+          onChange={handleTextEditorChange}
+          isReadOnly={isReadOnly}
+          fileType={fileType}
+        />
       )}
     </Box>
   );
