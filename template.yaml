@@ -108,7 +108,7 @@ Parameters:
     Description: >-
       (Optional) Existing bucket used for baseline (ground truth) data for processed documents. Baseline data is used to asess the accuracy 
       of the processing pattern outputs. 
-      Provide the name of an existing bucket here. Hint: you can use the Output bucket of another GenAIDP stack to compare the outputs from 
+      Provide the name of an existing bucket here. Hint: you can use the Output bucket of another GenAIIDP stack to compare the outputs from 
       different patterns and prompts. 
       Leave blank to automatically create an empty bucket where you can (optionally) place your validated baseline data later.
 
@@ -2145,11 +2145,11 @@ Resources:
           EmailSubject: Welcome to GenAI-IDP!
           EmailMessage: !Sub |-
             <p>Hello {username},</p>
-            <p>Welcome to the AWS GenAIDP Solution! Your temporary password is: <strong>{####}</strong></p>
+            <p>Welcome to the AWS GenAIIDP Solution! Your temporary password is: <strong>{####}</strong></p>
             <p>When the CloudFormation stack is COMPLETE, use the link below to log in and set your permanent password.
             <p>     https://${CloudFrontDistribution.DomainName}/
             <p>Thanks,</p>
-            <p>GenAIDP Team</p>
+            <p>GenAIIDP Team</p>
       AutoVerifiedAttributes:
         - email
       EmailConfiguration:
@@ -3328,7 +3328,7 @@ Resources:
     Properties:
       Name: !Sub ${AWS::StackName}-webui-build
       Description: !Sub >-
-        Web UI build for GenAIDP stack - ${AWS::StackName}
+        Web UI build for GenAIIDP stack - ${AWS::StackName}
       ServiceRole: !Ref UICodeBuildServiceRole
       EncryptionKey: alias/aws/s3
       Artifacts:

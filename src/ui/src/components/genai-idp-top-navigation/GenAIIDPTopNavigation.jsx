@@ -44,7 +44,7 @@ const SignOutModal = ({ visible, setVisible }) => {
   );
 };
 
-const GenAIDPTopNavigation = () => {
+const GenAIIDPTopNavigation = () => {
   const { user } = useAppContext();
   const userId = user?.attributes?.email || 'user';
   const [isSignOutModalVisible, setIsSignOutModalVisiblesetVisible] = useState(false);
@@ -52,7 +52,7 @@ const GenAIDPTopNavigation = () => {
     <>
       <div id="top-navigation" style={{ position: 'sticky', top: 0, zIndex: 1002 }}>
         <TopNavigation
-          identity={{ href: '#', title: 'GenAIDP Console' }}
+          identity={{ href: '#', title: 'GenAIIDP Console' }}
           i18nStrings={{ overflowMenuTriggerText: 'More' }}
           utilities={[
             {
@@ -77,7 +77,7 @@ const GenAIDPTopNavigation = () => {
                     {
                       id: 'documentation',
                       text: 'Blog Post',
-                      href: 'https://www.amazon.com/genaidp',
+                      href: 'https://www.amazon.com/genaiidp',
                       external: true,
                       externalIconAriaLabel: ' (opens in new tab)',
                     },
@@ -100,4 +100,4 @@ const GenAIDPTopNavigation = () => {
   );
 };
 
-export default GenAIDPTopNavigation;
+export default GenAIIDPTopNavigation;

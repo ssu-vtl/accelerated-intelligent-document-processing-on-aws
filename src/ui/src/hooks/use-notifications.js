@@ -11,7 +11,7 @@ const dismissedInitialNotificationsStorageKey = 'dismissedInitialNotifications';
 const initialNotifications = [
   {
     type: 'info',
-    content: 'Welcome to GenAI IDP (GenAIDP)',
+    content: 'Welcome to GenAI IDP (GenAIIDP)',
     dismissible: true,
     dismissLabel: 'Dismiss message',
     id: 'welcome-1',
