@@ -637,7 +637,7 @@ Resources:
               "properties": {
                 "metrics": [
                   [{"expression": "m1/PERIOD(m1)*60", "label": "Documents per Minute"}],
-                  ["${AWS::StackName}", "InputDocuments", {"id": "m1", "stat": "Sum", "visible": false}]
+                  ["${StackName}", "InputDocuments", {"id": "m1", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Input Documents (per Minute)",
@@ -659,7 +659,7 @@ Resources:
               "properties": {
                 "metrics": [
                   [{"expression": "m1/PERIOD(m1)*60", "label": "Pages per Minute"}],
-                  ["${AWS::StackName}", "InputDocumentPages", {"id": "m1", "stat": "Sum", "visible": false}]
+                  ["${StackName}", "InputDocumentPages", {"id": "m1", "stat": "Sum", "visible": false}]
                 ],
                 "region": "${AWS::Region}",
                 "title": "Input Document Pages (per Minute)",
