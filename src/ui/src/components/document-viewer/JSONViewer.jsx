@@ -1,6 +1,16 @@
-/* eslint-disable react/prop-types */
+/* eslint-disable react/prop-types, react/destructuring-assignment, no-nested-ternary, no-use-before-define */
 import React, { useState, useEffect } from 'react';
-import { Box, SpaceBetween, Button, Toggle, Alert } from '@awsui/components-react';
+import {
+  Box,
+  SpaceBetween,
+  Button,
+  Toggle,
+  Alert,
+  SegmentedControl,
+  FormField,
+  Input,
+  Checkbox,
+} from '@awsui/components-react';
 import { API, Logger } from 'aws-amplify';
 import { Editor } from '@monaco-editor/react';
 import getFileContents from '../../graphql/queries/getFileContents';
@@ -10,39 +20,199 @@ const logger = new Logger('FileEditor');
 
 const EDITOR_DEFAULT_HEIGHT = '600px';
 
-// Import the necessary packages in package.json before using:
-// npm install --save react-json-view
+// A simplified form-based JSON editor
+const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
+  // Render primitive values like strings, numbers, booleans, null
+  function renderPrimitiveValue(value, onChangeValue) {
+    if (value === null || value === undefined) {
+      return (
+        <FormField>
+          <Input value="null" disabled={isReadOnly} onChange={() => !isReadOnly && onChangeValue(null)} />
+        </FormField>
+      );
+    }
 
-// Lazy load the JsonView component to avoid importing it if not needed
-const ReactJsonView = React.lazy(() => import('react-json-view'));
+    if (typeof value === 'boolean') {
+      return (
+        <FormField>
+          <Checkbox
+            checked={value}
+            disabled={isReadOnly}
+            onChange={({ detail }) => !isReadOnly && onChangeValue(detail.checked)}
+          >
+            {String(value)}
+          </Checkbox>
+        </FormField>
+      );
+    }
 
-const JsonEditorView = ({ jsonData, onChange, isReadOnly }) => {
+    return (
+      <FormField>
+        <Input
+          value={String(value)}
+          disabled={isReadOnly}
+          onChange={({ detail }) => {
+            if (isReadOnly) return;
+
+            const newValue = detail.value;
+            // Try to convert back to number if it was a number
+            if (typeof value === 'number') {
+              const parsed = Number(newValue);
+              if (!Number.isNaN(parsed)) {
+                onChangeValue(parsed);
+                return;
+              }
+            }
+            onChangeValue(newValue);
+          }}
+        />
+      </FormField>
+    );
+  }
+
+  // Render a key-value pair with the key on the left
+  function renderKeyValuePair(key, value, onChangeValue) {
+    return (
+      <Box padding="xxxs" borderBottom="divider-light">
+        <Box display="flex" alignItems="center">
+          <Box width="30%" padding="xxxs" fontWeight="bold" fontSize="body-s">
+            {key}:
+          </Box>
+          <Box width="70%">
+            {renderJsonValue(value, (newValue) => {
+              if (isReadOnly) return;
+              onChangeValue(newValue);
+            })}
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
+
+  // The main recursive renderer for JSON values
+  function renderJsonValue(value, onChangeValue) {
+    // Handle primitive values
+    if (
+      value === null ||
+      value === undefined ||
+      typeof value === 'boolean' ||
+      typeof value === 'number' ||
+      typeof value === 'string'
+    ) {
+      return renderPrimitiveValue(value, onChangeValue);
+    }
+
+    // Handle arrays
+    if (Array.isArray(value)) {
+      return (
+        <Box padding="xxxs">
+          <Box fontSize="body-s" color="text-status-info" padding="xxxs">
+            Array ({value.length} items)
+          </Box>
+          <Box padding={{ left: 'xs' }}>
+            <SpaceBetween size="xxxs">
+              {value.map((item, index) => {
+                // Create a stable key based on content and a unique ID if possible
+                const itemKey =
+                  typeof item === 'object' && item !== null && item.id
+                    ? `array-item-${item.id}`
+                    : `array-item-${typeof item}-${JSON.stringify(item)}`;
+                return (
+                  <Box key={itemKey}>
+                    {renderKeyValuePair(`[${index}]`, item, (newValue) => {
+                      const newArray = [...value];
+                      newArray[index] = newValue;
+                      onChangeValue(newArray);
+                    })}
+                  </Box>
+                );
+              })}
+              {!isReadOnly && (
+                <Button
+                  variant="link"
+                  onClick={() => {
+                    const newValue = [...value, value.length > 0 ? null : ''];
+                    onChangeValue(newValue);
+                  }}
+                >
+                  Add Item
+                </Button>
+              )}
+            </SpaceBetween>
+          </Box>
+        </Box>
+      );
+    }
+
+    // Handle objects
+    if (typeof value === 'object') {
+      return (
+        <Box padding="xxxs">
+          <SpaceBetween size="xxxs">
+            {Object.entries(value).map(([key, propValue]) => (
+              <Box key={`prop-${key}`}>
+                {renderKeyValuePair(key, propValue, (newValue) => {
+                  const newObj = { ...value };
+                  newObj[key] = newValue;
+                  onChangeValue(newObj);
+                })}
+              </Box>
+            ))}
+            {!isReadOnly && (
+              <Button
+                variant="link"
+                onClick={() => {
+                  const newKey = prompt('Enter new property name:');
+                  if (newKey && !value[newKey]) {
+                    const newObj = { ...value };
+                    newObj[newKey] = '';
+                    onChangeValue(newObj);
+                  }
+                }}
+              >
+                Add Property
+              </Button>
+            )}
+          </SpaceBetween>
+        </Box>
+      );
+    }
+
+    return <div>Unsupported type: {typeof value}</div>;
+  }
+
+  const handleChange = (newValue) => {
+    if (onChange && !isReadOnly) {
+      try {
+        const jsonString = JSON.stringify(newValue, null, 2);
+        onChange(jsonString);
+      } catch (error) {
+        logger.error('Error stringifying JSON:', error);
+      }
+    }
+  };
+
   return (
     <Box
       style={{
         height: EDITOR_DEFAULT_HEIGHT,
         position: 'relative',
         overflow: 'auto',
-        padding: '10px',
-        backgroundColor: '#f8f8f8',
+        padding: '16px',
+        backgroundColor: '#ffffff',
         border: '2px solid #e9ebed',
         borderRadius: '4px',
+        width: '100%',
+        minWidth: '600px',
       }}
     >
-      <React.Suspense fallback={<Box padding="s">Loading JSON editor...</Box>}>
-        <ReactJsonView
-          src={jsonData}
-          name={false}
-          theme="rjv-default"
-          collapsed={false}
-          displayDataTypes={false}
-          enableClipboard={false}
-          onEdit={isReadOnly ? false : onChange}
-          onAdd={isReadOnly ? false : onChange}
-          onDelete={isReadOnly ? false : onChange}
-          style={{ fontSize: '14px' }}
-        />
-      </React.Suspense>
+      {jsonData ? (
+        renderJsonValue(jsonData, handleChange)
+      ) : (
+        <Box textAlign="center" padding="l">
+          No valid JSON data to display
+        </Box>
+      )}
     </Box>
   );
 };
@@ -61,6 +231,11 @@ const TextEditorView = ({ fileContent, onChange, isReadOnly, fileType }) => {
     }
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
+      if (window.editorResizeTimeout) {
+        clearTimeout(window.editorResizeTimeout);
+      }
+      // Clear any global references when component unmounts
+      window.monacoEditor = null;
     };
   }, [isEditorReady]);
 
@@ -68,11 +243,28 @@ const TextEditorView = ({ fileContent, onChange, isReadOnly, fileType }) => {
     window.monacoEditor = editor;
     editor.layout();
     setIsEditorReady(true);
+
+    // Add a resize observer to handle editor resizing
+    const resizeObserver = new ResizeObserver(() => {
+      // Debounce the layout call to prevent excessive updates
+      if (window.editorResizeTimeout) {
+        clearTimeout(window.editorResizeTimeout);
+      }
+      window.editorResizeTimeout = setTimeout(() => {
+        editor.layout();
+      }, 100);
+    });
+
+    // Observe the editor's container
+    const container = editor.getContainerDomNode();
+    if (container) {
+      resizeObserver.observe(container.parentElement);
+    }
   };
 
   return (
-    <Box className="file-editor-container" style={{ border: '2px solid #e9ebed' }}>
-      <div style={{ height: EDITOR_DEFAULT_HEIGHT, position: 'relative', overflow: 'hidden' }}>
+    <Box className="file-editor-container" style={{ border: '2px solid #e9ebed', width: '100%', minWidth: '600px' }}>
+      <div style={{ height: EDITOR_DEFAULT_HEIGHT, position: 'relative', overflow: 'hidden', width: '100%' }}>
         <Editor
           height="100%"
           defaultLanguage={fileType}
@@ -104,7 +296,7 @@ const TextEditorView = ({ fileContent, onChange, isReadOnly, fileType }) => {
 const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = 'text' }) => {
   const [isValid, setIsValid] = useState(true);
   const [jsonData, setJsonData] = useState(null);
-  const [viewMode, setViewMode] = useState('structured');
+  const [viewMode, setViewMode] = useState('form');
 
   useEffect(() => {
     if (fileType === 'json') {
@@ -119,14 +311,11 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
     }
   }, [fileContent, fileType]);
 
-  const handleJsonEditorChange = (edit) => {
+  const handleFormChange = (jsonString) => {
     try {
-      // Update the JSON data
-      setJsonData(edit.updated_src);
+      const parsed = JSON.parse(jsonString);
+      setJsonData(parsed);
       setIsValid(true);
-
-      // Convert to string for the onChange handler
-      const jsonString = JSON.stringify(edit.updated_src, null, 2);
       if (onChange) {
         onChange(jsonString);
       }
@@ -154,10 +343,6 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
     }
   };
 
-  const toggleViewMode = () => {
-    setViewMode(viewMode === 'structured' ? 'text' : 'structured');
-  };
-
   if (fileType !== 'json') {
     return (
       <TextEditorView
@@ -169,27 +354,45 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
     );
   }
 
+  const handleViewModeChange = ({ detail }) => {
+    setViewMode(detail.selectedId);
+  };
+
   return (
     <Box>
       {fileType === 'json' && (
-        <SpaceBetween direction="horizontal" size="xs" alignItems="center">
-          <Button onClick={toggleViewMode} variant="link">
-            Switch to {viewMode === 'structured' ? 'text' : 'structured'} view
-          </Button>
+        <SpaceBetween direction="vertical" size="xs">
+          <SegmentedControl
+            selectedId={viewMode}
+            onChange={handleViewModeChange}
+            options={[
+              { id: 'form', text: 'Form View' },
+              { id: 'text', text: 'Text View' },
+            ]}
+          />
+
+          {!isValid && (
+            <Alert type="error" header="Invalid JSON format">
+              The JSON content is invalid. Please correct any syntax errors.
+            </Alert>
+          )}
         </SpaceBetween>
       )}
 
-      {!isValid && (
-        <Alert type="error" header="Invalid JSON format">
-          The JSON content is invalid. Please correct any syntax errors.
-        </Alert>
-      )}
-
-      {viewMode === 'structured' && isValid && fileType === 'json' ? (
-        <JsonEditorView jsonData={jsonData} onChange={handleJsonEditorChange} isReadOnly={isReadOnly} />
+      {isValid && fileType === 'json' ? (
+        viewMode === 'form' ? (
+          <FormEditorView jsonData={jsonData} onChange={handleFormChange} isReadOnly={isReadOnly} />
+        ) : (
+          <TextEditorView
+            fileContent={typeof fileContent === 'string' ? fileContent : JSON.stringify(jsonData, null, 2)}
+            onChange={handleTextEditorChange}
+            isReadOnly={isReadOnly}
+            fileType={fileType}
+          />
+        )
       ) : (
         <TextEditorView
-          fileContent={typeof fileContent === 'string' ? fileContent : JSON.stringify(fileContent, null, 2)}
+          fileContent={typeof fileContent === 'string' ? fileContent : JSON.stringify(jsonData, null, 2)}
           onChange={handleTextEditorChange}
           isReadOnly={isReadOnly}
           fileType={fileType}
@@ -349,7 +552,7 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) =>
       )}
 
       {fileContent && (
-        <SpaceBetween size="s">
+        <SpaceBetween size="s" className="json-viewer-container" style={{ width: '100%', minWidth: '700px' }}>
           <Box>
             <SpaceBetween direction="horizontal" size="xs">
               <Button onClick={closeViewer}>Close</Button>
@@ -367,12 +570,14 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) =>
               )}
             </SpaceBetween>
           </Box>
-          <FileEditorView
-            fileContent={isEditing ? editedContent : fileContent}
-            onChange={handleContentChange}
-            isReadOnly={!isEditing}
-            fileType={fileType}
-          />
+          <div style={{ width: '100%' }}>
+            <FileEditorView
+              fileContent={isEditing ? editedContent : fileContent}
+              onChange={handleContentChange}
+              isReadOnly={!isEditing}
+              fileType={fileType}
+            />
+          </div>
         </SpaceBetween>
       )}
     </Box>
