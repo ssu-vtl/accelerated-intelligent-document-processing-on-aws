@@ -22,8 +22,11 @@ deploy_s3:
   
   # Add rules to only run on develop branch
   rules:
-    - if: $CI_COMMIT_BRANCH == "null" # Let's turn off builds
-    # - if: $CI_COMMIT_BRANCH == "develop"
+    # - if: $CI_COMMIT_BRANCH == "null" # Let's turn off builds
+    - if: $CI_COMMIT_BRANCH == "develop"
+      when: always
+    - if: $CI_COMMIT_BRANCH =~ /^feature\/.*/
+      when: always
 
   before_script:
     - python --version
