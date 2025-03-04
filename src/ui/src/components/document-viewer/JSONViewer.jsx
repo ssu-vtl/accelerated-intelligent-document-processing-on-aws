@@ -202,6 +202,8 @@ const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
         backgroundColor: '#ffffff',
         border: '2px solid #e9ebed',
         borderRadius: '4px',
+        width: '100%',
+        minWidth: '600px',
       }}
     >
       {jsonData ? (
@@ -229,6 +231,11 @@ const TextEditorView = ({ fileContent, onChange, isReadOnly, fileType }) => {
     }
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
+      if (window.editorResizeTimeout) {
+        clearTimeout(window.editorResizeTimeout);
+      }
+      // Clear any global references when component unmounts
+      window.monacoEditor = null;
     };
   }, [isEditorReady]);
 
@@ -236,11 +243,28 @@ const TextEditorView = ({ fileContent, onChange, isReadOnly, fileType }) => {
     window.monacoEditor = editor;
     editor.layout();
     setIsEditorReady(true);
+
+    // Add a resize observer to handle editor resizing
+    const resizeObserver = new ResizeObserver(() => {
+      // Debounce the layout call to prevent excessive updates
+      if (window.editorResizeTimeout) {
+        clearTimeout(window.editorResizeTimeout);
+      }
+      window.editorResizeTimeout = setTimeout(() => {
+        editor.layout();
+      }, 100);
+    });
+
+    // Observe the editor's container
+    const container = editor.getContainerDomNode();
+    if (container) {
+      resizeObserver.observe(container.parentElement);
+    }
   };
 
   return (
-    <Box className="file-editor-container" style={{ border: '2px solid #e9ebed' }}>
-      <div style={{ height: EDITOR_DEFAULT_HEIGHT, position: 'relative', overflow: 'hidden' }}>
+    <Box className="file-editor-container" style={{ border: '2px solid #e9ebed', width: '100%', minWidth: '600px' }}>
+      <div style={{ height: EDITOR_DEFAULT_HEIGHT, position: 'relative', overflow: 'hidden', width: '100%' }}>
         <Editor
           height="100%"
           defaultLanguage={fileType}
@@ -528,7 +552,7 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) =>
       )}
 
       {fileContent && (
-        <SpaceBetween size="s">
+        <SpaceBetween size="s" className="json-viewer-container" style={{ width: '100%', minWidth: '700px' }}>
           <Box>
             <SpaceBetween direction="horizontal" size="xs">
               <Button onClick={closeViewer}>Close</Button>
@@ -546,12 +570,14 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) =>
               )}
             </SpaceBetween>
           </Box>
-          <FileEditorView
-            fileContent={isEditing ? editedContent : fileContent}
-            onChange={handleContentChange}
-            isReadOnly={!isEditing}
-            fileType={fileType}
-          />
+          <div style={{ width: '100%' }}>
+            <FileEditorView
+              fileContent={isEditing ? editedContent : fileContent}
+              onChange={handleContentChange}
+              isReadOnly={!isEditing}
+              fileType={fileType}
+            />
+          </div>
         </SpaceBetween>
       )}
     </Box>
