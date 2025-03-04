@@ -4,8 +4,8 @@ import React from 'react';
 import { Route, Switch, useRouteMatch } from 'react-router-dom';
 import { Logger } from 'aws-amplify';
 
-import GenAIDPLayout from '../components/genaidp-layout';
-import GenAIDPTopNavigation from '../components/genai-idp-top-navigation';
+import GenAIIDPLayout from '../components/genaiidp-layout';
+import GenAIIDPTopNavigation from '../components/genai-idp-top-navigation';
 
 const logger = new Logger('DocumentsRoutes');
 
@@ -17,8 +17,8 @@ const DocumentsRoutes = () => {
     <Switch>
       <Route path={path}>
         <div>
-          <GenAIDPTopNavigation />
-          <GenAIDPLayout />
+          <GenAIIDPTopNavigation />
+          <GenAIIDPLayout />
         </div>
       </Route>
     </Switch>

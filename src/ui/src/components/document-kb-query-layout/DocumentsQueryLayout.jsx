@@ -129,12 +129,12 @@ export const DocumentsQueryLayout = () => {
   const placeholder =
     settings.ShouldUseDocumentKnowledgeBase === 'true'
       ? 'Enter a question to query your document knowledge base.'
-      : 'Document Knowledge Base is set to DISABLED for this GENAIDP deployment.';
+      : 'Document Knowledge Base is set to DISABLED for this genaiidp deployment.';
   // eslint-disable-next-line
   const initialMsg =
     settings.ShouldUseDocumentKnowledgeBase === 'true'
       ? 'Ask a question below.'
-      : 'Document Knowledge Base queries are not enabled. Document Knowledge Base is set to DISABLED for this GENAIDP deployment.';
+      : 'Document Knowledge Base queries are not enabled. Document Knowledge Base is set to DISABLED for this genaiidp deployment.';
   return (
     <Container
       fitHeight={false}

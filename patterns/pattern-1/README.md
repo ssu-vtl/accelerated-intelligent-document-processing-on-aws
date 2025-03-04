@@ -29,7 +29,7 @@ This pattern implements an intelligent document processing workflow that uses UD
 
 See [Fine-Tuning Models on SageMaker](./fine-tune-sm-udop-classification/README.md) 
 
-Once you have trained the model, deploy the GenAIDP stack for Pattern1 using the path for your new fine tuned model.
+Once you have trained the model, deploy the GenAIIDP stack for Pattern1 using the path for your new fine tuned model.
 
 
 ## Architecture Overview
@@ -134,7 +134,7 @@ Each step includes comprehensive retry logic for handling transient errors:
 
 - **Purpose**: Aggregates results for all sections
 - **Input**: Extraction output from each section extraction
-- **Output**: Consumed by the GenAIDP parent stack workflow tracker to update job status/UI etc
+- **Output**: Consumed by the GenAIIDP parent stack workflow tracker to update job status/UI etc
   ```json
         {
             'Sections': [

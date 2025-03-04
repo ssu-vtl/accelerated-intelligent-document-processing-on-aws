@@ -1,5 +1,5 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import GenAIDPTopNavigation from './GenAIIDPTopNavigation';
+import GenAIIDPTopNavigation from './GenAIIDPTopNavigation';
 
-export default GenAIDPTopNavigation;
+export default GenAIIDPTopNavigation;
