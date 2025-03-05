@@ -140,10 +140,14 @@ Parameters:
       - "us.amazon.nova-pro-v1:0"
     Description: Model to use for Evaluation
 
-  Pattern3CustomEvaluationModelARN:
+  # Optional Knowledge Base Configuration
+  DocumentKnowledgeBase:
+    Default: "BEDROCK_KNOWLEDGE_BASE (Create)"
     Type: String
-    Default: ""
-    Description: For 'Custom Fine Tuned Evaluation Model', specify Model ARN
+    AllowedValues:
+      - "DISABLED"
+      - "BEDROCK_KNOWLEDGE_BASE (Create)"
+    Description: Use document processing results as knowledge base content
 
   # General Configuration
   MaxConcurrentWorkflows:
@@ -296,7 +300,8 @@ Conditions:
   ShouldCreateEvaluationBaselineBucket: !Equals [!Ref EvaluationBaselineBucketName, '']
   IsEvaluationAutoEnabled: !Equals [!Ref EvaluationAutoEnabled, 'true']
   IsWafEnabled: !Not [!Equals [!Ref WAFAllowedIPv4Ranges, "0.0.0.0/0"]]
-
+  ShouldCreateDocumentKnowledgeBase: !Equals [!Ref DocumentKnowledgeBase, "BEDROCK_KNOWLEDGE_BASE (Create)"]
+  ShouldUseDocumentKnowledgeBase: !Condition ShouldCreateDocumentKnowledgeBase
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -337,6 +342,10 @@ Metadata:
           - EvaluationPattern
           - EvaluationAutoEnabled
       - Label:
+          default: "Document Knowledge Base Configuration"
+        Parameters:
+          - DocumentKnowledgeBase
+      - Label:
           default: "General Configuration"
         Parameters:
           - MaxConcurrentWorkflows
@@ -375,6 +384,8 @@ Metadata:
         default: "Evaluation Pattern"
       EvaluationAutoEnabled:
         default: "Evaluation Auto Enabled"
+      DocumentKnowledgeBase:
+        default: "Document Knowledge Base Configuration"
       MaxConcurrentWorkflows:
         default: "Maximum Concurrent Workflows"
       DataRetentionInDays:
@@ -454,6 +465,17 @@ Resources:
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
         ConfigurationTable: !Ref ConfigurationTable
 
+  DOCUMENTBEDROCKKB:
+    Type: AWS::CloudFormation::Stack
+    Condition: ShouldCreateDocumentKnowledgeBase
+    Properties:
+      TemplateURL: ./bedrockkb/.aws-sam/packaged.yaml
+      Parameters:
+        pKnowledgeBaseBucketName: !Ref OutputBucket
+        pInputDocumentUploadFolderPrefix: ""
+        pS3SyncScheduleExpression: "cron(0/30 * ? * * *)"  # default is to sync documents every 30 minutes
+        pCustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
+        pChunkingStrategy: 'No chunking'
 
   ##########################################################################
   # Encryption key
@@ -526,7 +548,7 @@ Resources:
           - id: W35
             reason: "This is the logging destination bucket - does not require its own access logging"
     # checkov:skip=CKV_AWS_18: "This is the logging destination bucket - does not require its own access logging"
-    DeletionPolicy: RetainExceptOnCreate
+    DeletionPolicy: Retain
     Properties:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -1049,7 +1071,10 @@ Resources:
         InputBucket: !Ref InputBucket
         OutputBucket: !Ref OutputBucket
         EvaluationBaselineBucket: !Ref EvaluationBaselineBucket
-        ShouldUseDocumentKnowledgeBase: False
+        ShouldUseDocumentKnowledgeBase: !If
+          - ShouldUseDocumentKnowledgeBase
+          - True
+          - False
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
