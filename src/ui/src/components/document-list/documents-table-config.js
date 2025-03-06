@@ -12,7 +12,11 @@ export const COLUMN_DEFINITIONS_MAIN = [
   {
     id: KEY_COLUMN_ID,
     header: 'Document ID',
-    cell: (item) => <Link href={`#${DOCUMENTS_PATH}/${encodeURIComponent(item.objectKey)}`}>{item.objectKey}</Link>,
+    cell: (item) => {
+      // Double-encode to ensure slashes remain encoded after page refresh
+      const safeObjectKey = encodeURIComponent(item.objectKey);
+      return <Link href={`#${DOCUMENTS_PATH}/${safeObjectKey}`}>{item.objectKey}</Link>;
+    },
     sortingField: 'objectKey',
     width: 300,
   },
