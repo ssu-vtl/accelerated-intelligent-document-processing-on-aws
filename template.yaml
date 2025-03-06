@@ -3324,12 +3324,15 @@ Resources:
       LoggingConfig:
         LogGroup: !Ref QueryKnowledgeBaseResolverFunctionLogGroup
       Policies:
-        - Statement:
-          - Effect: Allow
-            Action:
-              - bedrock:Retrieve
-              - bedrock:RetrieveAndGenerate
-            Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/${DOCUMENTBEDROCKKB.Outputs.KnowledgeBaseID}"
+        - Statement: 
+          - !If
+            - ShouldUseDocumentKnowledgeBase
+            - Effect: Allow
+              Action:
+                - bedrock:Retrieve
+                - bedrock:RetrieveAndGenerate
+              Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/${DOCUMENTBEDROCKKB.Outputs.KnowledgeBaseID}"
+            - !Ref AWS::NoValue
           - Effect: Allow
             Action:
               - "bedrock:InvokeModel"
