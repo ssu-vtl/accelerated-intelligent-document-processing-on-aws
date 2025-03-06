@@ -77,7 +77,9 @@ def markdown_response(kb_response):
         if contextText:
             markdown = f'{markdown}\n<details><summary>Context</summary><p style="white-space: pre-line;">{contextText}</p></details>'
         if len(sourceLinks):
-            markdown = f'{markdown}<br>Sources: ' + ", ".join(sourceLinks)
+            # Remove duplicate sources before joining
+            unique_sourceLinks = list(dict.fromkeys(sourceLinks))
+            markdown = f'{markdown}<br>Sources: ' + ", ".join(unique_sourceLinks)
     return markdown
 
 
