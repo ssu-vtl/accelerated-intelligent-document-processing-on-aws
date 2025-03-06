@@ -98,8 +98,8 @@ class SmokeTestService():
         # Get the output bucket name
         _, output_bucket_name = self.get_bucket_names()
         
-        # Define the path to the expected parsedText.json file
-        object_path = f"{folder_key}/pages/1/parsedText.json"
+        # Define the path to the expected result.json file
+        object_path = f"{folder_key}/pages/1/result.json"
         logger.debug(f"Looking for result file at: s3://{output_bucket_name}/{object_path}")
         
         try:

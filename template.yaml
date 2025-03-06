@@ -464,6 +464,7 @@ Resources:
       Parameters:
         StackName: !Ref AWS::StackName
         InputBucket: !Ref InputBucket
+        WorkingBucket: !Ref WorkingBucket
         OutputBucket: !Ref OutputBucket
         TrackingTable: !Ref TrackingTable
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
@@ -684,6 +685,52 @@ Resources:
             Resource: 
               - !Sub "${InputBucket.Arn}/*"
               - !Sub "${InputBucket.Arn}"
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
+
+  WorkingBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: RetainExceptOnCreate
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref CustomerManagedEncryptionKey
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LoggingBucket
+        LogFilePrefix: working-bucket-logs/
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteAfterNDays
+            Status: Enabled
+            # Since bucket is for intermediate storage only, use log retention rather than data retention period
+            ExpirationInDays: !Ref LogRetentionDays
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+
+  WorkingBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WorkingBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnforceSSLOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: 
+              - !Sub "${WorkingBucket.Arn}/*"
+              - !Sub "${WorkingBucket.Arn}"
             Condition:
               Bool:
                 'aws:SecureTransport': false
