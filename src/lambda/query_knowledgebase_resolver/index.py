@@ -1,6 +1,8 @@
 import json
 import os
 import boto3
+import re
+import urllib.parse
 
 print("Boto3 version: ", boto3.__version__)
 
@@ -41,8 +43,17 @@ def get_kb_response(query, sessionId):
     print("Amazon Bedrock KB Response: ", json.dumps(resp))
     return resp
 
+def extract_document_id(s3_uri):
+    # Strip out the s3://bucketname/ prefix
+    without_bucket = re.sub(r'^s3://[^/]+/', '', s3_uri)
+    # Remove everything from /sections or /pages to the end
+    document_id = re.sub(r'/(sections|pages)/.*$', '', without_bucket)
+    return document_id
+
 
 def markdown_response(kb_response):
+    import urllib.parse  # Add this import for URL encoding
+    
     showContextText = True
     message = kb_response.get("output", {}).get("text", {}) or kb_response.get(
         "systemMessage") or "No answer found"
@@ -54,11 +65,15 @@ def markdown_response(kb_response):
             for reference in source.get("retrievedReferences", []):
                 snippet = reference.get("content", {}).get(
                     "text", "no reference text")
-                callId = reference.get("metadata",{}).get("CallId")
-                url = f"{callId}"
-                title = callId
-                contextText = f'{contextText}<br><callid href="{url}">{title}</callid><br>{snippet}\n'
-                sourceLinks.append(f'<callid href="{url}">{title}</callid>')
+                if 'location' in reference and 's3Location' in reference['location']:
+                    s3_uri = reference['location']['s3Location']['uri']
+                    documentId = extract_document_id(s3_uri)
+                    # URL encode the documentId to make it URL-safe
+                    url_safe_documentId = urllib.parse.quote(documentId, safe='')
+                    url = f"{url_safe_documentId}"
+                    title = documentId
+                    contextText = f'{contextText}<br><documentId href="{url}">{title}</documentId><br>{snippet}\n'
+                    sourceLinks.append(f'<documentId href="{url}">{title}</documentId>')
         if contextText:
             markdown = f'{markdown}\n<details><summary>Context</summary><p style="white-space: pre-line;">{contextText}</p></details>'
         if len(sourceLinks):
