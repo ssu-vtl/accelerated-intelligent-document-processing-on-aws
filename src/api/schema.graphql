@@ -122,6 +122,7 @@ type Query @aws_cognito_user_pools @aws_iam {
   listDocumentsDateShard(date: AWSDate, shard: Int): DocumentList 
   getFileContents(s3Uri: String!): String
   getConfiguration: ConfigurationResponse
+  queryKnowledgeBase(input: String!, sessionId: String): String
 }
 
 type Subscription @aws_cognito_user_pools @aws_iam {
