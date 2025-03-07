@@ -90,7 +90,7 @@ Parameters:
     Type: String
     Default: ""
     AllowedPattern: "^(|^arn:aws:bedrock:[a-z0-9-]+:.+:data-automation-project/.+)$"
-    Description: (Optional) Bedrock Data Automation (BDA) project ARN
+    Description: For Pattern3, provide a Bedrock Data Automation (BDA) project ARN
 
   # Optional - Post processing Lambda hook
   PostProcessingLambdaHookFunctionArn:
@@ -274,14 +274,25 @@ Rules:
   Pattern2ExtractionModelArn:
     RuleCondition:
       !Equals [
-        !Ref IDPPattern,
-        "Pattern1 - Packet processing with Textract, SageMaker(UDOP), and Bedrock",
+        !Ref Pattern2ExtractionModel,
+        "Custom Fine Tuned Extraction Model",
       ]
     Assertions:
-      - Assert: !Not [!Equals [!Ref Pattern1UDOPModelArtifactPath, ""]]
-        AssertDescription: UDOP Model Artifact Path is required when IDPPattern is 'Pattern1'
+      - Assert: !Not [!Equals [!Ref Pattern2ExtractionModelArn, ""]]
+        AssertDescription: Pattern2CustomExtractionModelARN is required when 'Custom Fine Tuned Classification Model'
+          is selected.
 
 # Pattern 3 rules
+
+  Pattern3BDAProjectArn:
+    RuleCondition:
+      !Equals [
+        !Ref IDPPattern,
+        "Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA)",
+      ]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref Pattern3BDAProjectArn, ""]]
+        AssertDescription: Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN is required when IDPPattern is 'Pattern3'
 
 Conditions:
   IsPattern1:
