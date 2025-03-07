@@ -62,7 +62,7 @@ Parameters:
     AllowedValues:
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.amazon.nova-pro-v1:0"
-      - "Custom Fine Tuned Classification Model"
+      - "Custom Fine Tuned Classification Model - NOT YET SUPPORTED"
     Description: Model to use for Classification
 
   Pattern2ExtractionModel:
@@ -71,7 +71,7 @@ Parameters:
     AllowedValues:
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.amazon.nova-pro-v1:0"
-      - "Custom Fine Tuned Extraction Model"
+      - "Custom Fine Tuned Extraction Model - NOT YET SUPPORTED"
     Description: Model to use for Extraction
 
   Pattern2CustomClassificationModelARN:
@@ -278,7 +278,7 @@ Rules:
         "Custom Fine Tuned Extraction Model",
       ]
     Assertions:
-      - Assert: !Not [!Equals [!Ref Pattern2ExtractionModelArn, ""]]
+      - Assert: !Not [!Equals [!Ref Pattern2CustomExtractionModelARN, ""]]
         AssertDescription: Pattern2CustomExtractionModelARN is required when 'Custom Fine Tuned Classification Model'
           is selected.
 
