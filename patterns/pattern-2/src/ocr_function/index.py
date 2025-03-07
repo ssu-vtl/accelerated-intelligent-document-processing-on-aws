@@ -75,7 +75,7 @@ def process_single_page(page_index, pdf_document, output_bucket, prefix):
     )
 
     # Store text from parsed Textract response
-    parsed_text_key = f"{prefix}/pages/{page_id}/parsedText.json"
+    parsed_text_key = f"{prefix}/pages/{page_id}/result.json"
     parsed_result = response_parser.parse(textract_result)
     s3_client.put_object(
         Bucket=output_bucket,
