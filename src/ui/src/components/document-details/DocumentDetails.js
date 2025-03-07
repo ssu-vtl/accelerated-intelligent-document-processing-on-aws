@@ -21,7 +21,14 @@ const DocumentDetails = () => {
   const params = useParams();
   const history = useHistory();
   let { objectKey } = params;
-  objectKey = decodeURIComponent(objectKey);
+  // Ensure we properly decode the objectKey from the URL parameter
+  // It may be already decoded or still encoded depending on browser behavior with refreshes
+  try {
+    objectKey = decodeURIComponent(objectKey);
+  } catch (e) {
+    // If it fails, it might be already decoded
+    logger.debug('Error decoding objectKey, using as is', e);
+  }
 
   const { documents, getDocumentDetailsFromIds, setToolsOpen, deleteDocuments } = useDocumentsContext();
   const { settings } = useSettingsContext();
