@@ -6,11 +6,60 @@ from typing import Dict, Any, List
 import logging
 import io
 import fitz  # PyMuPDF
+import datetime
+from urllib.parse import urlparse
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 s3_client = boto3.client('s3')
+
+def create_metadata_file(file_uri, class_type, file_type=None):
+    """
+    Creates a metadata file alongside the given URI file with the same name plus '.metadata.json'
+    
+    Args:
+        file_uri (str): The S3 URI of the file
+        class_type (str): The class type to include in the metadata
+        file_type (str, optional): Type of file ('section' or 'page')
+    """
+    try:
+        # Parse the S3 URI to get bucket and key
+        parsed_uri = urlparse(file_uri)
+        bucket = parsed_uri.netloc
+        key = parsed_uri.path.lstrip('/')
+        
+        # Create the metadata key by adding '.metadata.json' to the original key
+        metadata_key = f"{key}.metadata.json"
+        
+        # Determine the file type if not provided
+        if file_type is None:
+            if key.endswith('.json'):
+                file_type = 'section'
+            else:
+                file_type = 'page'
+        
+        # Create metadata content
+        metadata_content = {
+            "metadataAttributes": {
+                "DateTime": datetime.datetime.now().isoformat(),
+                "Class": class_type,
+                "FileType": file_type
+            }
+        }
+        
+        # Upload metadata file to S3
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=metadata_key,
+            Body=json.dumps(metadata_content, indent=2),
+            ContentType='application/json'
+        )
+        
+        logger.info(f"Created metadata file at s3://{bucket}/{metadata_key}")
+    except Exception as e:
+        logger.error(f"Error creating metadata file for {file_uri}: {str(e)}")
+
 
 def get_sections(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
     sections = []
@@ -51,14 +100,20 @@ def get_sections(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
                 else:
                     page_ids = []
                 
+                # Create the OutputJSONUri
+                output_json_uri = f"s3://{object_bucket}/{result_path}"
+                
                 # Construct section object
                 section = {
                     "Id": section_id,
                     "PageIds": page_ids,
                     "Class": doc_class,
-                    "OutputJSONUri": f"s3://{object_bucket}/{result_path}"
+                    "OutputJSONUri": output_json_uri
                 }
                 sections.append(section)
+                
+                # Create metadata file for the OutputJSONUri
+                create_metadata_file(output_json_uri, doc_class, 'section')
                 
             except ClientError as e:
                 logger.error(f"Failed to retrieve result.json for section {section_id}: {e}")
@@ -128,14 +183,20 @@ def get_pages(object_bucket: str, object_key: str, sections: List[Dict[str, Any]
                 # Get the class from the section mapping
                 doc_class = page_to_class_map.get(page_id, '')
                 
+                # Create the TextUri
+                text_uri = f"s3://{object_bucket}/{result_path}"
+                
                 # Construct page object
                 page = {
                     "Id": page_id,
                     "Class": doc_class,
                     "ImageUri": f"s3://{object_bucket}/{image_path}" if image_path else None,
-                    "TextUri": f"s3://{object_bucket}/{result_path}"
+                    "TextUri": text_uri
                 }
                 pages.append(page)
+                
+                # Create metadata file for the TextUri
+                create_metadata_file(text_uri, doc_class, 'page')
                 
             except ClientError as e:
                 logger.error(f"Failed to retrieve result.json for page {page_id}: {e}")

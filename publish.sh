@@ -115,8 +115,8 @@ else
   USE_CONTAINER_FLAG="--use-container "
 fi
 
-# Build pattern templates
-for dir in patterns/*; do
+# Build nested templates
+for dir in patterns/* bedrockkb; do
   if haschanged $dir; then
     pushd $dir
     echo "BUILDING $dir" 

@@ -15,6 +15,10 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
   - [Configuration Options](#configuration-options)
   - [Security Considerations](#security-considerations)
   - [Monitoring and Troubleshooting](#monitoring-and-troubleshooting)
+- [Document Knowledge Base Query](#document-knowledge-base-query)
+  - [How It Works](#how-it-works-1)
+  - [Query Features](#query-features)
+  - [Configuration](#configuration-1)
 - [Build, Publish, Deploy, Test](#build-publish-deploy-test)
   - [Dependencies](#dependencies)
   - [Build and Publish the solution](#build-and-publish-the-solution)
@@ -78,6 +82,7 @@ A scalable, serverless solution for automated document processing and informatio
 - **Secure by Design**: Implements encryption at rest, access controls, and secure communication between services
 - **Web User Interface**: Secure, modern WebUI for inspecting document workflow status, inputs, and outputs.
 - **AI-Powered Evaluation**: Built-in framework to assess accuracy by comparing outputs against baseline data, with detailed AI-generated analysis reports
+- **Document Knowledge Base Query**: Interactive tool to ask natural language questions about your processed document collection with AI-generated responses and source citations
 
 ### Use Cases
 
@@ -86,6 +91,8 @@ A scalable, serverless solution for automated document processing and informatio
 - Automating document-heavy workflows
 - Converting legacy paper documents into structured digital data
 - Real-time document processing pipelines
+- Semantic querying of document collections for information retrieval
+- Building knowledge bases from organizational documents
 
 The system is designed to handle various document types and can be customized for specific extraction needs through configuration of the extraction prompts and attributes.
 
@@ -102,6 +109,7 @@ The solution includes a responsive web-based user interface built with React tha
 - Accuracy evaluation reports, when baseline data is provided
 - Configurable inference settings and LLM prompts for the deployed pattern
 - Document upload from local computer  
+- Knowledge base querying for document collections
 
 <img src="./images/WebUI.png" alt="WebUI" width="800" style="border: 1px solid black;">
 
@@ -737,6 +745,62 @@ Use the CloudWatch Dashboard to check errors reported by Lambda functions during
    - Review Lambda error logs
    - Verify input document format
    - Check Dead Letter SQS Queues for evidence of any unprocessed events
+
+## Document Knowledge Base Query
+
+The solution includes an integrated Document Knowledge Base query feature that enables you to interactively ask questions about your processed document collection using natural language. This feature leverages the processed data to create a searchable knowledge base.
+
+### How It Works
+
+1. **Document Indexing**
+   - Processed documents are automatically indexed in a vector database
+   - Documents are chunked into semantic segments for efficient retrieval
+   - Each chunk maintains reference to its source document
+
+2. **Interactive Query Interface**
+   - Access through the Web UI via the "Knowledge Base" section
+   - Ask natural language questions about your document collection
+   - View responses with citations to source documents
+   - Follow-up with contextual questions in a chat-like interface
+
+3. **AI-Powered Responses**
+   - LLM generates responses based on relevant document chunks
+   - Responses include citations to source documents
+   - Links to original documents for reference
+   - Context-aware for follow-up questions
+
+### Query Features
+
+- **Natural Language Understanding**: Ask questions in plain English rather than using keywords or query syntax
+- **Document Citations**: Responses include references to the specific documents used to generate answers
+- **Contextual Follow-ups**: Ask follow-up questions without repeating context
+- **Direct Document Links**: Click on document references to view the original source
+- **Markdown Formatting**: Responses support rich formatting for better readability
+- **Real-time Processing**: Get answers in seconds, even across large document collections
+
+### Configuration
+
+The Document Knowledge Base Query feature can be configured during stack deployment:
+
+```yaml
+ShouldUseDocumentKnowledgeBase:
+  Type: String
+  Default: "true"
+  AllowedValues:
+    - "true"
+    - "false"
+  Description: Enable/disable the Document Knowledge Base feature
+
+DocumentKnowledgeBaseModel:
+  Type: String
+  Default: "us.amazon.nova-pro-v1:0"
+  Description: Bedrock model to use for knowledge base queries
+```
+
+When the feature is enabled, the solution:
+- Creates necessary OpenSearch resources for document indexing
+- Configures API endpoints for querying the knowledge base
+- Adds the query interface to the Web UI
 
 ## Performance Considerations
 
