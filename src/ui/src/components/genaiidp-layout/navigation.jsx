@@ -9,7 +9,7 @@ import { DOCUMENTS_PATH, DOCUMENTS_KB_QUERY_PATH, DEFAULT_PATH, UPLOAD_DOCUMENT_
 export const documentsNavHeader = { text: 'Tools', href: `#${DEFAULT_PATH}` };
 export const documentsNavItems = [
   { type: 'link', text: 'Document List', href: `#${DOCUMENTS_PATH}` },
-  { type: 'link', text: 'Document KB (coming)', href: `#${DOCUMENTS_KB_QUERY_PATH}` },
+  { type: 'link', text: 'Document KB', href: `#${DOCUMENTS_KB_QUERY_PATH}` },
   { type: 'link', text: 'Upload Document(s)', href: `#${UPLOAD_DOCUMENT_PATH}` },
   { type: 'link', text: 'View/Edit Configuration', href: `#${DOCUMENTS_PATH}/config` },
   {

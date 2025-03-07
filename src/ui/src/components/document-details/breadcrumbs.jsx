@@ -11,9 +11,11 @@ import { documentListBreadcrumbItems } from '../document-list/breadcrumbs';
 const Breadcrumbs = () => {
   const { objectKey } = useParams();
   const decodedDocumentId = decodeURIComponent(objectKey);
+  // Always ensure the objectKey in the URL is properly encoded to handle slashes correctly
+  const encodedObjectKey = encodeURIComponent(decodedDocumentId);
   const documentDetailsBreadcrumbItems = [
     ...documentListBreadcrumbItems,
-    { text: decodedDocumentId, href: `#${DOCUMENTS_PATH}/${objectKey}` },
+    { text: decodedDocumentId, href: `#${DOCUMENTS_PATH}/${encodedObjectKey}` },
   ];
 
   return <BreadcrumbGroup ariaLabel="Breadcrumbs" items={documentDetailsBreadcrumbItems} />;

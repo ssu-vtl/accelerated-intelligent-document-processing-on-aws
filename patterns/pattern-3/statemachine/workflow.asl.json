@@ -11,6 +11,7 @@
             "taskToken.$": "$$.Task.Token",
             "execution_arn.$": "$$.Execution.Id",
             "output_bucket": "${OutputBucket}",
+            "working_bucket": "${WorkingBucket}",
             "BDAProjectArn": "${BDAProjectArn}",
             "input.$": "$"
           }
