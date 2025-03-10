@@ -338,33 +338,11 @@ def create_or_update_custom_blueprint(project_name):
         logger.error(f"Error creating or updating custom blueprint: {str(e)}")
         return None
 
-def create_project(event):
-    """Create a Bedrock Data Automation project"""
-    properties = event['ResourceProperties']
-    project_name = properties.get('ProjectName')
-    project_description = properties.get('ProjectDescription', 'Project for processing lending package documents')
-    blueprint_names = properties.get('BlueprintNames')
-    create_custom_blueprint = properties.get('Custom-Home-Application-Blueprint', 'false').lower() == 'true'
-    
-    # Get all public blueprints
-    public_blueprint_configs = get_filtered_public_blueprints(blueprint_names)
-    
-    # Create or update the custom homeowners-insurance-application blueprint only if specified
-    custom_blueprint_config = None
-    if create_custom_blueprint:
-        logger.info("Creating custom homeowners insurance application blueprint")
-        custom_blueprint_config = create_or_update_custom_blueprint(project_name)
-    else:
-        logger.info("Skipping custom blueprint creation as it was not requested")
-    
-    # Combine all blueprint configs
-    all_blueprint_configs = public_blueprint_configs
-    if custom_blueprint_config:
-        all_blueprint_configs.append(custom_blueprint_config)
-    
-    # Create project with document splitting enabled and all blueprints
+def get_project_config(project_description, all_blueprint_configs, project_name=None, project_arn=None ):
+    """Get the project configuration for the given blueprints - project_name is used for create, project_arn for updates."""
     project_config = {
         "projectName": project_name,
+        "projectArn": project_arn,
         "projectDescription": project_description,
         "projectStage": "LIVE",
         "standardOutputConfiguration": {
@@ -458,7 +436,55 @@ def create_project(event):
             }
         }
     }
+    return project_config
+
+def create_project(event):
+    """Create a Bedrock Data Automation project or update if it already exists"""
+    properties = event['ResourceProperties']
+    project_name = properties.get('ProjectName')
+    project_description = properties.get('ProjectDescription', 'Project for processing lending package documents')
+    blueprint_names = properties.get('BlueprintNames')
+    create_custom_blueprint = properties.get('Custom-Home-Application-Blueprint', 'false').lower() == 'true'
     
+    # Check if a project with the same name already exists
+    existing_project_arn = None
+    try:
+        logger.info(f"Checking if project with name '{project_name}' already exists")
+        response = bedrock_client.list_data_automation_projects(resourceOwner='ACCOUNT', maxResults=100)
+        
+        for project in response.get('projects', []):
+            if project.get('projectName') == project_name:
+                existing_project_arn = project.get('projectArn')
+                logger.info(f"Found existing project with name '{project_name}' and ARN: {existing_project_arn}")
+                break
+
+    except Exception as e:
+        logger.warning(f"Error checking for existing project: {str(e)}")
+
+    # If project exists, update it instead of creating a new one
+    if existing_project_arn:
+        logger.info(f"Project '{project_name}' already exists, updating instead of creating")
+        return update_project(event, existing_project_arn)
+    
+    # Get all public blueprints
+    public_blueprint_configs = get_filtered_public_blueprints(blueprint_names)
+    
+    # Create or update the custom homeowners-insurance-application blueprint only if specified
+    custom_blueprint_config = None
+    if create_custom_blueprint:
+        logger.info("Creating custom homeowners insurance application blueprint")
+        custom_blueprint_config = create_or_update_custom_blueprint(project_name)
+    else:
+        logger.info("Skipping custom blueprint creation as it was not requested")
+    
+    # Combine all blueprint configs
+    all_blueprint_configs = public_blueprint_configs
+    if custom_blueprint_config:
+        all_blueprint_configs.append(custom_blueprint_config)
+    
+    # Create project
+    project_config = get_project_config(project_description, all_blueprint_configs, project_name)
+    project_config.pop('projectArn')
     logger.info(f"Creating project with {len(all_blueprint_configs)} blueprints - config: {json.dumps(project_config)}")
     response = bedrock_client.create_data_automation_project(**project_config)
     project_arn = response.get('projectArn')
@@ -476,7 +502,7 @@ def update_project(event, project_arn):
     """Update a Bedrock Data Automation project"""
     properties = event['ResourceProperties']
     project_name = properties.get('ProjectName')
-    project_description = properties.get('ProjectDescription', 'Project for processing lending package documents')
+    project_description = properties.get('ProjectDescription', 'GenAI IDP Sample project')
     blueprint_names = properties.get('BlueprintNames')
     create_custom_blueprint = properties.get('Custom-Home-Application-Blueprint', 'false').lower() == 'true'
     
@@ -496,21 +522,8 @@ def update_project(event, project_arn):
     if custom_blueprint_config:
         all_blueprint_configs.append(custom_blueprint_config)
     
-    # Update project with all blueprints
-    update_config = {
-        'projectArn': project_arn,
-        'projectDescription': project_description,
-        'customOutputConfiguration': {
-            'blueprints': all_blueprint_configs
-        },
-        'overrideConfiguration': {
-            'document': {
-                'splitter': {
-                    'state': 'ENABLED'
-                }
-            }
-        }
-    }
+    update_config = get_project_config(project_description, all_blueprint_configs, project_arn=project_arn)
+    update_config.pop('projectName')
     
     logger.info(f"Updating project with config: {json.dumps(update_config)}")
     response = bedrock_client.update_data_automation_project(**update_config)
