@@ -90,7 +90,7 @@ Parameters:
     Type: String
     Default: ""
     AllowedPattern: "^(|^arn:aws:bedrock:[a-z0-9-]+:.+:data-automation-project/.+)$"
-    Description: For Pattern3, provide a Bedrock Data Automation (BDA) project ARN, or leave blank to create a sample (lending) project.
+    Description: For Pattern3, provide a Bedrock Data Automation (BDA) project ARN, or leave blank to create a sample project for processing the sample lending package.
 
   # Optional - Post processing Lambda hook
   PostProcessingLambdaHookFunctionArn:
@@ -424,7 +424,7 @@ Resources:
 
   BDASAMPLEPROJECT:
     Type: AWS::CloudFormation::Stack
-    Condition: ShouldCreateDocumentKnowledgeBase
+    Condition: ShouldCreateBDASampleProject
     Properties:
       TemplateURL: ./options/bda-lending-project/.aws-sam/packaged.yaml
       Parameters:
