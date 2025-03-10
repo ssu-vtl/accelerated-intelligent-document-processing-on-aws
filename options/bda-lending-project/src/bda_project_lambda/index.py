@@ -113,7 +113,7 @@ def create_or_update_custom_blueprint(project_name):
     blueprint_schema = """{
         "$schema": "http://json-schema.org/draft-07/schema#",
         "description": "default",
-        "documentClass": "default",
+        "documentClass": "homeowners-insurance-application",
         "type": "object",
         "definitions": {
             "Applicant": {
@@ -444,7 +444,7 @@ def create_project(event):
     project_name = properties.get('ProjectName')
     project_description = properties.get('ProjectDescription', 'Project for processing lending package documents')
     blueprint_names = properties.get('BlueprintNames')
-    create_custom_blueprint = properties.get('Custom-Home-Application-Blueprint', 'false').lower() == 'true'
+    create_custom_blueprint = properties.get('CustomHomeApplicationBlueprint', 'false').lower() == 'true'
     
     # Check if a project with the same name already exists
     existing_project_arn = None
@@ -504,7 +504,7 @@ def update_project(event, project_arn):
     project_name = properties.get('ProjectName')
     project_description = properties.get('ProjectDescription', 'GenAI IDP Sample project')
     blueprint_names = properties.get('BlueprintNames')
-    create_custom_blueprint = properties.get('Custom-Home-Application-Blueprint', 'false').lower() == 'true'
+    create_custom_blueprint = properties.get('CustomHomeApplicationBlueprint', 'false').lower() == 'true'
     
     # Get all public blueprints
     public_blueprint_configs = get_filtered_public_blueprints(blueprint_names)
