@@ -116,7 +116,7 @@ else
 fi
 
 # Build nested templates
-for dir in patterns/* bedrockkb; do
+for dir in patterns/* options/*; do
   if haschanged $dir; then
     pushd $dir
     echo "BUILDING $dir" 
