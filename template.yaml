@@ -90,7 +90,7 @@ Parameters:
     Type: String
     Default: ""
     AllowedPattern: "^(|^arn:aws:bedrock:[a-z0-9-]+:.+:data-automation-project/.+)$"
-    Description: For Pattern3, provide a Bedrock Data Automation (BDA) project ARN
+    Description: For Pattern3, provide a Bedrock Data Automation (BDA) project ARN, or leave blank to create a sample project for processing the sample lending package.
 
   # Optional - Post processing Lambda hook
   PostProcessingLambdaHookFunctionArn:
@@ -282,18 +282,6 @@ Rules:
         AssertDescription: Pattern2CustomExtractionModelARN is required when 'Custom Fine Tuned Classification Model'
           is selected.
 
-# Pattern 3 rules
-
-  Pattern3BDAProjectArn:
-    RuleCondition:
-      !Equals [
-        !Ref IDPPattern,
-        "Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA)",
-      ]
-    Assertions:
-      - Assert: !Not [!Equals [!Ref Pattern3BDAProjectArn, ""]]
-        AssertDescription: Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN is required when IDPPattern is 'Pattern3'
-
 Conditions:
   IsPattern1:
     !Equals [
@@ -310,6 +298,11 @@ Conditions:
       !Ref IDPPattern,
       "Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA)",
     ]
+  ShouldCreateBDASampleProject: 
+    !And [
+      !Condition IsPattern3,
+      !Equals [!Ref Pattern3BDAProjectArn, ""]
+    ]
 
   # General rules
   ShouldAllowSignUpEmailDomain:
@@ -321,6 +314,7 @@ Conditions:
   IsWafEnabled: !Not [!Equals [!Ref WAFAllowedIPv4Ranges, "0.0.0.0/0"]]
   ShouldCreateDocumentKnowledgeBase: !Equals [!Ref DocumentKnowledgeBase, "BEDROCK_KNOWLEDGE_BASE (Create)"]
   ShouldUseDocumentKnowledgeBase: !Condition ShouldCreateDocumentKnowledgeBase
+
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -425,6 +419,31 @@ Metadata:
 Resources:
 
   ##########################################################################
+  # Nested stack for selected options
+  ##########################################################################
+
+  BDASAMPLEPROJECT:
+    Type: AWS::CloudFormation::Stack
+    Condition: ShouldCreateBDASampleProject
+    Properties:
+      TemplateURL: ./options/bda-lending-project/.aws-sam/packaged.yaml
+      Parameters:
+        ProjectName: !Sub '${AWS::StackName}-BDA-Lending-Sample-Project'
+        ProjectDescription: !Sub '${AWS::StackName}-BDA-Lending-Sample-Project'
+
+  DOCUMENTBEDROCKKB:
+    Type: AWS::CloudFormation::Stack
+    Condition: ShouldCreateDocumentKnowledgeBase
+    Properties:
+      TemplateURL: ./options/bedrockkb/.aws-sam/packaged.yaml
+      Parameters:
+        pKnowledgeBaseBucketName: !Ref OutputBucket
+        pInputDocumentUploadFolderPrefix: ""
+        pS3SyncScheduleExpression: "cron(0/30 * ? * * *)"  # default is to sync documents every 30 minutes
+        pCustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
+        pChunkingStrategy: 'No chunking'
+
+  ##########################################################################
   # Nested stack for selected pattern
   ##########################################################################
 
@@ -465,7 +484,6 @@ Resources:
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
         ConfigurationTable: !Ref ConfigurationTable
 
-
   PATTERN3STACK:
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern3
@@ -481,21 +499,12 @@ Resources:
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
-        BDAProjectArn: !Ref Pattern3BDAProjectArn
+        BDAProjectArn: !If
+          - ShouldCreateBDASampleProject
+          - !GetAtt BDASAMPLEPROJECT.Outputs.ProjectArn
+          - !Ref Pattern3BDAProjectArn
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
         ConfigurationTable: !Ref ConfigurationTable
-
-  DOCUMENTBEDROCKKB:
-    Type: AWS::CloudFormation::Stack
-    Condition: ShouldCreateDocumentKnowledgeBase
-    Properties:
-      TemplateURL: ./bedrockkb/.aws-sam/packaged.yaml
-      Parameters:
-        pKnowledgeBaseBucketName: !Ref OutputBucket
-        pInputDocumentUploadFolderPrefix: ""
-        pS3SyncScheduleExpression: "cron(0/30 * ? * * *)"  # default is to sync documents every 30 minutes
-        pCustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
-        pChunkingStrategy: 'No chunking'
 
   ##########################################################################
   # Encryption key
