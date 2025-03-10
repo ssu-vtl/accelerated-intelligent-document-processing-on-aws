@@ -1,0 +1,27 @@
+{
+    "RequestType": "Update",
+    "ServiceToken": "XXX",
+    "ResponseURL": "XXX",
+    "StackId": "XXX",
+    "RequestId": "5b5ff50a-10f1-4d7c-a47b-570bdd3a37c0",
+    "LogicalResourceId": "BDAProject",
+    "PhysicalResourceId": "arn:aws:bedrock:us-west-2:912625584728:data-automation-project/bac6484ce875",
+    "ResourceType": "Custom::BDAProject",
+    "ResourceProperties": {
+        "ServiceToken": "XXX",
+        "ProjectName": "IDP-BDA-Sample2-BDA-Lending-Sample-Project3",
+        "ProjectDescription": "IDP-BDA-Sample2-BDA-Lending-Sample-Project3",
+        "BlueprintNames": [
+            "Bank-Statement",
+            "Payslip",
+            "US-Bank-Check",
+            "US-Driver-License",
+            "W2-Form",
+            "Form-1040",
+            "Form-1098",
+            "Credit-Card-Statement",
+            "Property_Tax_Statement",
+            "Mortgage-Statement"
+        ]
+    }
+}
