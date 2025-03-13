@@ -116,6 +116,14 @@ const useConfiguration = () => {
 
       // Merge default and custom configurations
       const merged = deepMerge(defaultObj, customObj);
+      console.log('Merged configuration result:', merged);
+      // Double check the classification and extraction sections
+      if (merged.classification) {
+        console.log('Final classification data:', merged.classification);
+      }
+      if (merged.extraction) {
+        console.log('Final extraction data:', merged.extraction);
+      }
       setMergedConfig(merged);
     } catch (err) {
       logger.error('Error fetching configuration', err);
