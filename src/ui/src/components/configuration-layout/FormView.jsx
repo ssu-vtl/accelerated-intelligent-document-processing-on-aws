@@ -335,24 +335,29 @@ const FormView = ({ schema, formValues, onChange }) => {
     // Check if list is expanded - default to collapsed
     const isListExpanded = expandedItems[listKey] === true;
 
-    // List header with expand/collapse control
+    // List header with expand/collapse icon beside the list label
     const listHeader = (
       <Box
-        display="flex"
-        alignItems="center"
         padding={{ left: `${nestLevel * 16}px`, top: 'xs', bottom: 'xs' }}
         borderBottom="divider-light"
         backgroundColor="background-paper-default"
         borderRadius="xs"
       >
-        <Button
-          variant="icon"
-          iconName={isListExpanded ? 'caret-down-filled' : 'caret-right-filled'}
-          onClick={toggleListExpand}
-          ariaLabel={isListExpanded ? 'Collapse list' : 'Expand list'}
-        />
-        <Box fontWeight="bold" fontSize="body-m" margin={{ left: 'xs' }}>
-          {listLabel}
+        <Box display="flex" alignItems="center" onClick={toggleListExpand} style={{ cursor: 'pointer' }}>
+          <Box fontWeight="bold" fontSize="body-m">
+            {listLabel}
+          </Box>
+          <Button
+            variant="icon"
+            iconName={isListExpanded ? 'caret-down-filled' : 'caret-right-filled'}
+            onClick={(e) => {
+              // Stop propagation to prevent double-toggle
+              e.stopPropagation();
+              toggleListExpand();
+            }}
+            ariaLabel={isListExpanded ? 'Collapse list' : 'Expand list'}
+            style={{ marginLeft: '4px' }}
+          />
         </Box>
       </Box>
     );
