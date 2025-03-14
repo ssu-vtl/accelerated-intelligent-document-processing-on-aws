@@ -354,7 +354,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     // Check if list is expanded - default to collapsed
     const isListExpanded = expandedItems[listKey] === true;
 
-    // List header with expand/collapse icon beside the list label
+    // List header with expand/collapse icon beside the list label and item count
     const listHeader = (
       <Box
         padding={{ left: `${nestLevel * 16}px`, top: 'xs', bottom: 'xs' }}
@@ -364,7 +364,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       >
         <Box display="flex" alignItems="center" onClick={toggleListExpand} style={{ cursor: 'pointer' }}>
           <Box fontWeight="bold" fontSize="body-m">
-            {listLabel}
+            {`${listLabel} (${values.length})`}
           </Box>
           <Button
             variant="icon"
