@@ -132,7 +132,7 @@ Resources:
                 description: System prompt
               task_prompt:
                 type: string
-                description: Task prompt - include parameter {DOCUMENT_TEXT}
+                description: Task prompt - include parameters {DOCUMENT_TEXT} (replaced by the OCR output), and {CLASS_NAMES_AND_DESCRIPTIONS} (replaced with the class names and descriptions for all specified classes)
           extraction:
             order: 4
             type: object
@@ -162,7 +162,7 @@ Resources:
                 description: System prompt
               task_prompt:
                 type: string
-                description: Task prompt - include parameters {DOCUMENT_CLASS} and {DOCUMENT_TEXT}
+                description: Task prompt - supports parameters {DOCUMENT_CLASS} (replaced with the detected class label), {ATTRIBUTE_NAMES_AND_DESCRIPTIONS} (replaced with the attribute names and descriptions for the detected class), and {DOCUMENT_TEXT} (replaced by the OCR output). 
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
@@ -469,22 +469,7 @@ Resources:
           task_prompt: |
             Classify this document into exactly one of these RVL-CDIP categories:
 
-            letter
-            form
-            email
-            handwritten
-            advertisement
-            scientific_report
-            scientific_publication
-            specification
-            file_folder
-            news_article
-            budget
-            invoice
-            presentation
-            questionnaire
-            resume
-            memo
+            {CLASS_NAMES_AND_DESCRIPTIONS}
 
             Respond only with a JSON object containing the class label. For example: {{"class": "letter"}}
 
@@ -499,23 +484,16 @@ Resources:
             You are a document assistant. Respond only with JSON. Never make up data, only provide data found in the document being provided.
           task_prompt: |
             <background>
-            You are an expert in business document analysis and information extraction. You can understand and extract key information from various types of business documents including letters, memos, financial documents, scientific papers, news articles, advertisements, emails, forms, handwritten notes, invoices, purchase orders, questionnaires, resumes, scientific publications, and specifications.
-            A business document serves multiple purposes:
-            Communication of information between parties
-            Record keeping of business transactions or decisions
-            Legal documentation of agreements or requirements
-            Historical archival of business activities
-            Reference material for future use
-            Each document type has its own structure, purpose, and key information elements that need to be extracted.
+            You are an expert in business document analysis and information extraction. 
+            You can understand and extract key information from business documents classified as type 
+            {DOCUMENT_CLASS}.
             </background>
-            <document_class>
-            {DOCUMENT_CLASS}
-            </document_class>
             <document_ocr_data>
             {DOCUMENT_TEXT}
             </document_ocr_data>
             <task>
-            Your task is to take the unstructured text provided and convert it into a well-organized table format using JSON. Identify the main entities, attributes, or categories mentioned in the text based on the document class and use them as keys in the JSON object. Then, extract the relevant information from the text and populate the corresponding values in the JSON object. 
+            Your task is to take the unstructured text provided and convert it into a well-organized table format using JSON. Identify the main entities, attributes, or categories mentioned in the attributes list below and use them as keys in the JSON object. 
+            Then, extract the relevant information from the text and populate the corresponding values in the JSON object. 
             Guidelines:
             Ensure that the data is accurately represented and properly formatted within the JSON structure
             Include double quotes around all keys and values
@@ -525,10 +503,9 @@ Resources:
             All dates should be in MM/DD/YYYY format
             Do not perform calculations or summations unless totals are explicitly given
             If an alias is not found in the document, return null
-            Here are the attributes you should extract based on the document class:
+            Here are the attributes you should extract:
             <attributes>
-
-            }
+            {ATTRIBUTE_NAMES_AND_DESCRIPTIONS}
             </attributes>
             </task>
     UpdateReplacePolicy: Delete
