@@ -257,7 +257,7 @@ const FormView = ({ schema, formValues, onChange }) => {
     const currentPath = path ? `${path}.${key}` : key;
     const value = getValueAtPath(formValues, currentPath);
 
-    if (property.type === 'list') {
+    if (property.type === 'list' || property.type === 'array') {
       return renderListField(key, property, currentPath);
     }
 
@@ -301,7 +301,9 @@ const FormView = ({ schema, formValues, onChange }) => {
         <SpaceBetween size="xs">
           {Object.entries(property.properties).map(([propKey, propSchema]) => {
             const nestedPropSchema =
-              propSchema.type === 'list' ? { ...propSchema, nestLevel: nestLevel + 1 } : propSchema;
+              propSchema.type === 'list' || propSchema.type === 'array'
+                ? { ...propSchema, nestLevel: nestLevel + 1 }
+                : propSchema;
             return <Box key={propKey}>{renderField(propKey, nestedPropSchema, fullPath)}</Box>;
           })}
         </SpaceBetween>
@@ -311,6 +313,9 @@ const FormView = ({ schema, formValues, onChange }) => {
 
   function renderListField(key, property, path) {
     const values = getValueAtPath(formValues, path) || [];
+
+    // Add debug info
+    console.log(`Rendering list field: ${key}, type: ${property.type}, path: ${path}`, property, values);
 
     // Get list item display settings from schema metadata
     const columnCount = property.columns ? parseInt(property.columns, 10) : 2;
@@ -401,7 +406,7 @@ const FormView = ({ schema, formValues, onChange }) => {
 
                         // Identify and separate the fields
                         propEntries.forEach(({ propKey, prop: propSchema }) => {
-                          if (propSchema.type === 'list') {
+                          if (propSchema.type === 'list' || propSchema.type === 'array') {
                             listProps.push({ propKey, propSchema });
                           } else {
                             regularProps.push({ propKey, propSchema });
@@ -507,7 +512,7 @@ const FormView = ({ schema, formValues, onChange }) => {
                   newValue = {};
                   if (property.items.properties) {
                     Object.entries(property.items.properties).forEach(([propKey, propSchema]) => {
-                      if (propSchema.type === 'list') {
+                      if (propSchema.type === 'list' || propSchema.type === 'array') {
                         newValue[propKey] = [];
                       } else if (propSchema.type === 'object') {
                         newValue[propKey] = {};
@@ -543,6 +548,15 @@ const FormView = ({ schema, formValues, onChange }) => {
   function renderInputField(key, property, value, path) {
     let input;
 
+    // Add debug info
+    console.log(`Rendering input field: ${key}, type: ${property.type}, path: ${path}`, { property, value });
+
+    // Check if we're trying to render an array as an input field (which would be incorrect)
+    if (Array.isArray(value) && (property.type === 'array' || property.type === 'list')) {
+      console.warn(`Attempting to render array as input field at path: ${path}`, value);
+      return renderListField(key, property, path);
+    }
+
     if (property.enum) {
       input = (
         <Select
@@ -558,7 +572,7 @@ const FormView = ({ schema, formValues, onChange }) => {
     ) {
       input = (
         <Textarea
-          value={value || ''}
+          value={value !== undefined && value !== null ? String(value) : ''}
           onChange={({ detail }) => updateValue(path, detail.value)}
           rows={3}
           className="expandable-textarea"
@@ -566,6 +580,10 @@ const FormView = ({ schema, formValues, onChange }) => {
       );
     } else if (property.type === 'boolean') {
       input = <Toggle checked={!!value} onChange={({ detail }) => updateValue(path, detail.checked)} />;
+    } else if (property.type === 'array' || property.type === 'list') {
+      // This should not happen if renderField is working correctly
+      console.error(`Incorrectly trying to render array as input field: ${path}`);
+      return renderListField(key, property, path);
     } else {
       input = (
         <Input
@@ -615,20 +633,34 @@ const FormView = ({ schema, formValues, onChange }) => {
 
   // Check if a property needs a container with section header
   const shouldUseContainer = (key, property) => {
-    return property.sectionLabel && (property.type === 'object' || property.type === 'list');
+    return (
+      property.sectionLabel && (property.type === 'object' || property.type === 'list' || property.type === 'array')
+    );
   };
 
   // Render each top-level property
   const renderTopLevelProperty = ({ key, property }) => {
+    // Debug info for sections
+    console.log(
+      `Rendering top level property: ${key}, type: ${property.type}, sectionLabel: ${property.sectionLabel}`,
+      property,
+    );
+
     // If property should have a section container, wrap it
     if (shouldUseContainer(key, property)) {
       const sectionTitle = property.sectionLabel;
+      console.log(`Creating section container for ${key} with title: ${sectionTitle}`);
 
       return (
         <Container key={key} header={<Header variant="h3">{sectionTitle}</Header>}>
           <Box padding="s">{renderField(key, property)}</Box>
         </Container>
       );
+    }
+
+    // If it's an array/list with sectionLabel but not caught by shouldUseContainer
+    if (property.sectionLabel && (property.type === 'array' || property.type === 'list')) {
+      console.warn(`Property ${key} has sectionLabel but wasn't wrapped in container`, property);
     }
 
     // Default rendering

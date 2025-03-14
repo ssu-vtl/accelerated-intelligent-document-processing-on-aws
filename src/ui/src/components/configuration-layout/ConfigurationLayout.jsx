@@ -59,23 +59,62 @@ const ConfigurationLayout = () => {
     // Set up JSON schema validation if schema is available and in JSON mode
     if (schema && viewMode === 'json') {
       try {
-        // Convert schema to proper JSON Schema format if needed
+        // Create a proper JSON Schema by converting the custom schema format
+        const processedSchema = {
+          type: 'object',
+          properties: {},
+          required: schema.required || [],
+        };
+
+        // Process schema properties to handle custom types like 'list'
+        if (schema.properties) {
+          Object.entries(schema.properties).forEach(([key, prop]) => {
+            // Convert 'list' type to proper JSON Schema array type (for backwards compatibility)
+            if (prop.type === 'list' || prop.type === 'array') {
+              processedSchema.properties[key] = {
+                type: 'array',
+                items: prop.items || {},
+              };
+
+              // Process nested items if they have custom types
+              if (prop.items && prop.items.type === 'object' && prop.items.properties) {
+                const itemProps = {};
+                Object.entries(prop.items.properties).forEach(([itemKey, itemProp]) => {
+                  if (itemProp.type === 'list' || itemProp.type === 'array') {
+                    itemProps[itemKey] = {
+                      type: 'array',
+                      items: itemProp.items || {},
+                    };
+                  } else {
+                    itemProps[itemKey] = itemProp;
+                  }
+                });
+                processedSchema.properties[key].items.properties = itemProps;
+                processedSchema.properties[key].items.required = prop.items.required || [];
+              }
+            } else {
+              // For non-list types, keep the original schema
+              processedSchema.properties[key] = prop;
+            }
+          });
+        }
+
+        // Create the JSON Schema configuration
         const jsonSchema = {
           uri: 'http://myserver/schema.json',
           fileMatch: ['*'],
-          schema: {
-            type: 'object',
-            properties: schema.properties || {},
-            required: schema.required || [],
-          },
+          schema: processedSchema,
         };
 
+        // Set the diagnostics options with the processed schema
         monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
           validate: true,
           schemas: [jsonSchema],
           allowComments: false,
           trailingCommas: 'error',
         });
+
+        console.log('Processed JSON Schema:', processedSchema);
       } catch (e) {
         console.error('Error setting up schema validation:', e);
       }
