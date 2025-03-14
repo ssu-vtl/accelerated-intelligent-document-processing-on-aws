@@ -348,14 +348,14 @@ def handler(event, context):
     logger.info(f"BDA Result bucket: {bda_result_bucket}, prefix: {bda_result_prefix}")
     logger.info(f"Output bucket: {output_bucket}, base path: {object_key}")
 
-    # standard_output (pages)
+    # custom_output (sections)
     count1 = copy_s3_objects(
         bda_result_bucket,
         f"{bda_result_prefix}/custom_output",
         output_bucket,
         f"{object_key}/sections"
     )
-    # custom_output (sections)
+    # standard_output (pages)
     count2 = copy_s3_objects(
         bda_result_bucket,
         f"{bda_result_prefix}/standard_output",
