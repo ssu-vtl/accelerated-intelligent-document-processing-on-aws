@@ -59,21 +59,22 @@ Resources:
       Schema:
         type: object
         required:
-          - info
+          - notes
           - classes
           - classification
           - extraction
         properties:
-          info:
+          notes:
+            order: 1
             type: string
-            description: Description of the configuration section
+            description: Notes
           classes:
-            type: list
+            order: 2
+            type: array
             sectionLabel: Class definitions
             listLabel: Classes
             itemLabel: Class
             columns: 2
-            order: 1
             items:
               type: object
               required:
@@ -88,7 +89,7 @@ Resources:
                   type: string
                   description: Class description
                 attributes:
-                  type: list
+                  type: array
                   listLabel: Attributes
                   itemLabel: Attribute
                   items:
@@ -104,9 +105,9 @@ Resources:
                         type: string
                         description: Attribute description
           classification:
+            order: 3
             type: object
             sectionLabel: Classification Inference
-            order: 2
             required:
               - model
               - temperature
@@ -133,10 +134,10 @@ Resources:
                 type: string
                 description: Task prompt - include parameter {DOCUMENT_TEXT}
           extraction:
+            order: 4
             type: object
             format: section
             sectionLabel: Extraction Inference
-            order: 3
             required:
               - model
               - temperature
@@ -170,7 +171,7 @@ Resources:
     Properties:
       ServiceToken: !Ref UpdateConfigurationFunctionArn
       Default:
-        info: Default inference settings for classification and extraction
+        notes: Default inference settings for classification and extraction
         classes:
           - name: letter
             description: A formal written message that is typically sent from one person to another
