@@ -53,68 +53,336 @@ const ConfigurationLayout = () => {
     }
   }, [mergedConfig]);
 
+  // Process schema to convert custom types to standard JSON Schema format
+  const processSchema = (inputSchema) => {
+    try {
+      const processedSchema = {
+        type: 'object',
+        properties: {},
+        required: inputSchema.required || [],
+      };
+
+      // Process schema properties to handle custom types like 'list'
+      if (inputSchema.properties) {
+        Object.entries(inputSchema.properties).forEach(([key, prop]) => {
+          // Convert 'list' type to proper JSON Schema array type (for backwards compatibility)
+          if (prop.type === 'list' || prop.type === 'array') {
+            processedSchema.properties[key] = {
+              type: 'array',
+              items: prop.items || {},
+            };
+
+            // Process nested items if they have custom types
+            if (prop.items && prop.items.type === 'object' && prop.items.properties) {
+              const itemProps = {};
+              Object.entries(prop.items.properties).forEach(([itemKey, itemProp]) => {
+                if (itemProp.type === 'list' || itemProp.type === 'array') {
+                  itemProps[itemKey] = {
+                    type: 'array',
+                    items: itemProp.items || {},
+                  };
+                } else if (itemProp.type === 'number' || itemProp.type === 'integer') {
+                  // For number types, we'll use a more flexible approach
+                  // Instead of using oneOf, we'll just use type: ["number", "string"]
+                  // This is more widely supported in JSON Schema implementations
+                  itemProps[itemKey] = {
+                    type: ['number', 'string'],
+                  };
+
+                  // Copy over any constraints
+                  if (itemProp.minimum !== undefined) {
+                    itemProps[itemKey].minimum = itemProp.minimum;
+                  }
+                  if (itemProp.maximum !== undefined) {
+                    itemProps[itemKey].maximum = itemProp.maximum;
+                  }
+                } else {
+                  itemProps[itemKey] = itemProp;
+                }
+              });
+              processedSchema.properties[key].items.properties = itemProps;
+              processedSchema.properties[key].items.required = prop.items.required || [];
+            }
+          } else if (prop.type === 'number' || prop.type === 'integer') {
+            // For number types, we'll use a more flexible approach
+            // Instead of using oneOf, we'll just use type: ["number", "string"]
+            // This is more widely supported in JSON Schema implementations
+            processedSchema.properties[key] = {
+              type: ['number', 'string'],
+            };
+
+            // Copy over any constraints
+            if (prop.minimum !== undefined) {
+              processedSchema.properties[key].minimum = prop.minimum;
+            }
+            if (prop.maximum !== undefined) {
+              processedSchema.properties[key].maximum = prop.maximum;
+            }
+          } else {
+            // For non-list types, keep the original schema
+            processedSchema.properties[key] = prop;
+          }
+        });
+      }
+
+      return processedSchema;
+    } catch (e) {
+      console.error('Error processing schema:', e);
+      return null;
+    }
+  };
+
+  // Validate YAML content against the schema
+  const validateYamlContent = (yamlString) => {
+    if (!schema) return [];
+
+    try {
+      // Convert YAML to JSON object
+      const parsedYaml = yaml.load(yamlString);
+      if (!parsedYaml) return [{ message: 'Empty or invalid YAML content' }];
+
+      // Perform schema validation manually
+      const errors = [];
+
+      // Check required fields
+      if (schema.required) {
+        schema.required.forEach((field) => {
+          if (parsedYaml[field] === undefined) {
+            errors.push({ message: `Required field '${field}' is missing` });
+          }
+        });
+      }
+
+      // Validate property types and constraints
+      if (schema.properties && parsedYaml) {
+        Object.entries(schema.properties).forEach(([key, prop]) => {
+          const value = parsedYaml[key];
+
+          // Skip validation if value is undefined (already handled by required check)
+          if (value === undefined) return;
+
+          // Type validation
+          if (prop.type === 'number' || prop.type === 'integer') {
+            // For YAML validation, we'll be more permissive
+            // We'll accept any string or number, but we'll still validate constraints
+            // if the value can be converted to a number
+            if (typeof value !== 'number' && typeof value !== 'string') {
+              errors.push({ message: `Field '${key}' must be a number or a string` });
+            } else {
+              // Try to convert to number for constraint validation
+              let numValue;
+              let isValidNumber = false;
+
+              if (typeof value === 'number') {
+                numValue = value;
+                isValidNumber = true;
+              } else if (typeof value === 'string') {
+                // Try to parse the string as a number
+                numValue = parseFloat(value);
+                isValidNumber = !Number.isNaN(numValue) && /^-?\d*\.?\d*$/.test(value);
+              }
+
+              // Only check constraints if it's a valid number
+              if (isValidNumber) {
+                if (prop.minimum !== undefined && numValue < prop.minimum) {
+                  errors.push({ message: `Field '${key}' must be at least ${prop.minimum}` });
+                }
+                if (prop.maximum !== undefined && numValue > prop.maximum) {
+                  errors.push({ message: `Field '${key}' must be at most ${prop.maximum}` });
+                }
+              }
+            }
+          } else if (prop.type === 'string') {
+            if (typeof value !== 'string') {
+              errors.push({ message: `Field '${key}' must be a string` });
+            } else {
+              // Check string constraints
+              if (prop.minLength !== undefined && value.length < prop.minLength) {
+                errors.push({ message: `Field '${key}' must be at least ${prop.minLength} characters` });
+              }
+              if (prop.maxLength !== undefined && value.length > prop.maxLength) {
+                errors.push({ message: `Field '${key}' must be at most ${prop.maxLength} characters` });
+              }
+              if (prop.pattern && !new RegExp(prop.pattern).test(value)) {
+                errors.push({ message: `Field '${key}' does not match required pattern` });
+              }
+            }
+          } else if (prop.type === 'boolean') {
+            if (typeof value !== 'boolean') {
+              errors.push({ message: `Field '${key}' must be a boolean` });
+            }
+          } else if (prop.type === 'array' || prop.type === 'list') {
+            if (!Array.isArray(value)) {
+              errors.push({ message: `Field '${key}' must be an array` });
+            } else {
+              // Check array constraints
+              if (prop.minItems !== undefined && value.length < prop.minItems) {
+                errors.push({ message: `Field '${key}' must have at least ${prop.minItems} items` });
+              }
+              if (prop.maxItems !== undefined && value.length > prop.maxItems) {
+                errors.push({ message: `Field '${key}' must have at most ${prop.maxItems} items` });
+              }
+
+              // Validate array items if schema is provided
+              if (prop.items && prop.items.type && value.length > 0) {
+                value.forEach((item, index) => {
+                  if (prop.items.type === 'object' && prop.items.properties) {
+                    // Validate object properties in array items
+                    Object.entries(prop.items.properties).forEach(([itemKey, itemProp]) => {
+                      const itemValue = item[itemKey];
+
+                      // Check if required
+                      if (prop.items.required && prop.items.required.includes(itemKey) && itemValue === undefined) {
+                        errors.push({ message: `Item ${index} in '${key}' is missing required field '${itemKey}'` });
+                      }
+
+                      // Type validation for item properties
+                      if (itemValue !== undefined) {
+                        if (itemProp.type === 'string' && typeof itemValue !== 'string') {
+                          errors.push({ message: `Field '${itemKey}' in item ${index} of '${key}' must be a string` });
+                        } else if (itemProp.type === 'number' || itemProp.type === 'integer') {
+                          // For YAML validation, we'll be more permissive
+                          if (typeof itemValue !== 'number' && typeof itemValue !== 'string') {
+                            errors.push({
+                              message: `Field '${itemKey}' in item ${index} of '${key}' must be a number or a string`,
+                            });
+                          } else {
+                            // Try to convert to number for constraint validation
+                            let numValue;
+                            let isValidNumber = false;
+
+                            if (typeof itemValue === 'number') {
+                              numValue = itemValue;
+                              isValidNumber = true;
+                            } else if (typeof itemValue === 'string') {
+                              // Try to parse the string as a number
+                              numValue = parseFloat(itemValue);
+                              isValidNumber = !Number.isNaN(numValue) && /^-?\d*\.?\d*$/.test(itemValue);
+                            }
+
+                            // Only check constraints if it's a valid number
+                            if (isValidNumber && itemProp.minimum !== undefined && numValue < itemProp.minimum) {
+                              errors.push({
+                                message: `Field '${itemKey}' in item ${index} of '${key}' must be at least ${itemProp.minimum}`,
+                              });
+                            }
+                            if (isValidNumber && itemProp.maximum !== undefined && numValue > itemProp.maximum) {
+                              errors.push({
+                                message: `Field '${itemKey}' in item ${index} of '${key}' must be at most ${itemProp.maximum}`,
+                              });
+                            }
+                          }
+                        } else if (itemProp.type === 'boolean' && typeof itemValue !== 'boolean') {
+                          errors.push({ message: `Field '${itemKey}' in item ${index} of '${key}' must be a boolean` });
+                        }
+                      }
+                    });
+                  } else if (prop.items.type === 'string' && typeof item !== 'string') {
+                    errors.push({ message: `Item ${index} in '${key}' must be a string` });
+                  } else if (prop.items.type === 'number' || prop.items.type === 'integer') {
+                    // For YAML validation, we'll be more permissive
+                    if (typeof item !== 'number' && typeof item !== 'string') {
+                      errors.push({
+                        message: `Item ${index} in '${key}' must be a number or a string`,
+                      });
+                    } else {
+                      // Try to convert to number for constraint validation
+                      let numValue;
+                      let isValidNumber = false;
+
+                      if (typeof item === 'number') {
+                        numValue = item;
+                        isValidNumber = true;
+                      } else if (typeof item === 'string') {
+                        // Try to parse the string as a number
+                        numValue = parseFloat(item);
+                        isValidNumber = !Number.isNaN(numValue) && /^-?\d*\.?\d*$/.test(item);
+                      }
+
+                      // Only check constraints if it's a valid number
+                      if (isValidNumber && prop.items.minimum !== undefined && numValue < prop.items.minimum) {
+                        errors.push({
+                          message: `Item ${index} in '${key}' must be at least ${prop.items.minimum}`,
+                        });
+                      }
+                      if (isValidNumber && prop.items.maximum !== undefined && numValue > prop.items.maximum) {
+                        errors.push({
+                          message: `Item ${index} in '${key}' must be at most ${prop.items.maximum}`,
+                        });
+                      }
+                    }
+                  } else if (prop.items.type === 'boolean' && typeof item !== 'boolean') {
+                    errors.push({ message: `Item ${index} in '${key}' must be a boolean` });
+                  }
+                });
+              }
+            }
+          } else if (prop.type === 'object') {
+            if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+              errors.push({ message: `Field '${key}' must be an object` });
+            } else if (prop.properties) {
+              // Validate nested object properties
+              Object.entries(prop.properties).forEach(([nestedKey]) => {
+                const nestedValue = value[nestedKey];
+
+                // Check if required
+                if (prop.required && prop.required.includes(nestedKey) && nestedValue === undefined) {
+                  errors.push({ message: `Object '${key}' is missing required field '${nestedKey}'` });
+                }
+              });
+            }
+          }
+
+          // Check enum values
+          if (prop.enum && !prop.enum.includes(value)) {
+            errors.push({ message: `Field '${key}' must be one of: ${prop.enum.join(', ')}` });
+          }
+        });
+      }
+
+      return errors;
+    } catch (e) {
+      return [{ message: `Invalid YAML: ${e.message}` }];
+    }
+  };
+
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
 
-    // Set up JSON schema validation if schema is available and in JSON mode
-    if (schema && viewMode === 'json') {
+    // Set up JSON schema validation if schema is available
+    if (schema) {
       try {
-        // Create a proper JSON Schema by converting the custom schema format
-        const processedSchema = {
-          type: 'object',
-          properties: {},
-          required: schema.required || [],
-        };
+        // Process the schema once
+        const processedSchema = processSchema(schema);
 
-        // Process schema properties to handle custom types like 'list'
-        if (schema.properties) {
-          Object.entries(schema.properties).forEach(([key, prop]) => {
-            // Convert 'list' type to proper JSON Schema array type (for backwards compatibility)
-            if (prop.type === 'list' || prop.type === 'array') {
-              processedSchema.properties[key] = {
-                type: 'array',
-                items: prop.items || {},
-              };
+        if (processedSchema) {
+          // Create the JSON Schema configuration
+          const jsonSchema = {
+            uri: 'http://myserver/schema.json',
+            fileMatch: ['*'],
+            schema: processedSchema,
+          };
 
-              // Process nested items if they have custom types
-              if (prop.items && prop.items.type === 'object' && prop.items.properties) {
-                const itemProps = {};
-                Object.entries(prop.items.properties).forEach(([itemKey, itemProp]) => {
-                  if (itemProp.type === 'list' || itemProp.type === 'array') {
-                    itemProps[itemKey] = {
-                      type: 'array',
-                      items: itemProp.items || {},
-                    };
-                  } else {
-                    itemProps[itemKey] = itemProp;
-                  }
-                });
-                processedSchema.properties[key].items.properties = itemProps;
-                processedSchema.properties[key].items.required = prop.items.required || [];
-              }
-            } else {
-              // For non-list types, keep the original schema
-              processedSchema.properties[key] = prop;
-            }
+          // Set the diagnostics options with the processed schema for JSON
+          monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+            validate: true,
+            schemas: [jsonSchema],
+            allowComments: false,
+            trailingCommas: 'error',
           });
+
+          console.log('Processed JSON Schema:', processedSchema);
+
+          // For YAML, we'll use manual validation in the onChange handler
+          // since Monaco doesn't have built-in YAML schema validation
+          if (viewMode === 'yaml') {
+            // Initial validation of YAML content
+            const yamlErrors = validateYamlContent(yamlContent);
+            if (yamlErrors.length > 0) {
+              setValidationErrors(yamlErrors);
+            }
+          }
         }
-
-        // Create the JSON Schema configuration
-        const jsonSchema = {
-          uri: 'http://myserver/schema.json',
-          fileMatch: ['*'],
-          schema: processedSchema,
-        };
-
-        // Set the diagnostics options with the processed schema
-        monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
-          validate: true,
-          schemas: [jsonSchema],
-          allowComments: false,
-          trailingCommas: 'error',
-        });
-
-        console.log('Processed JSON Schema:', processedSchema);
       } catch (e) {
         console.error('Error setting up schema validation:', e);
       }
@@ -157,14 +425,45 @@ const ConfigurationLayout = () => {
         console.error('Error converting to JSON:', jsonErr);
       }
 
-      setValidationErrors([]);
+      // Validate YAML against schema
+      if (schema) {
+        const schemaErrors = validateYamlContent(value);
+        setValidationErrors(schemaErrors);
+      } else {
+        setValidationErrors([]);
+      }
     } catch (e) {
       setValidationErrors([{ message: `Invalid YAML: ${e.message}` }]);
     }
   };
 
+  // Validate the current content based on view mode
+  const validateCurrentContent = () => {
+    if (!schema) return [];
+
+    try {
+      if (viewMode === 'json') {
+        // For JSON, we rely on Monaco's built-in validation
+        // But we can do a basic parse check here
+        JSON.parse(jsonContent);
+        return [];
+      }
+      if (viewMode === 'yaml') {
+        // For YAML, use our custom validation
+        return validateYamlContent(yamlContent);
+      }
+      return [];
+    } catch (e) {
+      return [{ message: `Invalid ${viewMode.toUpperCase()}: ${e.message}` }];
+    }
+  };
+
   const handleSave = async () => {
-    if (validationErrors.length > 0) {
+    // Validate content before saving
+    const currentErrors = validateCurrentContent();
+
+    if (currentErrors.length > 0) {
+      setValidationErrors(currentErrors);
       setSaveError('Cannot save: Configuration contains validation errors');
       return;
     }
@@ -223,6 +522,12 @@ const ConfigurationLayout = () => {
   const formatYaml = () => {
     if (editorRef.current && viewMode === 'yaml') {
       editorRef.current.getAction('editor.action.formatDocument').run();
+
+      // Re-validate after formatting
+      setTimeout(() => {
+        const errors = validateYamlContent(yamlContent);
+        setValidationErrors(errors);
+      }, 100);
     }
   };
 
@@ -353,24 +658,26 @@ const ConfigurationLayout = () => {
           )}
 
           {viewMode === 'yaml' && (
-            <Editor
-              height="70vh"
-              defaultLanguage="yaml"
-              value={yamlContent}
-              onChange={handleYamlEditorChange}
-              onMount={handleEditorDidMount}
-              options={{
-                minimap: { enabled: false },
-                formatOnPaste: true,
-                formatOnType: true,
-                automaticLayout: true,
-                scrollBeyondLastLine: false,
-                folding: true,
-                lineNumbers: 'on',
-                renderLineHighlight: 'all',
-                tabSize: 2,
-              }}
-            />
+            <Box>
+              <Editor
+                height="70vh"
+                defaultLanguage="yaml"
+                value={yamlContent}
+                onChange={handleYamlEditorChange}
+                onMount={handleEditorDidMount}
+                options={{
+                  minimap: { enabled: false },
+                  formatOnPaste: true,
+                  formatOnType: true,
+                  automaticLayout: true,
+                  scrollBeyondLastLine: false,
+                  folding: true,
+                  lineNumbers: 'on',
+                  renderLineHighlight: 'all',
+                  tabSize: 2,
+                }}
+              />
+            </Box>
           )}
         </Box>
       </Form>
