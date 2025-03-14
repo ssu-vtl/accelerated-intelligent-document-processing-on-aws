@@ -15,12 +15,28 @@ import {
   Container,
 } from '@awsui/components-react';
 
-// Add custom styles for expandable textareas
+// Add custom styles for compact form layout
 const customStyles = `
   .expandable-textarea {
     max-height: 250px;
     overflow-y: auto !important;
     resize: vertical;
+  }
+  
+  /* Make form fields more compact */
+  .awsui-form-field {
+    margin-bottom: 4px !important;
+  }
+  
+  /* Reduce space inside form fields */
+  .awsui-form-field-control {
+    margin-top: 2px !important;  
+  }
+  
+  /* Minimize space between label and control */
+  .awsui-form-field-label {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
   }
 `;
 
@@ -344,7 +360,7 @@ const FormView = ({ schema, formValues, onChange }) => {
     // List content with items - only shown when expanded
     const itemsContent = isListExpanded && (
       <Box padding={{ left: `${nestLevel * 16}px` }}>
-        <SpaceBetween size="xxxs">
+        <SpaceBetween size="none">
           {values.length === 0 && (
             <Box fontStyle="italic" color="text-body-secondary" padding="xs">
               No items added yet
@@ -355,9 +371,9 @@ const FormView = ({ schema, formValues, onChange }) => {
             const itemPath = `${path}[${index}]`;
 
             return (
-              <Box key={`${itemPath}-${index}`} borderBottom="divider-light" padding={{ bottom: 'xxxs' }}>
+              <Box key={`${itemPath}-${index}`} borderBottom="divider-light" padding={{ bottom: 'none' }}>
                 {/* Item row with delete button */}
-                <Box display="flex" alignItems="flex-start" padding={{ top: 'xxxs', bottom: 'xxxs' }}>
+                <Box display="flex" alignItems="flex-start" padding={{ top: 'none', bottom: 'none' }}>
                   {/* Content area with property fields and nested lists */}
                   <Box flex="1">
                     {property.items.type === 'object' ? (
@@ -410,7 +426,7 @@ const FormView = ({ schema, formValues, onChange }) => {
                                             key={propKey}
                                             style={{ verticalAlign: 'top', width: `${100 / columnCount}%` }}
                                           >
-                                            <Box padding="xs">
+                                            <Box padding="xxxs">
                                               {renderInputField(propKey, propSchema, propValue, propPath)}
                                             </Box>
                                           </td>
@@ -530,11 +546,15 @@ const FormView = ({ schema, formValues, onChange }) => {
           options={property.enum.map((opt) => ({ value: opt, label: opt }))}
         />
       );
-    } else if (property.format === 'text-area' || path.toLowerCase().includes('prompt') || path.toLowerCase().includes('description')) {
+    } else if (
+      property.format === 'text-area' ||
+      path.toLowerCase().includes('prompt') ||
+      path.toLowerCase().includes('description')
+    ) {
       input = (
-        <Textarea 
-          value={value || ''} 
-          onChange={({ detail }) => updateValue(path, detail.value)} 
+        <Textarea
+          value={value || ''}
+          onChange={({ detail }) => updateValue(path, detail.value)}
           rows={3}
           className="expandable-textarea"
         />
@@ -562,7 +582,12 @@ const FormView = ({ schema, formValues, onChange }) => {
     const constraints = getConstraintText(property);
 
     return (
-      <FormField label={displayText} constraintText={constraints.length > 0 ? constraints : undefined}>
+      <FormField
+        label={displayText}
+        constraintText={constraints.length > 0 ? constraints : undefined}
+        stretch
+        className="compact-form-field"
+      >
         {input}
       </FormField>
     );
