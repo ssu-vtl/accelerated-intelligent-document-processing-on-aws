@@ -55,11 +55,12 @@ Resources:
       Schema:
         type: object
         required:
-          - info
+          - notes
         properties:
-          info:
+          notes:
+            order: 1
             type: string
-            description: Description of the configuration section
+            description: Notes
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
@@ -68,7 +69,7 @@ Resources:
     Properties:
       ServiceToken: !Ref UpdateConfigurationFunctionArn
       Default:
-        Info: !Sub "Processing configuration in BDA project: ${BDAProjectArn}"
+        notes: !Sub "Processing configuration in BDA project: ${BDAProjectArn}"
 
   DocumentProcessingStateMachine:
     Type: AWS::Serverless::StateMachine

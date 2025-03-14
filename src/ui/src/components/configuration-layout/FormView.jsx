@@ -38,6 +38,20 @@ const customStyles = `
     margin-bottom: 0 !important;
     padding-bottom: 0 !important;
   }
+  
+  /* Highlight modified fields */
+  .modified-field {
+    background-color: rgba(255, 240, 179, 0.2) !important;
+    border-left: 3px solid #f2a900 !important;
+    padding-left: 8px !important;
+    border-radius: 4px !important;
+  }
+  
+  /* Style for the restore default button */
+  .restore-default-button {
+    margin-left: 8px;
+    font-size: 12px;
+  }
 `;
 
 // Helper functions outside the component to avoid hoisting issues
@@ -213,7 +227,7 @@ ResizableColumns.defaultProps = {
   columnSpacing: '8px',
 };
 
-const FormView = ({ schema, formValues, onChange }) => {
+const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDefault, onChange }) => {
   // Track expanded state for all list items across the form - default to collapsed
   const [expandedItems, setExpandedItems] = useState({});
 
@@ -557,6 +571,40 @@ const FormView = ({ schema, formValues, onChange }) => {
       return renderListField(key, property, path);
     }
 
+    // Check if this field is customized (different from default)
+    let isFieldCustomized = false;
+    isFieldCustomized = isCustomized(path);
+
+    // Create a handler for restoring default value
+    const handleRestoreDefault = () => {
+      if (onResetToDefault) {
+        // Use the provided onResetToDefault function if available
+        onResetToDefault(path)
+          .then(() => {
+            console.log(`Restored default value for ${path} using onResetToDefault`);
+          })
+          .catch((error) => {
+            console.error(`Error restoring default value: ${error.message}`);
+
+            // Fallback to manual restore if onResetToDefault fails
+            if (defaultConfig) {
+              const defaultValue = getValueAtPath(defaultConfig, path);
+              if (defaultValue !== undefined) {
+                updateValue(path, defaultValue);
+                console.log(`Manually restored default value for ${path}: ${defaultValue}`);
+              }
+            }
+          });
+      } else if (defaultConfig) {
+        // Manual restore if onResetToDefault is not provided
+        const defaultValue = getValueAtPath(defaultConfig, path);
+        if (defaultValue !== undefined) {
+          updateValue(path, defaultValue);
+          console.log(`Manually restored default value for ${path}: ${defaultValue}`);
+        }
+      }
+    };
+
     if (property.enum) {
       input = (
         <Select
@@ -604,14 +652,26 @@ const FormView = ({ schema, formValues, onChange }) => {
     const displayText = property.description || key;
     const constraints = getConstraintText(property);
 
+    // Create a wrapper for the input with restore button if customized
+    const inputWithRestoreButton = isFieldCustomized ? (
+      <Box display="flex" alignItems="center">
+        <Box flex="1">{input}</Box>
+        <Button variant="link" onClick={handleRestoreDefault} className="restore-default-button" iconName="undo">
+          Restore default
+        </Button>
+      </Box>
+    ) : (
+      input
+    );
+
     return (
       <FormField
         label={displayText}
         constraintText={constraints.length > 0 ? constraints : undefined}
         stretch
-        className="compact-form-field"
+        className={`compact-form-field ${isFieldCustomized ? 'modified-field' : ''}`}
       >
-        {input}
+        {inputWithRestoreButton}
       </FormField>
     );
   }
@@ -685,12 +745,18 @@ FormView.propTypes = {
     ),
   }),
   formValues: PropTypes.shape({}),
+  defaultConfig: PropTypes.shape({}),
+  isCustomized: PropTypes.func,
+  onResetToDefault: PropTypes.func,
   onChange: PropTypes.func.isRequired,
 };
 
 FormView.defaultProps = {
   schema: { properties: {} },
   formValues: {},
+  defaultConfig: null,
+  isCustomized: null,
+  onResetToDefault: null,
 };
 
 export default FormView;
