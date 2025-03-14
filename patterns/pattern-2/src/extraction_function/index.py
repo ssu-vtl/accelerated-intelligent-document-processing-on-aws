@@ -68,12 +68,14 @@ def invoke_llm(page_images, class_label, document_text):
     temperature = float(extraction_config["temperature"])
     top_k = float(extraction_config["top_k"])
     system_prompt = [{"text": extraction_config["system_prompt"]}]
-    prompt_template = extraction_config["task_prompt"].replace("{DOCUMENT_TEXT}", "%(DOCUMENT_TEXT)s").replace("{DOCUMENT_CLASS}", "%(DOCUMENT_CLASS)s")
+    logger.info(f"System prompt: {system_prompt}")
+    prompt_template = extraction_config["task_prompt"].replace("{DOCUMENT_TEXT}", "%(DOCUMENT_TEXT)s").replace("{DOCUMENT_CLASS}", "%(DOCUMENT_CLASS)s").replace("{ATTRIBUTE_NAMES_AND_DESCRIPTIONS}", "%(ATTRIBUTE_NAMES_AND_DESCRIPTIONS)s")
     task_prompt = prompt_template % {
         "DOCUMENT_TEXT": document_text,
         "DOCUMENT_CLASS": class_label,
         "ATTRIBUTE_NAMES_AND_DESCRIPTIONS": ATTRIBUTE_NAMES_AND_DESCRIPTIONS
     }
+    logger.info(f"Task prompt: {task_prompt}")
     content = [{"text": task_prompt}]
 
     inference_config = {"temperature": temperature}
@@ -304,10 +306,6 @@ def handler(event, context):
     
     t2 = time.time()
     logger.info(f"Time taken to read images: {t2-t1:.2f} seconds")
-
-    # Load attributes
-    with open("attributes.json", 'r') as file:
-        attributes_list = json.load(file)
 
     # Process with LLM
     extracted_entities_str = invoke_llm(
