@@ -11,6 +11,8 @@ import {
   SegmentedControl,
 } from '@awsui/components-react';
 import Editor from '@monaco-editor/react';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import yaml from 'js-yaml';
 import useConfiguration from '../../hooks/use-configuration';
 import FormView from './FormView';
 
@@ -18,12 +20,13 @@ const ConfigurationLayout = () => {
   const { schema, mergedConfig, loading, error, updateConfiguration, fetchConfiguration } = useConfiguration();
 
   const [formValues, setFormValues] = useState({});
-  const [editorContent, setEditorContent] = useState('');
+  const [jsonContent, setJsonContent] = useState('');
+  const [yamlContent, setYamlContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [validationErrors, setValidationErrors] = useState([]);
-  const [viewMode, setViewMode] = useState('json');
+  const [viewMode, setViewMode] = useState('form'); // Form view as default
 
   const editorRef = useRef(null);
 
@@ -35,15 +38,26 @@ const ConfigurationLayout = () => {
       // Make a deep copy to ensure we're not dealing with references
       const formData = JSON.parse(JSON.stringify(mergedConfig));
       setFormValues(formData);
-      setEditorContent(JSON.stringify(mergedConfig, null, 2));
+
+      // Set both JSON and YAML content
+      const jsonString = JSON.stringify(mergedConfig, null, 2);
+      setJsonContent(jsonString);
+
+      try {
+        const yamlString = yaml.dump(mergedConfig);
+        setYamlContent(yamlString);
+      } catch (e) {
+        console.error('Error converting to YAML:', e);
+        setYamlContent('# Error converting to YAML');
+      }
     }
   }, [mergedConfig]);
 
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
 
-    // Set up JSON schema validation if schema is available
-    if (schema) {
+    // Set up JSON schema validation if schema is available and in JSON mode
+    if (schema && viewMode === 'json') {
       try {
         // Convert schema to proper JSON Schema format if needed
         const jsonSchema = {
@@ -68,14 +82,45 @@ const ConfigurationLayout = () => {
     }
   };
 
-  const handleEditorChange = (value) => {
-    setEditorContent(value);
+  // Handle changes in the JSON editor
+  const handleJsonEditorChange = (value) => {
+    setJsonContent(value);
     try {
       const parsedValue = JSON.parse(value);
       setFormValues(parsedValue);
+
+      // Update YAML when JSON changes
+      try {
+        const yamlString = yaml.dump(parsedValue);
+        setYamlContent(yamlString);
+      } catch (yamlErr) {
+        console.error('Error converting to YAML:', yamlErr);
+      }
+
       setValidationErrors([]);
     } catch (e) {
       setValidationErrors([{ message: `Invalid JSON: ${e.message}` }]);
+    }
+  };
+
+  // Handle changes in the YAML editor
+  const handleYamlEditorChange = (value) => {
+    setYamlContent(value);
+    try {
+      const parsedValue = yaml.load(value);
+      setFormValues(parsedValue);
+
+      // Update JSON when YAML changes
+      try {
+        const jsonString = JSON.stringify(parsedValue, null, 2);
+        setJsonContent(jsonString);
+      } catch (jsonErr) {
+        console.error('Error converting to JSON:', jsonErr);
+      }
+
+      setValidationErrors([]);
+    } catch (e) {
+      setValidationErrors([{ message: `Invalid YAML: ${e.message}` }]);
     }
   };
 
@@ -113,8 +158,17 @@ const ConfigurationLayout = () => {
   const handleFormChange = (newValues) => {
     setFormValues(newValues);
     try {
+      // Update both JSON and YAML content
       const jsonString = JSON.stringify(newValues, null, 2);
-      setEditorContent(jsonString);
+      setJsonContent(jsonString);
+
+      try {
+        const yamlString = yaml.dump(newValues);
+        setYamlContent(yamlString);
+      } catch (yamlErr) {
+        console.error('Error converting to YAML:', yamlErr);
+      }
+
       setValidationErrors([]);
     } catch (e) {
       setValidationErrors([{ message: `Error converting form values to JSON: ${e.message}` }]);
@@ -122,7 +176,13 @@ const ConfigurationLayout = () => {
   };
 
   const formatJson = () => {
-    if (editorRef.current) {
+    if (editorRef.current && viewMode === 'json') {
+      editorRef.current.getAction('editor.action.formatDocument').run();
+    }
+  };
+
+  const formatYaml = () => {
+    if (editorRef.current && viewMode === 'yaml') {
       editorRef.current.getAction('editor.action.formatDocument').run();
     }
   };
@@ -177,11 +237,19 @@ const ConfigurationLayout = () => {
                 options={[
                   { id: 'form', text: 'Form View' },
                   { id: 'json', text: 'JSON View' },
+                  { id: 'yaml', text: 'YAML View' },
                 ]}
               />
-              <Button onClick={formatJson} iconName="file-text">
-                Format JSON
-              </Button>
+              {viewMode === 'json' && (
+                <Button onClick={formatJson} iconName="file-text">
+                  Format JSON
+                </Button>
+              )}
+              {viewMode === 'yaml' && (
+                <Button onClick={formatYaml} iconName="file-text">
+                  Format YAML
+                </Button>
+              )}
               <Button variant="primary" onClick={handleSave} loading={isSaving}>
                 Save changes
               </Button>
@@ -222,12 +290,14 @@ const ConfigurationLayout = () => {
         )}
 
         <Box padding="s">
-          {viewMode === 'json' ? (
+          {viewMode === 'form' && <FormView schema={schema} formValues={formValues} onChange={handleFormChange} />}
+
+          {viewMode === 'json' && (
             <Editor
               height="70vh"
               defaultLanguage="json"
-              value={editorContent}
-              onChange={handleEditorChange}
+              value={jsonContent}
+              onChange={handleJsonEditorChange}
               onMount={handleEditorDidMount}
               options={{
                 minimap: { enabled: false },
@@ -241,8 +311,27 @@ const ConfigurationLayout = () => {
                 tabSize: 2,
               }}
             />
-          ) : (
-            <FormView schema={schema} formValues={formValues} onChange={handleFormChange} />
+          )}
+
+          {viewMode === 'yaml' && (
+            <Editor
+              height="70vh"
+              defaultLanguage="yaml"
+              value={yamlContent}
+              onChange={handleYamlEditorChange}
+              onMount={handleEditorDidMount}
+              options={{
+                minimap: { enabled: false },
+                formatOnPaste: true,
+                formatOnType: true,
+                automaticLayout: true,
+                scrollBeyondLastLine: false,
+                folding: true,
+                lineNumbers: 'on',
+                renderLineHighlight: 'all',
+                tabSize: 2,
+              }}
+            />
           )}
         </Box>
       </Form>
