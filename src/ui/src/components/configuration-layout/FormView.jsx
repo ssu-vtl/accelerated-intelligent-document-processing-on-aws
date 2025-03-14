@@ -15,6 +15,15 @@ import {
   Container,
 } from '@awsui/components-react';
 
+// Add custom styles for expandable textareas
+const customStyles = `
+  .expandable-textarea {
+    max-height: 250px;
+    overflow-y: auto !important;
+    resize: vertical;
+  }
+`;
+
 // Helper functions outside the component to avoid hoisting issues
 const getConstraintText = (property) => {
   const constraints = [];
@@ -521,8 +530,15 @@ const FormView = ({ schema, formValues, onChange }) => {
           options={property.enum.map((opt) => ({ value: opt, label: opt }))}
         />
       );
-    } else if (property.format === 'text-area' || path.toLowerCase().includes('prompt')) {
-      input = <Textarea value={value || ''} onChange={({ detail }) => updateValue(path, detail.value)} rows={5} />;
+    } else if (property.format === 'text-area' || path.toLowerCase().includes('prompt') || path.toLowerCase().includes('description')) {
+      input = (
+        <Textarea 
+          value={value || ''} 
+          onChange={({ detail }) => updateValue(path, detail.value)} 
+          rows={3}
+          className="expandable-textarea"
+        />
+      );
     } else if (property.type === 'boolean') {
       input = <Toggle checked={!!value} onChange={({ detail }) => updateValue(path, detail.checked)} />;
     } else {
@@ -567,13 +583,32 @@ const FormView = ({ schema, formValues, onChange }) => {
     return withOrder.sort((a, b) => a.order - b.order);
   };
 
+  // Check if a property needs a container with section header
+  const shouldUseContainer = (key, property) => {
+    return property.sectionLabel && (property.type === 'object' || property.type === 'list');
+  };
+
+  // Render each top-level property
+  const renderTopLevelProperty = ({ key, property }) => {
+    // If property should have a section container, wrap it
+    if (shouldUseContainer(key, property)) {
+      const sectionTitle = property.sectionLabel;
+
+      return (
+        <Container key={key} header={<Header variant="h3">{sectionTitle}</Header>}>
+          <Box padding="s">{renderField(key, property)}</Box>
+        </Container>
+      );
+    }
+
+    // Default rendering
+    return <Box key={key}>{renderField(key, property)}</Box>;
+  };
+
   return (
     <Box style={{ height: '70vh', overflow: 'auto' }} padding="s">
-      <SpaceBetween size="l">
-        {getSortedProperties().map(({ key, property }) => (
-          <Box key={key}>{renderField(key, property)}</Box>
-        ))}
-      </SpaceBetween>
+      <style>{customStyles}</style>
+      <SpaceBetween size="l">{getSortedProperties().map(renderTopLevelProperty)}</SpaceBetween>
     </Box>
   );
 };
