@@ -54,6 +54,15 @@ def put_metric(name, value, unit='Count', dimensions=None):
         logger.error(f"Error publishing metric {name}: {e}")
 
 def invoke_llm(page_images, class_label, document_text):
+    classes_config = CONFIG["classes"]
+    class_config = next((class_obj for class_obj in classes_config if class_obj.get('name', '').lower() == class_label.lower()), None)
+    attributes = class_config.get('attributes', []) if class_config else []
+
+    # create a list of attributes and descriptions,eg
+    #  sender_name   [  The name of the person or entity who wrote or sent the letter. Look for text following or near terms like 'from', 'sender', 'authored by', 'written by', or at the end of the letter before a signature. ]
+    #  recipient_name     [ The name of the person or entity receiving the letter. Look for this after 'to', 'recipient', 'addressee', or at the beginning of the letter. ]
+    ATTRIBUTE_NAMES_AND_DESCRIPTIONS = '\n'.join([f"{attr.get('name', None)}  \t[ {attr.get('description', None)} ]" for attr in attributes])
+
     extraction_config = CONFIG["extraction"]
     model_id = extraction_config["model"]
     temperature = float(extraction_config["temperature"])
@@ -62,7 +71,8 @@ def invoke_llm(page_images, class_label, document_text):
     prompt_template = extraction_config["task_prompt"].replace("{DOCUMENT_TEXT}", "%(DOCUMENT_TEXT)s").replace("{DOCUMENT_CLASS}", "%(DOCUMENT_CLASS)s")
     task_prompt = prompt_template % {
         "DOCUMENT_TEXT": document_text,
-        "DOCUMENT_CLASS": class_label
+        "DOCUMENT_CLASS": class_label,
+        "ATTRIBUTE_NAMES_AND_DESCRIPTIONS": ATTRIBUTE_NAMES_AND_DESCRIPTIONS
     }
     content = [{"text": task_prompt}]
 
