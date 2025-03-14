@@ -17,7 +17,17 @@ import useConfiguration from '../../hooks/use-configuration';
 import FormView from './FormView';
 
 const ConfigurationLayout = () => {
-  const { schema, mergedConfig, loading, error, updateConfiguration, fetchConfiguration } = useConfiguration();
+  const {
+    schema,
+    mergedConfig,
+    defaultConfig,
+    loading,
+    error,
+    updateConfiguration,
+    fetchConfiguration,
+    isCustomized,
+    resetToDefault,
+  } = useConfiguration();
 
   const [formValues, setFormValues] = useState({});
   const [jsonContent, setJsonContent] = useState('');
@@ -473,8 +483,184 @@ const ConfigurationLayout = () => {
     setSaveError(null);
 
     try {
-      // Save to backend
-      const success = await updateConfiguration(formValues);
+      // Simpler approach: Just compare the current form values with default values
+      // and only include differences in our custom config
+      const customConfigToSave = {};
+
+      // Helper function to compare values - returns a new object
+      const compareWithDefault = (current, defaultObj, path = '') => {
+        // Make a new result object each time to avoid mutation
+        const newResult = {};
+
+        // Skip comparison for null objects
+        if (!current || !defaultObj) {
+          // If current exists but default doesn't, this is a customization
+          if (current && !defaultObj) {
+            return { [path]: current };
+          }
+          return {};
+        }
+
+        // Handle different types
+        if (typeof current !== typeof defaultObj) {
+          return { [path]: current };
+        }
+
+        // Handle arrays
+        if (Array.isArray(current)) {
+          if (!Array.isArray(defaultObj) || current.length !== defaultObj.length) {
+            return { [path]: current };
+          }
+
+          // Check each array element
+          let isDifferent = false;
+          for (let i = 0; i < current.length; i += 1) {
+            // Use += 1 instead of ++
+            // For objects in arrays, recursively compare
+            if (
+              typeof current[i] === 'object' &&
+              current[i] !== null &&
+              typeof defaultObj[i] === 'object' &&
+              defaultObj[i] !== null
+            ) {
+              const nestedPath = path ? `${path}[${i}]` : `[${i}]`;
+              const nestedDiff = compareWithDefault(current[i], defaultObj[i], nestedPath);
+
+              if (Object.keys(nestedDiff).length > 0) {
+                isDifferent = true;
+                // No need to continue, we know the array is different
+                break;
+              }
+            }
+            // For primitive values, direct compare
+            else if (JSON.stringify(current[i]) !== JSON.stringify(defaultObj[i])) {
+              isDifferent = true;
+              break;
+            }
+          }
+
+          if (isDifferent) {
+            return { [path]: current };
+          }
+          return {};
+        }
+
+        // Handle objects (non-arrays)
+        if (typeof current === 'object') {
+          const keys = new Set([...Object.keys(current), ...Object.keys(defaultObj)]);
+          let allResults = {};
+
+          keys.forEach((key) => {
+            const newPath = path ? `${path}.${key}` : key;
+
+            // If key exists in current but not in default
+            if (!(key in defaultObj) && key in current) {
+              allResults = { ...allResults, [newPath]: current[key] };
+            }
+            // If key exists in both, compare recursively
+            else if (key in defaultObj && key in current) {
+              const nestedResults = compareWithDefault(current[key], defaultObj[key], newPath);
+              allResults = { ...allResults, ...nestedResults };
+            }
+          });
+
+          return allResults;
+        }
+
+        // Handle primitive values
+        if (current !== defaultObj) {
+          return { [path]: current };
+        }
+
+        return newResult;
+      };
+
+      // Create our customized config by comparing with defaults
+      const differences = compareWithDefault(formValues, defaultConfig);
+
+      // Flatten path results into a proper object structure - revised to avoid ESLint errors
+      const buildObjectFromPaths = (paths) => {
+        // Create a fresh result object
+        const newResult = {};
+
+        Object.entries(paths).forEach(([path, value]) => {
+          if (!path) return; // Skip empty paths
+
+          // For paths with dots, build nested structure
+          if (path.includes('.') || path.includes('[')) {
+            // Handle array notation
+            if (path.includes('[')) {
+              // Arrays need special handling
+              // This is simplified - we'll include the whole array when it's customized
+              const arrayPath = path.split('[')[0];
+              if (!Object.prototype.hasOwnProperty.call(newResult, arrayPath)) {
+                // Find the array in formValues
+                const arrayValue = path.split('.').reduce((acc, part) => {
+                  if (!acc) return undefined;
+                  return acc[part.replace(/\[\d+\]$/, '')];
+                }, formValues);
+
+                if (arrayValue) {
+                  // Create a new object with this property
+                  Object.assign(newResult, { [arrayPath]: arrayValue });
+                }
+              }
+            } else {
+              // Regular object paths
+              const parts = path.split('.');
+
+              // Build an object to merge
+              const objectToMerge = {};
+              let current = objectToMerge;
+
+              // Build nested structure without modifying existing objects
+              for (let i = 0; i < parts.length - 1; i += 1) {
+                // Use += 1 instead of ++
+                current[parts[i]] = {};
+                current = current[parts[i]];
+              }
+
+              // Set the value at the final path
+              current[parts[parts.length - 1]] = value;
+
+              // Deep merge this into result
+              const deepMerge = (target, source) => {
+                const output = { ...target };
+
+                Object.keys(source).forEach((key) => {
+                  if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                    if (target[key] && typeof target[key] === 'object') {
+                      output[key] = deepMerge(target[key], source[key]);
+                    } else {
+                      output[key] = { ...source[key] };
+                    }
+                  } else {
+                    output[key] = source[key];
+                  }
+                });
+
+                return output;
+              };
+
+              // Merge into result without modifying original objects
+              Object.assign(newResult, deepMerge(newResult, objectToMerge));
+            }
+          } else {
+            // For top-level values, create a new object with the property
+            Object.assign(newResult, { [path]: value });
+          }
+        });
+
+        return newResult;
+      };
+
+      // Convert the difference paths to a proper nested structure
+      Object.assign(customConfigToSave, buildObjectFromPaths(differences));
+
+      console.log('Saving customized config:', customConfigToSave);
+
+      // Make sure we send at least the Info field, even if no customizations
+      const success = await updateConfiguration(customConfigToSave);
 
       if (success) {
         setSaveSuccess(true);
@@ -634,7 +820,16 @@ const ConfigurationLayout = () => {
         )}
 
         <Box padding="s">
-          {viewMode === 'form' && <FormView schema={schema} formValues={formValues} onChange={handleFormChange} />}
+          {viewMode === 'form' && (
+            <FormView
+              schema={schema}
+              formValues={formValues}
+              defaultConfig={defaultConfig}
+              isCustomized={isCustomized}
+              onResetToDefault={resetToDefault}
+              onChange={handleFormChange}
+            />
+          )}
 
           {viewMode === 'json' && (
             <Editor
