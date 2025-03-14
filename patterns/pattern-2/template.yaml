@@ -71,6 +71,7 @@ Resources:
             type: list
             sectionLabel: Class definitions
             listLabel: Classes
+            itemLabel: Class
             columns: 2
             order: 1
             items:
@@ -89,6 +90,7 @@ Resources:
                 attributes:
                   type: list
                   listLabel: Attributes
+                  itemLabel: Attribute
                   items:
                     type: object
                     required:
