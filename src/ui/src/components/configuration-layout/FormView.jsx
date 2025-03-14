@@ -1,6 +1,6 @@
 /* eslint-disable react/no-array-index-key */
 /* eslint-disable no-use-before-define */
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import {
   Box,
@@ -13,7 +13,6 @@ import {
   Button,
   Header,
   Container,
-  ColumnLayout,
 } from '@awsui/components-react';
 
 // Helper functions outside the component to avoid hoisting issues
@@ -28,13 +27,173 @@ const getConstraintText = (property) => {
   return constraints.join(', ');
 };
 
+// Resizable Columns Component
+const ResizableColumns = ({ columns, children, columnSpacing = '8px' }) => {
+  const [columnWidths, setColumnWidths] = useState([]);
+  const containerRef = useRef(null);
+  const resizingRef = useRef(null);
+
+  // Initialize column widths
+  useEffect(() => {
+    if (containerRef.current) {
+      // Initialize with equal width columns
+      const initialWidth = `${100 / columns}%`;
+      setColumnWidths(Array(columns).fill(initialWidth));
+    }
+  }, [columns]);
+
+  // Start resizing
+  const startResize = (index, e) => {
+    e.preventDefault();
+    resizingRef.current = {
+      index,
+      startX: e.clientX,
+      initialWidths: [...columnWidths],
+    };
+
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', stopResize);
+  };
+
+  // Handle resize
+  const handleResize = (e) => {
+    if (!resizingRef.current || !containerRef.current) return;
+
+    const { index, startX, initialWidths } = resizingRef.current;
+    const containerWidth = containerRef.current.offsetWidth;
+    const deltaPixels = e.clientX - startX;
+    const deltaPercent = (deltaPixels / containerWidth) * 100;
+
+    // Calculate new widths
+    const newWidths = [...initialWidths];
+    newWidths[index] = `calc(${initialWidths[index]} + ${deltaPercent}%)`;
+    if (index + 1 < columns) {
+      newWidths[index + 1] = `calc(${initialWidths[index + 1]} - ${deltaPercent}%)`;
+    }
+
+    setColumnWidths(newWidths);
+  };
+
+  // Stop resizing
+  const stopResize = () => {
+    resizingRef.current = null;
+    document.removeEventListener('mousemove', handleResize);
+    document.removeEventListener('mouseup', stopResize);
+  };
+
+  // Create column containers with proper distribution
+  const columnElements = [];
+
+  // Prepare to distribute children into columns - properly group elements
+  const childrenArray = React.Children.toArray(children);
+
+  // Calculate how many items should go in each column
+  const itemsPerColumn = Math.ceil(childrenArray.length / columns);
+
+  // Create columns with their children
+  for (let i = 0; i < columns; i += 1) {
+    // Calculate which children go in this column
+    const startIndex = i * itemsPerColumn;
+    const endIndex = Math.min(startIndex + itemsPerColumn, childrenArray.length);
+    const columnChildren = childrenArray.slice(startIndex, endIndex);
+
+    // Only create columns that have children or are the first column
+    columnElements.push(
+      <Box
+        key={i}
+        style={{
+          width: columnWidths[i] || `${100 / columns}%`,
+          padding: `0 ${columnSpacing}`,
+          transition: 'none',
+          position: 'relative',
+        }}
+      >
+        {columnChildren}
+
+        {i < columns - 1 && (
+          <Box
+            style={{
+              position: 'absolute',
+              right: '0',
+              top: '0',
+              width: '8px',
+              height: '100%',
+              cursor: 'col-resize',
+              zIndex: 1,
+              touchAction: 'none',
+            }}
+            onMouseDown={(e) => startResize(i, e)}
+          >
+            <Box
+              style={{
+                position: 'absolute',
+                right: '3px',
+                top: '0',
+                width: '2px',
+                height: '100%',
+                backgroundColor: 'var(--color-border-divider-default, #e9ebed)',
+              }}
+            />
+            {/* Visual indicator on hover */}
+            <Box
+              style={{
+                position: 'absolute',
+                right: '3px',
+                top: '50%',
+                marginTop: '-10px',
+                width: '4px',
+                height: '20px',
+                backgroundColor: 'var(--color-border-control-default, #aab7b8)',
+                borderRadius: '2px',
+                opacity: 0,
+                transition: 'opacity 0.2s',
+              }}
+              className="resize-handle-indicator"
+            />
+          </Box>
+        )}
+      </Box>,
+    );
+  }
+
+  return (
+    <div ref={containerRef} style={{ display: 'flex', width: '100%', position: 'relative' }}>
+      {columnElements}
+      <style>
+        {`
+          .resize-handle-indicator {
+            opacity: 0;
+          }
+          *:hover > .resize-handle-indicator {
+            opacity: 0.5;
+          }
+          *:active > .resize-handle-indicator {
+            opacity: 0.8;
+          }
+        `}
+      </style>
+    </div>
+  );
+};
+
+// PropTypes for ResizableColumns
+ResizableColumns.propTypes = {
+  columns: PropTypes.number.isRequired,
+  children: PropTypes.node,
+  columnSpacing: PropTypes.string,
+};
+
+ResizableColumns.defaultProps = {
+  children: null,
+  columnSpacing: '8px',
+};
+
 const FormView = ({ schema, formValues, onChange }) => {
-  // Track expanded state for all list items across the form
+  // Track expanded state for all list items across the form - default to collapsed
   const [expandedItems, setExpandedItems] = useState({});
+
   const getValueAtPath = (obj, path) => {
     const segments = path.split(/[.[\]]+/).filter(Boolean);
-    // For debugging
-    console.log(`Getting value at path: ${path}`, segments);
 
     const result = segments.reduce((acc, segment) => {
       if (acc === null || acc === undefined) {
@@ -43,8 +202,6 @@ const FormView = ({ schema, formValues, onChange }) => {
       return acc[segment];
     }, obj);
 
-    // For debugging
-    console.log(`Value at path ${path}:`, result);
     return result;
   };
 
@@ -72,11 +229,7 @@ const FormView = ({ schema, formValues, onChange }) => {
 
   // Define renderField first as a function declaration
   function renderField(key, property, path = '') {
-    // Fix for double path issue - when we render a field, we need to determine its path
-    // If path is empty, the path is just the key
-    // If path exists, we need to append the key to create a full path
     const currentPath = path ? `${path}.${key}` : key;
-    console.log(`Determining path for field ${key} with parent path ${path} -> result: ${currentPath}`);
     const value = getValueAtPath(formValues, currentPath);
 
     if (property.type === 'list') {
@@ -84,8 +237,6 @@ const FormView = ({ schema, formValues, onChange }) => {
     }
 
     if (property.type === 'object') {
-      // For object fields, we're passing the path WITHOUT appending the key
-      // because renderObjectField will handle that internally
       return renderObjectField(key, property, path);
     }
 
@@ -100,40 +251,35 @@ const FormView = ({ schema, formValues, onChange }) => {
     // Get the full path for this object
     const fullPath = path ? `${path}.${key}` : key;
 
-    // Create a proper section header for top-level objects
-    const isTopLevel = !path || path === '';
-
-    // Check if this object should have a special container layout
-    // based on the schema definition
-    const shouldUseContainer = isTopLevel && property.format === 'section';
-
     // Get the section title from metadata if available
     const sectionTitle = property.sectionLabel || `${key.charAt(0).toUpperCase() + key.slice(1)} Configuration`;
 
-    // Log the current path and object values for debugging
-    const objectValue = getValueAtPath(formValues, fullPath);
-    console.log(`Rendering object field: ${key} at fullPath: ${fullPath}`, objectValue);
+    // Calculate nesting level for indentation
+    const nestLevel = property.nestLevel || 0;
 
-    return (
-      <Box padding="s">
-        {shouldUseContainer ? (
-          <Container header={<Header variant="h3">{sectionTitle}</Header>}>
-            <SpaceBetween size="s">
-              {Object.entries(property.properties).map(([propKey, propSchema]) => {
-                // Pass the full path to renderField for each property
-                return <Box key={propKey}>{renderField(propKey, propSchema, fullPath)}</Box>;
-              })}
-            </SpaceBetween>
-          </Container>
-        ) : (
-          <SpaceBetween size="xs">
-            {/* No nested object title for more compact layout */}
+    // Use container with section header for all object types with sectionLabel
+    if (property.sectionLabel) {
+      return (
+        <Container header={<Header variant="h3">{sectionTitle}</Header>}>
+          <SpaceBetween size="s">
             {Object.entries(property.properties).map(([propKey, propSchema]) => {
-              // Pass the full path to renderField for each property
               return <Box key={propKey}>{renderField(propKey, propSchema, fullPath)}</Box>;
             })}
           </SpaceBetween>
-        )}
+        </Container>
+      );
+    }
+
+    // Default compact layout for nested objects without sectionLabel
+    return (
+      <Box padding="s">
+        <SpaceBetween size="xs">
+          {Object.entries(property.properties).map(([propKey, propSchema]) => {
+            const nestedPropSchema =
+              propSchema.type === 'list' ? { ...propSchema, nestLevel: nestLevel + 1 } : propSchema;
+            return <Box key={propKey}>{renderField(propKey, nestedPropSchema, fullPath)}</Box>;
+          })}
+        </SpaceBetween>
       </Box>
     );
   }
@@ -143,20 +289,14 @@ const FormView = ({ schema, formValues, onChange }) => {
 
     // Get list item display settings from schema metadata
     const columnCount = property.columns ? parseInt(property.columns, 10) : 2;
-
-    // Calculate nesting level for indentation
     const nestLevel = property.nestLevel || 0;
     const nextNestLevel = nestLevel + 1;
 
-    // Get list descriptions and labels
-    const listDescription = property.description || '';
+    // Get list labels
+    const listLabel = property.listLabel || key.charAt(0).toUpperCase() + key.slice(1);
     const itemLabel = property.itemLabel || key.charAt(0).toUpperCase() + key.slice(1).replace(/s$/, '');
 
-    // Container settings
-    const useContainer = property.containerFormat === 'section';
-    const sectionTitle = property.sectionLabel || `${key.charAt(0).toUpperCase() + key.slice(1)}`;
-
-    // Create unique keys for this list
+    // Create unique key for this list's expanded state
     const listKey = `list:${path}`;
 
     // Toggle expansion of list
@@ -175,7 +315,7 @@ const FormView = ({ schema, formValues, onChange }) => {
       <Box
         display="flex"
         alignItems="center"
-        padding={{ left: `${nestLevel * 8}px`, top: 'xs', bottom: 'xs' }}
+        padding={{ left: `${nestLevel * 16}px`, top: 'xs', bottom: 'xs' }}
         borderBottom="divider-light"
         backgroundColor="background-paper-default"
         borderRadius="xs"
@@ -187,14 +327,14 @@ const FormView = ({ schema, formValues, onChange }) => {
           ariaLabel={isListExpanded ? 'Collapse list' : 'Expand list'}
         />
         <Box fontWeight="bold" fontSize="body-m" margin={{ left: 'xs' }}>
-          {listDescription || key.charAt(0).toUpperCase() + key.slice(1)}
+          {listLabel}
         </Box>
       </Box>
     );
 
     // List content with items - only shown when expanded
     const itemsContent = isListExpanded && (
-      <Box padding={{ left: `${nestLevel * 8 + 16}px` }}>
+      <Box padding={{ left: `${nestLevel * 16}px` }}>
         <SpaceBetween size="xxxs">
           {values.length === 0 && (
             <Box fontStyle="italic" color="text-body-secondary" padding="xs">
@@ -207,42 +347,101 @@ const FormView = ({ schema, formValues, onChange }) => {
 
             return (
               <Box key={`${itemPath}-${index}`} borderBottom="divider-light" padding={{ bottom: 'xxxs' }}>
-                {/* Item row with number and delete button */}
+                {/* Item row with delete button */}
                 <Box display="flex" alignItems="flex-start" padding={{ top: 'xxxs', bottom: 'xxxs' }}>
-                  {/* Item number on left margin */}
-                  <Box fontWeight="bold" width="24px" textAlign="left" marginRight="xs">
-                    {index + 1}.
-                  </Box>
-
                   {/* Content area with property fields and nested lists */}
                   <Box flex="1">
                     {property.items.type === 'object' ? (
-                      <ColumnLayout columns={columnCount} variant="text-grid">
-                        {Object.entries(property.items.properties || {}).map(([propKey, propSchema]) => {
-                          const propPath = `${itemPath}.${propKey}`;
-                          const propValue = getValueAtPath(formValues, propPath);
+                      (() => {
+                        // First, get all property entries sorted by their order if available
+                        const propEntries = Object.entries(property.items.properties || {})
+                          .map(([propKey, prop]) => ({
+                            propKey,
+                            prop,
+                            order: prop.order || 999,
+                          }))
+                          .sort((a, b) => a.order - b.order);
 
+                        // Add debugging to see actual column count
+                        console.log(`Rendering ${columnCount} columns for ${propEntries.length} properties`);
+
+                        // Separate regular fields from list fields
+                        const regularProps = [];
+                        const listProps = [];
+
+                        // Identify and separate the fields
+                        propEntries.forEach(({ propKey, prop: propSchema }) => {
                           if (propSchema.type === 'list') {
-                            // Configure nested list with proper indentation
-                            const nestedListProps = {
-                              ...propSchema,
-                              nestLevel: nextNestLevel,
-                            };
-
-                            return (
-                              <Box key={propKey} padding={{ top: 'xxxs', bottom: 'xxxs' }} width="100%">
-                                {renderListField(propKey, nestedListProps, propPath)}
-                              </Box>
-                            );
+                            listProps.push({ propKey, propSchema });
+                          } else {
+                            regularProps.push({ propKey, propSchema });
                           }
+                        });
+
+                        // Render the regular fields using HTML table for guaranteed columns
+                        const renderedRegularFields = (
+                          <Box padding="s">
+                            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '8px 0' }}>
+                              <tbody>
+                                {/* Split fields into rows based on columnCount */}
+                                {Array.from({ length: Math.ceil(regularProps.length / columnCount) }).map(
+                                  (rowItem, rowIndex) => (
+                                    <tr key={`row-${rowIndex}`}>
+                                      {Array.from({ length: columnCount }).map((colItem, colIndex) => {
+                                        const fieldIndex = rowIndex * columnCount + colIndex;
+                                        if (fieldIndex >= regularProps.length)
+                                          return <td key={`empty-${colIndex}`} aria-hidden="true" />;
+
+                                        const { propKey, propSchema } = regularProps[fieldIndex];
+                                        const propPath = `${itemPath}.${propKey}`;
+                                        const propValue = getValueAtPath(formValues, propPath);
+
+                                        return (
+                                          <td
+                                            key={propKey}
+                                            style={{ verticalAlign: 'top', width: `${100 / columnCount}%` }}
+                                          >
+                                            <Box padding="xs">
+                                              {renderInputField(propKey, propSchema, propValue, propPath)}
+                                            </Box>
+                                          </td>
+                                        );
+                                      })}
+                                    </tr>
+                                  ),
+                                )}
+                              </tbody>
+                            </table>
+                          </Box>
+                        );
+
+                        // Render any list fields (like attributes)
+                        const renderedListFields = listProps.map(({ propKey, propSchema }) => {
+                          const propPath = `${itemPath}.${propKey}`;
+
+                          // Configure nested list with proper indentation
+                          const nestedListProps = {
+                            ...propSchema,
+                            nestLevel: nextNestLevel,
+                            // Explicitly set columns for the nested list
+                            columns: propSchema.columns || 2,
+                          };
 
                           return (
-                            <Box key={propKey} padding="xs">
-                              {renderInputField(propKey, propSchema, propValue, propPath)}
+                            <Box key={propKey} padding={{ top: 'xxxs', bottom: 'xxxs' }} width="100%">
+                              {renderListField(propKey, nestedListProps, propPath)}
                             </Box>
                           );
-                        })}
-                      </ColumnLayout>
+                        });
+
+                        // Return both the regular fields and any list fields
+                        return (
+                          <Box>
+                            {renderedRegularFields}
+                            {renderedListFields.length > 0 && <Box padding="s">{renderedListFields}</Box>}
+                          </Box>
+                        );
+                      })()
                     ) : (
                       // Simple list item (non-object)
                       <Box padding="xs">
@@ -303,23 +502,12 @@ const FormView = ({ schema, formValues, onChange }) => {
     );
 
     // Combine header and content
-    const fullListContent = (
+    return (
       <Box>
         {listHeader}
         {itemsContent}
       </Box>
     );
-
-    // Render with or without container
-    if (useContainer) {
-      return (
-        <Container header={<Header variant="h3">{sectionTitle}</Header>}>
-          <Box padding="s">{fullListContent}</Box>
-        </Container>
-      );
-    }
-
-    return <Box>{fullListContent}</Box>;
   }
 
   function renderInputField(key, property, value, path) {
@@ -353,7 +541,7 @@ const FormView = ({ schema, formValues, onChange }) => {
       );
     }
 
-    // More compact layout - just show description as the label
+    // Use description as the label
     const displayText = property.description || key;
     const constraints = getConstraintText(property);
 
