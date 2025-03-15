@@ -22,25 +22,15 @@ deploy_s3:
   
   # Add rules to only run on develop branch
   rules:
-    # - if: $CI_COMMIT_BRANCH == "null" # Let's turn off builds
     - if: $CI_COMMIT_BRANCH == "develop"
       when: always
     - if: $CI_COMMIT_BRANCH =~ /^feature\/.*/
-      when: always
+      when: manual
 
   before_script:
     - python --version
     - apt-get update -y
     - apt-get install zip unzip curl make -y
-    # - apt-get install zip unzip curl make software-properties-common -y
-    
-    # Install Python 3.13
-    # - add-apt-repository ppa:deadsnakes/ppa -y
-    # - apt-get update -y
-    # - apt-get install python3.13 python3.13-venv python3.13-dev python3-pip -y
-    # - ln -sf /usr/bin/python3.13 /usr/bin/python
-    # - ln -sf /usr/bin/python3.13 /usr/bin/python3
-    # - python --version
     
     # Install Poetry
     - curl -sSL https://install.python-poetry.org | python3 -
@@ -52,12 +42,6 @@ deploy_s3:
     - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
     - unzip awscliv2.zip
     - ./aws/install
-    
-    # Install AWS SAM CLI
-    # - curl -L "https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip" -o "aws-sam-cli.zip"
-    # - unzip aws-sam-cli.zip -d sam-installation
-    # - ./sam-installation/install
-    # - sam --version
 
   script:
     - aws --version
