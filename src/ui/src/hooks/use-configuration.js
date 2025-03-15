@@ -116,6 +116,14 @@ const useConfiguration = () => {
 
       // Merge default and custom configurations
       const merged = deepMerge(defaultObj, customObj);
+      console.log('Merged configuration result:', merged);
+      // Double check the classification and extraction sections
+      if (merged.classification) {
+        console.log('Final classification data:', merged.classification);
+      }
+      if (merged.extraction) {
+        console.log('Final extraction data:', merged.extraction);
+      }
       setMergedConfig(merged);
     } catch (err) {
       logger.error('Error fetching configuration', err);
@@ -130,15 +138,27 @@ const useConfiguration = () => {
     try {
       logger.debug('Updating config with:', newCustomConfig);
 
+      // Make sure we have a valid object to update with
+      const configToUpdate =
+        !newCustomConfig || (typeof newCustomConfig === 'object' && Object.keys(newCustomConfig).length === 0)
+          ? {} // Use empty object fallback
+          : newCustomConfig;
+
+      if (configToUpdate !== newCustomConfig) {
+        logger.warn('Attempting to update with empty configuration, using {} as fallback');
+      }
+
       // Ensure we're sending a JSON string
-      const configString = typeof newCustomConfig === 'string' ? newCustomConfig : JSON.stringify(newCustomConfig);
+      const configString = typeof configToUpdate === 'string' ? configToUpdate : JSON.stringify(configToUpdate);
+
+      logger.debug('Sending customConfig string:', configString);
 
       const result = await API.graphql(graphqlOperation(updateConfigurationMutation, { customConfig: configString }));
 
       if (result.data.updateConfiguration) {
-        setCustomConfig(newCustomConfig);
+        setCustomConfig(configToUpdate);
         // Update merged config
-        const merged = deepMerge(defaultConfig, newCustomConfig);
+        const merged = deepMerge(defaultConfig, configToUpdate);
         setMergedConfig(merged);
         return true;
       }
@@ -218,24 +238,79 @@ const useConfiguration = () => {
 
   // Check if a value is customized or default
   const isCustomized = (path) => {
-    if (!customConfig || !path) return false;
+    if (!customConfig || !path) {
+      return false;
+    }
 
-    // Split the path into segments
-    const pathSegments = path.split('.');
+    try {
+      // Split the path into segments, handling array indices properly
+      const pathSegments = path.split(/[.[\]]+/).filter(Boolean);
 
-    // Navigate through the custom config to check if the path exists
-    // Use reduce instead of for...of loop to comply with eslint
-    return pathSegments.reduce((exists, segment, index, array) => {
-      if (!exists || !Object.hasOwn(exists, segment)) return false;
+      // Helper function to get value at path for comparison
+      const getValueAtPath = (obj, segments) => {
+        return segments.reduce((acc, segment) => {
+          if (acc === null || acc === undefined || !Object.hasOwn(acc, segment)) {
+            return undefined;
+          }
+          return acc[segment];
+        }, obj);
+      };
 
-      if (index === array.length - 1) {
-        // At the last segment, check if it exists in the current object
-        return exists[segment] !== undefined;
+      // Get values from both custom and default configs
+      const customValue = getValueAtPath(customConfig, pathSegments);
+      const defaultValue = getValueAtPath(defaultConfig, pathSegments);
+
+      // First check if the custom value exists
+      const customValueExists = customValue !== undefined;
+
+      // Special case for empty objects - they should count as not customized
+      if (
+        customValueExists &&
+        typeof customValue === 'object' &&
+        customValue !== null &&
+        !Array.isArray(customValue) &&
+        Object.keys(customValue).length === 0
+      ) {
+        return false;
       }
 
-      // Continue navigating if this segment exists and is an object
-      return typeof exists[segment] === 'object' ? exists[segment] : false;
-    }, customConfig);
+      // Special case for arrays
+      if (customValueExists && Array.isArray(customValue)) {
+        if (customValue.length === 0) return false; // Empty arrays aren't considered customized
+
+        // Compare arrays for deep equality
+        if (Array.isArray(defaultValue)) {
+          // Different lengths means customized
+          if (customValue.length !== defaultValue.length) return true;
+
+          // Deep compare each element
+          for (let i = 0; i < customValue.length; i += 1) {
+            if (JSON.stringify(customValue[i]) !== JSON.stringify(defaultValue[i])) {
+              return true;
+            }
+          }
+          return false; // Arrays are identical
+        }
+        return true; // Custom is array, default isn't or is undefined
+      }
+
+      // Deep compare objects
+      if (
+        customValueExists &&
+        typeof customValue === 'object' &&
+        customValue !== null &&
+        typeof defaultValue === 'object' &&
+        defaultValue !== null
+      ) {
+        return JSON.stringify(customValue) !== JSON.stringify(defaultValue);
+      }
+
+      // Simple value comparison
+      return customValueExists && customValue !== defaultValue;
+    } catch (err) {
+      logger.error(`Error in isCustomized for path: ${path}`, err);
+      return false;
+    }
   };
 
   useEffect(() => {

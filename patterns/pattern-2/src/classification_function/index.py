@@ -104,15 +104,25 @@ def classify_single_page(page_id, page_data):
     text_content = get_text_content(page_data['parsedTextUri'])
     image_content = get_image_content(page_data['imageUri'])
 
+    classes_config = CONFIG["classes"]
+
+    # create a list of classes and descriptions,eg
+    #  letter   [ A formal written message that is typically sent from one person to another ]
+    #  form     [ A document with blank spaces for filling in information ]
+    CLASS_NAMES_AND_DESCRIPTIONS = '\n'.join([f"{class_obj.get('name', None)}  \t[ {class_obj.get('description', None)} ]" for class_obj in classes_config])
+
     classification_config = CONFIG["classification"]
     model_id = classification_config["model"]
     temperature = float(classification_config["temperature"])
     top_k = float(classification_config["top_k"])
     system_prompt = [{"text": classification_config["system_prompt"]}]
-    prompt_template = classification_config["task_prompt"].replace("{DOCUMENT_TEXT}", "%(DOCUMENT_TEXT)s")
+    logger.info(f"System prompt: {system_prompt}")
+    prompt_template = classification_config["task_prompt"].replace("{DOCUMENT_TEXT}", "%(DOCUMENT_TEXT)s").replace("{CLASS_NAMES_AND_DESCRIPTIONS}", "%(CLASS_NAMES_AND_DESCRIPTIONS)s")
     task_prompt = prompt_template % {
+        "CLASS_NAMES_AND_DESCRIPTIONS": CLASS_NAMES_AND_DESCRIPTIONS,
         "DOCUMENT_TEXT": text_content
     }
+    logger.info(f"Task prompt: {task_prompt}")
     content = [{"text": task_prompt}]
 
     inference_config = {"temperature": temperature}
