@@ -104,10 +104,6 @@ def handle_update_configuration(custom_config):
         else:
             custom_config_obj = custom_config
         
-        # Add a descriptive Info field if not present
-        if 'Info' not in custom_config_obj:
-            custom_config_obj['Info'] = 'Custom configuration settings'
-        
         # Convert all values to strings to ensure compatibility with DynamoDB
         stringified_config = stringify_values(custom_config_obj)
         
