@@ -273,8 +273,8 @@ After you have deployed the stack, check the Outputs tab to inspect names and li
 
 ### Test the solution
 
-Open the `S3InputBucketConsoleURL` and `S3OutputBucketConsoleURL` using the links in the stack Resources tab.
-Open the `StateMachineConsoleURL` using the link in the stack Resources tab.
+Open the `S3InputBucketConsoleURL` and `S3OutputBucketConsoleURL` using the links in the stack Outputs tab.
+Open the `StateMachineConsoleURL` using the link in the stack Outputs tab.
 
 Upload a filled PDF form to the `InputBucket` - there's an example in the `./samples` folder.
 
