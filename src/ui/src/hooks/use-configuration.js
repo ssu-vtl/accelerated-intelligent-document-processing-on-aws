@@ -177,8 +177,44 @@ const useConfiguration = () => {
     // Create a copy of the custom config
     const newCustomConfig = { ...customConfig };
 
-    // Split the path into segments
-    const pathSegments = path.split('.');
+    // Handle both dot notation and bracket notation
+    // First, normalize the path to handle array indices properly
+    const normalizedPath = path.replace(/\[(\d+)\]/g, '.$1');
+
+    // Split the path into segments and handle array indices
+    let pathSegments;
+
+    // Check if the path already contains bracket notation for arrays
+    if (path.includes('[')) {
+      // Use regex to split properly on both dots and brackets
+      pathSegments = normalizedPath.split('.');
+    } else {
+      // Regular dot notation
+      pathSegments = path.split('.');
+    }
+
+    // Look for any numeric segments which indicate array indices
+    const arrayIndices = [];
+    pathSegments.forEach((segment, index) => {
+      if (/^\d+$/.test(segment)) {
+        arrayIndices.push(index);
+      }
+    });
+
+    // If we found any array indices, we need to reset the entire array
+    if (arrayIndices.length > 0) {
+      // Get the path to the array itself (everything before the first array index)
+      const firstArrayIndex = arrayIndices[0];
+      const arrayPath = pathSegments.slice(0, firstArrayIndex).join('.');
+
+      logger.debug(`Detected array item path: ${path}`);
+      logger.debug(`Resetting entire array at path: ${arrayPath}`);
+
+      // If we have a valid array path, reset it
+      if (arrayPath) {
+        return resetToDefault(arrayPath);
+      }
+    }
 
     // Navigate to the parent object of the value to reset
     let current = newCustomConfig;
@@ -198,6 +234,7 @@ const useConfiguration = () => {
 
     // Remove the property from the custom config
     if (parent && lastKey) {
+      logger.debug(`Removing customization at path: ${path}, key: ${lastKey}`);
       delete parent[lastKey];
 
       // Clean up empty objects
@@ -228,6 +265,9 @@ const useConfiguration = () => {
           break;
         }
       }
+
+      // For debugging
+      logger.debug('Custom config after reset:', JSON.stringify(newCustomConfig));
 
       // Update the custom configuration
       return updateConfiguration(newCustomConfig);
