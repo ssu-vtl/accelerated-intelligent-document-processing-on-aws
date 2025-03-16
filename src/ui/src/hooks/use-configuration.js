@@ -201,22 +201,216 @@ const useConfiguration = () => {
       }
     });
 
-    // If we found any array indices, we need to reset the entire array
+    // Special handling for list items using name property as a key
     if (arrayIndices.length > 0) {
-      // Get the path to the array itself (everything before the first array index)
-      const firstArrayIndex = arrayIndices[0];
-      const arrayPath = pathSegments.slice(0, firstArrayIndex).join('.');
+      // For nested arrays, we need to handle the deepest array first
+      // Get the index of the last array in the path
+      const lastArrayIndex = arrayIndices[arrayIndices.length - 1];
 
-      logger.debug(`Detected array item path: ${path}`);
-      logger.debug(`Resetting entire array at path: ${arrayPath}`);
+      // Build the path to the parent array of the item we want to reset
+      const arrayPath = pathSegments.slice(0, lastArrayIndex).join('.');
 
-      // If we have a valid array path, reset it
+      // Get the array item index
+      const itemIndex = parseInt(pathSegments[lastArrayIndex], 10);
+
+      // Check if this is a property of an array item
+      const isItemProperty = pathSegments.length > lastArrayIndex + 1;
+
+      // Get the property name if this is an item property
+      const propertyName = isItemProperty ? pathSegments[lastArrayIndex + 1] : null;
+
+      // For debugging
+      logger.debug(`Handling nested array. Full path: ${path}`);
+      logger.debug(`Array path: ${arrayPath}, item index: ${itemIndex}, property: ${propertyName || 'none'}`);
+      logger.debug(`Array indices in path: ${arrayIndices.join(', ')}`);
+      logger.debug(`Last array index position: ${lastArrayIndex}`);
+
+      logger.debug(`Detected array path: ${arrayPath}, index: ${itemIndex}, property: ${propertyName || 'none'}`);
+
+      // Helper function to get value at a path
+      const getValueAtPath = (obj, pathStr) => {
+        if (!pathStr) return obj;
+        return pathStr.split('.').reduce((acc, part) => {
+          if (acc === undefined || acc === null) return undefined;
+          return acc[part];
+        }, obj);
+      };
+
+      // Helper function to set value at a path
+      const setValueAtPath = (obj, pathStr, value) => {
+        if (!pathStr) return false;
+
+        const parts = pathStr.split('.');
+        let current = obj;
+
+        // Navigate to the parent object
+        for (let i = 0; i < parts.length - 1; i += 1) {
+          const part = parts[i];
+          if (current[part] === undefined) {
+            current[part] = {};
+          }
+          current = current[part];
+        }
+
+        // Set the value
+        current[parts[parts.length - 1]] = value;
+        return true;
+      };
+
+      const customArray = getValueAtPath(customConfig, arrayPath);
+      const defaultArray = getValueAtPath(defaultConfig, arrayPath);
+
+      // Check if both arrays exist
+      if (Array.isArray(customArray) && Array.isArray(defaultArray)) {
+        // Get current array in our modified copy
+        let customArrayInNew = getValueAtPath(newCustomConfig, arrayPath);
+
+        // If the array doesn't exist in our copy or is no longer an array, recreate it
+        if (!Array.isArray(customArrayInNew)) {
+          logger.debug(`Array at ${arrayPath} doesn't exist in the copy. Creating it.`);
+          setValueAtPath(newCustomConfig, arrayPath, [...customArray]);
+          customArrayInNew = getValueAtPath(newCustomConfig, arrayPath);
+        }
+
+        // If the property being reset is 'name', handle differently
+        if (propertyName === 'name') {
+          // Case 1: Name was modified - consider it a new item
+          // Get the current item's name (before reset)
+          const currentItemName = customArray[itemIndex]?.name;
+          const defaultValue = customArray[itemIndex]
+            ? defaultArray.find((item) => JSON.stringify(item) === JSON.stringify(customArray[itemIndex]))?.name
+            : null;
+
+          logger.debug(`Resetting name property. Current: ${currentItemName}, Default: ${defaultValue}`);
+
+          if (currentItemName) {
+            if (defaultValue) {
+              // This was a renamed existing item - restore original name
+              logger.debug(`Restoring original name: ${defaultValue}`);
+              customArrayInNew[itemIndex].name = defaultValue;
+            } else {
+              // This is a new item that doesn't exist in defaults - remove it
+              logger.debug(`Removing new item with name: ${currentItemName}`);
+              customArrayInNew.splice(itemIndex, 1);
+            }
+          }
+        } else if (propertyName) {
+          // Case 2: Regular property modification of an array item
+
+          // Find the item by looking at its name
+          const currentItemName = customArray[itemIndex]?.name;
+
+          if (currentItemName) {
+            // Find matching default item by name
+            const matchingDefaultItem = defaultArray.find((item) => item.name === currentItemName);
+
+            if (matchingDefaultItem) {
+              // Reset only the specified property to its default value
+              logger.debug(`Resetting property ${propertyName} for item with name: ${currentItemName}`);
+
+              if (matchingDefaultItem[propertyName] !== undefined) {
+                // Set to default value
+                customArrayInNew[itemIndex][propertyName] = matchingDefaultItem[propertyName];
+              } else {
+                // Property doesn't exist in default - remove it
+                delete customArrayInNew[itemIndex][propertyName];
+              }
+            } else {
+              // No matching default - this is a completely new item
+              // For new items, just delete the property if it's not 'name'
+              logger.debug(`No matching default found. Removing property: ${propertyName}`);
+              delete customArrayInNew[itemIndex][propertyName];
+            }
+          }
+        } else {
+          // Case 3: Resetting an entire array item (not a specific property)
+          const currentItemName = customArray[itemIndex]?.name;
+
+          if (currentItemName) {
+            // Find the matching default item by name
+            const matchingDefaultItem = defaultArray.find((item) => item.name === currentItemName);
+
+            if (matchingDefaultItem) {
+              // Replace with default values
+              logger.debug(`Resetting entire item with name: ${currentItemName}`);
+              customArrayInNew[itemIndex] = { ...matchingDefaultItem };
+            } else {
+              // No matching default - this is a new item, remove it
+              logger.debug(`No matching default found. Removing item: ${currentItemName}`);
+              customArrayInNew.splice(itemIndex, 1);
+            }
+          }
+        }
+
+        // Check if this is a nested array (within another array)
+        const isNestedArray = arrayPath.includes('.') && /\d+/.test(arrayPath);
+
+        // For nested arrays, ONLY reset the specific property requested - NEVER remove the item
+        if (isNestedArray) {
+          logger.debug(`This is a nested array. Using minimal targeted reset.`);
+
+          // If we have a property name and the item exists in our array
+          if (propertyName && customArrayInNew[itemIndex]) {
+            const currentItemName = customArrayInNew[itemIndex].name;
+            const matchingDefaultItem = defaultArray.find((item) => item.name === currentItemName);
+
+            if (matchingDefaultItem && matchingDefaultItem[propertyName] !== undefined) {
+              logger.debug(`Resetting property '${propertyName}' to default value for item '${currentItemName}'`);
+
+              // Simply restore the default value for this property - don't delete anything
+              customArrayInNew[itemIndex][propertyName] = JSON.parse(JSON.stringify(matchingDefaultItem[propertyName]));
+
+              logger.debug(
+                `Property has been reset, but item is preserved: ${JSON.stringify(customArrayInNew[itemIndex])}`,
+              );
+            } else {
+              logger.debug(
+                `No matching default found for property '${propertyName}' in item '${currentItemName}'. Keeping current value.`,
+              );
+              // Do nothing - we want to keep the current value
+            }
+          } else {
+            logger.debug(`No property name or item not found. Skipping reset for nested array item.`);
+          }
+        }
+        // For top-level arrays, we can be more aggressive with cleanup
+        else if (JSON.stringify(getValueAtPath(newCustomConfig, arrayPath)) === JSON.stringify(defaultArray)) {
+          logger.debug(`Array at ${arrayPath} now matches default. Removing customization.`);
+
+          // Navigate to the parent of array and remove the array
+          const arrayPathSegments = arrayPath.split('.');
+          let current = newCustomConfig;
+          let arrayParent = null;
+          let arrayKey = null;
+
+          arrayPathSegments.forEach((segment, index) => {
+            if (index === arrayPathSegments.length - 1) {
+              arrayParent = current;
+              arrayKey = segment;
+            } else if (current[segment] !== undefined) {
+              current = current[segment];
+            }
+          });
+
+          if (arrayParent && arrayKey) {
+            delete arrayParent[arrayKey];
+          }
+        }
+
+        // Update configuration
+        logger.debug('Custom config after reset:', JSON.stringify(newCustomConfig));
+        return updateConfiguration(newCustomConfig);
+      }
+
+      // Fallback to original behavior if special handling doesn't apply
+      logger.debug(`Fallback: Resetting array at path: ${arrayPath}`);
       if (arrayPath) {
+        // Only reset entire array if we can't handle it more granularly
         return resetToDefault(arrayPath);
       }
     }
 
-    // Navigate to the parent object of the value to reset
+    // Handle non-array paths normally
     let current = newCustomConfig;
     let parent = null;
     let lastKey = null;

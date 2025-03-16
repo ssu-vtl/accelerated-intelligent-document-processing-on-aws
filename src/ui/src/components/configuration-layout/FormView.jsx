@@ -575,6 +575,13 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     let isFieldCustomized = false;
     isFieldCustomized = isCustomized(path);
 
+    // Check if this is a 'name' field inside an array item by looking for array indices in path
+    const isNameInArray =
+      key === 'name' &&
+      (/\[\d+\]/.test(path) || // Bracket notation - array[0]
+        /\.\d+\./.test(path) || // Dot notation with property after - array.0.property
+        /\.\d+$/.test(path)); // Dot notation at end - array.0
+
     // Create a handler for restoring default value
     const handleRestoreDefault = () => {
       if (onResetToDefault) {
@@ -605,7 +612,28 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       }
     };
 
-    if (property.enum) {
+    // For name fields inside arrays, use a read-only display instead of an editable input
+    if (isNameInArray) {
+      input = (
+        <Box
+          padding="s"
+          style={{
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            backgroundColor: '#f0f0f0',
+            color: '#333',
+            minHeight: '32px',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <span>{value !== undefined && value !== null ? String(value) : ''}</span>
+          <Box marginLeft="xs" color="text-status-info" fontSize="body-s" style={{ fontStyle: 'italic' }}>
+            (identifier - cannot be changed)
+          </Box>
+        </Box>
+      );
+    } else if (property.enum) {
       input = (
         <Select
           selectedOption={{ value: value || '', label: value || '' }}
