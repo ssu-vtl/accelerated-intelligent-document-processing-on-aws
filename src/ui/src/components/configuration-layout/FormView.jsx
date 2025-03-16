@@ -340,6 +340,14 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     const listLabel = property.listLabel || key.charAt(0).toUpperCase() + key.slice(1);
     const itemLabel = property.itemLabel || key.charAt(0).toUpperCase() + key.slice(1).replace(/s$/, '');
 
+    // Check if any item in this list is customized
+    const hasCustomizedItems = values.some((item, index) => {
+      if (!item || !item.name) return false;
+      const itemPath = `${path}[${index}]`;
+      // Check if the item itself or any of its properties are customized
+      return isCustomized(itemPath);
+    });
+
     // Create unique key for this list's expanded state
     const listKey = `list:${path}`;
 
@@ -359,12 +367,17 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       <Box
         padding={{ left: `${nestLevel * 16}px`, top: 'xs', bottom: 'xs' }}
         borderBottom="divider-light"
-        backgroundColor="background-paper-default"
+        backgroundColor={hasCustomizedItems ? 'background-paper-info-emphasis' : 'background-paper-default'}
         borderRadius="xs"
       >
         <Box display="flex" alignItems="center" onClick={toggleListExpand} style={{ cursor: 'pointer' }}>
           <Box fontWeight="bold" fontSize="body-m">
             {`${listLabel} (${values.length})`}
+            {hasCustomizedItems && (
+              <Box as="span" color="text-status-info" fontSize="body-s" fontWeight="normal" marginLeft="xs">
+                (customized)
+              </Box>
+            )}
           </Box>
           <Button
             variant="icon"
@@ -396,6 +409,45 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
 
             return (
               <Box key={`${itemPath}-${index}`} borderBottom="divider-light" padding={{ bottom: 'none' }}>
+                {/* Item header showing the item name prominently */}
+                <Box
+                  padding="xs"
+                  backgroundColor="background-paper-default"
+                  borderBottom="divider-light"
+                  style={{
+                    marginBottom: '6px',
+                    borderTopLeftRadius: '4px',
+                    borderTopRightRadius: '4px',
+                  }}
+                >
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box
+                      fontWeight="bold"
+                      fontSize="body-m"
+                      color={isCustomized(`${itemPath}`) ? 'text-status-info' : 'text-body-default'}
+                    >
+                      {item.name || `${itemLabel} ${index + 1}`}
+                      {isCustomized(`${itemPath}`) && (
+                        <Box as="span" fontSize="body-s" fontWeight="normal" marginLeft="xs" color="text-status-info">
+                          (customized)
+                        </Box>
+                      )}
+                    </Box>
+
+                    {/* Delete button - moved to the header for better visibility */}
+                    <Button
+                      variant="icon"
+                      iconName="remove"
+                      onClick={() => {
+                        const newValues = [...values];
+                        newValues.splice(index, 1);
+                        updateValue(path, newValues);
+                      }}
+                      ariaLabel="Remove item"
+                    />
+                  </Box>
+                </Box>
+
                 {/* Item row with delete button */}
                 <Box display="flex" alignItems="flex-start" padding={{ top: 'none', bottom: 'none' }}>
                   {/* Content area with property fields and nested lists */}
@@ -444,6 +496,11 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                                         const { propKey, propSchema } = regularProps[fieldIndex];
                                         const propPath = `${itemPath}.${propKey}`;
                                         const propValue = getValueAtPath(formValues, propPath);
+
+                                        // Skip rendering the name field since it's already shown in the header
+                                        if (propKey === 'name') {
+                                          return <td key={propKey} style={{ display: 'none' }} aria-hidden="true" />;
+                                        }
 
                                         return (
                                           <td
@@ -498,18 +555,6 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                       </Box>
                     )}
                   </Box>
-
-                  {/* Delete button */}
-                  <Button
-                    variant="icon"
-                    iconName="remove"
-                    onClick={() => {
-                      const newValues = [...values];
-                      newValues.splice(index, 1);
-                      updateValue(path, newValues);
-                    }}
-                    ariaLabel="Remove item"
-                  />
                 </Box>
               </Box>
             );
@@ -628,9 +673,6 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
           }}
         >
           <span>{value !== undefined && value !== null ? String(value) : ''}</span>
-          <Box marginLeft="xs" color="text-status-info" fontSize="body-s" style={{ fontStyle: 'italic' }}>
-            (identifier - cannot be changed)
-          </Box>
         </Box>
       );
     } else if (property.enum) {
