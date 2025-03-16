@@ -13,6 +13,7 @@ import {
   Button,
   Header,
   Container,
+  Modal,
 } from '@awsui/components-react';
 
 // Add custom styles for compact form layout
@@ -231,6 +232,93 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
   // Track expanded state for all list items across the form - default to collapsed
   const [expandedItems, setExpandedItems] = useState({});
 
+  // State for add item modals
+  const [activeAddModal, setActiveAddModal] = useState(null); // Path of the list currently showing add modal
+  const [newItemName, setNewItemName] = useState('');
+  const [nameError, setNameError] = useState('');
+
+  // Component-level function to add a new item with a name
+  const addNewItem = (path, name) => {
+    // Get current values
+    const values = getValueAtPath(formValues, path) || [];
+    const property = getPropertyFromPath(path);
+
+    // Validate name first
+    if (!name || !name.trim()) {
+      setNameError('Name is required');
+      return;
+    }
+
+    // Check if name already exists
+    if (values.some((item) => item && item.name === name.trim())) {
+      setNameError('An item with this name already exists');
+      return;
+    }
+
+    // Create a new empty item
+    let newItem;
+    if (property && property.items && property.items.type === 'object') {
+      newItem = {};
+      if (property.items.properties) {
+        Object.entries(property.items.properties).forEach(([propKey, propSchema]) => {
+          if (propKey === 'name') {
+            newItem[propKey] = name.trim();
+          } else if (propSchema.type === 'list' || propSchema.type === 'array') {
+            newItem[propKey] = [];
+          } else if (propSchema.type === 'object') {
+            newItem[propKey] = {};
+          } else {
+            newItem[propKey] = '';
+          }
+        });
+      }
+    } else {
+      newItem = name.trim();
+    }
+
+    // Add to values and update
+    updateValue(path, [...values, newItem]);
+
+    // Close modal and reset
+    setActiveAddModal(null);
+    setNewItemName('');
+    setNameError('');
+  };
+
+  // Helper to get property definition from path
+  const getPropertyFromPath = (path) => {
+    if (!schema || !schema.properties) return null;
+
+    const pathParts = path.split(/[.[\]]+/).filter(Boolean);
+    let current = schema.properties;
+    let property = null;
+
+    // Find the property by traversing the schema
+    for (let i = 0; i < pathParts.length; i += 1) {
+      const part = pathParts[i];
+
+      if (!Number.isNaN(parseInt(part, 10))) {
+        // Skip array indices
+        return property;
+      }
+
+      if (!current[part]) {
+        return null;
+      }
+
+      property = current[part];
+
+      // Navigate deeper if there are properties
+      if (property.properties) {
+        current = property.properties;
+      } else if (property.items && property.items.properties) {
+        current = property.items.properties;
+      }
+    }
+
+    return property;
+  };
+
   const getValueAtPath = (obj, path) => {
     const segments = path.split(/[.[\]]+/).filter(Boolean);
 
@@ -340,6 +428,14 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     const listLabel = property.listLabel || key.charAt(0).toUpperCase() + key.slice(1);
     const itemLabel = property.itemLabel || key.charAt(0).toUpperCase() + key.slice(1).replace(/s$/, '');
 
+    // Check if any item in this list is customized
+    const hasCustomizedItems = values.some((item, index) => {
+      if (!item || !item.name) return false;
+      const itemPath = `${path}[${index}]`;
+      // Check if the item itself or any of its properties are customized
+      return isCustomized(itemPath);
+    });
+
     // Create unique key for this list's expanded state
     const listKey = `list:${path}`;
 
@@ -359,12 +455,17 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       <Box
         padding={{ left: `${nestLevel * 16}px`, top: 'xs', bottom: 'xs' }}
         borderBottom="divider-light"
-        backgroundColor="background-paper-default"
+        backgroundColor={hasCustomizedItems ? 'background-paper-info-emphasis' : 'background-paper-default'}
         borderRadius="xs"
       >
         <Box display="flex" alignItems="center" onClick={toggleListExpand} style={{ cursor: 'pointer' }}>
           <Box fontWeight="bold" fontSize="body-m">
             {`${listLabel} (${values.length})`}
+            {hasCustomizedItems && (
+              <Box as="span" color="text-status-info" fontSize="body-s" fontWeight="normal" marginLeft="xs">
+                (customized)
+              </Box>
+            )}
           </Box>
           <Button
             variant="icon"
@@ -396,6 +497,45 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
 
             return (
               <Box key={`${itemPath}-${index}`} borderBottom="divider-light" padding={{ bottom: 'none' }}>
+                {/* Item header showing the item name prominently */}
+                <Box
+                  padding="xs"
+                  backgroundColor="background-paper-default"
+                  borderBottom="divider-light"
+                  style={{
+                    marginBottom: '6px',
+                    borderTopLeftRadius: '4px',
+                    borderTopRightRadius: '4px',
+                  }}
+                >
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box
+                      fontWeight="bold"
+                      fontSize="body-m"
+                      color={isCustomized(`${itemPath}`) ? 'text-status-info' : 'text-body-default'}
+                    >
+                      {item.name || `${itemLabel} ${index + 1}`}
+                      {isCustomized(`${itemPath}`) && (
+                        <Box as="span" fontSize="body-s" fontWeight="normal" marginLeft="xs" color="text-status-info">
+                          (customized)
+                        </Box>
+                      )}
+                    </Box>
+
+                    {/* Delete button - moved to the header for better visibility */}
+                    <Button
+                      variant="icon"
+                      iconName="remove"
+                      onClick={() => {
+                        const newValues = [...values];
+                        newValues.splice(index, 1);
+                        updateValue(path, newValues);
+                      }}
+                      ariaLabel="Remove item"
+                    />
+                  </Box>
+                </Box>
+
                 {/* Item row with delete button */}
                 <Box display="flex" alignItems="flex-start" padding={{ top: 'none', bottom: 'none' }}>
                   {/* Content area with property fields and nested lists */}
@@ -444,6 +584,11 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                                         const { propKey, propSchema } = regularProps[fieldIndex];
                                         const propPath = `${itemPath}.${propKey}`;
                                         const propValue = getValueAtPath(formValues, propPath);
+
+                                        // Skip rendering the name field since it's already shown in the header
+                                        if (propKey === 'name') {
+                                          return <td key={propKey} style={{ display: 'none' }} aria-hidden="true" />;
+                                        }
 
                                         return (
                                           <td
@@ -498,18 +643,6 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                       </Box>
                     )}
                   </Box>
-
-                  {/* Delete button */}
-                  <Button
-                    variant="icon"
-                    iconName="remove"
-                    onClick={() => {
-                      const newValues = [...values];
-                      newValues.splice(index, 1);
-                      updateValue(path, newValues);
-                    }}
-                    ariaLabel="Remove item"
-                  />
                 </Box>
               </Box>
             );
@@ -520,27 +653,9 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
             <Button
               iconName="add-plus"
               onClick={() => {
-                // Create a new empty item
-                let newValue;
-                if (property.items.type === 'object') {
-                  newValue = {};
-                  if (property.items.properties) {
-                    Object.entries(property.items.properties).forEach(([propKey, propSchema]) => {
-                      if (propSchema.type === 'list' || propSchema.type === 'array') {
-                        newValue[propKey] = [];
-                      } else if (propSchema.type === 'object') {
-                        newValue[propKey] = {};
-                      } else {
-                        newValue[propKey] = '';
-                      }
-                    });
-                  }
-                } else {
-                  newValue = '';
-                }
-
-                // Add new item
-                updateValue(path, [...values, newValue]);
+                setActiveAddModal(path);
+                setNewItemName('');
+                setNameError('');
               }}
             >
               Add {itemLabel}
@@ -575,6 +690,13 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     let isFieldCustomized = false;
     isFieldCustomized = isCustomized(path);
 
+    // Check if this is a 'name' field inside an array item by looking for array indices in path
+    const isNameInArray =
+      key === 'name' &&
+      (/\[\d+\]/.test(path) || // Bracket notation - array[0]
+        /\.\d+\./.test(path) || // Dot notation with property after - array.0.property
+        /\.\d+$/.test(path)); // Dot notation at end - array.0
+
     // Create a handler for restoring default value
     const handleRestoreDefault = () => {
       if (onResetToDefault) {
@@ -605,7 +727,25 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       }
     };
 
-    if (property.enum) {
+    // For name fields inside arrays, use a read-only display instead of an editable input
+    if (isNameInArray) {
+      input = (
+        <Box
+          padding="s"
+          style={{
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            backgroundColor: '#f0f0f0',
+            color: '#333',
+            minHeight: '32px',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <span>{value !== undefined && value !== null ? String(value) : ''}</span>
+        </Box>
+      );
+    } else if (property.enum) {
       input = (
         <Select
           selectedOption={{ value: value || '', label: value || '' }}
@@ -731,6 +871,39 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     <Box style={{ height: '70vh', overflow: 'auto' }} padding="s">
       <style>{customStyles}</style>
       <SpaceBetween size="l">{getSortedProperties().map(renderTopLevelProperty)}</SpaceBetween>
+
+      {/* Global modal for adding new items */}
+      <Modal
+        visible={!!activeAddModal}
+        onDismiss={() => setActiveAddModal(null)}
+        header={activeAddModal ? `Add new ${getPropertyFromPath(activeAddModal)?.itemLabel || 'Item'}` : 'Add Item'}
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button variant="link" onClick={() => setActiveAddModal(null)}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={() => activeAddModal && addNewItem(activeAddModal, newItemName)}>
+                Add
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <FormField label="Name" description="Enter a unique name for this item" errorText={nameError}>
+          <Input
+            value={newItemName}
+            onChange={({ detail }) => {
+              setNewItemName(detail.value);
+              if (detail.value.trim()) {
+                setNameError('');
+              }
+            }}
+            placeholder="Enter name"
+            autoFocus
+          />
+        </FormField>
+      </Modal>
     </Box>
   );
 };
