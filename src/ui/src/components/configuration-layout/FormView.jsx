@@ -13,6 +13,7 @@ import {
   Button,
   Header,
   Container,
+  Modal,
 } from '@awsui/components-react';
 
 // Add custom styles for compact form layout
@@ -230,6 +231,93 @@ ResizableColumns.defaultProps = {
 const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDefault, onChange }) => {
   // Track expanded state for all list items across the form - default to collapsed
   const [expandedItems, setExpandedItems] = useState({});
+
+  // State for add item modals
+  const [activeAddModal, setActiveAddModal] = useState(null); // Path of the list currently showing add modal
+  const [newItemName, setNewItemName] = useState('');
+  const [nameError, setNameError] = useState('');
+
+  // Component-level function to add a new item with a name
+  const addNewItem = (path, name) => {
+    // Get current values
+    const values = getValueAtPath(formValues, path) || [];
+    const property = getPropertyFromPath(path);
+
+    // Validate name first
+    if (!name || !name.trim()) {
+      setNameError('Name is required');
+      return;
+    }
+
+    // Check if name already exists
+    if (values.some((item) => item && item.name === name.trim())) {
+      setNameError('An item with this name already exists');
+      return;
+    }
+
+    // Create a new empty item
+    let newItem;
+    if (property && property.items && property.items.type === 'object') {
+      newItem = {};
+      if (property.items.properties) {
+        Object.entries(property.items.properties).forEach(([propKey, propSchema]) => {
+          if (propKey === 'name') {
+            newItem[propKey] = name.trim();
+          } else if (propSchema.type === 'list' || propSchema.type === 'array') {
+            newItem[propKey] = [];
+          } else if (propSchema.type === 'object') {
+            newItem[propKey] = {};
+          } else {
+            newItem[propKey] = '';
+          }
+        });
+      }
+    } else {
+      newItem = name.trim();
+    }
+
+    // Add to values and update
+    updateValue(path, [...values, newItem]);
+
+    // Close modal and reset
+    setActiveAddModal(null);
+    setNewItemName('');
+    setNameError('');
+  };
+
+  // Helper to get property definition from path
+  const getPropertyFromPath = (path) => {
+    if (!schema || !schema.properties) return null;
+
+    const pathParts = path.split(/[.[\]]+/).filter(Boolean);
+    let current = schema.properties;
+    let property = null;
+
+    // Find the property by traversing the schema
+    for (let i = 0; i < pathParts.length; i += 1) {
+      const part = pathParts[i];
+
+      if (!Number.isNaN(parseInt(part, 10))) {
+        // Skip array indices
+        return property;
+      }
+
+      if (!current[part]) {
+        return null;
+      }
+
+      property = current[part];
+
+      // Navigate deeper if there are properties
+      if (property.properties) {
+        current = property.properties;
+      } else if (property.items && property.items.properties) {
+        current = property.items.properties;
+      }
+    }
+
+    return property;
+  };
 
   const getValueAtPath = (obj, path) => {
     const segments = path.split(/[.[\]]+/).filter(Boolean);
@@ -565,27 +653,9 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
             <Button
               iconName="add-plus"
               onClick={() => {
-                // Create a new empty item
-                let newValue;
-                if (property.items.type === 'object') {
-                  newValue = {};
-                  if (property.items.properties) {
-                    Object.entries(property.items.properties).forEach(([propKey, propSchema]) => {
-                      if (propSchema.type === 'list' || propSchema.type === 'array') {
-                        newValue[propKey] = [];
-                      } else if (propSchema.type === 'object') {
-                        newValue[propKey] = {};
-                      } else {
-                        newValue[propKey] = '';
-                      }
-                    });
-                  }
-                } else {
-                  newValue = '';
-                }
-
-                // Add new item
-                updateValue(path, [...values, newValue]);
+                setActiveAddModal(path);
+                setNewItemName('');
+                setNameError('');
               }}
             >
               Add {itemLabel}
@@ -801,6 +871,39 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     <Box style={{ height: '70vh', overflow: 'auto' }} padding="s">
       <style>{customStyles}</style>
       <SpaceBetween size="l">{getSortedProperties().map(renderTopLevelProperty)}</SpaceBetween>
+
+      {/* Global modal for adding new items */}
+      <Modal
+        visible={!!activeAddModal}
+        onDismiss={() => setActiveAddModal(null)}
+        header={activeAddModal ? `Add new ${getPropertyFromPath(activeAddModal)?.itemLabel || 'Item'}` : 'Add Item'}
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button variant="link" onClick={() => setActiveAddModal(null)}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={() => activeAddModal && addNewItem(activeAddModal, newItemName)}>
+                Add
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <FormField label="Name" description="Enter a unique name for this item" errorText={nameError}>
+          <Input
+            value={newItemName}
+            onChange={({ detail }) => {
+              setNewItemName(detail.value);
+              if (detail.value.trim()) {
+                setNameError('');
+              }
+            }}
+            placeholder="Enter name"
+            autoFocus
+          />
+        </FormField>
+      </Modal>
     </Box>
   );
 };
