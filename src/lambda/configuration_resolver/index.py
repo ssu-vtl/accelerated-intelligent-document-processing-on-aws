@@ -94,10 +94,18 @@ def handle_update_configuration(custom_config):
     Handle the updateConfiguration GraphQL mutation
     Updates the Custom configuration item in DynamoDB
     """
-    if not custom_config:
-        raise Exception("No custom configuration provided")
-    
     try:
+        # Handle empty configuration case
+        if not custom_config:
+            # For empty config, just store the Configuration key with no other attributes
+            response = table.put_item(
+                Item={
+                    'Configuration': 'Custom'
+                }
+            )
+            logger.info("Stored empty Custom configuration")
+            return True
+        
         # Parse the customConfig JSON string if it's a string
         if isinstance(custom_config, str):
             custom_config_obj = json.loads(custom_config)
