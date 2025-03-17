@@ -1,2 +1,2 @@
 requests
-./lib  # common packages path
+./lib/appsync_helper_pkg  # appsync_helper package
