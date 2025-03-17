@@ -1,3 +1,4 @@
 PyMuPDF
 boto3
 pillow
+../../lib  # common packages path
