@@ -1,1 +1,2 @@
 requests
+./lib  # common packages path

@@ -8,3 +8,5 @@ dist/
 .sav/
 .delete/
 .data/
+*.egg-info/
+build/
