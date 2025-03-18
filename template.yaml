@@ -2,7 +2,7 @@
 
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v0.2.10)
+Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v0.2.11)
 
 Parameters:
 
