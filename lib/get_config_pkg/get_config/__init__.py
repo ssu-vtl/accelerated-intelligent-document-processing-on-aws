@@ -87,11 +87,3 @@ def get_config() -> Dict[str, Any]:
     """
     reader = ConfigurationReader()
     return reader.get_merged_configuration()
-
-# Usage example:
-if __name__ == "__main__":
-    try:
-        config = get_config()
-        print("Merged configuration:", config)
-    except Exception as e:
-        print(f"Error: {str(e)}")
