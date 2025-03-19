@@ -180,7 +180,7 @@ def classify_single_page(page_id, page_data):
             usage = response.get('usage', {})
             metering = {
                 "bedrock": {
-                    "model_id": {
+                    model_id: {
                         **usage
                     }
                 }

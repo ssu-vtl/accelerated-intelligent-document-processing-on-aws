@@ -136,7 +136,7 @@ def invoke_llm(page_images, class_label, document_text):
             usage = response.get('usage', {})
             metering = {
                 "bedrock": {
-                    "model_id": {
+                    model_id: {
                         **usage
                     }
                 }
