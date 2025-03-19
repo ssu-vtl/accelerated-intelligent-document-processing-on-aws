@@ -131,6 +131,16 @@ def invoke_llm(page_images, class_label, document_text):
             
             logger.info(f"Bedrock request successful after {retry_count + 1} attempts. "
                        f"Duration: {duration:.2f}s")
+            
+            # Metering
+            usage = response.get('usage', {})
+            metering = {
+                "bedrock": {
+                    "model_id": {
+                        **usage
+                    }
+                }
+            }
 
             # Track successful requests and latency
             put_metric('BedrockRequestsSucceeded', 1)
@@ -151,7 +161,7 @@ def invoke_llm(page_images, class_label, document_text):
             put_metric('BedrockTotalLatency', total_duration * 1000, 'Milliseconds')
 
             entities = response['output']['message']['content'][0].get("text")
-            return entities
+            return entities, metering
 
         except ClientError as e:
             error_code = e.response['Error']['Code']
@@ -248,7 +258,8 @@ def handler(event, context):
             "object_key": <KEY>,
             "output_bucket": <BUCKET>,
             "output_prefix": <PREFIX>,
-            "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
+            "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>,
+            "metering: {"<service>": {"<api>": {"<unit>": <value>}}}
         },
         "execution_arn": <ARN>,
         "section": {
@@ -309,11 +320,11 @@ def handler(event, context):
     logger.info(f"Time taken to read images: {t2-t1:.2f} seconds")
 
     # Process with LLM
-    extracted_entities_str = invoke_llm(
+    extracted_entities_str, metering = invoke_llm(
         page_images,
         class_label,
-        document_text
-        )
+        document_text,
+    )
     t3 = time.time()
     logger.info(f"Time taken by bedrock: {t3-t2:.2f} seconds")
 
@@ -321,7 +332,7 @@ def handler(event, context):
         extracted_entities = json.loads(extracted_entities_str)
     except Exception as e:
         logger.error(f"Error parsing LLM output - invalid JSON?: {extracted_entities_str} - {e}")
-        logger.info(f"UsIng unparsed LLM output.")
+        logger.info(f"Using unparsed LLM output.")
         extracted_entities = extracted_entities_str
 
     # Write results - emulate BDA for pattern consistency
@@ -349,7 +360,8 @@ def handler(event, context):
             "page_ids": page_ids,
             "outputJSONUri": f"s3://{output_bucket}/{output_key}",
         },
-        "pages": pages
+        "pages": pages,
+        "metering": metering
     }
     
     return result

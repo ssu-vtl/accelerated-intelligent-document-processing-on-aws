@@ -176,6 +176,16 @@ def classify_single_page(page_id, page_data):
                 put_metric('OutputTokens', output_tokens)
                 put_metric('TotalTokens', total_tokens)
             
+            # Metering
+            usage = response.get('usage', {})
+            metering = {
+                "bedrock": {
+                    "model_id": {
+                        **usage
+                    }
+                }
+            }
+            
             # Return classification results along with page data
             classification_json = response['output']['message']['content'][0].get("text")
             final_classification = json.loads(classification_json).get("class", "Unknown")
@@ -183,6 +193,7 @@ def classify_single_page(page_id, page_data):
             return {
                 'page_id': page_id,
                 'class': final_classification,
+                'metering': metering,
                 **page_data
             }
             
@@ -276,6 +287,7 @@ def classify_pages_concurrently(pages):
     """Classify multiple pages concurrently using a thread pool"""
     all_results = []
     futures = []
+    metering = {}
     
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for page_num, page_data in pages.items():
@@ -285,12 +297,23 @@ def classify_pages_concurrently(pages):
         for future in as_completed(futures):
             try:
                 result = future.result()
+                page_metering = result.pop("metering", {})
                 all_results.append(result)
+                
+                # Merge metering
+                for service, service_metering in page_metering.items():
+                    for api, api_metering in service_metering.items():
+                        for unit, value in api_metering.items():
+                            if service not in metering:
+                                metering[service] = {}
+                            if api not in metering[service]:
+                                metering[service][api] = {}
+                            metering[service][api][unit] = metering[service][api].get(unit, 0) + value
             except Exception as e:
                 logger.error(f"Error in concurrent classification: {str(e)}")
                 raise
     
-    return all_results
+    return all_results, metering
 
 def handler(event, context):
     """Lambda handler function"""
@@ -308,7 +331,7 @@ def handler(event, context):
     total_pages = len(pages)
     put_metric('BedrockRequestsTotal', total_pages)
     
-    all_results = classify_pages_concurrently(pages)
+    all_results, metering = classify_pages_concurrently(pages)
     
     t1 = time.time()
     logger.info(f"Time taken for classification: {t1-t0:.2f} seconds")
@@ -317,7 +340,8 @@ def handler(event, context):
     
     response = {
         "metadata": metadata,
-        "sections": sections
+        "sections": sections,
+        "metering": metering
     }
 
     return response
