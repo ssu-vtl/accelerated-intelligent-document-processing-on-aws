@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import React from 'react';
-import { Box, ColumnLayout, Container, SpaceBetween, Button, Header } from '@awsui/components-react';
+import { Box, ColumnLayout, Container, SpaceBetween, Button, Header, Table } from '@awsui/components-react';
 import { Logger } from 'aws-amplify';
 import './DocumentPanel.css';
 import DocumentViewers from '../document-viewers/DocumentViewers';
@@ -8,6 +8,50 @@ import SectionsPanel from '../sections-panel';
 import PagesPanel from '../pages-panel';
 
 const logger = new Logger('DocumentPanel');
+
+// Component to display metering information in a table
+const MeteringTable = ({ meteringData }) => {
+  if (!meteringData) {
+    return null;
+  }
+
+  // Transform metering data into table rows
+  const tableItems = [];
+  Object.entries(meteringData).forEach(([service, serviceData]) => {
+    Object.entries(serviceData).forEach(([api, apiData]) => {
+      Object.entries(apiData).forEach(([unit, value]) => {
+        tableItems.push({
+          service,
+          api,
+          unit,
+          value: String(value),
+        });
+      });
+    });
+  });
+
+  return (
+    <Table
+      columnDefinitions={[
+        { id: 'service', header: 'Service', cell: (item) => item.service },
+        { id: 'api', header: 'API', cell: (item) => item.api },
+        { id: 'unit', header: 'Unit', cell: (item) => item.unit },
+        { id: 'value', header: 'Value', cell: (item) => item.value },
+      ]}
+      items={tableItems}
+      loadingText="Loading resources"
+      sortingDisabled
+      empty={
+        <Box textAlign="center" color="inherit">
+          <b>No metering data</b>
+          <Box padding={{ bottom: 's' }} variant="p" color="inherit">
+            No metering data is available for this document.
+          </Box>
+        </Box>
+      }
+    />
+  );
+};
 
 const DocumentAttributes = ({ item }) => {
   return (
@@ -64,6 +108,7 @@ const DocumentAttributes = ({ item }) => {
 
 export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, onDelete }) => {
   logger.debug('DocumentPanel item', item);
+
   return (
     <SpaceBetween size="s">
       <Container
@@ -82,11 +127,22 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, o
           </Header>
         }
       >
-        <DocumentAttributes
-          item={item}
-          setToolsOpen={setToolsOpen}
-          getDocumentDetailsFromIds={getDocumentDetailsFromIds}
-        />
+        <SpaceBetween size="l">
+          <DocumentAttributes
+            item={item}
+            setToolsOpen={setToolsOpen}
+            getDocumentDetailsFromIds={getDocumentDetailsFromIds}
+          />
+
+          {item.metering && (
+            <div>
+              <Box margin={{ top: 'l', bottom: 'm' }}>
+                <Header variant="h3">Metering</Header>
+              </Box>
+              <MeteringTable meteringData={item.metering} />
+            </div>
+          )}
+        </SpaceBetween>
       </Container>
       <DocumentViewers objectKey={item.objectKey} evaluationReportUri={item.evaluationReportUri} />
       <SectionsPanel sections={item.sections} />
