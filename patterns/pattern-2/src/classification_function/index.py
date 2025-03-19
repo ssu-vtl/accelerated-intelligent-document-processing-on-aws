@@ -202,7 +202,7 @@ def classify_single_page(page_id, page_data):
             error_message = e.response['Error']['Message']
             
             if error_code in ['ThrottlingException', 'ServiceQuotaExceededException',
-                            'RequestLimitExceeded', 'TooManyRequestsException']:
+                            'RequestLimitExceeded', 'TooManyRequestsException', 'ServiceUnavailableException']:
                 retry_count += 1
                 put_metric('BedrockThrottles', 1)
                 
@@ -316,7 +316,30 @@ def classify_pages_concurrently(pages):
     return all_results, metering
 
 def handler(event, context):
-    """Lambda handler function"""
+    """
+    Input event containing page level OCR and image data from OCR step:
+    {
+        "execution_arn": <ARN>,
+        "output_bucket": <BUCKET>,
+        "OCRResult": {
+            "metadata": {
+                "input_bucket": <BUCKET>,
+                "object_key": <KEY>,
+                "output_bucket": <BUCKET>,
+                "output_prefix": <PREFIX>,
+                "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>,
+                "metering: {"<service>": {"<api>": {"<unit>": <value>}}}
+            }
+        },
+        "pages": {
+            <ID>: {
+                        "rawTextUri": <S3_URI>,
+                        "parsedTextUri": <S3_URI>,
+                        "imageUri": <S3_URI>
+            }
+        }
+    }
+    """
     logger.info(f"Event: {json.dumps(event)}")
     logger.info(f"Config: {json.dumps(CONFIG)}")  
     
@@ -331,17 +354,33 @@ def handler(event, context):
     total_pages = len(pages)
     put_metric('BedrockRequestsTotal', total_pages)
     
-    all_results, metering = classify_pages_concurrently(pages)
+    all_results, classification_metering = classify_pages_concurrently(pages)
     
     t1 = time.time()
     logger.info(f"Time taken for classification: {t1-t0:.2f} seconds")
 
     sections = group_consecutive_pages(all_results)
     
+    # Merge incoming metering with classification metering
+    incoming_metering = metadata.pop("metering", {})
+    merged_metering = classification_metering.copy()  # Start with classification metering
+    
+    # Merge with incoming metering data
+    for service, service_metering in incoming_metering.items():
+        if service not in merged_metering:
+            merged_metering[service] = {}
+        
+        for api, api_metering in service_metering.items():
+            if api not in merged_metering[service]:
+                merged_metering[service][api] = {}
+            
+            for unit, value in api_metering.items():
+                merged_metering[service][api][unit] = merged_metering[service][api].get(unit, 0) + value
+    logger.info(f"Merged metering data: {json.dumps(merged_metering)}")
+    metadata["metering"] = merged_metering
     response = {
         "metadata": metadata,
         "sections": sections,
-        "metering": metering
     }
 
     return response
