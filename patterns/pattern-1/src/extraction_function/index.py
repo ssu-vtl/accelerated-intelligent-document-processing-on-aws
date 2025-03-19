@@ -168,7 +168,7 @@ def invoke_llm(page_images, class_label, document_text):
             error_message = e.response['Error']['Message']
             
             if error_code in ['ThrottlingException', 'ServiceQuotaExceededException', 
-                            'RequestLimitExceeded', 'TooManyRequestsException']:
+                            'RequestLimitExceeded', 'TooManyRequestsException', 'ServiceUnavailableException']:
                 retry_count += 1
                 put_metric('BedrockThrottles', 1)
                 
@@ -320,7 +320,7 @@ def handler(event, context):
     logger.info(f"Time taken to read images: {t2-t1:.2f} seconds")
 
     # Process with LLM
-    extracted_entities_str, metering = invoke_llm(
+    extracted_entities_str, extraction_metering = invoke_llm(
         page_images,
         class_label,
         document_text,
@@ -352,7 +352,6 @@ def handler(event, context):
     put_metric('InputDocuments', 1)
     put_metric('InputDocumentPages', len(pages))
     
-
     result = {
         "section": {
             "id": section['id'],
@@ -361,7 +360,7 @@ def handler(event, context):
             "outputJSONUri": f"s3://{output_bucket}/{output_key}",
         },
         "pages": pages,
-        "metering": metering
+        "metering": extraction_metering
     }
     
     return result

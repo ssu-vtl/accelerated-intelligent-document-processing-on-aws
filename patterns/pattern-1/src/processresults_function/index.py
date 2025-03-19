@@ -105,7 +105,7 @@ def handler(event, context):
             })
     
     # merge extraction metering into overall metering
-    metering = event.get("metering",{})
+    metering = event.get("metadata",{}).get("metering",{})
     for result in event.get("extraction_results"):
         for service, service_metering in result.get("metering", {}).items():
             for api, api_metering in service_metering.items():
