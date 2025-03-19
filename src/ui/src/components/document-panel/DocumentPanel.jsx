@@ -9,38 +9,97 @@ import PagesPanel from '../pages-panel';
 
 const logger = new Logger('DocumentPanel');
 
+// Format the cost cell content based on whether it's a total row
+const formatCostCell = (item) => {
+  if (item.isTotal) {
+    return <Box fontWeight="bold" fontSize="heading-m">{`Total: ${item.cost}`}</Box>;
+  }
+  return item.cost;
+};
+
 // Component to display metering information in a table
 const MeteringTable = ({ meteringData }) => {
   if (!meteringData) {
     return null;
   }
 
+  // Hardcoded unit cost - later this will come from configuration
+  const DEFAULT_UNIT_COST = 0.001;
+
   // Transform metering data into table rows
   const tableItems = [];
+  let totalCost = 0;
+
   Object.entries(meteringData).forEach(([service, serviceData]) => {
     Object.entries(serviceData).forEach(([api, apiData]) => {
       Object.entries(apiData).forEach(([unit, value]) => {
+        const numericValue = Number(value);
+        const cost = numericValue * DEFAULT_UNIT_COST;
+        totalCost += cost;
+
         tableItems.push({
           service,
           api,
           unit,
-          value: String(value),
+          value: String(numericValue),
+          unitCost: `$${DEFAULT_UNIT_COST.toFixed(4)}`,
+          cost: `$${cost.toFixed(4)}`,
+          isTotal: false,
         });
       });
     });
   });
 
+  // Add total row
+  tableItems.push({
+    service: '',
+    api: '',
+    unit: '',
+    value: '',
+    unitCost: '',
+    cost: `$${totalCost.toFixed(4)}`,
+    isTotal: true,
+  });
+
   return (
     <Table
       columnDefinitions={[
-        { id: 'service', header: 'Service', cell: (item) => item.service },
-        { id: 'api', header: 'API', cell: (item) => item.api },
-        { id: 'unit', header: 'Unit', cell: (item) => item.unit },
-        { id: 'value', header: 'Value', cell: (item) => item.value },
+        {
+          id: 'service',
+          header: 'Service',
+          cell: (item) => item.service,
+        },
+        {
+          id: 'api',
+          header: 'API',
+          cell: (item) => item.api,
+        },
+        {
+          id: 'unit',
+          header: 'Unit',
+          cell: (item) => item.unit,
+        },
+        {
+          id: 'value',
+          header: 'Value',
+          cell: (item) => item.value,
+        },
+        {
+          id: 'unitCost',
+          header: 'Unit Cost',
+          cell: (item) => item.unitCost,
+        },
+        {
+          id: 'cost',
+          header: 'Cost',
+          cell: formatCostCell,
+        },
       ]}
       items={tableItems}
       loadingText="Loading resources"
       sortingDisabled
+      wrapLines
+      stripedRows
       empty={
         <Box textAlign="center" color="inherit">
           <b>No metering data</b>
