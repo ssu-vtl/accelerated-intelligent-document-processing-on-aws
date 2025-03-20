@@ -63,16 +63,58 @@ const customStyles = `
     align-items: center !important;
   }
   
-  /* Make nested lists more compact */
-  .awsui-box {
+  /* Make nested lists more compact - target specific AWSUI class patterns */
+  .awsui-box,
+  div[class*="awsui_box_"],
+  div[class*="awsui_root_"],
+  div[class*="awsui_p-s_"],
+  div[class*="awsui_p-top_"],
+  div[class*="awsui_p-bottom_"] {
     margin-top: 0 !important;
     margin-bottom: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  
+  /* Target specific padding for containers */
+  div[class*="awsui_p-s_"] {
+    padding: 2px !important;
   }
   
   /* Fix box alignment */
   .awsui-box-inline {
     display: inline-flex !important;
     align-items: center !important;
+  }
+  
+  /* Target container tables */
+  table, tbody, tr, td {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Target space-between components */
+  div[class*="awsui_space-between_"],
+  div[class*="awsui_container_"] {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  
+  /* Remove excess padding in list items */
+  div[class*="awsui_content-"] {
+    padding: 2px !important;
+  }
+  
+  /* Target form field spacing */
+  div[class*="awsui_form-field_"] {
+    margin-bottom: 4px !important;
+  }
+  
+  /* Indentation visual indicator */
+  .list-content-indented {
+    border-left: 2px solid #aab7b8;
+    margin-left: 12px;
+    padding-left: 12px !important;
   }
 `;
 
@@ -399,14 +441,27 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     // Get the full path for this object
     const fullPath = path ? `${path}.${key}` : key;
 
-    // Get the section title from metadata if available
-    const sectionTitle = property.sectionLabel || `${key.charAt(0).toUpperCase() + key.slice(1)} Configuration`;
-
     // Calculate nesting level for indentation
     const nestLevel = property.nestLevel || 0;
 
-    // Use container with section header for all object types with sectionLabel
-    if (property.sectionLabel) {
+    // Check if this is a top-level object (path is empty)
+    const isTopLevel = path === '';
+
+    // For top-level objects with sectionLabel, we shouldn't add a container here
+    // as it's already being added in renderTopLevelProperty
+    if (property.sectionLabel && isTopLevel) {
+      return (
+        <SpaceBetween size="s">
+          {Object.entries(property.properties).map(([propKey, propSchema]) => {
+            return <Box key={propKey}>{renderField(propKey, propSchema, fullPath)}</Box>;
+          })}
+        </SpaceBetween>
+      );
+    }
+
+    // For nested objects with sectionLabel, use container with section header
+    if (property.sectionLabel && !isTopLevel) {
+      const sectionTitle = property.sectionLabel;
       return (
         <Container header={<Header variant="h3">{sectionTitle}</Header>}>
           <SpaceBetween size="s">
@@ -418,7 +473,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       );
     }
 
-    // Default compact layout for nested objects without sectionLabel
+    // Default compact layout for objects without sectionLabel
     return (
       <Box padding="s">
         <SpaceBetween size="xs">
@@ -474,17 +529,18 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     // List header with expand/collapse icon and label in the same row
     const listHeader = (
       <Box
-        padding={{ left: `${nestLevel * 16}px`, top: 'xxs', bottom: 'xxs' }}
+        padding={{ left: `${nestLevel * 16}px`, top: '0', bottom: '0' }}
         borderBottom="divider-light"
         backgroundColor={hasCustomizedItems ? 'background-paper-info-emphasis' : 'background-paper-default'}
         borderRadius="xs"
+        style={{ minHeight: '24px', marginBottom: '2px' }}
       >
         <Box
           display="flex"
           alignItems="center"
           justifyContent="space-between"
           onClick={toggleListExpand}
-          style={{ cursor: 'pointer' }}
+          style={{ cursor: 'pointer', padding: '2px 0' }}
         >
           <Box display="flex" alignItems="center" flexDirection="row" className="awsui-box-inline">
             <Button
@@ -514,7 +570,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
 
     // List content with items - only shown when expanded
     const itemsContent = isListExpanded && (
-      <Box padding={{ left: `${nestLevel * 16}px`, top: '0' }}>
+      <Box padding={{ left: `${nestLevel * 50 + 200}px`, top: '0' }} className="list-content-indented">
         <SpaceBetween size="none">
           {values.length === 0 && (
             <Box fontStyle="italic" color="text-body-secondary" padding="xs">
@@ -526,19 +582,25 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
             const itemPath = `${path}[${index}]`;
 
             return (
-              <Box key={`${itemPath}-${index}`} borderBottom="divider-light" padding={{ bottom: 'none', top: 'xxs' }}>
+              <Box
+                key={`${itemPath}-${index}`}
+                borderBottom="divider-light"
+                padding={{ bottom: 'none', top: '0' }}
+                style={{ marginTop: '1px', marginBottom: '1px' }}
+              >
                 {/* Item header showing the item name prominently */}
                 <Box
-                  padding={{ top: 'xxs', bottom: 'xxs', left: 'xs', right: 'xs' }}
+                  padding={{ top: '0', bottom: '0', left: '4px', right: '4px' }}
                   backgroundColor="background-paper-default"
                   borderBottom="divider-light"
                   style={{
-                    marginBottom: '4px',
+                    marginBottom: '2px',
                     borderTopLeftRadius: '4px',
                     borderTopRightRadius: '4px',
+                    minHeight: '22px',
                   }}
                 >
-                  <Box display="flex" alignItems="center">
+                  <Box display="flex" alignItems="center" style={{ padding: '1px 0' }}>
                     <Box display="flex" alignItems="center" className="awsui-box-inline">
                       {/* Delete button - moved to the left of the label */}
                       <Button
@@ -550,7 +612,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                           updateValue(path, newValues);
                         }}
                         ariaLabel="Remove item"
-                        style={{ padding: '0', margin: '0 8px 0 0', display: 'inline-flex' }}
+                        style={{ padding: '0', margin: '0 4px 0 0', display: 'inline-flex' }}
                         className="awsui-button-icon"
                       />
 
@@ -603,9 +665,11 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
 
                         // Render the regular fields using HTML table for guaranteed columns
                         const renderedRegularFields = (
-                          <Box padding="s">
-                            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '8px 0' }}>
-                              <tbody>
+                          <Box padding="0" style={{ margin: 0 }}>
+                            <table
+                              style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '4px 0', margin: 0 }}
+                            >
+                              <tbody style={{ margin: 0, padding: 0 }}>
                                 {/* Split fields into rows based on columnCount */}
                                 {Array.from({ length: Math.ceil(regularProps.length / columnCount) }).map(
                                   (rowItem, rowIndex) => (
@@ -629,7 +693,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                                             key={propKey}
                                             style={{ verticalAlign: 'top', width: `${100 / columnCount}%` }}
                                           >
-                                            <Box padding="xxxs">
+                                            <Box padding="0">
                                               {renderInputField(propKey, propSchema, propValue, propPath)}
                                             </Box>
                                           </td>
@@ -650,7 +714,8 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                           // Configure nested list with proper indentation
                           const nestedListProps = {
                             ...propSchema,
-                            nestLevel: nextNestLevel,
+                            // Add 1 to nestLevel for each nesting level with higher multiplier
+                            nestLevel: nextNestLevel + 1, // Increase nesting level for better visual distinction
                             // Explicitly set columns for the nested list
                             columns: propSchema.columns || 2,
                           };
@@ -664,9 +729,9 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
 
                         // Return both the regular fields and any list fields
                         return (
-                          <Box>
+                          <Box style={{ margin: 0, padding: 0 }}>
                             {renderedRegularFields}
-                            {renderedListFields.length > 0 && <Box padding="s">{renderedListFields}</Box>}
+                            {renderedListFields.length > 0 && <Box padding="0">{renderedListFields}</Box>}
                           </Box>
                         );
                       })()
@@ -683,7 +748,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
           })}
 
           {/* Add new item button */}
-          <Box>
+          <Box padding={{ left: '24px', top: '8px' }}>
             <Button
               iconName="add-plus"
               onClick={() => {
