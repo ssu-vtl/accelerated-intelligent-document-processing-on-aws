@@ -264,10 +264,10 @@ aws cloudformation deploy \
 
 **CLI Deploy Notes:**
 * `<the-pattern-name-here>` should be one of the valid pattern names encased in quotes. (Each pattern may have their own required parameter overrides, see README documentation for details.)
-  * `Pattern1 - Packet processing with Textract, SageMaker(UDOP), and Bedrock`
+  * `Pattern3 - Packet processing with Textract, SageMaker(UDOP), and Bedrock`
   * `Pattern2 - Packet processing with Textract and Bedrock`
     * (This is a great pattern to start with to try out the solution because it has not further dependencies.)
-  * `Pattern3 - Packet or Media processing with Bedrock Data Automation (BDA)`
+  * `Pattern1 - Packet or Media processing with Bedrock Data Automation (BDA)`
 
 After you have deployed the stack, check the Outputs tab to inspect names and links to the dashboards, buckets, workflows and other solution resources.
 
@@ -377,9 +377,9 @@ Each pattern is implemented as a nested stack that contains pattern-specific res
 - Model Endpoints and Configurations
 
 Current patterns include:
-- Pattern 1: OCR → UDOP Classification (SageMaker) → Bedrock Extraction  ([README](./patterns/pattern-1/README.md))
+- Pattern 1: Packet or Media processing with Bedrock Data Automation (BDA) ([README](./patterns/pattern-3/README.md))
 - Pattern 2: OCR → Bedrock Classification → Bedrock Extraction ([README](./patterns/pattern-2/README.md))
-- Pattern 3: Packet or Media processing with Bedrock Data Automation (BDA) ([README](./patterns/pattern-3/README.md))
+- Pattern 3: OCR → UDOP Classification (SageMaker) → Bedrock Extraction  ([README](./patterns/pattern-1/README.md))
 
 
 ### Pattern Selection and Deployment
@@ -403,7 +403,7 @@ When deployed, the main stack uses conditions to create the appropriate nested s
 
 ```yaml
 Conditions:
-  IsPattern1: !Equals [!Ref IDPPattern, "Pattern1"]
+  IsPattern3: !Equals [!Ref IDPPattern, "Pattern1"]
   IsPattern2: !Equals [!Ref IDPPattern, "Pattern2"]
   etc.
 
@@ -459,7 +459,7 @@ The solution creates an integrated CloudWatch dashboard that combines metrics fr
        ServiceToken: !GetAtt DashboardMergerFunction.Arn
        Dashboard1Name: !Ref MainTemplateSubsetDashboard
        Dashboard2Name: !If 
-         - IsPattern1
+         - IsPattern3
          - !GetAtt PATTERN1STACK.Outputs.DashboardName
          - !If
            - IsPattern2
@@ -701,16 +701,17 @@ ErrorThreshold=1                                    # Errors before alerting
 ExecutionTimeThresholdMs=30000                      # Duration threshold in millisecs
 IDPPattern='Pattern1'                               # Choose processing pattern to deploy
 
-# Pattern 1 Parameters (when selected)
-Pattern1UDOPModelArtifactPath='s3://bucket/...'     # UDOP model for classification
-Pattern1ExtractionModel='claude-3-sonnet...'        # Bedrock model for extraction
+# Pattern 1 Parameters (when selected) 
+Pattern1BDAProjectArn=''           # Bedrock Data Automation (BDA) project ARN
 
 # Pattern 2 Parameters (when selected) 
 Pattern2ClassificationModel='nova-pro...'           # Model for classification
 Pattern2ExtractionModel='claude-3-sonnet...'        # Model for extraction
 
-# Pattern 3 Parameters (when selected) 
-Pattern3BDAProjectArn=''           # Bedrock Data Automation (BDA) project ARN
+# Pattern 3 Parameters (when selected)
+Pattern3UDOPModelArtifactPath='s3://bucket/...'     # UDOP model for classification
+Pattern3ExtractionModel='claude-3-sonnet...'        # Bedrock model for extraction
+
 ```
 Each pattern has its own set of parameters that are only required when that pattern is selected via IDPPattern. The main stack parameters apply regardless of the chosen pattern.
 
