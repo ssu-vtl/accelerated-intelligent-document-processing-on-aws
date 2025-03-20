@@ -129,6 +129,7 @@ mutation UpdateDocument($input: UpdateDocumentInput!) {
             ImageUri
             TextUri
         }
+        Metering
         EvaluationReportUri
         ExpiresAfter
     }

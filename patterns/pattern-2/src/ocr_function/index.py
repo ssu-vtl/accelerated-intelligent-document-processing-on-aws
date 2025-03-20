@@ -64,6 +64,12 @@ def process_single_page(page_index, pdf_document, output_bucket, prefix):
     
     # Process with Textract
     textract_result = textract_client.detect_document_text(Document={"Bytes": img_bytes})
+
+    metering = {
+        "textract/detect_document_text": {
+            "pages": textract_result["DocumentMetadata"]["Pages"]
+        }
+    }
     
     # Store raw Textract response
     raw_text_key = f"{prefix}/pages/{page_id}/rawText.json"
@@ -87,17 +93,19 @@ def process_single_page(page_index, pdf_document, output_bucket, prefix):
     t2 = time.time()
     logger.info(f"Time taken for Textract (page {page_id}): {t2-t1:.6f} seconds")
     
-    # Return paths for this page
+    # Return paths and metering for this page
     return {
         "rawTextUri": f"s3://{output_bucket}/{raw_text_key}",
         "parsedTextUri": f"s3://{output_bucket}/{parsed_text_key}",
-        "imageUri": f"s3://{output_bucket}/{image_key}"
+        "imageUri": f"s3://{output_bucket}/{image_key}",
+        "metering": metering
     }
 
 def get_document_text(pdf_content, output_bucket, prefix, max_workers = MAX_WORKERS):
     pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
     num_pages = len(pdf_document)
     page_results = {}
+    metering = {}
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_page = {
@@ -108,14 +116,21 @@ def get_document_text(pdf_content, output_bucket, prefix, max_workers = MAX_WORK
         for future in concurrent.futures.as_completed(future_to_page):
             page_index = future_to_page[future]
             try:
-                page_paths = future.result()
-                page_results[str(page_index + 1)] = page_paths
+                result = future.result()
+                page_metering = result.pop("metering", {})
+                page_results[str(page_index + 1)] = result
+                # Merge metering
+                for service_api, metrics in page_metering.items():
+                    for unit, value in metrics.items():
+                        if service_api not in metering:
+                            metering[service_api] = {}
+                        metering[service_api][unit] = metering[service_api].get(unit, 0) + value
             except Exception as e:
                 logger.error(f"Error processing page index {page_index}, page number {page_index + 1}: {str(e)}")
                 raise
     
     pdf_document.close()
-    return num_pages, page_results
+    return num_pages, page_results, metering
 
 def handler(event, context): 
     """
@@ -148,7 +163,7 @@ def handler(event, context):
     logger.info(f"Time taken for S3 GetObject: {t1-t0:.6f} seconds")
     
     # OCR the pages
-    num_pages, page_results = get_document_text(pdf_content, output_bucket, prefix=object_key)
+    num_pages, page_results, metering = get_document_text(pdf_content, output_bucket, prefix=object_key)
     logger.info(f"Finished processing {object_key} ({num_pages} pages) - output pages written to s3://{output_bucket}/{object_key}/")   
     
     t2 = time.time()
@@ -160,7 +175,8 @@ def handler(event, context):
             "object_key": object_key,
             "output_bucket": output_bucket,
             "output_prefix": object_key, 
-            "num_pages": num_pages
+            "num_pages": num_pages,
+            "metering": metering
         },
         "pages": page_results
     }

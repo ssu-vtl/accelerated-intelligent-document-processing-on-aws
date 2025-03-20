@@ -227,7 +227,8 @@ def handler(event, context):
                 "object_key": <KEY>,
                 "output_bucket": <BUCKET>,
                 "output_prefix": <PREFIX>,
-                "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
+                "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>,
+                "metering: {"<service_api>": {"<unit>": <value>}}
             }
         },
         "pages": {
