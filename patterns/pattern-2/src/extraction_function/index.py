@@ -135,10 +135,8 @@ def invoke_llm(page_images, class_label, document_text):
             # Metering
             usage = response.get('usage', {})
             metering = {
-                "bedrock": {
-                    model_id: {
-                        **usage
-                    }
+                f"bedrock/{model_id}": {
+                    **usage
                 }
             }
 
@@ -259,7 +257,7 @@ def handler(event, context):
             "output_bucket": <BUCKET>,
             "output_prefix": <PREFIX>,
             "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>,
-            "metering: {"<service>": {"<api>": {"<unit>": <value>}}}
+            "metering: {"<service_api>": {"<unit>": <value>}}
         },
         "execution_arn": <ARN>,
         "section": {

@@ -12,13 +12,13 @@ const logger = new Logger('DocumentPanel');
 // Format the cost cell content based on whether it's a total row
 const formatCostCell = (item) => {
   if (item.isTotal) {
-    return <Box fontWeight="bold" fontSize="heading-m">{`Total: ${item.cost}`}</Box>;
+    return <Box fontWeight="bold">{`${item.note}: ${item.cost}`}</Box>;
   }
   return item.cost;
 };
 
 // Component to display metering information in a table
-const MeteringTable = ({ meteringData }) => {
+const MeteringTable = ({ meteringData, documentItem }) => {
   if (!meteringData) {
     return null;
   }
@@ -30,68 +30,74 @@ const MeteringTable = ({ meteringData }) => {
   const tableItems = [];
   let totalCost = 0;
 
-  Object.entries(meteringData).forEach(([service, serviceData]) => {
-    Object.entries(serviceData).forEach(([api, apiData]) => {
-      Object.entries(apiData).forEach(([unit, value]) => {
-        const numericValue = Number(value);
-        const cost = numericValue * DEFAULT_UNIT_COST;
-        totalCost += cost;
+  Object.entries(meteringData).forEach(([serviceApi, metrics]) => {
+    Object.entries(metrics).forEach(([unit, value]) => {
+      const numericValue = Number(value);
+      const cost = numericValue * DEFAULT_UNIT_COST;
+      totalCost += cost;
 
-        tableItems.push({
-          service,
-          api,
-          unit,
-          value: String(numericValue),
-          unitCost: `$${DEFAULT_UNIT_COST.toFixed(4)}`,
-          cost: `$${cost.toFixed(4)}`,
-          isTotal: false,
-        });
+      tableItems.push({
+        serviceApi,
+        unit,
+        value: String(numericValue),
+        unitCost: `$${DEFAULT_UNIT_COST.toFixed(4)}`,
+        cost: `$${cost.toFixed(4)}`,
+        isTotal: false,
       });
     });
   });
 
-  // Add total row
+  // Get page count from the document
+  const numPages = (documentItem && documentItem.pageCount) || 1;
+  const costPerPage = totalCost / numPages;
+
+  // Add total rows
   tableItems.push({
-    service: '',
-    api: '',
+    serviceApi: '',
     unit: '',
     value: '',
     unitCost: '',
     cost: `$${totalCost.toFixed(4)}`,
     isTotal: true,
+    note: 'Total',
+  });
+
+  tableItems.push({
+    serviceApi: '',
+    unit: '',
+    value: '',
+    unitCost: '',
+    cost: `$${costPerPage.toFixed(4)}`,
+    isTotal: true,
+    note: 'Per Page',
   });
 
   return (
     <Table
       columnDefinitions={[
         {
-          id: 'service',
-          header: 'Service',
-          cell: (item) => item.service,
-        },
-        {
-          id: 'api',
-          header: 'API',
-          cell: (item) => item.api,
+          id: 'serviceApi',
+          header: 'Service/Api',
+          cell: (rowItem) => rowItem.serviceApi,
         },
         {
           id: 'unit',
           header: 'Unit',
-          cell: (item) => item.unit,
+          cell: (rowItem) => rowItem.unit,
         },
         {
           id: 'value',
           header: 'Value',
-          cell: (item) => item.value,
+          cell: (rowItem) => rowItem.value,
         },
         {
           id: 'unitCost',
           header: 'Unit Cost',
-          cell: (item) => item.unitCost,
+          cell: (rowItem) => rowItem.unitCost,
         },
         {
           id: 'cost',
-          header: 'Cost',
+          header: 'Estimated Cost',
           cell: formatCostCell,
         },
       ]}
@@ -160,6 +166,15 @@ const DocumentAttributes = ({ item }) => {
             <div>{item.duration}</div>
           </div>
         </SpaceBetween>
+
+        <SpaceBetween size="xs">
+          <div>
+            <Box margin={{ bottom: 'xxxs' }} color="text-label">
+              <strong>Page Count</strong>
+            </Box>
+            <div>{item.pageCount || 0}</div>
+          </div>
+        </SpaceBetween>
       </ColumnLayout>
     </Container>
   );
@@ -198,7 +213,9 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, o
               <Box margin={{ top: 'l', bottom: 'm' }}>
                 <Header variant="h3">Metering</Header>
               </Box>
-              <MeteringTable meteringData={item.metering} />
+              <div style={{ maxWidth: '50%' }}>
+                <MeteringTable meteringData={item.metering} documentItem={item} />
+              </div>
             </div>
           )}
         </SpaceBetween>

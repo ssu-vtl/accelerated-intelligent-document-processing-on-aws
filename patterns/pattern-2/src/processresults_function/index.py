@@ -22,7 +22,7 @@ def handler(event, context):
                 "output_bucket": <BUCKET>,
                 "output_prefix": <PREFIX>,
                 "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>
-                "metering: {"<service>": {"<api>": {"<unit>": <value>}}}
+                "metering: {"<service_api>": {"<unit>": <value>}}
             },
             "extraction_results": [
                 {
@@ -42,7 +42,7 @@ def handler(event, context):
                     "imageUri": <S3_URI>
                     }
                 ],
-                "metering: {"<service>": {"<api>": {"<unit>": <value>}}},
+                "metering: {"<service_api>": {"<unit>": <value>}},
                 ...
             ]
         }
@@ -107,14 +107,17 @@ def handler(event, context):
     # merge extraction metering into overall metering
     metering = event.get("metadata",{}).get("metering",{})
     for result in event.get("extraction_results"):
-        for service, service_metering in result.get("metering", {}).items():
-            for api, api_metering in service_metering.items():
-                for unit, value in api_metering.items():
-                    if service not in metering:
-                        metering[service] = {}
-                    if api not in metering[service]:
-                        metering[service][api] = {}
-                    metering[service][api][unit] = metering[service][api].get(unit, 0) + value
+        result_metering = result.get("metering", {})
+        for service_api, metrics in result_metering.items():
+            if isinstance(metrics, dict):
+                for unit, value in metrics.items():
+                    if service_api not in metering:
+                        metering[service_api] = {}
+                    metering[service_api][unit] = metering[service_api].get(unit, 0) + value
+            else:
+                logger.error(f"Unexpected metering data format for {service_api}: {metrics}")
+
+
 
     statemachine_output = {
         "Sections": sections,

@@ -66,10 +66,8 @@ def process_single_page(page_index, pdf_document, output_bucket, prefix):
     textract_result = textract_client.detect_document_text(Document={"Bytes": img_bytes})
 
     metering = {
-        "textract": {
-            "detect_document_text": {
-                "pages": textract_result["DocumentMetadata"]["Pages"]
-            }
+        "textract/detect_document_text": {
+            "pages": textract_result["DocumentMetadata"]["Pages"]
         }
     }
     
@@ -122,14 +120,11 @@ def get_document_text(pdf_content, output_bucket, prefix, max_workers = MAX_WORK
                 page_metering = result.pop("metering", {})
                 page_results[str(page_index + 1)] = result
                 # Merge metering
-                for service, service_metering in page_metering.items():
-                    for api, api_metering in service_metering.items():
-                        for unit, value in api_metering.items():
-                            if service not in metering:
-                                metering[service] = {}
-                            if api not in metering[service]:
-                                metering[service][api] = {}
-                            metering[service][api][unit] = metering[service][api].get(unit, 0) + value
+                for service_api, metrics in page_metering.items():
+                    for unit, value in metrics.items():
+                        if service_api not in metering:
+                            metering[service_api] = {}
+                        metering[service_api][unit] = metering[service_api].get(unit, 0) + value
             except Exception as e:
                 logger.error(f"Error processing page index {page_index}, page number {page_index + 1}: {str(e)}")
                 raise
