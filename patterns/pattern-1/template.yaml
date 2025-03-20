@@ -137,6 +137,38 @@ Resources:
               task_prompt:
                 type: string
                 description: Task prompt - supports parameters {DOCUMENT_CLASS} (replaced with the detected class label), {ATTRIBUTE_NAMES_AND_DESCRIPTIONS} (replaced with the attribute names and descriptions for the detected class), and {DOCUMENT_TEXT} (replaced by the OCR output). 
+          pricing:
+            order: 5
+            type: array
+            sectionLabel: Pricing (Estimates only - check https://aws.amazon.com/bedrock/pricing/ & https://aws.amazon.com/textract/pricing/)
+            listLabel: Services
+            itemLabel: Service/API
+            columns: 2
+            items:
+              type: object
+              required:
+                - name
+                - units
+              properties:
+                name:
+                  type: string
+                  description: Service/API
+                units:
+                  type: array
+                  listLabel: Metered unit pricing
+                  itemLabel: Metered Unit price
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - price
+                    properties:
+                      name:
+                        type: string
+                        description: Metered unit name
+                      price:
+                        type: number
+                        description: Estimated cost/unit
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
@@ -460,6 +492,23 @@ Resources:
             {ATTRIBUTE_NAMES_AND_DESCRIPTIONS}
             </attributes>
             </task>
+        pricing:
+          - name: textract/detect_document_text
+            units:
+              - name: pages
+                price: 0.0015
+          - name: bedrock/us.amazon.nova-pro-v1:0
+            units:
+              - name: inputTokens
+                price: 0.0000008
+              - name: outputTokens
+                price: 0.0000032
+          - name: bedrock/us.anthropic.claude-3-5-sonnet-20241022-v2:0
+            units:
+              - name: inputTokens
+                price: 0.000003
+              - name: outputTokens
+                price: 0.000015
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
