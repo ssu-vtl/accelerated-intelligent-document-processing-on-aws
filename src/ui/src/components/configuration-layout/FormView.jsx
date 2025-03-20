@@ -53,6 +53,27 @@ const customStyles = `
     margin-left: 8px;
     font-size: 12px;
   }
+  
+  /* More compact list and nested list styling */
+  .awsui-button-icon {
+    padding: 2px !important;
+    height: auto !important;
+    min-height: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+  
+  /* Make nested lists more compact */
+  .awsui-box {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  
+  /* Fix box alignment */
+  .awsui-box-inline {
+    display: inline-flex !important;
+    align-items: center !important;
+  }
 `;
 
 // Helper functions outside the component to avoid hoisting issues
@@ -450,41 +471,50 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     // Check if list is expanded - default to collapsed
     const isListExpanded = expandedItems[listKey] === true;
 
-    // List header with expand/collapse icon beside the list label and item count
+    // List header with expand/collapse icon and label in the same row
     const listHeader = (
       <Box
-        padding={{ left: `${nestLevel * 16}px`, top: 'xs', bottom: 'xs' }}
+        padding={{ left: `${nestLevel * 16}px`, top: 'xxs', bottom: 'xxs' }}
         borderBottom="divider-light"
         backgroundColor={hasCustomizedItems ? 'background-paper-info-emphasis' : 'background-paper-default'}
         borderRadius="xs"
       >
-        <Box display="flex" alignItems="center" onClick={toggleListExpand} style={{ cursor: 'pointer' }}>
-          <Box fontWeight="bold" fontSize="body-m">
-            {`${listLabel} (${values.length})`}
-            {hasCustomizedItems && (
-              <Box as="span" color="text-status-info" fontSize="body-s" fontWeight="normal" marginLeft="xs">
-                (customized)
-              </Box>
-            )}
+        <Box
+          display="flex"
+          alignItems="center"
+          justifyContent="space-between"
+          onClick={toggleListExpand}
+          style={{ cursor: 'pointer' }}
+        >
+          <Box display="flex" alignItems="center" flexDirection="row" className="awsui-box-inline">
+            <Button
+              variant="icon"
+              iconName={isListExpanded ? 'caret-down-filled' : 'caret-right-filled'}
+              onClick={(e) => {
+                // Stop propagation to prevent double-toggle
+                e.stopPropagation();
+                toggleListExpand();
+              }}
+              ariaLabel={isListExpanded ? 'Collapse list' : 'Expand list'}
+              style={{ margin: '0', padding: '0', display: 'inline-flex' }}
+              className="awsui-button-icon"
+            />
+            <Box fontWeight="bold" fontSize="body-m" marginLeft="xxs" display="inline-block">
+              {`${listLabel} (${values.length})`}
+              {hasCustomizedItems && (
+                <Box as="span" color="text-status-info" fontSize="body-s" fontWeight="normal" marginLeft="xs">
+                  (customized)
+                </Box>
+              )}
+            </Box>
           </Box>
-          <Button
-            variant="icon"
-            iconName={isListExpanded ? 'caret-down-filled' : 'caret-right-filled'}
-            onClick={(e) => {
-              // Stop propagation to prevent double-toggle
-              e.stopPropagation();
-              toggleListExpand();
-            }}
-            ariaLabel={isListExpanded ? 'Collapse list' : 'Expand list'}
-            style={{ marginLeft: '4px' }}
-          />
         </Box>
       </Box>
     );
 
     // List content with items - only shown when expanded
     const itemsContent = isListExpanded && (
-      <Box padding={{ left: `${nestLevel * 16}px` }}>
+      <Box padding={{ left: `${nestLevel * 16}px`, top: '0' }}>
         <SpaceBetween size="none">
           {values.length === 0 && (
             <Box fontStyle="italic" color="text-body-secondary" padding="xs">
@@ -496,49 +526,53 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
             const itemPath = `${path}[${index}]`;
 
             return (
-              <Box key={`${itemPath}-${index}`} borderBottom="divider-light" padding={{ bottom: 'none' }}>
+              <Box key={`${itemPath}-${index}`} borderBottom="divider-light" padding={{ bottom: 'none', top: 'xxs' }}>
                 {/* Item header showing the item name prominently */}
                 <Box
-                  padding="xs"
+                  padding={{ top: 'xxs', bottom: 'xxs', left: 'xs', right: 'xs' }}
                   backgroundColor="background-paper-default"
                   borderBottom="divider-light"
                   style={{
-                    marginBottom: '6px',
+                    marginBottom: '4px',
                     borderTopLeftRadius: '4px',
                     borderTopRightRadius: '4px',
                   }}
                 >
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Box
-                      fontWeight="bold"
-                      fontSize="body-m"
-                      color={isCustomized(`${itemPath}`) ? 'text-status-info' : 'text-body-default'}
-                    >
-                      {item.name || `${itemLabel} ${index + 1}`}
-                      {isCustomized(`${itemPath}`) && (
-                        <Box as="span" fontSize="body-s" fontWeight="normal" marginLeft="xs" color="text-status-info">
-                          (customized)
-                        </Box>
-                      )}
-                    </Box>
+                  <Box display="flex" alignItems="center">
+                    <Box display="flex" alignItems="center" className="awsui-box-inline">
+                      {/* Delete button - moved to the left of the label */}
+                      <Button
+                        variant="icon"
+                        iconName="remove"
+                        onClick={() => {
+                          const newValues = [...values];
+                          newValues.splice(index, 1);
+                          updateValue(path, newValues);
+                        }}
+                        ariaLabel="Remove item"
+                        style={{ padding: '0', margin: '0 8px 0 0', display: 'inline-flex' }}
+                        className="awsui-button-icon"
+                      />
 
-                    {/* Delete button - moved to the header for better visibility */}
-                    <Button
-                      variant="icon"
-                      iconName="remove"
-                      onClick={() => {
-                        const newValues = [...values];
-                        newValues.splice(index, 1);
-                        updateValue(path, newValues);
-                      }}
-                      ariaLabel="Remove item"
-                    />
+                      <Box
+                        fontWeight="bold"
+                        fontSize="body-m"
+                        color={isCustomized(`${itemPath}`) ? 'text-status-info' : 'text-body-default'}
+                        display="inline-block"
+                      >
+                        {item.name || `${itemLabel} ${index + 1}`}
+                        {isCustomized(`${itemPath}`) && (
+                          <Box as="span" fontSize="body-s" fontWeight="normal" marginLeft="xs" color="text-status-info">
+                            (customized)
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
                   </Box>
                 </Box>
 
-                {/* Item row with delete button */}
-                <Box display="flex" alignItems="flex-start" padding={{ top: 'none', bottom: 'none' }}>
-                  {/* Content area with property fields and nested lists */}
+                {/* Content area with property fields and nested lists - no extra row for delete button */}
+                <Box padding={{ top: 'none', bottom: 'none' }}>
                   <Box flex="1">
                     {property.items.type === 'object' ? (
                       (() => {
@@ -622,7 +656,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                           };
 
                           return (
-                            <Box key={propKey} padding={{ top: 'xxxs', bottom: 'xxxs' }} width="100%">
+                            <Box key={propKey} padding={{ top: '0', bottom: '0' }} width="100%">
                               {renderListField(propKey, nestedListProps, propPath)}
                             </Box>
                           );
