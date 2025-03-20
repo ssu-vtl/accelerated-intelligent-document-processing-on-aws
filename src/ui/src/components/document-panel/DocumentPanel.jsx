@@ -1,6 +1,15 @@
 /* eslint-disable react/prop-types */
 import React, { useState, useEffect } from 'react';
-import { Box, ColumnLayout, Container, SpaceBetween, Button, Header, Table } from '@awsui/components-react';
+import {
+  Box,
+  ColumnLayout,
+  Container,
+  SpaceBetween,
+  Button,
+  Header,
+  Table,
+  ExpandableSection,
+} from '@awsui/components-react';
 import { Logger } from 'aws-amplify';
 import './DocumentPanel.css';
 import DocumentViewers from '../document-viewers/DocumentViewers';
@@ -19,7 +28,7 @@ const formatCostCell = (item) => {
 };
 
 // Component to display metering information in a table
-const MeteringTable = ({ meteringData, documentItem }) => {
+const MeteringTable = ({ meteringData, preCalculatedTotals }) => {
   // Use configuration to get pricing data
   const { mergedConfig, loading } = useConfiguration();
   const [pricingData, setPricingData] = useState({});
@@ -90,29 +99,18 @@ const MeteringTable = ({ meteringData, documentItem }) => {
     });
   });
 
-  // Get page count from the document
-  const numPages = (documentItem && documentItem.pageCount) || 1;
-  const costPerPage = totalCost / numPages;
+  // Use preCalculatedTotals if provided, otherwise calculate locally
+  const finalTotalCost = preCalculatedTotals ? preCalculatedTotals.totalCost : totalCost;
 
-  // Add total rows
+  // Add total row
   tableItems.push({
     serviceApi: '',
     unit: '',
     value: '',
     unitCost: '',
-    cost: `$${totalCost.toFixed(4)}`,
+    cost: `$${finalTotalCost.toFixed(4)}`,
     isTotal: true,
     note: 'Total',
-  });
-
-  tableItems.push({
-    serviceApi: '',
-    unit: '',
-    value: '',
-    unitCost: '',
-    cost: `$${costPerPage.toFixed(4)}`,
-    isTotal: true,
-    note: 'Per Page',
   });
 
   return (
@@ -158,6 +156,76 @@ const MeteringTable = ({ meteringData, documentItem }) => {
         </Box>
       }
     />
+  );
+};
+
+// Helper function to calculate total costs
+const calculateTotalCosts = (meteringData, documentItem) => {
+  if (!meteringData) return { totalCost: 0, costPerPage: 0 };
+
+  const { mergedConfig } = useConfiguration();
+  let totalCost = 0;
+
+  if (mergedConfig && mergedConfig.pricing) {
+    const pricingLookup = {};
+    mergedConfig.pricing.forEach((item) => {
+      if (item.name && item.units) {
+        pricingLookup[item.name] = {};
+        item.units.forEach((unitItem) => {
+          if (unitItem.name && unitItem.price !== undefined) {
+            pricingLookup[item.name][unitItem.name] = Number(unitItem.price);
+          }
+        });
+      }
+    });
+
+    Object.entries(meteringData).forEach(([serviceApi, metrics]) => {
+      Object.entries(metrics).forEach(([unit, value]) => {
+        const numericValue = Number(value);
+        if (pricingLookup[serviceApi] && pricingLookup[serviceApi][unit] !== undefined) {
+          const unitPrice = Number(pricingLookup[serviceApi][unit]);
+          if (!Number.isNaN(unitPrice)) {
+            totalCost += numericValue * unitPrice;
+          }
+        }
+      });
+    });
+  }
+
+  const numPages = (documentItem && documentItem.pageCount) || 1;
+  const costPerPage = totalCost / numPages;
+
+  return { totalCost, costPerPage };
+};
+
+// Expandable section containing the metering table
+const MeteringExpandableSection = ({ meteringData, documentItem }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  // Calculate the cost per page for the header
+  const { totalCost, costPerPage } = calculateTotalCosts(meteringData, documentItem);
+
+  return (
+    <Box margin={{ top: 'l', bottom: 'm' }}>
+      <ExpandableSection
+        variant="container"
+        header={
+          <Header variant="h3" description={`Estimated cost per page: $${costPerPage.toFixed(4)}`}>
+            Estimated Cost
+          </Header>
+        }
+        expanded={expanded}
+        onChange={({ detail }) => setExpanded(detail.expanded)}
+      >
+        <div style={{ maxWidth: '50%' }}>
+          <MeteringTable
+            meteringData={meteringData}
+            documentItem={documentItem}
+            preCalculatedTotals={{ totalCost, costPerPage }}
+          />
+        </div>
+      </ExpandableSection>
+    </Box>
   );
 };
 
@@ -253,12 +321,7 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, o
 
           {item.metering && (
             <div>
-              <Box margin={{ top: 'l', bottom: 'm' }}>
-                <Header variant="h3">Metering</Header>
-              </Box>
-              <div style={{ maxWidth: '50%' }}>
-                <MeteringTable meteringData={item.metering} documentItem={item} />
-              </div>
+              <MeteringExpandableSection meteringData={item.metering} documentItem={item} />
             </div>
           )}
         </SpaceBetween>
