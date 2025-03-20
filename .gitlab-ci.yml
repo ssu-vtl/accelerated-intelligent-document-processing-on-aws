@@ -12,13 +12,15 @@ image: public.ecr.aws/docker/library/python:3.13-bookworm
 #     - .cache/pip
 
 stages:
-  - deploy_s3
+  - integration_test
 
-deploy_s3:
-  stage: deploy_s3
+integration_test:
+  stage: integration_test
   variables:
-    AWS_CREDS_TARGET_ROLE: arn:aws:iam::715841340161:role/idp-sdlc-GitLab
-    AWS_DEFAULT_REGION: us-east-1
+    # In order to run tests in another account, add a AWS_CREDS_TARGET_ROLE variable to the Gitlab pipeline variables.
+    AWS_CREDS_TARGET_ROLE: ${AWS_CREDS_TARGET_ROLE:-"arn:aws:iam::715841340161:role/idp-sdlc-GitLab"}
+    AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-"us-east-1"}
+    IDP_ACCOUNT_ID: ${IDP_ACCOUNT_ID:-"715841340161"}
   
   # Add rules to only run on develop branch
   rules:
