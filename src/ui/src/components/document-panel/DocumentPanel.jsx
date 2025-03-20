@@ -1,11 +1,12 @@
 /* eslint-disable react/prop-types */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, ColumnLayout, Container, SpaceBetween, Button, Header, Table } from '@awsui/components-react';
 import { Logger } from 'aws-amplify';
 import './DocumentPanel.css';
 import DocumentViewers from '../document-viewers/DocumentViewers';
 import SectionsPanel from '../sections-panel';
 import PagesPanel from '../pages-panel';
+import useConfiguration from '../../hooks/use-configuration';
 
 const logger = new Logger('DocumentPanel');
 
@@ -19,12 +20,38 @@ const formatCostCell = (item) => {
 
 // Component to display metering information in a table
 const MeteringTable = ({ meteringData, documentItem }) => {
+  // Use configuration to get pricing data
+  const { mergedConfig, loading } = useConfiguration();
+  const [pricingData, setPricingData] = useState({});
+  // We no longer use a default unit cost, showing "None" instead
+
+  useEffect(() => {
+    if (mergedConfig && mergedConfig.pricing) {
+      // Convert pricing array to lookup object for easier access
+      const pricingLookup = {};
+      mergedConfig.pricing.forEach((item) => {
+        if (item.name && item.units) {
+          pricingLookup[item.name] = {};
+          item.units.forEach((unitItem) => {
+            if (unitItem.name && unitItem.price !== undefined) {
+              // Ensure price is stored as a number
+              pricingLookup[item.name][unitItem.name] = Number(unitItem.price);
+            }
+          });
+        }
+      });
+      setPricingData(pricingLookup);
+      logger.debug('Pricing data initialized:', pricingLookup);
+    }
+  }, [mergedConfig]);
+
   if (!meteringData) {
     return null;
   }
 
-  // Hardcoded unit cost - later this will come from configuration
-  const DEFAULT_UNIT_COST = 0.001;
+  if (loading) {
+    return <Box>Loading pricing data...</Box>;
+  }
 
   // Transform metering data into table rows
   const tableItems = [];
@@ -33,15 +60,31 @@ const MeteringTable = ({ meteringData, documentItem }) => {
   Object.entries(meteringData).forEach(([serviceApi, metrics]) => {
     Object.entries(metrics).forEach(([unit, value]) => {
       const numericValue = Number(value);
-      const cost = numericValue * DEFAULT_UNIT_COST;
-      totalCost += cost;
+
+      // Look up the unit price from the pricing data
+      let unitPrice = null;
+      let unitPriceDisplayValue = 'None';
+      let cost = 0;
+      if (pricingData[serviceApi] && pricingData[serviceApi][unit] !== undefined) {
+        unitPrice = Number(pricingData[serviceApi][unit]);
+        if (!Number.isNaN(unitPrice)) {
+          unitPriceDisplayValue = `$${unitPrice}`;
+          cost = numericValue * unitPrice;
+          totalCost += cost;
+          logger.debug(`Found price for ${serviceApi}/${unit}: ${unitPriceDisplayValue}`);
+        } else {
+          logger.warn(`Invalid price for ${serviceApi}/${unit}, using None`);
+        }
+      } else {
+        logger.debug(`No price found for ${serviceApi}/${unit}, using None`);
+      }
 
       tableItems.push({
         serviceApi,
         unit,
         value: String(numericValue),
-        unitCost: `$${DEFAULT_UNIT_COST.toFixed(4)}`,
-        cost: `$${cost.toFixed(4)}`,
+        unitCost: unitPriceDisplayValue,
+        cost: unitPrice !== null ? `$${cost.toFixed(4)}` : 'N/A',
         isTotal: false,
       });
     });
