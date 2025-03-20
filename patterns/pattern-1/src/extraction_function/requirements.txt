@@ -1,4 +1,0 @@
-PyMuPDF
-boto3
-pillow
-../../lib/get_config_pkg  # get_config package

@@ -797,7 +797,7 @@ Resources:
   DocumentProcessingStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      Name: !Sub "${StackName}-DocumentProcessingWorkflow"
+      Name: !Sub "${AWS::StackName}-DocumentProcessingWorkflow"
       DefinitionUri: statemachine/workflow.asl.json
       DefinitionSubstitutions:
         OCRFunctionArn: !GetAtt OCRFunction.Arn
