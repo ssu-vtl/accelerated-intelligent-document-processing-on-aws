@@ -217,7 +217,7 @@ const MeteringExpandableSection = ({ meteringData, documentItem }) => {
         expanded={expanded}
         onChange={({ detail }) => setExpanded(detail.expanded)}
       >
-        <div style={{ maxWidth: '50%' }}>
+        <div style={{ width: '100%' }}>
           <MeteringTable
             meteringData={meteringData}
             documentItem={documentItem}
