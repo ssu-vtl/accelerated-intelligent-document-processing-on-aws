@@ -59,6 +59,7 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
 - [Configuration / Customization](#configuration--customization)
   - [Stack Parameters](#stack-parameters)
   - [Request Service Quota Limits for high volume processing](#request-service-quota-limits-for-high-volume-processing)
+  - [Cost Estimation](#cost-estimation)
 - [Customizing Extraction](#customizing-extraction)
   - [Extraction Prompts](#extraction-prompts)
   - [Extraction Attributes](#extraction-attributes)
@@ -76,7 +77,7 @@ A scalable, serverless solution for automated document processing and informatio
 - **Modular, pluggable patterns for classification, splitting, extraction**: Pre-built processing patterns using the latest state of the art models and AWS services.. or create your own.
 - **High Throughput Processing**: Handles large volumes of documents through intelligent queuing and concurrency management
 - **Built-in Resilience**: Features comprehensive error handling, automatic retries, and throttling management
-- **Cost Optimization**: Pay-per-use pricing model with built-in controls to manage service quotas
+- **Cost Optimization**: Pay-per-use pricing model with built-in controls and real-time cost estimation
 - **Comprehensive Monitoring**: Rich CloudWatch dashboard with detailed metrics, logs, and alerts for end-to-end visibility
 - **Easy Document Tracking**: Built-in tracking system to monitor document status and processing times
 - **Secure by Design**: Implements encryption at rest, access controls, and secure communication between services
@@ -727,6 +728,12 @@ Consider requesting raised quotas for the following services, to avoid throttlin
 - Amazon CloudWatch - Rate of PutMetricData requests
 
 Use the CloudWatch Dashboard to check errors reported by Lambda functions during scale testing, to check for these, or other, service quota limit exceptions.
+
+### Cost Estimation
+
+The solution includes an integrated cost estimation feature that automatically tracks service usage and calculates estimated costs for each processed document. In the Document Detail page, each document displays an "Estimated Cost" section that shows the per-page cost in the header and can be expanded to reveal a detailed breakdown of service usage and associated costs.
+
+Cost estimates are derived from the pricing configuration in the system settings. You can customize pricing by updating the configuration with your own unit costs for each service and API. The configuration follows a simple structure where each service has a list of units (like "characters", "tokens", or "pages") with associated prices. The UI displays "None" for any service or unit that doesn't have a defined price in the configuration.
 
 
 ## Troubleshooting Guide
