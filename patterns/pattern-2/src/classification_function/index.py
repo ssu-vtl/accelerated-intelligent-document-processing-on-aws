@@ -179,10 +179,8 @@ def classify_single_page(page_id, page_data):
             # Metering
             usage = response.get('usage', {})
             metering = {
-                "bedrock": {
-                    model_id: {
-                        **usage
-                    }
+                f"bedrock/{model_id}": {
+                    **usage
                 }
             }
             
@@ -301,14 +299,11 @@ def classify_pages_concurrently(pages):
                 all_results.append(result)
                 
                 # Merge metering
-                for service, service_metering in page_metering.items():
-                    for api, api_metering in service_metering.items():
-                        for unit, value in api_metering.items():
-                            if service not in metering:
-                                metering[service] = {}
-                            if api not in metering[service]:
-                                metering[service][api] = {}
-                            metering[service][api][unit] = metering[service][api].get(unit, 0) + value
+                for service_api, metrics in page_metering.items():
+                    for unit, value in metrics.items():
+                        if service_api not in metering:
+                            metering[service_api] = {}
+                        metering[service_api][unit] = metering[service_api].get(unit, 0) + value
             except Exception as e:
                 logger.error(f"Error in concurrent classification: {str(e)}")
                 raise
@@ -328,7 +323,7 @@ def handler(event, context):
                 "output_bucket": <BUCKET>,
                 "output_prefix": <PREFIX>,
                 "num_pages": <NUMBER OF PAGES IN ORIGINAL INPUT DOC>,
-                "metering: {"<service>": {"<api>": {"<unit>": <value>}}}
+                "metering: {"<service_api>": {"<unit>": <value>}}
             }
         },
         "pages": {
@@ -366,16 +361,14 @@ def handler(event, context):
     merged_metering = classification_metering.copy()  # Start with classification metering
     
     # Merge with incoming metering data
-    for service, service_metering in incoming_metering.items():
-        if service not in merged_metering:
-            merged_metering[service] = {}
-        
-        for api, api_metering in service_metering.items():
-            if api not in merged_metering[service]:
-                merged_metering[service][api] = {}
-            
-            for unit, value in api_metering.items():
-                merged_metering[service][api][unit] = merged_metering[service][api].get(unit, 0) + value
+    for service_api, metrics in incoming_metering.items():
+        if isinstance(metrics, dict):
+            for unit, value in metrics.items():
+                if service_api not in merged_metering:
+                    merged_metering[service_api] = {}
+                merged_metering[service_api][unit] = merged_metering[service_api].get(unit, 0) + value
+        else:
+            logger.warning(f"Unexpected metering data format for {service_api}: {metrics}")
     logger.info(f"Merged metering data: {json.dumps(merged_metering)}")
     metadata["metering"] = merged_metering
     response = {
