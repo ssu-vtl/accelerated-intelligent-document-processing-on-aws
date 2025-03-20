@@ -116,6 +116,43 @@ const customStyles = `
     margin-left: 12px;
     padding-left: 12px !important;
   }
+  
+  /* Property indentation style - more subtle than list indentation */
+  .property-content-indented {
+    border-left: 1px solid #d5dbdb;
+    margin-left: 8px;
+    padding-left: 8px !important;
+  }
+  
+  /* Add button spacing */
+  .list-add-button-container {
+    padding: 8px 4px 12px 4px !important;
+    margin: 0 0 8px 0 !important;
+  }
+  
+  /* Base add button container styling */
+  .list-add-button-container {
+    position: relative;
+    margin-top: 0 !important;
+  }
+  
+  /* Specific styling for nested list add buttons */
+  .property-content-indented .list-add-button-container,
+  .list-content-indented .list-content-indented .list-add-button-container {
+    padding-top: 8px !important;
+    margin-top: 4px !important;
+  }
+  
+  /* List separator styling */
+  .list-separator {
+    margin: 16px 0 16px 0 !important;
+  }
+  
+  /* Nested list separator - more space without a visible line */
+  .property-content-indented .list-separator,
+  .list-content-indented .list-content-indented .list-separator {
+    margin: 10px 0 6px 0 !important;
+  }
 `;
 
 // Helper functions outside the component to avoid hoisting issues
@@ -580,13 +617,17 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
 
           {values.map((item, index) => {
             const itemPath = `${path}[${index}]`;
+            const isLastItem = index === values.length - 1;
 
             return (
               <Box
                 key={`${itemPath}-${index}`}
                 borderBottom="divider-light"
                 padding={{ bottom: 'none', top: '0' }}
-                style={{ marginTop: '1px', marginBottom: '1px' }}
+                style={{
+                  marginTop: '1px',
+                  marginBottom: isLastItem ? '8px' : '1px',
+                }}
               >
                 {/* Item header showing the item name prominently */}
                 <Box
@@ -634,7 +675,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                 </Box>
 
                 {/* Content area with property fields and nested lists - no extra row for delete button */}
-                <Box padding={{ top: 'none', bottom: 'none' }}>
+                <Box padding={{ top: 'none', bottom: 'none', left: '40px' }} className="property-content-indented">
                   <Box flex="1">
                     {property.items.type === 'object' ? (
                       (() => {
@@ -721,7 +762,12 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                           };
 
                           return (
-                            <Box key={propKey} padding={{ top: '0', bottom: '0' }} width="100%">
+                            <Box
+                              key={propKey}
+                              padding={{ top: '0', bottom: '8px' }}
+                              width="100%"
+                              margin={{ bottom: '4px' }}
+                            >
                               {renderListField(propKey, nestedListProps, propPath)}
                             </Box>
                           );
@@ -731,7 +777,12 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                         return (
                           <Box style={{ margin: 0, padding: 0 }}>
                             {renderedRegularFields}
-                            {renderedListFields.length > 0 && <Box padding="0">{renderedListFields}</Box>}
+                            {renderedListFields.length > 0 && (
+                              <>
+                                {regularProps.length > 0 && <Box padding="4px 0" margin="4px 0" />}
+                                <Box padding="0">{renderedListFields}</Box>
+                              </>
+                            )}
                           </Box>
                         );
                       })()
@@ -747,8 +798,19 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
             );
           })}
 
+          {/* Space before add button - only use visual separator for top-level lists */}
+          <Box
+            className="list-separator"
+            padding="0"
+            margin="16px 0"
+            style={{ borderTop: nestLevel === 0 ? '1px solid #e0e0e0' : 'none' }}
+          />
+
           {/* Add new item button */}
-          <Box padding={{ left: '24px', top: '8px' }}>
+          <Box className="list-add-button-container" display="flex" alignItems="center">
+            <Box style={{ width: '24px', display: 'inline-block' }}>
+              {/* This empty box provides the same spacing as the delete button */}
+            </Box>
             <Button
               iconName="add-plus"
               onClick={() => {
@@ -766,7 +828,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
 
     // Combine header and content
     return (
-      <Box>
+      <Box margin={{ top: '8px', bottom: '8px' }}>
         {listHeader}
         {itemsContent}
       </Box>
