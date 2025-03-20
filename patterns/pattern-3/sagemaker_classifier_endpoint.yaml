@@ -136,7 +136,7 @@ Resources:
     Type: AWS::SageMaker::Endpoint
     Properties:
       EndpointConfigName: !GetAtt UDOPEndpointConfig.EndpointConfigName
-      EndpointName: !Sub '${StackName}-SageMaker-Classifier-Endpoint'
+      EndpointName: !Sub '${StackName}-SageMaker-Endpoint'
 
   ScalingTarget:
     Type: AWS::ApplicationAutoScaling::ScalableTarget

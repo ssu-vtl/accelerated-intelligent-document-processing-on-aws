@@ -26,7 +26,7 @@ This document outlines the AWS services used by the GenAI Intelligent Document P
 | **Amazon Textract** | Extracts text and data from documents (OCR) | | ✓ |
 | **Amazon SageMaker** | Hosts custom ML models for document classification (UDOP) | ✓ | ✓ |
 | **Amazon Bedrock Knowledge Base** | Enables semantic document querying (optional) | ✓ | ✓ |
-| **Bedrock Data Automation (BDA)** | Automates document processing workflows (Pattern 3) | | ✓ |
+| **Bedrock Data Automation (BDA)** | Automates document processing workflows (Pattern 1) | | ✓ |
 
 ### Auth & API Services
 
@@ -69,7 +69,7 @@ Deploying this solution requires an IAM role/user with the following permissions
 
 #### Pattern-Specific Permissions
 * `bedrock:*` - Create Bedrock resources (all patterns)
-* `sagemaker:*` - Create SageMaker endpoints (Pattern 1)
+* `sagemaker:*` - Create SageMaker endpoints (Pattern 3)
 * `opensearch:*` - Create OpenSearch domains (Knowledge Base feature)
 * `kms:*` - Create KMS keys for encryption
 * `wafv2:*` - Configure WAF rules (optional)
@@ -96,7 +96,7 @@ The solution creates various IAM roles to run different components of the system
   * `logs:*`
 
 * **Classification Role**:
-  * `sagemaker:InvokeEndpoint` (Pattern 1)
+  * `sagemaker:InvokeEndpoint` (Pattern 3)
   * `bedrock:InvokeModel` (Patterns 2 & 3)
   * `s3:GetObject`, `s3:PutObject`
   * `logs:*`
@@ -106,7 +106,7 @@ The solution creates various IAM roles to run different components of the system
   * `s3:GetObject`, `s3:PutObject`
   * `logs:*`
 
-* **BDA Integration Role** (Pattern 3):
+* **BDA Integration Role** (Pattern 1):
   * `bedrock-agent:StartIngestionJob`
   * `bedrock-agent:GetIngestionJob`
   * `s3:GetObject`, `s3:PutObject`
