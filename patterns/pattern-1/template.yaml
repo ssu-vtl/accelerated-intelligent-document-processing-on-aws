@@ -61,6 +61,38 @@ Resources:
             order: 1
             type: string
             description: Notes
+          pricing:
+            order: 5
+            type: array
+            sectionLabel: Pricing (Estimates only - check https://aws.amazon.com/bedrock/pricing/)
+            listLabel: Services
+            itemLabel: Service/API
+            columns: 2
+            items:
+              type: object
+              required:
+                - name
+                - units
+              properties:
+                name:
+                  type: string
+                  description: Service/API
+                units:
+                  type: array
+                  listLabel: Metered unit pricing
+                  itemLabel: Metered Unit price
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - price
+                    properties:
+                      name:
+                        type: string
+                        description: Metered unit name
+                      price:
+                        type: number
+                        description: Estimated cost/unit
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
@@ -70,6 +102,11 @@ Resources:
       ServiceToken: !Ref UpdateConfigurationFunctionArn
       Default:
         notes: !Sub "Processing configuration in BDA project: ${BDAProjectArn}"
+        pricing:
+          - name: bda/documents
+            units:
+              - name: pages
+                price: 0.010
 
   DocumentProcessingStateMachine:
     Type: AWS::Serverless::StateMachine
