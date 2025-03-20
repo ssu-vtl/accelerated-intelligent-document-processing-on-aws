@@ -371,10 +371,16 @@ def handler(event, context):
     sections = get_sections(output_bucket, object_key)
     pages = get_pages(output_bucket, object_key, sections)
 
+    metering = {
+        "bda/documents": {
+            "pages": len(pages)
+        }
+    }
     statemachine_output = {
         "Sections": sections,
         "Pages": pages,
-        "PageCount": len(pages)
+        "PageCount": len(pages),
+        "Metering": metering
     }
 
     return statemachine_output
