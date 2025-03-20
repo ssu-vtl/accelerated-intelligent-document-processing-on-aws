@@ -378,9 +378,9 @@ Each pattern is implemented as a nested stack that contains pattern-specific res
 - Model Endpoints and Configurations
 
 Current patterns include:
-- Pattern 1: Packet or Media processing with Bedrock Data Automation (BDA) ([README](./patterns/pattern-3/README.md))
+- Pattern 1: Packet or Media processing with Bedrock Data Automation (BDA) ([README](./patterns/pattern-1/README.md))
 - Pattern 2: OCR → Bedrock Classification → Bedrock Extraction ([README](./patterns/pattern-2/README.md))
-- Pattern 3: OCR → UDOP Classification (SageMaker) → Bedrock Extraction  ([README](./patterns/pattern-1/README.md))
+- Pattern 3: OCR → UDOP Classification (SageMaker) → Bedrock Extraction  ([README](./patterns/pattern-3/README.md))
 
 
 ### Pattern Selection and Deployment
