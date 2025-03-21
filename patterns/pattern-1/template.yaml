@@ -64,7 +64,7 @@ Resources:
           pricing:
             order: 5
             type: array
-            sectionLabel: Pricing (Estimates only - check https://aws.amazon.com/bedrock/pricing/)
+            sectionLabel: Pricing Estimates - check https://aws.amazon.com/bedrock/pricing/
             listLabel: Services
             itemLabel: Service/API
             columns: 2
