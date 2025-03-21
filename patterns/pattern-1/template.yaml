@@ -64,7 +64,7 @@ Resources:
           pricing:
             order: 5
             type: array
-            sectionLabel: Pricing (Estimates only - check https://aws.amazon.com/bedrock/pricing/)
+            sectionLabel: Pricing Estimates - check https://aws.amazon.com/bedrock/pricing/
             listLabel: Services
             itemLabel: Service/API
             columns: 2
@@ -103,10 +103,10 @@ Resources:
       Default:
         notes: !Sub "Processing configuration in BDA project: ${BDAProjectArn}"
         pricing:
-          - name: bda/documents
+          - name: bda/documents-custom
             units:
               - name: pages
-                price: 0.010
+                price: 0.040
 
   DocumentProcessingStateMachine:
     Type: AWS::Serverless::StateMachine
