@@ -372,7 +372,7 @@ def handler(event, context):
     pages = get_pages(output_bucket, object_key, sections)
 
     metering = {
-        "bda/documents": {
+        "bda/documents-custom": {
             "pages": len(pages)
         }
     }
