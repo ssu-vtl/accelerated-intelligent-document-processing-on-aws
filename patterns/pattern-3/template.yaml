@@ -140,7 +140,7 @@ Resources:
           pricing:
             order: 5
             type: array
-            sectionLabel: Pricing (Estimates only - check https://aws.amazon.com/bedrock/pricing/ & https://aws.amazon.com/textract/pricing/)
+            sectionLabel: Pricing Estimates - check https://aws.amazon.com/bedrock/pricing/ & https://aws.amazon.com/textract/pricing/
             listLabel: Services
             itemLabel: Service/API
             columns: 2
@@ -177,7 +177,7 @@ Resources:
     Properties:
       ServiceToken: !Ref UpdateConfigurationFunctionArn
       Default:
-        notes: Default inference settings for classification and extraction
+        notes: Default inference settings
         classes:
           - name: letter
             description: A formal written message that is typically sent from one person to another
