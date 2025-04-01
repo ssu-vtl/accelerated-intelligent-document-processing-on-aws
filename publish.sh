@@ -39,6 +39,13 @@ commands=("aws" "sam" "sha256sum")
 for cmd in "${commands[@]}"; do
     check_command "$cmd" || exit 1
 done
+sam_version=$(sam --version | awk '{print $4}')
+min_sam_version="1.129.0"
+if [[ $(echo -e "$min_sam_version\n$sam_version" | sort -V | tail -n1) == $min_sam_version && $min_sam_version != $sam_version ]]; then
+    echo "Error: sam version >= $min_sam_version is not installed and required. (Installed version is $sam_version)" >&2
+    echo 'Install: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/manage-sam-cli-versions.html' >&2
+    exit 1
+fi
 
 # Set paths
 # Remove trailing slash from prefix if needed, and append VERSION
@@ -105,15 +112,8 @@ update_checksum() {
 ####################################
 # Package and publish the artifacts
 ####################################
-is_x86_64() {
-  [[ $(uname -m) == "x86_64" ]]
-}
-if is_x86_64; then
-  USE_CONTAINER_FLAG=""
-else
-  echo "Run SAM build with container on Mac..."
-  USE_CONTAINER_FLAG="--use-container "
-fi
+USE_CONTAINER_FLAG=""
+#USE_CONTAINER_FLAG="--use-container "
 
 # Build nested templates
 for dir in patterns/* options/*; do
