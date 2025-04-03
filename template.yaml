@@ -1672,14 +1672,9 @@ Resources:
 
   AlertsTopic:
     Type: AWS::SNS::Topic
-    Metadata:
-      cfn_nag:
-        rules_to_suppress:
-          - id: W47
-            reason: "KMS encryption not required for basic notification alerts"
-    # checkov:skip=CKV_AWS_26: "KMS encryption not required for basic notification alerts"
     Properties:
       DisplayName: Workflow Alerts
+      KmsMasterKeyId: !Ref CustomerManagedEncryptionKey
 
   WorkflowErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
