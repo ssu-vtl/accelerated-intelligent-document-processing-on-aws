@@ -1216,6 +1216,8 @@ Resources:
       ServiceToken: !GetAtt UpdateSettingsFunction.Arn
       SettingsName: !Ref SettingsParameter
       SettingsKeyValuePairs:
+        StackName: !Sub "${AWS::StackName}"
+        Version: <VERSION>
         InputBucket: !Ref InputBucket
         OutputBucket: !Ref OutputBucket
         EvaluationBaselineBucket: !Ref EvaluationBaselineBucket
