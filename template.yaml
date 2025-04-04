@@ -1218,6 +1218,7 @@ Resources:
       SettingsKeyValuePairs:
         StackName: !Sub "${AWS::StackName}"
         Version: <VERSION>
+        BuildDateTime: <BUILD_DATE_TIME>
         InputBucket: !Ref InputBucket
         OutputBucket: !Ref OutputBucket
         EvaluationBaselineBucket: !Ref EvaluationBaselineBucket
