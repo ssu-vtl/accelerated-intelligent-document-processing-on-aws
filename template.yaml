@@ -2,7 +2,7 @@
 
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v0.2.14)
+Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v<VERSION>)
 
 Parameters:
 
@@ -355,10 +355,12 @@ Metadata:
           - EvaluationBaselineBucketName
           - EvaluationPattern
           - EvaluationAutoEnabled
+          - EvaluationModelId
       - Label:
           default: "Document Knowledge Base Configuration"
         Parameters:
           - DocumentKnowledgeBase
+          - KnowledgeBaseModelId
       - Label:
           default: "General Configuration"
         Parameters:
@@ -382,8 +384,10 @@ Metadata:
         default: "Pattern1 - UDOP Model Artifact Path"
       Pattern3ExtractionModel:
         default: "Pattern1 - Extraction Model"
+      Pattern2ClassificationModel:
+        default: "Pattern2 - Classification Model"
       Pattern2ExtractionModel:
-        default: "Pattern1 - Extraction Model"
+        default: "Pattern2 - Extraction Model"
       Pattern2CustomClassificationModelARN:
         default: "Pattern2 - Custom Classification Model ARN"
       Pattern2CustomExtractionModelARN:
@@ -398,8 +402,12 @@ Metadata:
         default: "Evaluation Pattern"
       EvaluationAutoEnabled:
         default: "Evaluation Auto Enabled"
+      EvaluationModelId:
+        default: "Evaluation Model Id"
       DocumentKnowledgeBase:
         default: "Document Knowledge Base Configuration"
+      KnowledgeBaseModelId:
+        default: "Knowledge Base Model Id"
       MaxConcurrentWorkflows:
         default: "Maximum Concurrent Workflows"
       DataRetentionInDays:
@@ -419,11 +427,59 @@ Metadata:
 
 Resources:
 
+  # Custom resource to enforce max length of StackName - prevent downstream failures
+  StacknameCheckFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: Function does not require VPC access as it has no network access
+          - id: W92
+            reason: Reserved concurrency not required
+    Properties:
+      Handler: index.handler
+      Runtime: python3.12
+      InlineCode: |
+        import cfnresponse
+        import time
+        import json
+        def handler(event, context):
+            print(json.dumps(event))
+            input = event['ResourceProperties'].get('InputString', '')
+            max_length = int(event['ResourceProperties'].get('MaxLength', 0))
+            status = cfnresponse.SUCCESS
+            reason = f"Stack Name Length under {max_length} - OK"
+            if event['RequestType'] == "Create":
+              if len(input) > max_length:
+                status = cfnresponse.FAILED
+                reason = f"Stack Name ({input}) length ({len(input)}) too long - max length {max_length} - FAILED"
+            else:
+              print(f"Request type is {event['RequestType']} - skipping")
+            cfnresponse.send(event, context, status, {}, reason=reason)
+      LoggingConfig:
+        LogGroup:
+          Ref: StacknameCheckFunctionLogGroup
+
+  StacknameCheckFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: !Ref LogRetentionDays
+
+  IsStacknameLengthOK:
+    Type: Custom::StacknameCheck
+    Properties:
+      ServiceToken: !GetAtt StacknameCheckFunction.Arn
+      InputString: !Ref "AWS::StackName"
+      MaxLength: 25
+
   ##########################################################################
   # Nested stack for selected options
   ##########################################################################
 
   BDASAMPLEPROJECT:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::CloudFormation::Stack
     Condition: ShouldCreateBDASampleProject
     Properties:
@@ -433,6 +489,8 @@ Resources:
         ProjectDescription: !Sub '${AWS::StackName}-BDA-Lending-Sample-Project'
 
   DOCUMENTBEDROCKKB:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::CloudFormation::Stack
     Condition: ShouldCreateDocumentKnowledgeBase
     Properties:
@@ -449,6 +507,8 @@ Resources:
   ##########################################################################
 
   PATTERN1STACK:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern1
     Properties:
@@ -471,6 +531,8 @@ Resources:
         ConfigurationTable: !Ref ConfigurationTable
 
   PATTERN2STACK:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern2
     Properties:
@@ -490,6 +552,8 @@ Resources:
         ConfigurationTable: !Ref ConfigurationTable
 
   PATTERN3STACK:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern3
     Properties:
@@ -512,6 +576,8 @@ Resources:
   ##########################################################################
 
   CustomerManagedEncryptionKey:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::KMS::Key
     Properties:
       Description: KMS key for DynamoDB encryption
@@ -571,6 +637,8 @@ Resources:
   ##########################################################################
 
   LoggingBucket:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::S3::Bucket
     Metadata:
       cfn_nag:
@@ -1098,6 +1166,8 @@ Resources:
   # Initialise SettingsParameter as empty (so it never gets replaced)
   # and use Custom Resource UpdateSettingsFunction to add/update values
   SettingsParameter:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
@@ -1105,6 +1175,8 @@ Resources:
       Value: "{}"
 
   UpdateSettingsFunction:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::Serverless::Function
     Metadata:
       cfn_nag:
@@ -2109,6 +2181,8 @@ Resources:
               - !GetAtt PATTERN1STACK.Outputs.StateMachineLogGroup
 
   DashboardMergerFunction:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::Serverless::Function
     Metadata:
       cfn_nag:
@@ -2307,6 +2381,8 @@ Resources:
       UserPoolId: !Ref UserPool
 
   GetDomainLambda:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::Serverless::Function
     Metadata:
       cfn_nag:
@@ -2467,6 +2543,8 @@ Resources:
       UserPoolId: !Ref UserPool
 
   CognitoUserPoolEmailDomainVerifyFunction:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::Serverless::Function
     Metadata:
       cfn_nag:
@@ -2555,6 +2633,8 @@ Resources:
       RetentionInDays: !Ref LogRetentionDays
 
   AppSyncCwlRole:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
