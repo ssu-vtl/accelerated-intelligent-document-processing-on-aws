@@ -92,7 +92,7 @@ haschanged() {
   local dir=$1
   local checksum_file="${dir}/.checksum"
   # Compute current checksum of the directory's modification times excluding specified directories, and the publish target S3 location.
-  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec stat --format='%Y' {} \; | sha256sum | awk '{ print $1 }')
+  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec $STAT_CMD {} \; | sha256sum | awk '{ print $1 }')
   combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
   current_checksum=$(echo -n "$combined_string" | sha256sum | awk '{ print $1 }')
   # Check if the checksum file exists and read the previous checksum
@@ -111,7 +111,7 @@ update_checksum() {
   local dir=$1
   local checksum_file="${dir}/.checksum"
   # Compute current checksum of the directory's modification times excluding specified directories, and the publish target S3 location.
-  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec stat --format='%Y' {} \; | sha256sum | awk '{ print $1 }')
+  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec $STAT_CMD {} \; | sha256sum | awk '{ print $1 }')
   combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
   current_checksum=$(echo -n "$combined_string" | sha256sum | awk '{ print $1 }')
   # Save the current checksum
@@ -121,8 +121,19 @@ update_checksum() {
 ####################################
 # Package and publish the artifacts
 ####################################
-USE_CONTAINER_FLAG=""
-#USE_CONTAINER_FLAG="--use-container "
+
+is_x86_64() {
+  [[ $(uname -m) == "x86_64" ]]
+}
+if is_x86_64; then
+  USE_CONTAINER_FLAG=""
+  STAT_CMD="stat --format='%Y'"
+else
+  #echo "Running on MacOS..."
+  #USE_CONTAINER_FLAG="--use-container "
+  USE_CONTAINER_FLAG=""
+  STAT_CMD="stat -f %m"
+fi
 
 # Build nested templates
 for dir in patterns/* options/*; do
