@@ -2,7 +2,7 @@
 
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v0.2.14)
+Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v<VERSION>)
 
 Parameters:
 
@@ -418,6 +418,53 @@ Metadata:
         default: "WAF Allowed IPv4 Ranges"
 
 Resources:
+
+  # Custom resource to enforce max length of StackName - prevent downstream failures
+  StacknameCheckFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: Function does not require VPC access as it has no network access
+          - id: W92
+            reason: Reserved concurrency not required
+    Properties:
+      Handler: index.handler
+      Runtime: python3.12
+      InlineCode: |
+        import cfnresponse
+        import time
+        import json
+        def handler(event, context):
+            print(json.dumps(event))
+            input = event['ResourceProperties'].get('InputString', '')
+            max_length = int(event['ResourceProperties'].get('MaxLength', 0))
+            status = cfnresponse.SUCCESS
+            reason = f"Stack Name Length under {max_length} - OK"
+            if event['RequestType'] == "Create":
+              if len(input) > max_length:
+                status = cfnresponse.FAILED
+                reason = f"Stack Name length ({len(input)}) too long - max length {max_length} - FAILED"
+            else:
+              print(f"Request type is {event['RequestType']} - skipping")
+            cfnresponse.send(event, context, status, {}, reason=reason)
+      LoggingConfig:
+        LogGroup:
+          Ref: StacknameCheckFunctionLogGroup
+
+  StacknameCheckFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
+      RetentionInDays: !Ref LogRetentionDays
+
+  IsStacknameLengthOK:
+    Type: Custom::StacknameCheck
+    Properties:
+      ServiceToken: !GetAtt StacknameCheckFunction.Arn
+      InputString: !Ref "AWS::StackName"
+      MaxLength: 25
 
   ##########################################################################
   # Nested stack for selected options
