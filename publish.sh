@@ -188,8 +188,10 @@ sam package \
  --s3-prefix ${PREFIX_AND_VERSION}
 
 HASH=$(calculate_hash ".")
+BUILD_DATE_TIME=$(date -u +"%Y-%m-%d %H:%M:%S")
 echo "Inline edit main template to replace "
 echo "   <VERSION> with : $VERSION"
+echo "   <BUILD_DATE_TIME> with: $BUILD_DATE_TIME"
 echo "   <PUBLIC_SAMPLE_UDOP_MODEL> with: $PUBLIC_SAMPLE_UDOP_MODEL"
 echo "   <ARTIFACT_BUCKET_TOKEN> with bucket name: $BUCKET"
 echo "   <ARTIFACT_PREFIX_TOKEN> with prefix: $PREFIX_AND_VERSION"
@@ -197,6 +199,7 @@ echo "   <WEBUI_ZIPFILE_TOKEN> with filename: $WEBUI_ZIPFILE"
 echo "   <HASH_TOKEN> with: $HASH"
 cat .aws-sam/packaged.yaml |
 sed -e "s%<VERSION>%$VERSION%g" |
+sed -e "s%<BUILD_DATE_TIME>%$BUILD_DATE_TIME%g" |
 sed -e "s%<PUBLIC_SAMPLE_UDOP_MODEL>%$PUBLIC_SAMPLE_UDOP_MODEL%g" |
 sed -e "s%<ARTIFACT_BUCKET_TOKEN>%$BUCKET%g" | 
 sed -e "s%<ARTIFACT_PREFIX_TOKEN>%$PREFIX_AND_VERSION%g" |
