@@ -26,6 +26,15 @@ else
   PUBLIC=false
 fi
 
+# set PUBLIC_SAMPLE_UDOP_MODEL variable based on value of REGION
+if [ "$REGION" == "us-east-1" ]; then
+  PUBLIC_SAMPLE_UDOP_MODEL="s3://bobs-artifacts-us-east-1/udop-finetuning/rvl-cdip/model.tar.gz"
+elif [ "$REGION" == "us-west-2" ]; then
+  PUBLIC_SAMPLE_UDOP_MODEL="s3://bobs-artifacts-us-west-2/udop-finetuning/rvl-cdip/model.tar.gz"
+else
+  PUBLIC_SAMPLE_UDOP_MODEL=""
+fi
+
 # Check local environment
 check_command() {
     local cmd=$1
@@ -39,6 +48,13 @@ commands=("aws" "sam" "sha256sum")
 for cmd in "${commands[@]}"; do
     check_command "$cmd" || exit 1
 done
+sam_version=$(sam --version | awk '{print $4}')
+min_sam_version="1.129.0"
+if [[ $(echo -e "$min_sam_version\n$sam_version" | sort -V | tail -n1) == $min_sam_version && $min_sam_version != $sam_version ]]; then
+    echo "Error: sam version >= $min_sam_version is not installed and required. (Installed version is $sam_version)" >&2
+    echo 'Install: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/manage-sam-cli-versions.html' >&2
+    exit 1
+fi
 
 # Set paths
 # Remove trailing slash from prefix if needed, and append VERSION
@@ -76,7 +92,7 @@ haschanged() {
   local dir=$1
   local checksum_file="${dir}/.checksum"
   # Compute current checksum of the directory's modification times excluding specified directories, and the publish target S3 location.
-  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec stat --format='%Y' {} \; | sha256sum | awk '{ print $1 }')
+  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec $STAT_CMD {} \; | sha256sum | awk '{ print $1 }')
   combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
   current_checksum=$(echo -n "$combined_string" | sha256sum | awk '{ print $1 }')
   # Check if the checksum file exists and read the previous checksum
@@ -95,7 +111,7 @@ update_checksum() {
   local dir=$1
   local checksum_file="${dir}/.checksum"
   # Compute current checksum of the directory's modification times excluding specified directories, and the publish target S3 location.
-  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec stat --format='%Y' {} \; | sha256sum | awk '{ print $1 }')
+  dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec $STAT_CMD {} \; | sha256sum | awk '{ print $1 }')
   combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
   current_checksum=$(echo -n "$combined_string" | sha256sum | awk '{ print $1 }')
   # Save the current checksum
@@ -105,14 +121,18 @@ update_checksum() {
 ####################################
 # Package and publish the artifacts
 ####################################
+
 is_x86_64() {
   [[ $(uname -m) == "x86_64" ]]
 }
 if is_x86_64; then
   USE_CONTAINER_FLAG=""
+  STAT_CMD="stat --format='%Y'"
 else
-  echo "Run SAM build with container on Mac..."
-  USE_CONTAINER_FLAG="--use-container "
+  #echo "Running on MacOS..."
+  #USE_CONTAINER_FLAG="--use-container "
+  USE_CONTAINER_FLAG=""
+  STAT_CMD="stat -f %m"
 fi
 
 # Build nested templates
@@ -168,12 +188,19 @@ sam package \
  --s3-prefix ${PREFIX_AND_VERSION}
 
 HASH=$(calculate_hash ".")
+BUILD_DATE_TIME=$(date -u +"%Y-%m-%d %H:%M:%S")
 echo "Inline edit main template to replace "
+echo "   <VERSION> with : $VERSION"
+echo "   <BUILD_DATE_TIME> with: $BUILD_DATE_TIME"
+echo "   <PUBLIC_SAMPLE_UDOP_MODEL> with: $PUBLIC_SAMPLE_UDOP_MODEL"
 echo "   <ARTIFACT_BUCKET_TOKEN> with bucket name: $BUCKET"
 echo "   <ARTIFACT_PREFIX_TOKEN> with prefix: $PREFIX_AND_VERSION"
 echo "   <WEBUI_ZIPFILE_TOKEN> with filename: $WEBUI_ZIPFILE"
 echo "   <HASH_TOKEN> with: $HASH"
 cat .aws-sam/packaged.yaml |
+sed -e "s%<VERSION>%$VERSION%g" |
+sed -e "s%<BUILD_DATE_TIME>%$BUILD_DATE_TIME%g" |
+sed -e "s%<PUBLIC_SAMPLE_UDOP_MODEL>%$PUBLIC_SAMPLE_UDOP_MODEL%g" |
 sed -e "s%<ARTIFACT_BUCKET_TOKEN>%$BUCKET%g" | 
 sed -e "s%<ARTIFACT_PREFIX_TOKEN>%$PREFIX_AND_VERSION%g" |
 sed -e "s%<WEBUI_ZIPFILE_TOKEN>%$WEBUI_ZIPFILE%g" |
