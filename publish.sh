@@ -169,11 +169,13 @@ sam package \
 
 HASH=$(calculate_hash ".")
 echo "Inline edit main template to replace "
+echo "   <VERSION> with : $VERSION"
 echo "   <ARTIFACT_BUCKET_TOKEN> with bucket name: $BUCKET"
 echo "   <ARTIFACT_PREFIX_TOKEN> with prefix: $PREFIX_AND_VERSION"
 echo "   <WEBUI_ZIPFILE_TOKEN> with filename: $WEBUI_ZIPFILE"
 echo "   <HASH_TOKEN> with: $HASH"
 cat .aws-sam/packaged.yaml |
+sed -e "s%<VERSION>%$VERSION%g" |
 sed -e "s%<ARTIFACT_BUCKET_TOKEN>%$BUCKET%g" | 
 sed -e "s%<ARTIFACT_PREFIX_TOKEN>%$PREFIX_AND_VERSION%g" |
 sed -e "s%<WEBUI_ZIPFILE_TOKEN>%$WEBUI_ZIPFILE%g" |
