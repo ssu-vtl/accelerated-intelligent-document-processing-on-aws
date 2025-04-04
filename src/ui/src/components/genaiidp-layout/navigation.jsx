@@ -70,8 +70,8 @@ const Navigation = ({
   // Create a copy of the items array to add the deployment info
   const navigationItems = [...(items || documentsNavItems)];
 
-  // Add deployment info section if version or stack name is available
-  if (settings?.Version || settings?.StackName) {
+  // Add deployment info section if version, stack name, or build datetime is available
+  if (settings?.Version || settings?.StackName || settings?.BuildDateTime) {
     const deploymentInfoItems = [];
 
     if (settings?.StackName) {
@@ -86,6 +86,14 @@ const Navigation = ({
       deploymentInfoItems.push({
         type: 'link',
         text: `Version: ${settings.Version}`,
+        href: '#',
+      });
+    }
+
+    if (settings?.BuildDateTime) {
+      deploymentInfoItems.push({
+        type: 'link',
+        text: `Build: ${settings.BuildDateTime}`,
         href: '#',
       });
     }
