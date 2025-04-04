@@ -81,7 +81,7 @@ Parameters:
 
   Pattern3UDOPModelArtifactPath:
     Type: String
-    Default: ""
+    Default: "<PUBLIC_SAMPLE_UDOP_MODEL>"
     AllowedPattern: "^(|s3://.*)$"
     Description: For Pattern1, provide S3 path to the UDOP model.tar.gz file (e.g., s3://bucket-name/path/to/model.tar.gz)
 
