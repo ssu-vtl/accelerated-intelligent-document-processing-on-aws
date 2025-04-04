@@ -355,10 +355,12 @@ Metadata:
           - EvaluationBaselineBucketName
           - EvaluationPattern
           - EvaluationAutoEnabled
+          - EvaluationModelId
       - Label:
           default: "Document Knowledge Base Configuration"
         Parameters:
           - DocumentKnowledgeBase
+          - KnowledgeBaseModelId
       - Label:
           default: "General Configuration"
         Parameters:
@@ -382,8 +384,10 @@ Metadata:
         default: "Pattern1 - UDOP Model Artifact Path"
       Pattern3ExtractionModel:
         default: "Pattern1 - Extraction Model"
+      Pattern2ClassificationModel:
+        default: "Pattern2 - Classification Model"
       Pattern2ExtractionModel:
-        default: "Pattern1 - Extraction Model"
+        default: "Pattern2 - Extraction Model"
       Pattern2CustomClassificationModelARN:
         default: "Pattern2 - Custom Classification Model ARN"
       Pattern2CustomExtractionModelARN:
@@ -398,8 +402,12 @@ Metadata:
         default: "Evaluation Pattern"
       EvaluationAutoEnabled:
         default: "Evaluation Auto Enabled"
+      EvaluationModelId:
+        default: "Evaluation Model Id"
       DocumentKnowledgeBase:
         default: "Document Knowledge Base Configuration"
+      KnowledgeBaseModelId:
+        default: "Knowledge Base Model Id"
       MaxConcurrentWorkflows:
         default: "Maximum Concurrent Workflows"
       DataRetentionInDays:
@@ -445,7 +453,7 @@ Resources:
             if event['RequestType'] == "Create":
               if len(input) > max_length:
                 status = cfnresponse.FAILED
-                reason = f"Stack Name length ({len(input)}) too long - max length {max_length} - FAILED"
+                reason = f"Stack Name ({input}) length ({len(input)}) too long - max length {max_length} - FAILED"
             else:
               print(f"Request type is {event['RequestType']} - skipping")
             cfnresponse.send(event, context, status, {}, reason=reason)
@@ -456,7 +464,6 @@ Resources:
   StacknameCheckFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
       RetentionInDays: !Ref LogRetentionDays
 
   IsStacknameLengthOK:
@@ -471,6 +478,8 @@ Resources:
   ##########################################################################
 
   BDASAMPLEPROJECT:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::CloudFormation::Stack
     Condition: ShouldCreateBDASampleProject
     Properties:
@@ -480,6 +489,8 @@ Resources:
         ProjectDescription: !Sub '${AWS::StackName}-BDA-Lending-Sample-Project'
 
   DOCUMENTBEDROCKKB:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::CloudFormation::Stack
     Condition: ShouldCreateDocumentKnowledgeBase
     Properties:
@@ -496,6 +507,8 @@ Resources:
   ##########################################################################
 
   PATTERN1STACK:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern1
     Properties:
@@ -518,6 +531,8 @@ Resources:
         ConfigurationTable: !Ref ConfigurationTable
 
   PATTERN2STACK:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern2
     Properties:
@@ -537,6 +552,8 @@ Resources:
         ConfigurationTable: !Ref ConfigurationTable
 
   PATTERN3STACK:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern3
     Properties:
@@ -559,6 +576,8 @@ Resources:
   ##########################################################################
 
   CustomerManagedEncryptionKey:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::KMS::Key
     Properties:
       Description: KMS key for DynamoDB encryption
@@ -618,6 +637,8 @@ Resources:
   ##########################################################################
 
   LoggingBucket:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::S3::Bucket
     Metadata:
       cfn_nag:
@@ -1145,6 +1166,8 @@ Resources:
   # Initialise SettingsParameter as empty (so it never gets replaced)
   # and use Custom Resource UpdateSettingsFunction to add/update values
   SettingsParameter:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::SSM::Parameter
     Properties:
       Type: String
@@ -1152,6 +1175,8 @@ Resources:
       Value: "{}"
 
   UpdateSettingsFunction:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::Serverless::Function
     Metadata:
       cfn_nag:
@@ -2156,6 +2181,8 @@ Resources:
               - !GetAtt PATTERN1STACK.Outputs.StateMachineLogGroup
 
   DashboardMergerFunction:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::Serverless::Function
     Metadata:
       cfn_nag:
@@ -2354,6 +2381,8 @@ Resources:
       UserPoolId: !Ref UserPool
 
   GetDomainLambda:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::Serverless::Function
     Metadata:
       cfn_nag:
@@ -2514,6 +2543,8 @@ Resources:
       UserPoolId: !Ref UserPool
 
   CognitoUserPoolEmailDomainVerifyFunction:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::Serverless::Function
     Metadata:
       cfn_nag:
@@ -2602,6 +2633,8 @@ Resources:
       RetentionInDays: !Ref LogRetentionDays
 
   AppSyncCwlRole:
+    DependsOn:
+      - IsStacknameLengthOK
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
