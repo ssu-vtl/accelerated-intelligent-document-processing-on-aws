@@ -371,11 +371,29 @@ def handler(event, context):
     sections = get_sections(output_bucket, object_key)
     pages = get_pages(output_bucket, object_key, sections)
 
+    # Calculate the total number of pages in custom documents by counting page IDs in sections
+    custom_pages_count = 0
+    page_ids_in_sections = set()
+    for section in sections:
+        page_ids = section.get('PageIds', [])
+        for page_id in page_ids:
+            page_ids_in_sections.add(str(page_id))
+    custom_pages_count = len(page_ids_in_sections)
+    
+    # Calculate standard pages as total pages minus custom pages
+    total_pages = len(pages)
+    standard_pages_count = total_pages - custom_pages_count
+    
+    # Enhanced metering with both custom and standard page counts
     metering = {
         "bda/documents-custom": {
-            "pages": len(pages)
+            "pages": custom_pages_count
+        },
+        "bda/documents-standard": {
+            "pages": standard_pages_count
         }
     }
+    
     statemachine_output = {
         "Sections": sections,
         "Pages": pages,
