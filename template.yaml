@@ -471,7 +471,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt StacknameCheckFunction.Arn
       InputString: !Ref "AWS::StackName"
-      MaxLength: 25
+      MaxLength: 26
 
   ##########################################################################
   # Nested stack for selected options
