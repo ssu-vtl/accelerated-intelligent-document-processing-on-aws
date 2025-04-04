@@ -26,6 +26,15 @@ else
   PUBLIC=false
 fi
 
+# set PUBLIC_SAMPLE_UDOP_MODEL variable based on value of REGION
+if [ "$REGION" == "us-east-1" ]; then
+  PUBLIC_SAMPLE_UDOP_MODEL="s3://bobs-artifacts-us-east-1/udop-finetuning/rvl-cdip/model.tar.gz"
+elif [ "$REGION" == "us-west-2" ]; then
+  PUBLIC_SAMPLE_UDOP_MODEL="s3://bobs-artifacts-us-west-2/udop-finetuning/rvl-cdip/model.tar.gz"
+else
+  PUBLIC_SAMPLE_UDOP_MODEL=""
+fi
+
 # Check local environment
 check_command() {
     local cmd=$1
@@ -170,12 +179,14 @@ sam package \
 HASH=$(calculate_hash ".")
 echo "Inline edit main template to replace "
 echo "   <VERSION> with : $VERSION"
+echo "   <PUBLIC_SAMPLE_UDOP_MODEL> with: $PUBLIC_SAMPLE_UDOP_MODEL"
 echo "   <ARTIFACT_BUCKET_TOKEN> with bucket name: $BUCKET"
 echo "   <ARTIFACT_PREFIX_TOKEN> with prefix: $PREFIX_AND_VERSION"
 echo "   <WEBUI_ZIPFILE_TOKEN> with filename: $WEBUI_ZIPFILE"
 echo "   <HASH_TOKEN> with: $HASH"
 cat .aws-sam/packaged.yaml |
 sed -e "s%<VERSION>%$VERSION%g" |
+sed -e "s%<PUBLIC_SAMPLE_UDOP_MODEL>%$PUBLIC_SAMPLE_UDOP_MODEL%g" |
 sed -e "s%<ARTIFACT_BUCKET_TOKEN>%$BUCKET%g" | 
 sed -e "s%<ARTIFACT_PREFIX_TOKEN>%$PREFIX_AND_VERSION%g" |
 sed -e "s%<WEBUI_ZIPFILE_TOKEN>%$WEBUI_ZIPFILE%g" |
