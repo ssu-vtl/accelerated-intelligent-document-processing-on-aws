@@ -383,6 +383,8 @@ def handler(event, context):
     # Calculate standard pages as total pages minus custom pages
     total_pages = len(pages)
     standard_pages_count = total_pages - custom_pages_count
+    if standard_pages_count < 0:
+        standard_pages_count = 0
     
     # Enhanced metering with both custom and standard page counts
     metering = {
