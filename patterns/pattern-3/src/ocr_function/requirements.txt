@@ -1,2 +1,4 @@
 amazon-textract-textractor
 PyMuPDF
+boto3
+../../lib/idp_common_pkg  # common utilities package
