@@ -14,6 +14,10 @@ OCR_TEXT_ONLY = os.environ.get('OCR_TEXT_ONLY', 'false').lower() == 'true'
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+def put_metric(name, value, unit='Count', dimensions=None):
+    dimensions = dimensions or []
+    metrics.put_metric(name, value, unit, dimensions, METRIC_NAMESPACE)
+
 def invoke_llm(page_images, class_label, document_text):
     classes_config = CONFIG["classes"]
     class_config = next((class_obj for class_obj in classes_config if class_obj.get('name', '').lower() == class_label.lower()), None)
@@ -53,7 +57,7 @@ def invoke_llm(page_images, class_label, document_text):
     request_start_time = time.time()
     
     # Track total requests
-    metrics.put_metric('BedrockRequestsTotal', 1, namespace=METRIC_NAMESPACE)
+    put_metric('BedrockRequestsTotal', 1)
     
     response_with_metering = bedrock.invoke_model(
         model_id=model_id,
@@ -64,7 +68,7 @@ def invoke_llm(page_images, class_label, document_text):
     )
     
     total_duration = time.time() - request_start_time
-    metrics.put_metric('BedrockTotalLatency', total_duration * 1000, 'Milliseconds', namespace=METRIC_NAMESPACE)
+    put_metric('BedrockTotalLatency', total_duration * 1000, 'Milliseconds')
     
     # Extract text from response
     entities = bedrock.extract_text_from_response(response_with_metering)
@@ -145,8 +149,8 @@ def handler(event, context):
     s3.write_content(output, output_bucket, output_key, content_type='application/json')
     
     # Track metrics
-    metrics.put_metric('InputDocuments', 1, namespace=METRIC_NAMESPACE)
-    metrics.put_metric('InputDocumentPages', len(pages), namespace=METRIC_NAMESPACE)
+    put_metric('InputDocuments', 1)
+    put_metric('InputDocumentPages', len(pages))
     
     result = {
         "section": {
