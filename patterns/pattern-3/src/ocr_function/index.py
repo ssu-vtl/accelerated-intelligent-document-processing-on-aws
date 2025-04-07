@@ -8,8 +8,7 @@ import fitz  # PyMuPDF
 from textractor.parsers import response_parser
 import logging
 from botocore.config import Config
-
-print("Boto3 version: ", boto3.__version__)
+from idp_common import metrics, utils, s3
 
 region = os.environ['AWS_REGION']
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
@@ -18,30 +17,16 @@ MAX_WORKERS = int(os.environ.get('MAX_WORKERS', 20))
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Initialize clients
+# For OCR, we need to use the boto3 clients directly with adaptive config
 adaptive_config = Config(
     retries={'max_attempts': 100, 'mode': 'adaptive'},
     max_pool_connections=MAX_WORKERS*3
 )
 s3_client = boto3.client('s3', region_name=region, config=adaptive_config)
 textract_client = boto3.client('textract', region_name=region, config=adaptive_config)
-cloudwatch_client = boto3.client('cloudwatch', config=adaptive_config)
 
 def put_metric(name, value, unit='Count', dimensions=None):
-    dimensions = dimensions or []
-    logger.info(f"Publishing metric {name}: {value}")
-    try:
-        cloudwatch_client.put_metric_data(
-            Namespace=f'{METRIC_NAMESPACE}',
-            MetricData=[{
-                'MetricName': name,
-                'Value': value,
-                'Unit': unit,
-                'Dimensions': dimensions
-            }]
-        )
-    except Exception as e:
-        logger.error(f"Error publishing metric {name}: {e}")
+    metrics.put_metric(name, value, unit, dimensions, METRIC_NAMESPACE)
 
 def process_single_page(page_index, pdf_document, output_bucket, prefix):
     t0 = time.time()
@@ -53,12 +38,8 @@ def process_single_page(page_index, pdf_document, output_bucket, prefix):
     
     # Upload image
     image_key = f"{prefix}/pages/{page_id}/image.jpg"
-    s3_client.upload_fileobj(
-        io.BytesIO(img_bytes),
-        output_bucket,
-        image_key,
-        ExtraArgs={'ContentType': 'image/jpeg'}
-    )       
+    s3.write_content(img_bytes, output_bucket, image_key, content_type='image/jpeg')    
+    
     t1 = time.time()
     logger.info(f"Time taken for image conversion (page {page_id}): {t1-t0:.6f} seconds")
     
@@ -73,22 +54,12 @@ def process_single_page(page_index, pdf_document, output_bucket, prefix):
     
     # Store raw Textract response
     raw_text_key = f"{prefix}/pages/{page_id}/rawText.json"
-    s3_client.put_object(
-        Bucket=output_bucket,
-        Key=raw_text_key,
-        Body=json.dumps(textract_result),
-        ContentType='application/json'
-    )
+    s3.write_content(textract_result, output_bucket, raw_text_key, content_type='application/json')
 
     # Store text from parsed Textract response
     parsed_text_key = f"{prefix}/pages/{page_id}/result.json"
     parsed_result = response_parser.parse(textract_result)
-    s3_client.put_object(
-        Bucket=output_bucket,
-        Key=parsed_text_key,
-        Body=json.dumps({"text": parsed_result.text}),
-        ContentType='application/json'
-    )
+    s3.write_content({"text": parsed_result.text}, output_bucket, parsed_text_key, content_type='application/json')
 
     t2 = time.time()
     logger.info(f"Time taken for Textract (page {page_id}): {t2-t1:.6f} seconds")
@@ -119,12 +90,9 @@ def get_document_text(pdf_content, output_bucket, prefix, max_workers = MAX_WORK
                 result = future.result()
                 page_metering = result.pop("metering", {})
                 page_results[str(page_index + 1)] = result
-                # Merge metering
-                for service_api, metrics in page_metering.items():
-                    for unit, value in metrics.items():
-                        if service_api not in metering:
-                            metering[service_api] = {}
-                        metering[service_api][unit] = metering[service_api].get(unit, 0) + value
+                
+                # Merge metering with common utility
+                metering = utils.merge_metering_data(metering, page_metering)
             except Exception as e:
                 logger.error(f"Error processing page index {page_index}, page number {page_index + 1}: {str(e)}")
                 raise
@@ -134,31 +102,22 @@ def get_document_text(pdf_content, output_bucket, prefix, max_workers = MAX_WORK
 
 def handler(event, context): 
     """
-    Input event for new input object packet/document:
-    {
-        "execution_arn": <ARN>,
-        "output_bucket": <BUCKET>,
-        "input": {
-            "detail": {
-                "bucket": {
-                    "name": <BUCKET>
-                },
-                "object": {
-                    "key": <KEY>
-                }
-            }
-        }
-    }
+    Input event for new input object packet/document
     """       
     logger.info(f"Event: {json.dumps(event)}")
     input_bucket = event.get("input").get("detail").get("bucket").get("name")
     output_bucket = event.get("output_bucket")
 
     object_key = event.get("input").get("detail").get("object").get("key")
+    
     # Get the PDF from S3
     t0 = time.time()
+    
+    # Use the boto3 S3 client directly here since we need raw binary content
+    # and our s3 module is optimized for text/JSON
     response = s3_client.get_object(Bucket=input_bucket, Key=object_key)
     pdf_content = response['Body'].read()
+    
     t1 = time.time()
     logger.info(f"Time taken for S3 GetObject: {t1-t0:.6f} seconds")
     
@@ -180,5 +139,4 @@ def handler(event, context):
         },
         "pages": page_results
     }
-    print("Response: ", response)
     return response

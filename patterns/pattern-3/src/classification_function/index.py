@@ -2,14 +2,12 @@ import boto3
 import os
 import json
 import time
-import random
 import logging
 from botocore.exceptions import ClientError
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
-
-print("Boto3 version: ", boto3.__version__)
+from idp_common import metrics, utils
 
 # Retry configuration
 MAX_RETRIES = 8 
@@ -22,8 +20,6 @@ METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
 
 # Initialize clients
 sm_client = boto3.client('sagemaker-runtime', region_name=region)
-cloudwatch_client = boto3.client('cloudwatch', region_name=region)
-s3_client = boto3.client('s3', region_name=region)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -31,28 +27,10 @@ logger.setLevel(logging.INFO)
 # Add thread-safe metric publishing
 metric_lock = Lock()
 
-def calculate_backoff(attempt):
-    """Calculate exponential backoff with jitter"""
-    backoff = min(MAX_BACKOFF, INITIAL_BACKOFF * (2 ** attempt))
-    jitter = random.uniform(0, 0.1 * backoff)  # 10% jitter # nosec B311
-    return backoff + jitter
-
 def put_metric(name, value, unit='Count', dimensions=None):
     dimensions = dimensions or []
-    logger.info(f"Publishing metric {name}: {value}")
     with metric_lock:  # Ensure thread-safe metric publishing
-        try:
-            cloudwatch_client.put_metric_data(
-                Namespace=f'{METRIC_NAMESPACE}',
-                MetricData=[{
-                    'MetricName': name,
-                    'Value': value,
-                    'Unit': unit,
-                    'Dimensions': dimensions
-                }]
-            )
-        except Exception as e:
-            logger.error(f"Error publishing metric {name}: {e}")
+        metrics.put_metric(name, value, unit, dimensions, METRIC_NAMESPACE)
 
 def classify_single_page(page_id, page_data):
     """Classify a single page using the UDOP model"""
@@ -116,7 +94,7 @@ def classify_single_page(page_id, page_data):
                     put_metric('ClassificationMaxRetriesExceeded', 1)
                     raise
                 
-                backoff = calculate_backoff(retry_count)
+                backoff = utils.calculate_backoff(retry_count)
                 logger.warning(f"Classification throttling occurred for page {page_id} "
                              f"(attempt {retry_count}/{MAX_RETRIES}). "
                              f"Error: {error_message}. "
@@ -140,15 +118,6 @@ def classify_single_page(page_id, page_data):
             
     if last_exception:
         raise last_exception
-
-def write_json_to_s3(json_string, bucket_name, object_key):
-    s3_client.put_object(
-        Bucket=bucket_name,
-        Key=object_key,
-        Body=json_string,
-        ContentType='application/json'
-    )
-    logger.info(f"JSON file successfully written to s3://{bucket_name}/{object_key}")
 
 def group_consecutive_pages(results):
     """
