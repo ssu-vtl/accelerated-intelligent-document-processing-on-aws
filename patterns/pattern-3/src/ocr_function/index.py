@@ -139,4 +139,5 @@ def handler(event, context):
         },
         "pages": page_results
     }
+    logger.info(f"Response: {json.dumps(response, default=str)}")
     return response

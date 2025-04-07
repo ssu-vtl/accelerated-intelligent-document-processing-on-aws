@@ -237,5 +237,6 @@ def handler(event, context):
         "metadata": metadata,
         "sections": sections
     }
-
+    
+    logger.info(f"Response: {json.dumps(response, default=str)}")
     return response

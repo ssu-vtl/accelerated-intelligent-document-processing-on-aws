@@ -83,10 +83,12 @@ def handler(event, context):
         # Send appropriate response to Step Functions
         send_task_response(task_token, job_status, detail)
         
-        return {
+        response = {
             'statusCode': 200,
             'body': 'Task response sent successfully'
         }
+        logger.info(f"Response: {json.dumps(response)}")
+        return response
         
     except Exception as e:
         logger.error(f"Error processing event: {e}")

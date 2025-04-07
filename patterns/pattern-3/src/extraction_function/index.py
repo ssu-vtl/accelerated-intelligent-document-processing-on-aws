@@ -163,4 +163,5 @@ def handler(event, context):
         "metering": extraction_metering
     }
     
+    logger.info(f"Response: {json.dumps(result, default=str)}")
     return result

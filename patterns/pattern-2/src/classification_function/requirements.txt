@@ -1,4 +1,4 @@
 PyMuPDF
 boto3
 pillow
-../../lib/idp_common_pkg  # common utilities package (includes config)
+../../lib/idp_common_pkg  # common utilities package
