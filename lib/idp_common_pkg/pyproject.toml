@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "idp_common"
+version = "0.1.0"
+description = "Common utilities for GenAI IDP Accelerator patterns"
+authors = [
+    {name = "AWS", email = "noreply@amazon.com"}
+]
+requires-python = ">=3.8"
+dependencies = [
+    "boto3>=1.28.0",
+    "Pillow>=9.5.0",
+]
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/aws-samples/genaiic-idp-accelerator"
