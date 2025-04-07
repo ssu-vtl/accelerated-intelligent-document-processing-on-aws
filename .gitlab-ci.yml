@@ -28,6 +28,12 @@ integration_test:
       when: always
     - if: $CI_COMMIT_BRANCH =~ /^feature\/.*/
       when: manual
+    - if: $CI_COMMIT_BRANCH =~ /^fix\/.*/
+      when: manual
+    - if: $CI_COMMIT_BRANCH =~ /^hotfix\/.*/
+      when: manual
+    - if: $CI_COMMIT_BRANCH =~ /^release\/.*/
+      when: manual
 
   before_script:
     - python --version
