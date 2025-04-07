@@ -9,10 +9,22 @@ import fitz  # PyMuPDF
 import datetime
 from urllib.parse import urlparse
 
+from idp_common.s3 import get_s3_client, write_content
+from idp_common.utils import build_s3_uri
+from idp_common import metrics
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-s3_client = boto3.client('s3')
+# Use the common S3 client
+s3_client = get_s3_client()
+
+# Add namespace for metrics
+METRIC_NAMESPACE = os.environ.get('METRIC_NAMESPACE', 'IDP')
+
+def put_metric(name, value, unit='Count', dimensions=None):
+    dimensions = dimensions or []
+    metrics.put_metric(name, value, unit, dimensions, METRIC_NAMESPACE)
 
 def create_metadata_file(file_uri, class_type, file_type=None):
     """
@@ -48,12 +60,12 @@ def create_metadata_file(file_uri, class_type, file_type=None):
             }
         }
         
-        # Upload metadata file to S3
-        s3_client.put_object(
-            Bucket=bucket,
-            Key=metadata_key,
-            Body=json.dumps(metadata_content, indent=2),
-            ContentType='application/json'
+        # Use the common library to write to S3
+        write_content(
+            metadata_content,
+            bucket,
+            metadata_key,
+            content_type='application/json'
         )
         
         logger.info(f"Created metadata file at s3://{bucket}/{metadata_key}")
@@ -100,8 +112,8 @@ def get_sections(object_bucket: str, object_key: str) -> List[Dict[str, Any]]:
                 else:
                     page_ids = []
                 
-                # Create the OutputJSONUri
-                output_json_uri = f"s3://{object_bucket}/{result_path}"
+                # Create the OutputJSONUri using the utility function
+                output_json_uri = build_s3_uri(object_bucket, result_path)
                 
                 # Construct section object
                 section = {
@@ -183,14 +195,15 @@ def get_pages(object_bucket: str, object_key: str, sections: List[Dict[str, Any]
                 # Get the class from the section mapping
                 doc_class = page_to_class_map.get(page_id, '')
                 
-                # Create the TextUri
-                text_uri = f"s3://{object_bucket}/{result_path}"
+                # Create S3 URIs using the utility function
+                text_uri = build_s3_uri(object_bucket, result_path)
+                image_uri = build_s3_uri(object_bucket, image_path) if image_path else None
                 
                 # Construct page object
                 page = {
                     "Id": page_id,
                     "Class": doc_class,
-                    "ImageUri": f"s3://{object_bucket}/{image_path}" if image_path else None,
+                    "ImageUri": image_uri,
                     "TextUri": text_uri
                 }
                 pages.append(page)
@@ -204,11 +217,6 @@ def get_pages(object_bucket: str, object_key: str, sections: List[Dict[str, Any]
                 
         logger.info(f"Retrieved {len(pages)} pages for document {object_key}")
         return pages
-        
-    except ClientError as e:
-        logger.error(f"Failed to list sections in S3: {e}")
-        raise
-
         
     except ClientError as e:
         logger.error(f"Failed to list sections in S3: {e}")
@@ -273,7 +281,7 @@ def create_pdf_page_images(bda_result_bucket, output_bucket, object_key):
             # Save the image to a BytesIO object
             img_bytes = pix.tobytes("jpeg")
 
-            # Upload the image to S3
+            # Upload the image to S3 using the common library
             image_key = f"{object_key}/pages/{page_num}/image.jpg"
             s3_client.upload_fileobj(
                 io.BytesIO(img_bytes),
@@ -386,6 +394,12 @@ def handler(event, context):
     if standard_pages_count < 0:
         standard_pages_count = 0
     
+    # Record metrics for processed pages
+    put_metric('ProcessedDocuments', 1)
+    put_metric('ProcessedPages', total_pages)
+    put_metric('ProcessedCustomPages', custom_pages_count)
+    put_metric('ProcessedStandardPages', standard_pages_count)
+    
     # Enhanced metering with both custom and standard page counts
     metering = {
         "bda/documents-custom": {
@@ -404,4 +418,3 @@ def handler(event, context):
     }
 
     return statemachine_output
-        

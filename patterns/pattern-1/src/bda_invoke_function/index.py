@@ -3,16 +3,16 @@ import boto3
 import os
 import logging
 import time
-import random
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
 from botocore.exceptions import ClientError
+from idp_common import metrics, utils
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# TODO - consider minimizing retries in lambda / maximize in Step Functions for cost efficiency.
-MAX_RETRIES = 8 # avoid 900sec Lambda time out. 
+# Retry configuration
+MAX_RETRIES = 8
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 300   # 5 minutes
 
@@ -20,33 +20,14 @@ METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
 
 # Initialize client
 bda_client = boto3.client('bedrock-data-automation-runtime')
-cloudwatch_client = boto3.client('cloudwatch')
 dynamodb = boto3.resource('dynamodb')
 tracking_table = dynamodb.Table(os.environ['TRACKING_TABLE'])
 
 def put_metric(name, value, unit='Count', dimensions=None):
-    dimensions = dimensions or []
-    logger.info(f"Publishing metric {name}: {value}")
-    try:
-        cloudwatch_client.put_metric_data(
-            Namespace=f'{METRIC_NAMESPACE}',
-            MetricData=[{
-                'MetricName': name,
-                'Value': value,
-                'Unit': unit,
-                'Dimensions': dimensions
-            }]
-        )
-    except Exception as e:
-        logger.error(f"Error publishing metric {name}: {e}")
-
-def calculate_backoff(attempt: int) -> float:
-    backoff = min(MAX_BACKOFF, INITIAL_BACKOFF * (2 ** attempt))
-    jitter = random.uniform(0, 0.1 * backoff) # nosec B311
-    return backoff + jitter
+    metrics.put_metric(name, value, unit, dimensions, METRIC_NAMESPACE)
 
 def build_s3_uri(bucket: str, key: str) -> str:
-    return f"s3://{bucket}/{key}"
+    return utils.build_s3_uri(bucket, key)
 
 def build_payload(input_s3_uri: str, output_s3_uri: str, data_project_arn: str) -> Dict[str, Any]:
     region = os.environ.get('AWS_REGION', 'us-east-1')
@@ -122,12 +103,12 @@ def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
                     put_metric('BDARequestsMaxRetriesExceeded', 1)
                     raise
                 
-                backoff = calculate_backoff(retry_count)
+                backoff = utils.calculate_backoff(retry_count, INITIAL_BACKOFF, MAX_BACKOFF)
                 logger.warning(f"BDA API throttling occurred (attempt {retry_count}/{MAX_RETRIES}). "
                              f"Error: {error_message}. "
                              f"Backing off for {backoff:.2f}s")
                 
-                time.sleep(backoff) # semgrep-ignore: arbitrary-sleep - Intentional delay backoff/retry. Duration is algorithmic and not user-controlled.
+                time.sleep(backoff)  # semgrep-ignore: arbitrary-sleep - Intentional delay backoff/retry. Duration is algorithmic and not user-controlled.
                 last_exception = e
             else:
                 logger.error(f"Non-retryable BDA API error: {error_code} - {error_message}")
@@ -146,7 +127,6 @@ def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
     
 def track_task_token(object_key: str, task_token: str) -> None:
     try:
-
         # Record in DynamoDB
         tracking_item = {
             'PK': f"tasktoken#{object_key}",
