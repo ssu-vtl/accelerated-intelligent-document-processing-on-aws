@@ -3,7 +3,7 @@ import json
 import logging
 import boto3
 import os
-from idp_common.metrics import put_metric
+from idp_common import metrics
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
