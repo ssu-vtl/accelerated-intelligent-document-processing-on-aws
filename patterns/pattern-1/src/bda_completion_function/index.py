@@ -3,6 +3,7 @@ import json
 import logging
 import boto3
 import os
+from idp_common.metrics import put_metric
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -10,26 +11,8 @@ logger.setLevel(logging.INFO)
 dynamodb = boto3.resource('dynamodb')
 stepfunctions = boto3.client('stepfunctions')
 tracking_table = dynamodb.Table(os.environ['TRACKING_TABLE'])
-cloudwatch_client = boto3.client('cloudwatch')
 
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
-
-def put_metric(name, value, unit='Count', dimensions=None):
-    dimensions = dimensions or []
-    logger.info(f"Publishing metric {name}: {value}")
-    try:
-        cloudwatch_client.put_metric_data(
-            Namespace=f'{METRIC_NAMESPACE}',
-            MetricData=[{
-                'MetricName': name,
-                'Value': value,
-                'Unit': unit,
-                'Dimensions': dimensions
-            }]
-        )
-    except Exception as e:
-        logger.error(f"Error publishing metric {name}: {e}")
-
 
 def get_task_token(object_key: str) -> str:
     try:
@@ -52,6 +35,10 @@ def get_task_token(object_key: str) -> str:
     except Exception as e:
         logger.error(f"Error retrieving tracking record: {e}")
         raise
+
+def put_metric(name, value, unit='Count', dimensions=None):
+    dimensions = dimensions or []
+    metrics.put_metric(name, value, unit, dimensions, METRIC_NAMESPACE)
 
 def send_task_response(task_token, job_status, job_detail):
     put_metric('BDAJobsTotal', 1)
