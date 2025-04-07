@@ -416,5 +416,6 @@ def handler(event, context):
         "PageCount": len(pages),
         "Metering": metering
     }
-
+    
+    logger.info(f"Response: {json.dumps(statemachine_output, default=str)}")
     return statemachine_output

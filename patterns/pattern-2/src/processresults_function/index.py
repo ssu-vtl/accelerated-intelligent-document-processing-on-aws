@@ -61,6 +61,7 @@ def handler(event, context):
         "Metering": metering
     }
 
+    logger.info(f"Response: {json.dumps(statemachine_output, default=str)}")
     return statemachine_output
 
 def create_metadata_file(file_uri, class_type, file_type=None):
