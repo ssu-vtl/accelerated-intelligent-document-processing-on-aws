@@ -29,7 +29,6 @@ class ClassificationService:
 
     def __init__(
         self,
-        model_id: str = None,
         region: str = None,
         max_workers: int = 20,
         config: Dict[str, Any] = None
@@ -38,18 +37,18 @@ class ClassificationService:
         Initialize the classification service.
         
         Args:
-            model_id: ID of the LLM to use for classification
             region: AWS region for Bedrock
             max_workers: Maximum number of concurrent workers
             config: Configuration dictionary
         """
         self.config = config or {}
-        self.model_id = model_id or self.config.get("model_id")
         self.region = region or self.config.get("region") or os.environ.get("AWS_REGION")
         self.max_workers = max_workers
         self.document_types = self._load_document_types()
         
-        logger.info(f"Initialized classification service with model {self.model_id}")
+        # Get model_id from config for logging
+        model_id = self.config.get("model_id") or self.config.get("classification", {}).get("model")
+        logger.info(f"Initialized classification service with model {model_id}")
 
     def _load_document_types(self) -> List[DocumentType]:
         """Load document types from configuration."""
@@ -112,7 +111,7 @@ class ClassificationService:
         
         # Get classification configuration
         classification_config = self.config.get("classification", {})
-        model_id = self.model_id or classification_config.get("model")
+        model_id = self.config.get("model_id") or classification_config.get("model")
         temperature = float(classification_config.get("temperature", 0))
         top_k = float(classification_config.get("top_k", 0.5))
         system_prompt = classification_config.get("system_prompt", "")

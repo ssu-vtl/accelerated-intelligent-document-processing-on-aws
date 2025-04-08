@@ -21,7 +21,6 @@ config = get_config()
 
 # Initialize classification service
 service = classification.ClassificationService(
-    model_id=config["classification"]["model"],
     region="us-east-1",
     config=config
 )
@@ -60,6 +59,7 @@ The classification service uses the following configuration structure:
 
 ```json
 {
+  "model_id": "anthropic.claude-3-sonnet-20240229-v1:0", // Top-level model_id (optional)
   "classes": [
     {
       "name": "invoice",
@@ -71,7 +71,7 @@ The classification service uses the following configuration structure:
     }
   ],
   "classification": {
-    "model": "anthropic.claude-3-sonnet-20240229-v1:0",
+    "model": "anthropic.claude-3-sonnet-20240229-v1:0", // Specific model for classification (used if top-level model_id not specified)
     "temperature": 0,
     "top_k": 0.5,
     "system_prompt": "You are a document classification expert...",

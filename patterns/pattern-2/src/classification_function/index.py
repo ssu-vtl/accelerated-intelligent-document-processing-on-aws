@@ -53,7 +53,6 @@ def handler(event, context):
     
     # Initialize classification service
     service = classification.ClassificationService(
-        model_id=CONFIG.get("classification", {}).get("model"),
         region=region,
         max_workers=MAX_WORKERS,
         config=CONFIG
