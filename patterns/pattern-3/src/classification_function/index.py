@@ -6,7 +6,6 @@ import logging
 from botocore.exceptions import ClientError
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import Lock
 from idp_common import metrics, utils
 
 # Retry configuration
@@ -16,7 +15,6 @@ MAX_BACKOFF = 300   # 5 minutes
 MAX_WORKERS = 20     # Adjust based on your needs and endpoint capacity
 
 region = os.environ['AWS_REGION']
-METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
 
 # Initialize clients
 sm_client = boto3.client('sagemaker-runtime', region_name=region)
@@ -24,13 +22,6 @@ sm_client = boto3.client('sagemaker-runtime', region_name=region)
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Add thread-safe metric publishing
-metric_lock = Lock()
-
-def put_metric(name, value, unit='Count', dimensions=None):
-    dimensions = dimensions or []
-    with metric_lock:  # Ensure thread-safe metric publishing
-        metrics.put_metric(name, value, unit, dimensions, METRIC_NAMESPACE)
 
 def classify_single_page(page_id, page_data):
     """Classify a single page using the UDOP model"""
@@ -66,10 +57,10 @@ def classify_single_page(page_id, page_data):
             # Log success metrics
             logger.info(f"Page {page_id} classification successful after {retry_count + 1} attempts. "
                        f"Duration: {duration:.2f}s")
-            put_metric('ClassificationRequestsSucceeded', 1)
-            put_metric('ClassificationLatency', duration * 1000, 'Milliseconds')
+            metrics.put_metric('ClassificationRequestsSucceeded', 1)
+            metrics.put_metric('ClassificationLatency', duration * 1000, 'Milliseconds')
             if retry_count > 0:
-                put_metric('ClassificationRetrySuccess', 1)
+                metrics.put_metric('ClassificationRetrySuccess', 1)
             
             # Return classification results along with page data
             return {
@@ -85,13 +76,13 @@ def classify_single_page(page_id, page_data):
             if error_code in ['ThrottlingException', 'ServiceQuotaExceededException',
                             'RequestLimitExceeded', 'TooManyRequestsException']:
                 retry_count += 1
-                put_metric('ClassificationThrottles', 1)
+                metrics.put_metric('ClassificationThrottles', 1)
                 
                 if retry_count == MAX_RETRIES:
                     logger.error(f"Max retries ({MAX_RETRIES}) exceeded for page {page_id}. "
                                f"Last error: {error_message}")
-                    put_metric('ClassificationRequestsFailed', 1)
-                    put_metric('ClassificationMaxRetriesExceeded', 1)
+                    metrics.put_metric('ClassificationRequestsFailed', 1)
+                    metrics.put_metric('ClassificationMaxRetriesExceeded', 1)
                     raise
                 
                 backoff = utils.calculate_backoff(retry_count)
@@ -105,15 +96,15 @@ def classify_single_page(page_id, page_data):
             else:
                 logger.error(f"Non-retryable classification error for page {page_id}: "
                            f"{error_code} - {error_message}")
-                put_metric('ClassificationRequestsFailed', 1)
-                put_metric('ClassificationNonRetryableErrors', 1)
+                metrics.put_metric('ClassificationRequestsFailed', 1)
+                metrics.put_metric('ClassificationNonRetryableErrors', 1)
                 raise
                 
         except Exception as e:
             logger.error(f"Unexpected error classifying page {page_id}: {str(e)}", 
                        exc_info=True)
-            put_metric('ClassificationRequestsFailed', 1)
-            put_metric('ClassificationUnexpectedErrors', 1)
+            metrics.put_metric('ClassificationRequestsFailed', 1)
+            metrics.put_metric('ClassificationUnexpectedErrors', 1)
             raise
             
     if last_exception:
@@ -222,7 +213,7 @@ def handler(event, context):
     
     # Track total classification requests
     total_pages = len(pages)
-    put_metric('ClassificationRequestsTotal', total_pages)
+    metrics.put_metric('ClassificationRequestsTotal', total_pages)
     
     # Classify pages concurrently
     all_results = classify_pages_concurrently(pages)

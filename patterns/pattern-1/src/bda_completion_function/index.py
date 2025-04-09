@@ -36,12 +36,10 @@ def get_task_token(object_key: str) -> str:
         logger.error(f"Error retrieving tracking record: {e}")
         raise
 
-def put_metric(name, value, unit='Count', dimensions=None):
-    dimensions = dimensions or []
-    metrics.put_metric(name, value, unit, dimensions, METRIC_NAMESPACE)
+# Using metrics.put_metric directly
 
 def send_task_response(task_token, job_status, job_detail):
-    put_metric('BDAJobsTotal', 1)
+    metrics.put_metric('BDAJobsTotal', 1)
     try:
         if job_status == 'SUCCESS':
             logger.info(f"Sending task success for token: {task_token}")
@@ -52,7 +50,7 @@ def send_task_response(task_token, job_status, job_detail):
                     'job_detail': job_detail
                 })
             )
-            put_metric('BDAJobsSucceeded', 1)
+            metrics.put_metric('BDAJobsSucceeded', 1)
         else:
             logger.info(f"Sending task failure for token: {task_token}")
             stepfunctions.send_task_failure(
@@ -60,7 +58,7 @@ def send_task_response(task_token, job_status, job_detail):
                 error='JobExecutionError',
                 cause=job_detail.get('error_message') or 'Job execution failed'
             )
-            put_metric('BDAJobsFailed', 1)
+            metrics.put_metric('BDAJobsFailed', 1)
     except Exception as e:
         logger.error(f"Error sending task response: {e}")
         raise

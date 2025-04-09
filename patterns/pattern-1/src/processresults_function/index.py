@@ -19,12 +19,6 @@ logger.setLevel(logging.INFO)
 # Use the common S3 client
 s3_client = get_s3_client()
 
-# Add namespace for metrics
-METRIC_NAMESPACE = os.environ.get('METRIC_NAMESPACE', 'IDP')
-
-def put_metric(name, value, unit='Count', dimensions=None):
-    dimensions = dimensions or []
-    metrics.put_metric(name, value, unit, dimensions, METRIC_NAMESPACE)
 
 def create_metadata_file(file_uri, class_type, file_type=None):
     """
@@ -395,10 +389,10 @@ def handler(event, context):
         standard_pages_count = 0
     
     # Record metrics for processed pages
-    put_metric('ProcessedDocuments', 1)
-    put_metric('ProcessedPages', total_pages)
-    put_metric('ProcessedCustomPages', custom_pages_count)
-    put_metric('ProcessedStandardPages', standard_pages_count)
+    metrics.put_metric('ProcessedDocuments', 1)
+    metrics.put_metric('ProcessedPages', total_pages)
+    metrics.put_metric('ProcessedCustomPages', custom_pages_count)
+    metrics.put_metric('ProcessedStandardPages', standard_pages_count)
     
     # Enhanced metering with both custom and standard page counts
     metering = {

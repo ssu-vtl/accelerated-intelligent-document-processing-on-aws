@@ -16,15 +16,11 @@ MAX_RETRIES = 8
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 300   # 5 minutes
 
-METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
-
 # Initialize client
 bda_client = boto3.client('bedrock-data-automation-runtime')
 dynamodb = boto3.resource('dynamodb')
 tracking_table = dynamodb.Table(os.environ['TRACKING_TABLE'])
 
-def put_metric(name, value, unit='Count', dimensions=None):
-    metrics.put_metric(name, value, unit, dimensions, METRIC_NAMESPACE)
 
 def build_s3_uri(bucket: str, key: str) -> str:
     return utils.build_s3_uri(bucket, key)
@@ -57,7 +53,7 @@ def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
     last_exception = None
     request_start_time = time.time()
 
-    put_metric('BDARequestsTotal', 1)
+    metrics.put_metric('BDARequestsTotal', 1)
 
     while retry_count < MAX_RETRIES:
         try:
@@ -70,14 +66,14 @@ def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
             logger.info(f"BDA API request successful after {retry_count + 1} attempts. "
                        f"Duration: {duration:.2f}s")
 
-            put_metric('BDARequestsSucceeded', 1)
-            put_metric('BDARequestsLatency', duration * 1000, 'Milliseconds')
+            metrics.put_metric('BDARequestsSucceeded', 1)
+            metrics.put_metric('BDARequestsLatency', duration * 1000, 'Milliseconds')
             
             if retry_count > 0:
-                put_metric('BDARequestsRetrySuccess', 1)
+                metrics.put_metric('BDARequestsRetrySuccess', 1)
 
             total_duration = time.time() - request_start_time
-            put_metric('BDARequestsTotalLatency', total_duration * 1000, 'Milliseconds')
+            metrics.put_metric('BDARequestsTotalLatency', total_duration * 1000, 'Milliseconds')
 
             return response
 
@@ -95,12 +91,12 @@ def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
             
             if error_code in retryable_errors:
                 retry_count += 1
-                put_metric('BDARequestsThrottles', 1)
+                metrics.put_metric('BDARequestsThrottles', 1)
                 
                 if retry_count == MAX_RETRIES:
                     logger.error(f"Max retries ({MAX_RETRIES}) exceeded. Last error: {error_message}")
-                    put_metric('BDARequestsFailed', 1)
-                    put_metric('BDARequestsMaxRetriesExceeded', 1)
+                    metrics.put_metric('BDARequestsFailed', 1)
+                    metrics.put_metric('BDARequestsMaxRetriesExceeded', 1)
                     raise
                 
                 backoff = utils.calculate_backoff(retry_count, INITIAL_BACKOFF, MAX_BACKOFF)
@@ -112,14 +108,14 @@ def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
                 last_exception = e
             else:
                 logger.error(f"Non-retryable BDA API error: {error_code} - {error_message}")
-                put_metric('BDARequestsFailed', 1)
-                put_metric('BDARequestsNonRetryableErrors', 1)
+                metrics.put_metric('BDARequestsFailed', 1)
+                metrics.put_metric('BDARequestsNonRetryableErrors', 1)
                 raise
 
         except Exception as e:
             logger.error(f"Unexpected error invoking BDA API: {str(e)}", exc_info=True)
-            put_metric('BDARequestsFailed', 1)
-            put_metric('BDARequestsUnexpectedErrors', 1)
+            metrics.put_metric('BDARequestsFailed', 1)
+            metrics.put_metric('BDARequestsUnexpectedErrors', 1)
             raise
         
     if last_exception:
