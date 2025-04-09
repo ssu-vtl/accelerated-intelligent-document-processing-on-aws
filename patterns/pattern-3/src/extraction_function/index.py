@@ -9,15 +9,11 @@ from idp_common.extraction.service import ExtractionService
 
 CONFIG = get_config()
 
-METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
 OCR_TEXT_ONLY = os.environ.get('OCR_TEXT_ONLY', 'false').lower() == 'true'
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-def put_metric(name, value, unit='Count', dimensions=None):
-    dimensions = dimensions or []
-    metrics.put_metric(name, value, unit, dimensions, METRIC_NAMESPACE)
 
 def handler(event, context):
     """
@@ -39,8 +35,8 @@ def handler(event, context):
     extraction_service = ExtractionService(config=CONFIG)
     
     # Track metrics
-    put_metric('InputDocuments', 1)
-    put_metric('InputDocumentPages', len(pages))
+    metrics.put_metric('InputDocuments', 1)
+    metrics.put_metric('InputDocumentPages', len(pages))
     
     # Process the section using the extraction service
     t0 = time.time()
