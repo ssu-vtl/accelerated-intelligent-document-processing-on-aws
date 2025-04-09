@@ -166,43 +166,59 @@ class ExtractionService:
         # Parse response into JSON
         extracted_fields = {}
         output_uri = None
-        try:
-            extracted_fields = json.loads(self._extract_json(extracted_text))
+        output_key = None
+        parsing_succeeded = True  # Flag to track if parsing was successful
+        
+        # Define output key if we have bucket and prefix
+        if output_bucket and output_prefix:
+            output_key = f"{output_prefix}/sections/{section_id}/result.json"
             
-            # If output bucket and prefix provided, store results
-            if output_bucket and output_prefix:
-                output_key = f"{output_prefix}/sections/{section_id}/result.json"
-                output = {
-                    "document_class": {
-                        "type": class_label
-                    },
-                    "inference_result": extracted_fields
-                }
-                s3.write_content(output, output_bucket, output_key, content_type='application/json')
-                output_uri = f"s3://{output_bucket}/{output_key}"
-                
+        try:
+            # Try to parse the extracted text as JSON
+            extracted_fields = json.loads(self._extract_json(extracted_text))
         except Exception as e:
+            # Handle parsing error
             logger.error(f"Error parsing LLM output - invalid JSON?: {extracted_text} - {e}")
             logger.info(f"Using unparsed LLM output.")
             extracted_fields = {"raw_output": extracted_text}
+            parsing_succeeded = False  # Mark that parsing failed
+        
+        # Write to S3 regardless of whether JSON parsing succeeded or failed
+        if output_bucket and output_prefix and output_key:
+            output = {
+                "document_class": {
+                    "type": class_label
+                },
+                "inference_result": extracted_fields
+            }
+            s3.write_content(output, output_bucket, output_key, content_type='application/json')
+            output_uri = f"s3://{output_bucket}/{output_key}"
         
         # Create extraction attributes from the parsed fields
         attributes_list = []
         for name, value in extracted_fields.items():
+            # Use confidence 0.0 for results from failed parsing, 1.0 for successful parsing
+            confidence = 1.0 if parsing_succeeded else 0.0
             attributes_list.append(ExtractedAttribute(
                 name=name,
                 value=value,
-                confidence=1.0  # Default confidence
+                confidence=confidence
             ))
         
         # Create and return result
+        metadata = {
+            "parsing_succeeded": parsing_succeeded,
+            "extraction_time_seconds": total_duration
+        }
+        
         return ExtractionResult(
             section_id=section_id,
             document_class=class_label,
             attributes=attributes_list,
             raw_response=extracted_text,
             metering=metering,
-            output_uri=output_uri
+            output_uri=output_uri,
+            metadata=metadata
         )
 
     def extract_from_section(
