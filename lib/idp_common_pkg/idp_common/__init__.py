@@ -1,14 +1,24 @@
-# Import submodules for easier access
-from idp_common import bedrock
-from idp_common import s3
-from idp_common import metrics
-from idp_common import image
-from idp_common import utils
-from idp_common import config
-from idp_common import ocr
-from idp_common import classification
-
-# Expose key functions at the package level for backward compatibility
-from idp_common.config import get_config
-
+# Use true lazy loading for all submodules
 __version__ = "0.1.0"
+
+# Cache for lazy-loaded submodules
+_submodules = {}
+
+def __getattr__(name):
+    """Lazy load submodules only when accessed"""
+    if name in ['bedrock', 's3', 'metrics', 'image', 'utils', 'config', 'ocr', 'classification']:
+        if name not in _submodules:
+            _submodules[name] = __import__(f"idp_common.{name}", fromlist=['*'])
+        return _submodules[name]
+    
+    # Special handling for directly exposed functions
+    if name == 'get_config':
+        config = __getattr__('config')
+        return config.get_config
+    
+    raise AttributeError(f"module 'idp_common' has no attribute '{name}'")
+
+__all__ = [
+    'bedrock', 's3', 'metrics', 'image', 'utils', 'config', 'ocr', 'classification',
+    'get_config'
+]
