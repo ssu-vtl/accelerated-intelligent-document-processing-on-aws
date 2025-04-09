@@ -833,7 +833,7 @@ const ConfigurationLayout = () => {
                   </Button>
                 )}
                 <Button variant="normal" onClick={() => setShowResetModal(true)}>
-                  Reset all to Default
+                  Restore default (All)
                 </Button>
                 <Button variant="primary" onClick={handleSave} loading={isSaving}>
                   Save changes
