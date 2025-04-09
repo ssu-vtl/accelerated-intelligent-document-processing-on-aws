@@ -6,7 +6,7 @@ _submodules = {}
 
 def __getattr__(name):
     """Lazy load submodules only when accessed"""
-    if name in ['bedrock', 's3', 'metrics', 'image', 'utils', 'config', 'ocr', 'classification']:
+    if name in ['bedrock', 's3', 'metrics', 'image', 'utils', 'config', 'ocr', 'classification', 'extraction']:
         if name not in _submodules:
             _submodules[name] = __import__(f"idp_common.{name}", fromlist=['*'])
         return _submodules[name]
@@ -19,6 +19,6 @@ def __getattr__(name):
     raise AttributeError(f"module 'idp_common' has no attribute '{name}'")
 
 __all__ = [
-    'bedrock', 's3', 'metrics', 'image', 'utils', 'config', 'ocr', 'classification',
+    'bedrock', 's3', 'metrics', 'image', 'utils', 'config', 'ocr', 'classification', 'extraction',
     'get_config'
 ]

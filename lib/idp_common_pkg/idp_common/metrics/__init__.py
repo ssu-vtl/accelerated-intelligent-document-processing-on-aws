@@ -37,7 +37,7 @@ def put_metric(name: str, value: float, unit: str = 'Count',
     
     # Get namespace from environment if not provided
     if namespace is None:
-        namespace = os.environ.get('METRIC_NAMESPACE', 'IDP')
+        namespace = os.environ.get('METRIC_NAMESPACE', 'GENAIDP')
     
     logger.info(f"Publishing metric {name}: {value}")
     try:
