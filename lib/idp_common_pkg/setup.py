@@ -9,7 +9,8 @@ setup(
     include_package_data=True,
     python_requires=">=3.8",
     install_requires=[
-        "boto3>=1.28.0",
-        "Pillow>=9.5.0",
+        "boto3>=1.37.29",
+        "Pillow>=11.1.0",
+        "PyMuPDF>=1.25.5",
     ],
 )
