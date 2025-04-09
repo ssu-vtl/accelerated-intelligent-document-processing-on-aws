@@ -88,32 +88,85 @@ function calculate_hash() {
   )
   echo $HASH
 }
+
+# Calculate checksum of the lib directory
+function calculate_lib_hash() {
+  local LIB_HASH=$(
+    find "./lib" -type f -print0 | 
+    sort -f -z |
+    xargs -0 sha256sum |
+    sha256sum |
+    cut -d" " -f1
+  )
+  echo $LIB_HASH
+}
+
+# Get the current lib checksum
+function get_lib_checksum() {
+  local checksum_file="./.lib_checksum"
+  if [ -f "$checksum_file" ]; then
+    cat "$checksum_file"
+  else
+    echo ""
+  fi
+}
+
+# Update the lib checksum file
+function update_lib_checksum() {
+  local lib_checksum=$(calculate_lib_hash)
+  echo "$lib_checksum" > "./.lib_checksum"
+}
+
+# Check if lib directory has changed
+function lib_has_changed() {
+  local current_lib_checksum=$(calculate_lib_hash)
+  local previous_lib_checksum=$(get_lib_checksum)
+  
+  if [ "$current_lib_checksum" != "$previous_lib_checksum" ]; then
+    echo "Library files in ./lib have changed. All patterns will be rebuilt."
+    return 0  # True, the lib directory has changed
+  else
+    return 1  # False, the lib directory has not changed
+  fi
+}
+
 haschanged() {
   local dir=$1
   local checksum_file="${dir}/.checksum"
+  
+  # If lib directory has changed, force rebuild
+  if lib_has_changed; then
+    return 0  # True, force rebuild
+  fi
+  
   # Compute current checksum of the directory's modification times excluding specified directories, and the publish target S3 location.
   dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec $STAT_CMD {} \; | sha256sum | awk '{ print $1 }')
   combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
   current_checksum=$(echo -n "$combined_string" | sha256sum | awk '{ print $1 }')
+  
   # Check if the checksum file exists and read the previous checksum
   if [ -f "$checksum_file" ]; then
       previous_checksum=$(cat "$checksum_file")
   else
       previous_checksum=""
   fi
+  
   if [ "$current_checksum" != "$previous_checksum" ]; then
       return 0  # True, the directory has changed
   else
       return 1  # False, the directory has not changed
   fi
 }
+
 update_checksum() {
   local dir=$1
   local checksum_file="${dir}/.checksum"
+  
   # Compute current checksum of the directory's modification times excluding specified directories, and the publish target S3 location.
   dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec $STAT_CMD {} \; | sha256sum | awk '{ print $1 }')
   combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
   current_checksum=$(echo -n "$combined_string" | sha256sum | awk '{ print $1 }')
+  
   # Save the current checksum
   echo "$current_checksum" > "$checksum_file"
 }
@@ -232,6 +285,11 @@ echo "OUTPUTS"
 echo Template URL: $TEMPLATE_URL
 echo CF Launch URL: https://${REGION}.console.aws.amazon.com/cloudformation/home?region=${REGION}#/stacks/create/review?templateURL=${TEMPLATE_URL}\&stackName=IDP
 echo CLI Deploy: aws cloudformation deploy --region $REGION --template-file .aws-sam/${MAIN_TEMPLATE} --s3-bucket ${BUCKET} --s3-prefix ${PREFIX_AND_VERSION} --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --parameter-overrides IDPPattern="Pattern1 - Packet or Media processing with Bedrock Data Automation (BDA)" Pattern1BDAProjectArn="<your-bda=project-arn" AdminEmail="your-email-address" "<other params>" --stack-name "<your-stack-name>"
+
+# Update the lib checksum after successful build
+update_lib_checksum
+echo "Updated lib checksum file to track changes in the library directories"
+
 echo Done
 exit 0
 
