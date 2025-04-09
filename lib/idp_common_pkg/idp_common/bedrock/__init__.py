@@ -87,9 +87,16 @@ def invoke_model(
     
     while retry_count < max_retries:
         try:
-            logger.info(f"Bedrock request attempt {retry_count + 1}/{max_retries} - "
-                      f"model: {model_id}, "
-                      f"inferenceConfig: {inference_config}")
+            # Create a copy of the messages to sanitize for logging
+            sanitized_messages = _sanitize_messages_for_logging(messages)
+            
+            # Log detailed request parameters
+            logger.info(f"Bedrock request attempt {retry_count + 1}/{max_retries}:")
+            logger.info(f"  - model: {model_id}")
+            logger.info(f"  - inferenceConfig: {inference_config}")
+            logger.info(f"  - system: {formatted_system_prompt}")
+            logger.info(f"  - messages: {sanitized_messages}")
+            logger.info(f"  - additionalModelRequestFields: {additional_model_fields}")
             
             attempt_start_time = time.time()
             response = bedrock_client.converse(
@@ -101,8 +108,10 @@ def invoke_model(
             )
             duration = time.time() - attempt_start_time
             
-            logger.info(f"Bedrock request successful after {retry_count + 1} attempts. "
-                      f"Duration: {duration:.2f}s")
+            # Log response details, but sanitize large content
+            sanitized_response = _sanitize_response_for_logging(response)
+            logger.info(f"Bedrock request successful after {retry_count + 1} attempts. Duration: {duration:.2f}s")
+            logger.info(f"Response: {sanitized_response}")
             
             # Track successful requests and latency
             put_metric('BedrockRequestsSucceeded', 1)
@@ -178,6 +187,79 @@ def invoke_model(
     
     if last_exception:
         raise last_exception
+
+def _sanitize_messages_for_logging(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Create a copy of messages with image content replaced for logging
+    
+    Args:
+        messages: List of message objects for Bedrock API
+        
+    Returns:
+        Sanitized message objects suitable for logging
+    """
+    import copy
+    sanitized = copy.deepcopy(messages)
+    
+    for message in sanitized:
+        if 'content' in message and isinstance(message['content'], list):
+            for content_item in message['content']:
+                # Check for image type content
+                if isinstance(content_item, dict) and content_item.get('type') == 'image':
+                    # Replace actual image data with placeholder
+                    if 'source' in content_item:
+                        content_item['source'] = {'data': '[image_data]'}
+                elif isinstance(content_item, dict) and 'image' in content_item:
+                    # Handle different image format used by some models
+                    content_item['image'] = '[image_data]'
+                elif isinstance(content_item, dict) and 'bytes' in content_item:
+                    # Handle raw binary format
+                    content_item['bytes'] = '[binary_data]'
+    
+    return sanitized
+
+def _sanitize_response_for_logging(response: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Create a sanitized copy of the response suitable for logging
+    
+    Args:
+        response: Response from Bedrock API
+        
+    Returns:
+        Sanitized response suitable for logging
+    """
+    import copy
+    import json
+    
+    # Create a deep copy to avoid modifying the original
+    sanitized = copy.deepcopy(response)
+    
+    # For very large responses, limit the content for logging
+    if 'output' in sanitized and 'message' in sanitized['output']:
+        message = sanitized['output']['message']
+        if 'content' in message:
+            content = message['content']
+            
+            # Handle list of content items (multimodal responses)
+            if isinstance(content, list):
+                for i, item in enumerate(content):
+                    if isinstance(item, dict):
+                        # Truncate text content if too long
+                        if 'text' in item and isinstance(item['text'], str) and len(item['text']) > 500:
+                            item['text'] = item['text'][:500] + '... [truncated]'
+                        # Replace image data with placeholder
+                        if 'image' in item:
+                            item['image'] = '[image_data]'
+            # Handle string content
+            elif isinstance(content, str) and len(content) > 500:
+                message['content'] = content[:500] + '... [truncated]'
+    
+    # Include usage info for token counts
+    if 'usage' in sanitized:
+        # Usage is already compact, no need to truncate
+        pass
+    
+    return sanitized
 
 def extract_text_from_response(response: Dict[str, Any]) -> str:
     """
