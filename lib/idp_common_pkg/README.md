@@ -122,6 +122,41 @@ config = get_config()
 config = get_config(table_name="my-config-table")
 ```
 
+## Installation with Granular Dependencies
+
+To minimize Lambda package size, you can install only the specific components you need:
+
+```bash
+# Install core functionality only (minimal dependencies)
+pip install "idp_common[core]"
+
+# Install with OCR support
+pip install "idp_common[ocr]"
+
+# Install with classification support
+pip install "idp_common[classification]"
+
+# Install with extraction support
+pip install "idp_common[extraction]"
+
+# Install with image processing support
+pip install "idp_common[image]"
+
+# Install everything
+pip install "idp_common[all]"
+
+# Install multiple components
+pip install "idp_common[ocr,classification]"
+```
+
+For Lambda functions, specify only the required components in requirements.txt:
+
+```
+../../lib/idp_common_pkg[extraction]
+```
+
+This ensures that only the necessary dependencies are included in your Lambda deployment package.
+
 ## Development Notes
 
 This package consolidates functionality that was previously spread across multiple packages:
@@ -129,4 +164,4 @@ This package consolidates functionality that was previously spread across multip
 - Document processing services like OCR, Classification, and Extraction
 - Configuration management (formerly in get_config_pkg)
 
-It is designed to be used as a central dependency for all IDP accelerator patterns.
+It is designed to be used as a central dependency for all IDP accelerator patterns, with granular dependency management to minimize deployment size.
