@@ -48,7 +48,7 @@ from idp_common import (
     extraction     # Extraction service and models
 )
 
-# Get configuration (merged from Default and Custom)
+# Get configuration (merged from Default and Custom records in the DynamoDb Configuration Table)
 cfg = get_config()
 
 # OCR Processing
