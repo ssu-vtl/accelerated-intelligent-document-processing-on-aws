@@ -4,8 +4,7 @@ import os
 import json
 import time
 import logging
-from idp_common import metrics, get_config
-from idp_common.extraction.service import ExtractionService
+from idp_common import metrics, get_config, extraction
 
 CONFIG = get_config()
 
@@ -32,7 +31,7 @@ def handler(event, context):
     page_ids = [page['page_id'] for page in pages]
     
     # Initialize the extraction service
-    extraction_service = ExtractionService(config=CONFIG)
+    extraction_service = extraction.ExtractionService(config=CONFIG)
     
     # Track metrics
     metrics.put_metric('InputDocuments', 1)
