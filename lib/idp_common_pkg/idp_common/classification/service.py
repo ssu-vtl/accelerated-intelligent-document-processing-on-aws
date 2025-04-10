@@ -359,7 +359,6 @@ class ClassificationService:
                 metering = {
                     "sagemaker/invoke_endpoint": {
                         "invocations": 1,
-                        "latency_ms": int(duration * 1000)
                     }
                 }
                 
