@@ -45,6 +45,32 @@ class Section:
     page_ids: List[str] = field(default_factory=list)
     extraction_result_uri: Optional[str] = None
     attributes: Optional[Dict[str, Any]] = None
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Section':
+        """Create a Section from a dictionary representation."""
+        if not data:
+            raise ValueError("Cannot create Section from empty data")
+            
+        return cls(
+            section_id=data.get('section_id', ''),
+            classification=data.get('classification', ''),
+            confidence=data.get('confidence', 1.0),
+            page_ids=data.get('page_ids', []),
+            extraction_result_uri=data.get('extraction_result_uri'),
+            attributes=data.get('attributes')
+        )
+        
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert section to dictionary representation."""
+        return {
+            "section_id": self.section_id,
+            "classification": self.classification,
+            "confidence": self.confidence,
+            "page_ids": self.page_ids,
+            "extraction_result_uri": self.extraction_result_uri,
+            "attributes": self.attributes
+        }
 
 
 @dataclass
