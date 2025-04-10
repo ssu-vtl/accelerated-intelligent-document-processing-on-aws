@@ -1,30 +1,108 @@
 # Document Classification for IDP Accelerator
 
-This module provides document classification capabilities for the IDP Accelerator project, allowing classification of documents based on their text and image content.
+This module provides document classification capabilities for the IDP Accelerator project, allowing classification of documents based on their text and image content. It supports multiple classification backends including Bedrock LLMs and SageMaker UDOP models.
 
 ## Features
 
-- Classification of documents using LLMs
+- Classification of documents using multiple backend options:
+  - Amazon Bedrock LLMs
+  - SageMaker UDOP models
+- Direct integration with the Document data model
 - Support for both text and image content
 - Concurrent processing of multiple pages
 - Structured data models for results
 - Grouping of pages into sections by classification
-- Integration with `idp_common.bedrock` for model invocation
+- Comprehensive error handling and retry mechanisms
 
 ## Usage Example
 
+### Using with Bedrock LLMs (Default)
+
 ```python
 from idp_common import classification, get_config
+from idp_common.models import Document
 
 # Load configuration
 config = get_config()
 
-# Initialize classification service
+# Initialize classification service with Bedrock backend
 service = classification.ClassificationService(
     region="us-east-1",
-    config=config
+    config=config,
+    backend="bedrock"  # This is the default
 )
 
+# Create or get a Document object
+document = Document(
+    id="doc-123",
+    input_bucket="input-bucket",
+    input_key="document.pdf",
+    output_bucket="output-bucket",
+    pages={
+        "1": {
+            "page_id": "1",
+            "parsed_text_uri": "s3://bucket/document/pages/1/result.json",
+            "image_uri": "s3://bucket/document/pages/1/image.jpg",
+            "raw_text_uri": "s3://bucket/document/pages/1/rawText.json"
+        }
+    }
+)
+
+# Classify the document - updates the Document object directly
+document = service.classify_document(document)
+
+# Document now contains classification results
+print(f"Document has {len(document.sections)} sections")
+for section in document.sections:
+    print(f"Section {section.section_id}: {section.classification}")
+    print(f"Pages: {section.page_ids}")
+```
+
+### Using with SageMaker UDOP Models
+
+```python
+from idp_common import classification, get_config
+from idp_common.models import Document
+
+# Load configuration and add SageMaker endpoint
+config = get_config()
+config["sagemaker_endpoint_name"] = "udop-classification-endpoint"
+
+# Initialize classification service with SageMaker backend
+service = classification.ClassificationService(
+    region="us-east-1",
+    config=config,
+    backend="sagemaker"
+)
+
+# Create or get a Document object
+document = Document(
+    id="doc-123",
+    input_bucket="input-bucket",
+    input_key="document.pdf",
+    output_bucket="output-bucket",
+    pages={
+        "1": {
+            "page_id": "1",
+            "parsed_text_uri": "s3://bucket/document/pages/1/result.json",
+            "image_uri": "s3://bucket/document/pages/1/image.jpg",
+            "raw_text_uri": "s3://bucket/document/pages/1/rawText.json"
+        }
+    }
+)
+
+# Classify the document using SageMaker
+document = service.classify_document(document)
+
+# Access classification results from the Document
+print(f"Document status: {document.status}")
+for page_id, page in document.pages.items():
+    print(f"Page {page_id} classified as: {page.classification}")
+```
+
+### Legacy Method (Still Supported)
+
+```python
 # Classify a single page
 page_result = service.classify_page(
     page_id="1",
@@ -59,7 +137,8 @@ The classification service uses the following configuration structure:
 
 ```json
 {
-  "model_id": "anthropic.claude-3-sonnet-20240229-v1:0", // Top-level model_id (optional)
+  "model_id": "anthropic.claude-3-sonnet-20240229-v1:0", // Top-level model_id for Bedrock (optional)
+  "sagemaker_endpoint_name": "udop-classification-endpoint", // SageMaker endpoint name (optional)
   "classes": [
     {
       "name": "invoice",
@@ -82,32 +161,66 @@ The classification service uses the following configuration structure:
 
 ## Integration with Lambda Functions
 
-To use this module in a Lambda function:
+### Using with Bedrock Backend
 
-1. Add it as a dependency:
-   ```
-   ../../lib/idp_common_pkg  # common utilities package
-   ```
+```python
+from idp_common import classification, get_config
+from idp_common.models import Document, Status
 
-2. Import and use the service:
-   ```python
-   from idp_common import classification, get_config
-   
-   # Initialize service
-   config = get_config()
-   service = classification.ClassificationService(config=config)
-   
-   # Use in Lambda handler
-   def handler(event, context):
-       # Get OCR results from event
-       pages = event.get("OCRResult", {}).get("pages")
-       
-       # Classify pages
-       result = service.classify_pages(pages)
-       
-       # Return API response
-       return result.to_dict()
-   ```
+def handler(event, context):
+    # Extract document from event
+    document = Document.from_dict(event["OCRResult"]["document"])
+    
+    # Verify document status
+    if document.status != Status.OCR_COMPLETED:
+        raise ValueError(f"Document is not in OCR_COMPLETED stage")
+    
+    # Initialize classification service
+    config = get_config()
+    service = classification.ClassificationService(config=config) 
+    
+    # Classify document
+    document = service.classify_document(document)
+    
+    # Return response
+    return {
+        "document": document.to_dict()
+    }
+```
+
+### Using with SageMaker Backend
+
+```python
+from idp_common import classification, get_config
+from idp_common.models import Document, Status
+import os
+
+def handler(event, context):
+    # Extract document from event
+    document = Document.from_dict(event["OCRResult"]["document"])
+    
+    # Verify document status
+    if document.status != Status.OCR_COMPLETED:
+        raise ValueError(f"Document is not in OCR_COMPLETED stage")
+    
+    # Configure SageMaker endpoint
+    config = get_config() or {}
+    config["sagemaker_endpoint_name"] = os.environ["SAGEMAKER_ENDPOINT_NAME"]
+    
+    # Initialize classification service with SageMaker backend
+    service = classification.ClassificationService(
+        config=config,
+        backend="sagemaker"
+    )
+    
+    # Classify document using SageMaker
+    document = service.classify_document(document)
+    
+    # Return response
+    return {
+        "document": document.to_dict()
+    }
+```
 
 ## Data Models
 
@@ -116,10 +229,34 @@ To use this module in a Lambda function:
 - `PageClassification`: Classification result for a single page
 - `DocumentSection`: A section of consecutive pages with the same classification
 - `ClassificationResult`: Overall result of a classification operation
+- `Document`: Core document data model used throughout the IDP pipeline
+
+## Backend Options
+
+### Bedrock Backend
+
+The Bedrock backend uses Amazon Bedrock LLMs to classify documents:
+
+- Supports multiple model options (Claude, Titan, etc.)
+- Works with both text and image content 
+- Uses natural language understanding for classification
+- Configurable system prompts and parameters
+
+### SageMaker Backend
+
+The SageMaker backend uses custom UDOP (Unified Document Processing) models:
+
+- Uses vision-language models specifically trained for document understanding
+- Requires both image and raw text URIs to be available
+- Better performance for document-specific classification tasks
+- Requires a deployed SageMaker endpoint
 
 ## Future Enhancements
 
-- Support for confidence scores
-- More advanced document structure analysis
-- Integration with custom models
-- Multi-model classification for improved accuracy
+- ✅ Support for SageMaker UDOP models
+- ✅ Direct integration with Document data model
+- ✅ Improved error handling and retry mechanisms
+- 🔲 Better confidence score estimation
+- 🔲 More advanced document structure analysis
+- 🔲 Support for additional classification backends (custom models)
+- 🔲 Multi-model classification for improved accuracy
