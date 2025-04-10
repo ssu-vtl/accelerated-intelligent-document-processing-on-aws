@@ -33,7 +33,7 @@ def handler(event, context):
     """       
     logger.info(f"Event: {json.dumps(event)}")
     
-    # Get document from event (if present)
+    # Get document from event
     document = Document.from_dict(event["document"])
     
     input_bucket = document.input_bucket
