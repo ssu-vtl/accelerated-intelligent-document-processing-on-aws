@@ -23,12 +23,12 @@ def handler(event, context):
     logger.info(f"Config: {json.dumps(CONFIG)}")
     
     # For Map state, we get just one section from the document
-    # Extract the document from the event
+    # Extract the document and section from the event
     full_document = Document.from_dict(event.get("document", {}))
-    section = event.get("section", {})
+    section = Section.from_dict(event.get("section", {}))
     
-    # Get the section ID from the event
-    section_id = section.get("section_id", "")
+    # Get the section ID for later use
+    section_id = section.section_id
        
     # Create a section-specific document by modifying the original document
     section_document = full_document
