@@ -17,15 +17,7 @@ The `idp_common_pkg` introduces a unified Document model approach for consistent
 - **ExtractionService**: Extracts structured information from document sections using Bedrock
 
 ### Pattern Implementation Updates
-
-#### Pattern 1 (BDA)
-- Updated to use Document objects for data flow between state machine steps
-
-#### Pattern 2 (Bedrock)
-- Lambda functions refactored to use Document and Section objects, and new Service classes
-
-#### Pattern 3 (UDOP)
-- Lambda functions refactored to use Document and Section objects, and new Service classes
+- Lambda functions refactored, and significantly simplified, to use Document and Section objects, and new Service classes
 
 ### Key Benefits
 
@@ -48,3 +40,7 @@ A new comprehensive Jupyter notebook demonstrates the Document-based workflow:
 - Includes granular package installation examples (`pip install "idp_common_pkg[ocr,classification,extraction]"`)
 
 This refactoring sets the foundation for more maintainable, extensible document processing workflows with clearer data flow and easier troubleshooting.
+
+### Refactored publish.sh script
+ - improved modularily with functions
+ - improved checksum logic to determine when to rebuild components
