@@ -15,11 +15,10 @@ import time
 from typing import Dict, List, Tuple, Any, Optional, BinaryIO
 from botocore.config import Config
 
-
 import fitz  # PyMuPDF
 
 from idp_common import s3, utils
-from idp_common.ocr.results import OcrPageResult, OcrDocumentResult
+from idp_common.models import Document, Page, Status
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +39,7 @@ class OcrService:
             region: AWS region for Textract service
             max_workers: Maximum number of concurrent workers for page processing
             enhanced_features: If True, uses document analysis with tables, forms
-                               If False, uses basic text detection (faster)
+                           If False, uses basic text detection (faster)
         """
         self.region = region or os.environ.get('AWS_REGION', 'us-east-1')
         self.max_workers = max_workers
@@ -56,64 +55,95 @@ class OcrService:
             region_name=self.region, 
             config=adaptive_config
         )
+        
+        # Initialize S3 client
+        self.s3_client = boto3.client('s3')
 
-    def process_document(
-        self, 
-        pdf_content: bytes, 
-        output_bucket: str, 
-        prefix: str
-    ) -> OcrDocumentResult:
+    def process_document(self, document: Document) -> Document:
         """
-        Process a PDF document with OCR.
-
+        Process a PDF document with OCR and update the Document model.
+        
         Args:
-            pdf_content: Binary content of the PDF document
-            output_bucket: S3 bucket to store OCR results
-            prefix: S3 prefix for storing OCR results
-
-        Returns:
-            OcrDocumentResult containing metadata and page results
-        """
-        pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
-        num_pages = len(pdf_document)
-        page_results = {}
-        metering = {}
-        
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            future_to_page = {
-                executor.submit(
-                    self._process_single_page, 
-                    i, 
-                    pdf_document, 
-                    output_bucket, 
-                    prefix
-                ): i 
-                for i in range(num_pages)
-            }
+            document: Document model object to update with OCR results
             
-            for future in concurrent.futures.as_completed(future_to_page):
-                page_index = future_to_page[future]
-                try:
-                    result, page_metering = future.result()
-                    page_results[str(page_index + 1)] = result
-                    # Merge metering data
-                    metering = utils.merge_metering_data(metering, page_metering)
-                except Exception as e:
-                    logger.error(f"Error processing page {page_index + 1}: {str(e)}")
-                    raise
+        Returns:
+            Updated Document object with OCR results
+        """
+        t0 = time.time()
         
-        pdf_document.close()
+        # Get the PDF from S3
+        try:
+            response = self.s3_client.get_object(
+                Bucket=document.input_bucket, 
+                Key=document.input_key
+            )
+            pdf_content = response['Body'].read()
+            t1 = time.time()
+            logger.info(f"Time taken for S3 GetObject: {t1-t0:.6f} seconds")
+        except Exception as e:
+            error_msg = f"Error retrieving document from S3: {str(e)}"
+            logger.error(error_msg)
+            document.errors.append(error_msg)
+            document.status = Status.FAILED
+            return document
         
-        # Create and return result object
-        return OcrDocumentResult(
-            num_pages=num_pages,
-            pages=page_results,
-            metering=metering,
-            input_bucket="",  # Will be set by caller
-            input_key="",     # Will be set by caller
-            output_bucket=output_bucket,
-            output_prefix=prefix
-        )
+        # Process the PDF content
+        try:
+            pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
+            num_pages = len(pdf_document)
+            document.num_pages = num_pages
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                future_to_page = {
+                    executor.submit(
+                        self._process_single_page, 
+                        i, 
+                        pdf_document, 
+                        document.output_bucket, 
+                        document.input_key
+                    ): i 
+                    for i in range(num_pages)
+                }
+                
+                for future in concurrent.futures.as_completed(future_to_page):
+                    page_index = future_to_page[future]
+                    page_id = str(page_index + 1)
+                    try:
+                        ocr_result, page_metering = future.result()
+                        
+                        # Create Page object and add to document
+                        document.pages[page_id] = Page(
+                            page_id=page_id,
+                            image_uri=ocr_result["image_uri"],
+                            raw_text_uri=ocr_result["raw_text_uri"],
+                            parsed_text_uri=ocr_result["parsed_text_uri"]
+                        )
+                        
+                        # Merge metering data
+                        document.metering = utils.merge_metering_data(document.metering, page_metering)
+                        
+                    except Exception as e:
+                        error_msg = f"Error processing page {page_index + 1}: {str(e)}"
+                        logger.error(error_msg)
+                        document.errors.append(error_msg)
+            
+            pdf_document.close()
+            
+            # If no errors occurred, mark as completed
+            if not document.errors:
+                document.status = Status.OCR_COMPLETED
+            else:
+                document.status = Status.FAILED
+                
+        except Exception as e:
+            error_msg = f"Error processing document: {str(e)}"
+            logger.error(error_msg)
+            document.errors.append(error_msg)
+            document.status = Status.FAILED
+        
+        t2 = time.time()
+        logger.info(f"Total time for OCR processing: {t2-t0:.2f} seconds")
+        return document
 
     def _process_single_page(
         self, 
@@ -121,7 +151,7 @@ class OcrService:
         pdf_document: fitz.Document, 
         output_bucket: str, 
         prefix: str
-    ) -> Tuple[OcrPageResult, Dict[str, Any]]:
+    ) -> Tuple[Dict[str, str], Dict[str, Any]]:
         """
         Process a single page of a PDF document.
 
@@ -132,7 +162,7 @@ class OcrService:
             prefix: S3 prefix for storing results
 
         Returns:
-            Tuple of (OcrPageResult, metering_data)
+            Tuple of (page_result_dict, metering_data)
         """
         t0 = time.time()
         page_id = page_index + 1
@@ -192,11 +222,11 @@ class OcrService:
         logger.info(f"Time for Textract (page {page_id}): {t2-t1:.6f} seconds")
         
         # Create and return page result
-        result = OcrPageResult(
-            raw_text_uri=f"s3://{output_bucket}/{raw_text_key}",
-            parsed_text_uri=f"s3://{output_bucket}/{parsed_text_key}",
-            image_uri=f"s3://{output_bucket}/{image_key}"
-        )
+        result = {
+            "raw_text_uri": f"s3://{output_bucket}/{raw_text_key}",
+            "parsed_text_uri": f"s3://{output_bucket}/{parsed_text_key}",
+            "image_uri": f"s3://{output_bucket}/{image_key}"
+        }
         
         return result, metering
     
