@@ -13,6 +13,7 @@ from typing import Dict, List, Any, Optional, Tuple, Union
 
 from idp_common import bedrock, s3, image, utils
 from idp_common.extraction.models import ExtractedAttribute, ExtractionResult, PageInfo
+from idp_common.models import Document, Section, Status
 
 logger = logging.getLogger(__name__)
 
@@ -286,6 +287,108 @@ class ExtractionService:
         logger.info(f"Time taken for extraction: {t3-t2:.2f} seconds")
         
         return result
+    
+    def process_document_section(self, document: Document, section_id: str) -> Document:
+        """
+        Process a single section from a Document object.
+        
+        Args:
+            document: Document object containing section to process
+            section_id: ID of the section to process
+            
+        Returns:
+            Document: Updated Document object with extraction results for the section
+        """
+        # Validate input document
+        if not document:
+            logger.error("No document provided")
+            return document
+        
+        if not document.sections:
+            logger.error("Document has no sections to process")
+            document.errors.append("Document has no sections to process")
+            return document
+        
+        # Find the section with the given ID
+        section = None
+        for s in document.sections:
+            if s.section_id == section_id:
+                section = s
+                break
+        
+        if not section:
+            error_msg = f"Section {section_id} not found in document"
+            logger.error(error_msg)
+            document.errors.append(error_msg)
+            return document
+        
+        # Create extraction section format
+        extraction_section = {
+            "id": section.section_id,
+            "class": section.classification,
+            "pages": []
+        }
+        
+        # Add pages to the section
+        for page_id in section.page_ids:
+            if page_id in document.pages:
+                page = document.pages[page_id]
+                extraction_section["pages"].append({
+                    "page_id": page.page_id,
+                    "rawTextUri": page.raw_text_uri,
+                    "parsedTextUri": page.parsed_text_uri,
+                    "imageUri": page.image_uri,
+                    "class": page.classification
+                })
+        
+        if not extraction_section["pages"]:
+            error_msg = f"Section {section_id} has no valid pages"
+            logger.error(error_msg)
+            document.errors.append(error_msg)
+            return document
+        
+        # Create metadata for extraction
+        metadata = {
+            "input_bucket": document.input_bucket,
+            "object_key": document.input_key,
+            "output_bucket": document.output_bucket,
+            "num_pages": document.num_pages
+        }
+        
+        # Track metrics
+        metrics.put_metric('InputDocuments', 1)
+        metrics.put_metric('InputDocumentPages', len(section.page_ids))
+        
+        # Process the section
+        t0 = time.time()
+        try:
+            result = self.extract_from_section(
+                section=extraction_section,
+                metadata=metadata,
+                output_bucket=document.output_bucket
+            )
+            
+            # Update section with extraction results
+            section.extraction_result_uri = result.output_uri or f"s3://{document.output_bucket}/{document.input_key}/sections/{section.section_id}/result.json"
+            
+            # Update document with metering data
+            document.metering = utils.merge_metering_data(document.metering, result.metering or {})
+            
+            # Mark specific section as extracted
+            section.attributes = {attr.name: attr.value for attr in result.attributes}
+            
+            # No need to update document status here, as we're only processing one section
+            # The status will be updated by the process_results function
+            
+            t1 = time.time()
+            logger.info(f"Total extraction time for section {section_id}: {t1-t0:.2f} seconds")
+            
+        except Exception as e:
+            error_msg = f"Error processing section {section_id}: {str(e)}"
+            logger.error(error_msg)
+            document.errors.append(error_msg)
+        
+        return document
 
     def _extract_json(self, text: str) -> str:
         """
