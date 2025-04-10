@@ -4,27 +4,32 @@ This module provides OCR (Optical Character Recognition) capabilities for proces
 
 ## Overview
 
-The OCR service is designed to process PDF documents and extract text using AWS Textract. It supports both basic text detection and enhanced document analysis with tables and forms recognition.
+The OCR service is designed to process PDF documents and extract text using AWS Textract. It supports both basic text detection and enhanced document analysis with tables and forms recognition. The service works directly with the Document model from the common data model.
 
 ## Features
 
 - PDF processing with page-by-page OCR
 - Concurrent processing of pages for improved performance
 - Support for basic text detection (faster) or enhanced document analysis
-- Structured result objects for easy integration with other systems
+- Direct integration with the Document data model
+- Automatic S3 retrieval of input documents
 - S3 storage of intermediate and final results
 - Metering data collection for usage tracking
+- Comprehensive error handling
 
 ## Usage Example
 
 ```python
-import boto3
 from idp_common import ocr
+from idp_common.models import Document
 
-# Get document from S3
-s3_client = boto3.client('s3')
-response = s3_client.get_object(Bucket='input-bucket', Key='document.pdf')
-pdf_content = response['Body'].read()
+# Create or retrieve a Document object with input/output details
+document = Document(
+    id="doc-123",
+    input_bucket="input-bucket",
+    input_key="document.pdf",
+    output_bucket="output-bucket"
+)
 
 # Initialize OCR service
 ocr_service = ocr.OcrService(
@@ -33,20 +38,48 @@ ocr_service = ocr.OcrService(
     enhanced_features=False  # Set to True for tables, forms recognition
 )
 
-# Process document
-result = ocr_service.process_document(
-    pdf_content=pdf_content,
-    output_bucket='output-bucket',
-    prefix='document/output'
-)
+# Process document - this will automatically get the PDF from S3
+processed_document = ocr_service.process_document(document)
 
 # Use the results
-print(f"Processed {result.num_pages} pages")
-for page_num, page_result in result.pages.items():
-    print(f"Page {page_num}: Image at {page_result.image_uri}")
-    print(f"Page {page_num}: Text at {page_result.parsed_text_uri}")
+print(f"Processed {processed_document.num_pages} pages")
+for page_id, page in processed_document.pages.items():
+    print(f"Page {page_id}: Image at {page.image_uri}")
+    print(f"Page {page_id}: Text at {page.parsed_text_uri}")
 ```
 
+## Lambda Integration Example
+
+```python
+import json
+import logging
+import os
+from idp_common import ocr
+from idp_common.models import Document
+
+# Initialize settings
+region = os.environ['AWS_REGION']
+MAX_WORKERS = int(os.environ.get('MAX_WORKERS', 20))
+
+def handler(event, context): 
+    # Get document from event
+    document = Document.from_dict(event["document"])
+    
+    # Initialize the OCR service
+    service = ocr.OcrService(
+        region=region,
+        max_workers=MAX_WORKERS,
+        enhanced_features=False
+    )
+    
+    # Process the document - the service will read the PDF content directly
+    document = service.process_document(document)
+    
+    # Return the document as a dict - it will be passed to the next function
+    return {
+        "document": document.to_dict()
+    }
+```
 
 ## Roadmap
 
@@ -54,9 +87,12 @@ for page_num, page_result in result.pages.items():
 - ✅ Basic OCR service with PyMuPDF for PDF processing
 - ✅ Support for Textract's text detection
 - ✅ Compatible with existing Pattern workflow
-- ✅ Structured result objects for easier integration
+- ✅ Full integration with Document data model
+- ✅ Automatic document retrieval from S3
+- ✅ Comprehensive error handling
 
 ### Phase 2: Enhanced Features (Future)
-- 🔲 Support for table extraction and form recognition
+- ✅ Support for table extraction and form recognition (basic implementation)
+- 🔲 Improved table and form recognition capabilities
 - 🔲 Markdown output format for richer text representation
 - 🔲 PDF processing options (resolution, format)
