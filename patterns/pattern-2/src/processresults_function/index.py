@@ -4,6 +4,7 @@ import datetime
 import os
 from urllib.parse import urlparse
 from idp_common import s3, utils
+from idp_common.models import Document, Page, Section, Status
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -11,58 +12,58 @@ logger.setLevel(logging.INFO)
 def handler(event, context):
     """
     Consolidates the results from multiple extraction steps into a single output.
+    
+    Args:
+        event: Contains the document metadata and extraction results array
+        context: Lambda context
+        
+    Returns:
+        Dict containing the fully processed document
     """
     logger.info(f"Processing event: {json.dumps(event)}")
-
-    sections=[]
-    for result in event.get("extraction_results"):
-        section = result.get("section")
-        output_json_uri = section.get("outputJSONUri")
-        class_type = section.get("class")
-        
-        # Create metadata file for each OutputJSONUri
-        if output_json_uri:
-            create_metadata_file(output_json_uri, class_type, 'section')
-            
-        sections.append({
-            "Id": section.get("id"),
-            "PageIds": section.get("page_ids"),
-            "Class": class_type,
-            "OutputJSONUri": output_json_uri
-        })
-
-    pages=[]
-    for result in event.get("extraction_results"):
-        for page in result.get("pages"):
-            text_uri = page.get("rawTextUri")
-            class_type = page.get("class")
-            
-            # Create metadata file for each TextUri
-            if text_uri:
-                create_metadata_file(text_uri, class_type, 'page')
-                
-            pages.append({
-                "Id": page.get("page_id"),
-                "Class": class_type,
-                "TextUri": text_uri,
-                "ImageUri": page.get("imageUri")
-            })
     
-    # Merge extraction metering into overall metering
-    metering = event.get("metadata",{}).get("metering",{})
-    for result in event.get("extraction_results"):
-        result_metering = result.get("metering", {})
-        metering = utils.merge_metering_data(metering, result_metering)
-
-    statemachine_output = {
-        "Sections": sections,
-        "Pages": pages,
-        "PageCount": event.get("metadata").get("num_pages"),
-        "Metering": metering
+    # Get the base document from the original classification result
+    document = Document.from_dict(event.get("ClassificationResult", {}).get("document", {}))
+    extraction_results = event.get("ExtractionResults", [])
+    
+    # Update document status
+    document.status = Status.PROCESSED
+    document.completion_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    
+    # Clear sections list to rebuild from extraction results
+    document.sections = []
+    
+    # Combine all section results
+    for result in extraction_results:
+        # Get section document from extraction result
+        if "document" in result:
+            section_document = Document.from_dict(result.get("document", {}))
+            section_id = result.get("section_id")
+            
+            # Add section to document if present
+            if section_document.sections:
+                section = section_document.sections[0]
+                document.sections.append(section)
+                
+                # Create metadata file for section output
+                if section.extraction_result_uri:
+                    create_metadata_file(section.extraction_result_uri, section.classification, 'section')
+            
+            # Add metering from section processing
+            document.metering = utils.merge_metering_data(document.metering, section_document.metering)
+    
+    # Create metadata files for pages
+    for page_id, page in document.pages.items():
+        if page.raw_text_uri:
+            create_metadata_file(page.raw_text_uri, page.classification, 'page')
+    
+    # Return the completed document
+    response = {
+        "document": document.to_dict()
     }
-
-    logger.info(f"Response: {json.dumps(statemachine_output, default=str)}")
-    return statemachine_output
+    
+    logger.info(f"Response: {json.dumps(response, default=str)}")
+    return response
 
 def create_metadata_file(file_uri, class_type, file_type=None):
     """

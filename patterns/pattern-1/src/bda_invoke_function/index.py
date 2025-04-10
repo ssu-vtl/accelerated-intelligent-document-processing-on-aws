@@ -164,7 +164,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             },
             "bda_response": bda_response
         }
-        logger.info(f"API invocation successful. Response: {json.dumps(bda_response)}")
+        logger.info(f"API invocation successful. Response: {json.dumps(bda_response, default=str)}")
         return response
 
     except Exception as e:

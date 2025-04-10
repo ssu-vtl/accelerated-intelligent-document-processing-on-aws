@@ -10,6 +10,7 @@ import time
 import boto3
 
 from idp_common import ocr
+from idp_common.models import Document, Status, Page
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -28,14 +29,16 @@ def handler(event, context):
         context: Lambda context
         
     Returns:
-        Dict with OCR results and metadata
+        Dict with document including OCR results
     """       
     logger.info(f"Event: {json.dumps(event)}")
     
-    # Get input and output locations
-    input_bucket = event.get("input").get("detail").get("bucket").get("name")
-    output_bucket = event.get("output_bucket")
-    object_key = event.get("input").get("detail").get("object").get("key")
+    # Get document from event (if present)
+    document = Document.from_dict(event["document"])
+    
+    input_bucket = document.input_bucket
+    output_bucket = document.output_bucket
+    object_key = document.input_key
     
     # Get the PDF from S3
     t0 = time.time()
@@ -53,21 +56,36 @@ def handler(event, context):
     )
     
     # Process the document
-    result = service.process_document(
+    ocr_result = service.process_document(
         pdf_content=pdf_content,
         output_bucket=output_bucket,
         prefix=object_key
     )
     
-    # Set input details in the result
-    result.input_bucket = input_bucket
-    result.input_key = object_key
+    # Transfer OCR result to our Document object
+    document.num_pages = ocr_result.num_pages
+    document.metering.update(ocr_result.metering)
+    document.status = Status.OCR_COMPLETED
+    
+    # Convert OCR pages to our Page model
+    for page_id, ocr_page in ocr_result.pages.items():
+        document.pages[page_id] = Page(
+            page_id=page_id,
+            image_uri=ocr_page.image_uri,
+            raw_text_uri=ocr_page.raw_text_uri,
+            parsed_text_uri=ocr_page.parsed_text_uri,
+            tables=ocr_page.tables,
+            forms=ocr_page.forms
+        )
     
     t2 = time.time()
-    logger.info(f"Time taken to process all {result.num_pages} pages: {t2-t1:.2f} seconds")
-    logger.info(f"Finished processing {object_key} ({result.num_pages} pages) - output written to s3://{output_bucket}/{object_key}/")
+    logger.info(f"Time taken to process all {document.num_pages} pages: {t2-t1:.2f} seconds")
+    logger.info(f"Finished processing {object_key} ({document.num_pages} pages) - output written to s3://{output_bucket}/{object_key}/")
     
-    # Convert to dictionary for API response
-    response = result.to_dict()
+    # Return the document as a dict - it will be passed to the next function
+    response = {
+        "document": document.to_dict()
+    }
+    
     logger.info(f"Response: {json.dumps(response, default=str)}")
     return response
