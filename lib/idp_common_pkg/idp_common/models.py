@@ -186,6 +186,7 @@ class Document:
         input_key = event.get("detail", {}).get("object", {}).get("key", "")
         
         return cls(
+            id=input_key,
             input_bucket=input_bucket,
             input_key=input_key,
             output_bucket=output_bucket,
