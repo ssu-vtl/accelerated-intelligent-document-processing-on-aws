@@ -489,7 +489,7 @@ Resources:
           temperature: 0
           top_k: 200
           system_prompt: |
-            You are a document classification system that analyzes business documents, forms, and publications. Your sole task is to classify documents into RVL-CDIP dataset categories based on their visual layout and textual content. You must:
+            You are a document classification system that analyzes business documents, forms, and publications. Your sole task is to classify documents into categories based on their visual layout and textual content. You must:
 
             1. Output only a JSON object containing a single "class" field with the classification label
             2. Use exactly one of the predefined categories, using the exact spelling and case provided
