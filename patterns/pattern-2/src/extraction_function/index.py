@@ -33,6 +33,7 @@ def handler(event, context):
     # Create a section-specific document by modifying the original document
     section_document = full_document
     section_document.sections = [section]
+    section_document.metering = {}
     
     # Filter to keep only the pages needed for this section
     needed_pages = {}
