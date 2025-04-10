@@ -53,8 +53,9 @@ Parameters:
     Type: String
     Default: "us.amazon.nova-pro-v1:0"
     AllowedValues:
-      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.amazon.nova-pro-v1:0"
+      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+      - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
       - "Custom Fine Tuned Classification Model - NOT YET SUPPORTED"
     Description: Model to use for Classification
 
@@ -62,8 +63,9 @@ Parameters:
     Type: String
     Default: "us.amazon.nova-pro-v1:0"
     AllowedValues:
-      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.amazon.nova-pro-v1:0"
+      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+      - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
       - "Custom Fine Tuned Extraction Model - NOT YET SUPPORTED"
     Description: Model to use for Extraction
 
@@ -89,8 +91,9 @@ Parameters:
     Type: String
     Default: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
     AllowedValues:
-      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.amazon.nova-pro-v1:0"
+      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+      - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     Description: Model to use for Extraction
 
   # Optional - Post processing Lambda hook
@@ -137,8 +140,9 @@ Parameters:
     Type: String
     Default: "us.amazon.nova-pro-v1:0"
     AllowedValues:
-      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.amazon.nova-pro-v1:0"
+      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+      - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     Description: Model to use for Evaluation
 
   # Optional Knowledge Base Configuration
@@ -154,8 +158,9 @@ Parameters:
     Type: String
     Default: "us.amazon.nova-pro-v1:0"
     AllowedValues:
-      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.amazon.nova-pro-v1:0"
+      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+      - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     Description: Model to use for optional Document Knowledge Base
 
   # General Configuration
@@ -1349,6 +1354,7 @@ Resources:
           QUEUE_URL: !Ref DocumentQueue
           APPSYNC_API_URL: !GetAtt GraphQLApi.GraphQLUrl
           DATA_RETENTION_IN_DAYS: !Ref DataRetentionInDays
+          OUTPUT_BUCKET: !Ref OutputBucket
       Policies:
         - SQSSendMessagePolicy:
             QueueName: !GetAtt DocumentQueue.QueueName
