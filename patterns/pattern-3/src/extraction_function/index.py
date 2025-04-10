@@ -18,66 +18,28 @@ logger.setLevel(logging.INFO)
 def handler(event, context):
     """
     Process a single section of a document for information extraction
-    
-    Args:
-        event: Contains the section data and document metadata
-        context: Lambda context
-        
-    Returns:
-        Dict containing the extraction results for the section
     """
     logger.info(f"Event: {json.dumps(event)}")
     logger.info(f"Config: {json.dumps(CONFIG)}")
     
     # For Map state, we get just one section from the document
     # Extract the document from the event
-    document = Document.from_dict(event.get("document", {}))
-    section_data = event.get("section", {})
+    full_document = Document.from_dict(event.get("document", {}))
+    section = event.get("section", {})
     
-    # Find the section in the document
-    section_id = section_data.get("section_id", "")
+    # Get the section ID from the event
+    section_id = section.get("section_id", "")
+       
+    # Create a section-specific document by modifying the original document
+    section_document = full_document
+    section_document.sections = [section]
     
-    # Get the current section from the document if it exists
-    section = None
-    for s in document.sections:
-        if s.section_id == section_id:
-            section = s
-            break
-    
-    if not section:
-        # Create a new section if not found
-        section = Section(
-            section_id=section_id,
-            classification=section_data.get("classification", ""),
-            page_ids=section_data.get("page_ids", [])
-        )
-    
-    # Create the section in format expected by extraction service
-    extraction_section = {
-        "id": section.section_id,
-        "class": section.classification,
-        "pages": []
-    }
-    
-    # Add pages to the section
+    # Filter to keep only the pages needed for this section
+    needed_pages = {}
     for page_id in section.page_ids:
-        if page_id in document.pages:
-            page = document.pages[page_id]
-            extraction_section["pages"].append({
-                "page_id": page.page_id,
-                "rawTextUri": page.raw_text_uri,
-                "parsedTextUri": page.parsed_text_uri,
-                "imageUri": page.image_uri,
-                "class": page.classification
-            })
-    
-    # Create metadata from document
-    metadata = {
-        "input_bucket": document.input_bucket,
-        "object_key": document.input_key,
-        "output_bucket": document.output_bucket,
-        "num_pages": document.num_pages
-    }
+        if page_id in full_document.pages:
+            needed_pages[page_id] = full_document.pages[page_id]
+    section_document.pages = needed_pages
     
     # Initialize the extraction service
     extraction_service = extraction.ExtractionService(config=CONFIG)
@@ -86,40 +48,22 @@ def handler(event, context):
     metrics.put_metric('InputDocuments', 1)
     metrics.put_metric('InputDocumentPages', len(section.page_ids))
     
-    # Process the section using the extraction service
+    # Process the section in our focused document
     t0 = time.time()
-    result = extraction_service.extract_from_section(
-        section=extraction_section,
-        metadata=metadata,
-        output_bucket=document.output_bucket
+    section_document = extraction_service.process_document_section(
+        document=section_document,
+        section_id=section_id
     )
     t1 = time.time()
     logger.info(f"Total extraction time: {t1-t0:.2f} seconds")
     
-    # Update section with extraction results
-    section.extraction_result_uri = result.output_uri or f"s3://{document.output_bucket}/{document.input_key}/sections/{section.section_id}/result.json"
-    
-    # Update status for this section
-    section_document = Document(
-        id=document.id,
-        input_bucket=document.input_bucket,
-        input_key=document.input_key,
-        output_bucket=document.output_bucket,
-        status=Status.EXTRACTED,
-        queued_time=document.queued_time,
-        start_time=document.start_time,
-        workflow_execution_arn=document.workflow_execution_arn,
-        num_pages=document.num_pages,
-        metering=result.metering or {}
-    )
-    
-    # Include only this section in the result
-    section_document.sections = [section]
+    # Set the status to EXTRACTED
+    section_document.status = Status.EXTRACTED
     
     # Return section extraction result with the document
     # The state machine will later combine all section results
     response = {
-        "section_id": section.section_id,
+        "section_id": section_id,
         "document": section_document.to_dict()
     }
     

@@ -13,6 +13,38 @@ The extraction module is designed to process document sections, extract key info
 
 ## Usage
 
+### Document-Based Approach (Recommended)
+
+The recommended approach is to use the Document model-based interface, which simplifies integration with the entire IDP pipeline:
+
+```python
+from idp_common import get_config
+from idp_common.extraction.service import ExtractionService
+from idp_common.models import Document
+
+# Initialize the service with configuration
+config = get_config()
+extraction_service = ExtractionService(config=config)
+
+# Load your document
+document = Document(...)  # Document with sections already classified
+
+# Process a specific section in the document
+document = extraction_service.process_document_section(
+    document=document,
+    section_id="section-123"
+)
+
+# Access extracted attributes on the section
+section = next(s for s in document.sections if s.section_id == "section-123")
+for attribute_name, attribute_value in section.attributes.items():
+    print(f"{attribute_name}: {attribute_value}")
+```
+
+### Legacy Approach
+
+The service also supports a lower-level interface for direct section processing:
+
 ```python
 from idp_common import get_config
 from idp_common.extraction.service import ExtractionService
@@ -64,3 +96,15 @@ The extraction service uses the following configuration structure:
     ]
 }
 ```
+
+## Error Handling
+
+The Document-based approach has built-in error handling:
+
+1. If a section ID is not found in the document, an error is added to `document.errors`
+2. If extraction fails for any reason, the error is captured in `document.errors`
+3. All errors are logged for debugging
+
+## Thread Safety
+
+The extraction service is designed to be thread-safe when using the Document model interface, supporting concurrent processing of multiple sections.
