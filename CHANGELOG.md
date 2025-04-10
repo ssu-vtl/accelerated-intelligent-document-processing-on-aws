@@ -1,91 +1,50 @@
 # Changelog
 
-## [Unreleased] - fix/refactor-to-modularize branch
+## [0.2.16] - fix/refactor-to-modularize branch
 
-### Major Changes
+### New Document-Based Architecture
 
-#### Unified Document Model Architecture
-- Introduced a consistent Document object model across all services
-- Implemented full Document-based input/output for OCR, Classification, and Extraction services
-- Added `Document`, `Section`, and `Page` classes with comprehensive serialization methods
-- Added `from_dict()` and `to_dict()` methods to support seamless serialization/deserialization
+The `idp_common_pkg` introduces a unified Document model approach for consistent document processing:
 
-#### Service Modularization
-- Created a unified service architecture with consistent interfaces
-- Refactored OcrService to accept and return Document objects
-- Refactored ClassificationService to work with Document objects
-- Refactored ExtractionService to process document sections within Document objects
-- Updated Pattern-1, Pattern-2, and Pattern-3 functions to use the new Document model
+#### Core Classes
+- **Document**: Central data model that tracks document state through the entire processing pipeline
+- **Page**: Represents individual document pages with OCR results and classification
+- **Section**: Represents logical document sections with classification and extraction results
 
-#### Multi-Backend Support
-- Enhanced ClassificationService with support for both Bedrock and SageMaker/UDOP backends
-- Added configuration-based backend selection
-- Implemented efficient metering for both backends
-- Optimized handling of Claude 3.5 and 3.7 models
+#### Service Classes
+- **OcrService**: Processes documents with AWS Textract and updates the Document with OCR results
+- **ClassificationService**: Classifies document pages/sections using Bedrock or SageMaker backends
+- **ExtractionService**: Extracts structured information from document sections using Bedrock
 
-#### Workflow Optimization
-- Improved state machine workflows to utilize the Document object for state tracking
-- Optimized extraction process to create focused Document instances with only relevant sections
-- Implemented better error handling with standardized error reporting
-- Added support for parallel processing of document sections
+### Pattern Implementation Updates
 
-#### Package Improvements
-- Created a modular package structure with granular dependency management
-- Added the ability to install specific components via extras (core, ocr, classification, extraction)
-- Improved consistency of imports and initialization patterns
-- Enhanced request/response logging for better debugging
+#### Pattern 1 (BDA)
+- Updated to use Document objects for data flow between state machine steps
 
-### Benefits
+#### Pattern 2 (Bedrock)
+- Lambda functions refactored to use Document and Section objects, and new Service classes
 
-1. **Improved Maintainability**
-   - Consistent interfaces across services reduce code duplication
-   - Clear data flow between components with standardized objects
-   - Unified error handling approach
+#### Pattern 3 (UDOP)
+- Lambda functions refactored to use Document and Section objects, and new Service classes
 
-2. **Enhanced Flexibility**
-   - Support for multiple backend services (Bedrock, SageMaker)
-   - Configuration-driven behavior changes
-   - Simplified extension of services for new backends
+### Key Benefits
 
-3. **Better Performance**
-   - Optimized document processing with focused document instances
-   - Reduced memory usage by storing large results in S3
-   - Parallel processing capabilities
+1. **Simplified Integration**: Consistent interfaces make service integration straightforward
+2. **Improved Maintainability**: Unified data model reduces code duplication and complexity
+3. **Better Error Handling**: Standardized approach to error capture and reporting
+4. **Enhanced Traceability**: Complete document history throughout the processing pipeline
+5. **Flexible Backend Support**: Easy switching between Bedrock and SageMaker backends
+6. **Optimized Resource Usage**: Focused document processing for better performance
+7. **Granular Package Installation**: Install only required components with extras syntax
 
-4. **Developer Experience**
-   - Comprehensive Jupyter notebook showcasing end-to-end processing
-   - Improved documentation with code examples
-   - Granular package installation options
+### Example Notebook
 
-5. **Integration Readiness**
-   - Standardized interfaces make integration with other systems easier
-   - Consistent metadata and metering for monitoring and billing
-   - Clear separation of concerns between services
+A new comprehensive Jupyter notebook demonstrates the Document-based workflow:
+- Shows complete end-to-end processing (OCR → Classification → Extraction)
+- Uses AWS services (S3, Textract, Bedrock)
+- Demonstrates Document object creation and manipulation
+- Showcases how to access and utilize extraction results
+- Provides a template for custom implementations
+- Includes granular package installation examples (`pip install "idp_common_pkg[ocr,classification,extraction]"`)
 
-### Technical Updates
-
-- Added support for Claude 3.5 and 3.7 models
-- Updated workflow state machines for all patterns
-- Refactored Lambda functions in all three patterns
-- Enhanced S3 URI management for resource tracking
-- Improved configuration handling with typed defaults
-- Added complete example notebook demonstrating the Document-based workflow
-- Fixed various bugs related to serialization and error handling
-- Optimized extraction process to work with focused documents
-
-### Example Applications
-
-1. **Insurance Document Processing**
-   - Updated example notebook demonstrating insurance document processing
-   - Showcases OCR, classification, and extraction with the unified Document model
-   - Uses real AWS services (S3, Textract, Bedrock) for accurate demonstration
-
-2. **Banking Document Processing**
-   - Enhanced BDA pattern for banking document workflows
-   - Updated state machine to leverage Document objects for complete traceability
-   - Improved error handling and metering for production scenarios
-
-3. **Multi-Backend Classification**
-   - Added support for both Bedrock LLMs and SageMaker UDOP models
-   - Simplified switching between backends via configuration
-   - Consistent interface regardless of backend choice
+This refactoring sets the foundation for more maintainable, extensible document processing workflows with clearer data flow and easier troubleshooting.
