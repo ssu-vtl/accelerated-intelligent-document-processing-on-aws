@@ -42,5 +42,5 @@ A new comprehensive Jupyter notebook demonstrates the Document-based workflow:
 This refactoring sets the foundation for more maintainable, extensible document processing workflows with clearer data flow and easier troubleshooting.
 
 ### Refactored publish.sh script
- - improved modularily with functions
+ - improved modularity with functions
  - improved checksum logic to determine when to rebuild components
