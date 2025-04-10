@@ -7,6 +7,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
 from botocore.exceptions import ClientError
 from idp_common import metrics, utils
+from idp_common.models import Document
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -141,9 +143,11 @@ def track_task_token(object_key: str, task_token: str) -> None:
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         logger.info(f"Received event: {json.dumps(event)}")
-        
-        input_bucket = event['input']['detail']['bucket']['name']
-        object_key = event['input']['detail']['object']['key']
+
+        # Get document from event
+        document = Document.from_dict(event["document"])
+        input_bucket = document.input_bucket
+        object_key = document.input_key
         working_bucket = event['working_bucket']
         data_project_arn = event['BDAProjectArn']
         task_token = event['taskToken']
