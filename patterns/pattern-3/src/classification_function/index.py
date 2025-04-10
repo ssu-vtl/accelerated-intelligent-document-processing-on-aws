@@ -7,6 +7,7 @@ from botocore.exceptions import ClientError
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from idp_common import metrics, utils
+from idp_common.models import Document, Status, Section
 
 # Retry configuration
 MAX_RETRIES = 8 
@@ -202,31 +203,66 @@ def handler(event, context):
     """
     logger.info(f"Event: {json.dumps(event)}")
     
-    # Get parameters from event
-    metadata = event.get("OCRResult", {}).get("metadata")
-    pages = event.get("OCRResult", {}).get("pages")
-
-    if not all([metadata, pages]):
-        raise ValueError("Missing required parameters in event")
-
+    # Extract document from the OCR result
+    document = Document.from_dict(event["OCRResult"]["document"])
+    
+    if document.status != Status.OCR_COMPLETED:
+        raise ValueError(f"Document is not in OCR_COMPLETED stage, current status: {document.status}")
+    
+    if not document.pages:
+        raise ValueError("Document has no pages to classify")
+    
     t0 = time.time()
     
     # Track total classification requests
-    total_pages = len(pages)
+    total_pages = len(document.pages)
     metrics.put_metric('ClassificationRequestsTotal', total_pages)
     
+    # Prepare pages in format expected by classify_pages_concurrently
+    pages_dict = {
+        page_id: {
+            "rawTextUri": page.raw_text_uri,
+            "parsedTextUri": page.parsed_text_uri,
+            "imageUri": page.image_uri
+        }
+        for page_id, page in document.pages.items()
+    }
+    
     # Classify pages concurrently
-    all_results = classify_pages_concurrently(pages)
+    all_results = classify_pages_concurrently(pages_dict)
     
     t1 = time.time()
     logger.info(f"Time taken for classification: {t1-t0:.2f} seconds")
 
     # Group consecutive pages with same classification
-    sections = group_consecutive_pages(all_results)
+    sections_data = group_consecutive_pages(all_results)
     
+    # Update the document with classifications
+    document.sections = []
+    
+    for section_data in sections_data:
+        # Create section
+        section = Section(
+            section_id=section_data.get("id", ""),
+            classification=section_data.get("class", ""),
+            confidence=section_data.get("confidence", 1.0),
+            page_ids=[p.get("page_id") for p in section_data.get("pages", [])]
+        )
+        document.sections.append(section)
+        
+        # Update page classifications
+        for page_data in section_data.get("pages", []):
+            page_id = page_data.get("page_id")
+            if page_id and page_id in document.pages:
+                document.pages[page_id].classification = page_data.get("class", "")
+                document.pages[page_id].confidence = page_data.get("confidence", 0.0)
+    
+    # Update document status
+    document.status = Status.CLASSIFIED
+    
+    # Return document in a consistent envelope
     response = {
-        "metadata": metadata,
-        "sections": sections
+        "document": document.to_dict()
     }
     
     logger.info(f"Response: {json.dumps(response, default=str)}")

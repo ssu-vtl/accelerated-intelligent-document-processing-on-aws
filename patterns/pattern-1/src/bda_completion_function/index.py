@@ -85,7 +85,7 @@ def handler(event, context):
             'statusCode': 200,
             'body': 'Task response sent successfully'
         }
-        logger.info(f"Response: {json.dumps(response)}")
+        logger.info(f"Response: {json.dumps(response, default=str)}")
         return response
         
     except Exception as e:
