@@ -206,6 +206,29 @@ def process_bda_sections(output_bucket, object_key, document):
         document.errors.append(f"Failed to list sections: {str(e)}")
         return document
 
+def extract_markdown_from_json(raw_json):
+    """
+    Extract markdown content from BDA result JSON
+    
+    Args:
+        raw_json (dict): The BDA result JSON
+    
+    Returns:
+        str: Concatenated markdown text
+    """
+    markdown_texts = []
+    
+    # Extract from pages
+    if 'pages' in raw_json:
+        for page in raw_json['pages']:
+            if 'representation' in page and 'markdown' in page['representation']:
+                markdown_texts.append(page['representation']['markdown'])
+       
+    # Join with horizontal rule
+    if markdown_texts:
+        return '\n\n---\n\nPAGE BREAK\n\n---\n\n'.join(markdown_texts)
+    return ""
+
 def process_bda_pages(output_bucket, object_key, document):
     """
     Process BDA page outputs and build pages for the Document object
@@ -266,11 +289,51 @@ def process_bda_pages(output_bucket, object_key, document):
             # Create S3 URIs using the utility function
             raw_text_uri = build_s3_uri(output_bucket, result_path)
             
+            # Create parsedResult.json with extracted markdown
+            try:
+                # Get the raw JSON result
+                result_obj = s3_client.get_object(
+                    Bucket=output_bucket,
+                    Key=result_path
+                )
+                raw_json = json.loads(result_obj['Body'].read().decode('utf-8'))
+                
+                # Extract markdown content
+                markdown_text = extract_markdown_from_json(raw_json)
+                
+                # Create parsedResult.json
+                parsed_result = {
+                    "text": markdown_text
+                }
+                
+                # Write parsedResult.json to S3
+                parsed_result_path = f"{page_path}parsedResult.json"
+                write_content(
+                    parsed_result,
+                    output_bucket,
+                    parsed_result_path,
+                    content_type='application/json'
+                )
+                
+                # Create S3 URI for parsed result
+                parsed_result_uri = build_s3_uri(output_bucket, parsed_result_path)
+                
+                logger.info(f"Created parsedResult.json for page {page_id}")
+                
+                # Create metadata file for the parsed result URI
+                create_metadata_file(parsed_result_uri, doc_class, 'page')
+                
+            except Exception as e:
+                logger.error(f"Failed to create parsedResult.json for page {page_id}: {str(e)}")
+                document.errors.append(f"Failed to create parsedResult.json for page {page_id}: {str(e)}")
+                parsed_result_uri = None
+            
             # Create Page object and add to document
             page = Page(
                 page_id=page_id,
                 image_uri=image_uri,
                 raw_text_uri=raw_text_uri,
+                parsed_text_uri=parsed_result_uri,
                 classification=doc_class
             )
             document.pages[page_id] = page
