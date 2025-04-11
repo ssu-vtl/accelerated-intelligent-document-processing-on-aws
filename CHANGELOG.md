@@ -1,6 +1,13 @@
 # Changelog
 
 
+## [0.2.17]
+
+### Enhanced Textract OCR Features
+- Added support for Textract advanced features (TABLES, FORMS, SIGNATURES, LAYOUT)
+- OCR results now output in rich markdown format for better visualization
+- Configurable OCR feature selection through schema configuration
+- Improved metering and tracking for different Textract feature combinations
 
 ## [0.2.16] 
 
