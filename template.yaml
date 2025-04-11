@@ -7,7 +7,6 @@ Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v<VERSION>)
 Parameters:
 
   # Authorization params
-
   AdminEmail:
     Type: String
     Description: >-
@@ -51,21 +50,35 @@ Parameters:
 
   Pattern2ClassificationModel:
     Type: String
-    Default: "us.amazon.nova-pro-v1:0"
+    Default: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     AllowedValues:
+      - "us.amazon.nova-lite-v1:0"
       - "us.amazon.nova-pro-v1:0"
+      - "us.anthropic.claude-3-haiku-20240307-v1:0"
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+      - "us.meta.llama3-2-1b-instruct-v1:0"
+      - "us.meta.llama3-2-3b-instruct-v1:0"
+      - "us.meta.llama3-2-90b-instruct-v1:0"
+      - "us.meta.llama3-3-70b-instruct-v1:0"
+      - "us.deepseek.r1-v1:0"
       - "Custom Fine Tuned Classification Model - NOT YET SUPPORTED"
     Description: Model to use for Classification
 
   Pattern2ExtractionModel:
     Type: String
-    Default: "us.amazon.nova-pro-v1:0"
+    Default: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     AllowedValues:
+      - "us.amazon.nova-lite-v1:0"
       - "us.amazon.nova-pro-v1:0"
+      - "us.anthropic.claude-3-haiku-20240307-v1:0"
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+      - "us.meta.llama3-2-1b-instruct-v1:0"
+      - "us.meta.llama3-2-3b-instruct-v1:0"
+      - "us.meta.llama3-2-90b-instruct-v1:0"
+      - "us.meta.llama3-3-70b-instruct-v1:0"
+      - "us.deepseek.r1-v1:0"
       - "Custom Fine Tuned Extraction Model - NOT YET SUPPORTED"
     Description: Model to use for Extraction
 
@@ -89,11 +102,18 @@ Parameters:
 
   Pattern3ExtractionModel:
     Type: String
-    Default: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+    Default: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     AllowedValues:
+      - "us.amazon.nova-lite-v1:0"
       - "us.amazon.nova-pro-v1:0"
+      - "us.anthropic.claude-3-haiku-20240307-v1:0"
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+      - "us.meta.llama3-2-1b-instruct-v1:0"
+      - "us.meta.llama3-2-3b-instruct-v1:0"
+      - "us.meta.llama3-2-90b-instruct-v1:0"
+      - "us.meta.llama3-3-70b-instruct-v1:0"
+      - "us.deepseek.r1-v1:0"
     Description: Model to use for Extraction
 
   # Optional - Post processing Lambda hook
@@ -138,11 +158,18 @@ Parameters:
 
   EvaluationModelId:
     Type: String
-    Default: "us.amazon.nova-pro-v1:0"
+    Default: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     AllowedValues:
+      - "us.amazon.nova-lite-v1:0"
       - "us.amazon.nova-pro-v1:0"
+      - "us.anthropic.claude-3-haiku-20240307-v1:0"
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+      - "us.meta.llama3-2-1b-instruct-v1:0"
+      - "us.meta.llama3-2-3b-instruct-v1:0"
+      - "us.meta.llama3-2-90b-instruct-v1:0"
+      - "us.meta.llama3-3-70b-instruct-v1:0"
+      - "us.deepseek.r1-v1:0"
     Description: Model to use for Evaluation
 
   # Optional Knowledge Base Configuration
@@ -158,9 +185,15 @@ Parameters:
     Type: String
     Default: "us.amazon.nova-pro-v1:0"
     AllowedValues:
+      - "us.amazon.nova-lite-v1:0"
       - "us.amazon.nova-pro-v1:0"
+      - "us.anthropic.claude-3-haiku-20240307-v1:0"
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+      - "us.meta.llama3-2-1b-instruct-v1:0"
+      - "us.meta.llama3-2-3b-instruct-v1:0"
+      - "us.meta.llama3-2-90b-instruct-v1:0"
+      - "us.meta.llama3-3-70b-instruct-v1:0"
     Description: Model to use for optional Document Knowledge Base
 
   # General Configuration
@@ -385,10 +418,8 @@ Metadata:
         default: "Allowed Sign Up Email Domain"
       IDPPattern:
         default: "Prefdefined Document Processing Pattern"
-      Pattern3UDOPModelArtifactPath:
-        default: "Pattern1 - UDOP Model Artifact Path"
-      Pattern3ExtractionModel:
-        default: "Pattern1 - Extraction Model"
+      Pattern1BDAProjectArn:
+        default: "Pattern1 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN"
       Pattern2ClassificationModel:
         default: "Pattern2 - Classification Model"
       Pattern2ExtractionModel:
@@ -397,8 +428,10 @@ Metadata:
         default: "Pattern2 - Custom Classification Model ARN"
       Pattern2CustomExtractionModelARN:
         default: "Pattern2 - Custom Extraction Model ARN"
-      Pattern1BDAProjectArn:
-        default: "Pattern1 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN"
+      Pattern3UDOPModelArtifactPath:
+        default: "Pattern3 - UDOP Model Artifact Path"
+      Pattern3ExtractionModel:
+        default: "Pattern3 - Extraction Model"
       PostProcessingLambdaHookFunctionArn:
         default: "Post Processing Lambda Hook Function ARN"
       EvaluationBaselineBucketName:

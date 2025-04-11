@@ -136,60 +136,121 @@ function calculate_hash() {
   echo $HASH
 }
 
-# Calculate directory checksum for change detection
-function calculate_dir_checksum() {
+############################################################
+# Checksum Helper Functions
+############################################################
+
+# Calculate directory checksum
+function get_dir_checksum() {
   local dir=$1
   local dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f ! -name ".checksum" -exec $STAT_CMD {} \; | sha256sum | awk '{ print $1 }')
   local combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
   echo -n "$combined_string" | sha256sum | awk '{ print $1 }'
 }
 
-# Check if a directory has changed
-function dir_has_changed() {
-  local dir=$1
-  local checksum_file="${dir}/.checksum"
-  local current_checksum=$(calculate_dir_checksum "$dir")
+# Calculate file checksum
+function get_file_checksum() {
+  local file=$1
+  local file_checksum=$(sha256sum "$file" | awk '{ print $1 }')
+  local file_mtime=$($STAT_CMD "$file")
+  local combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $file_checksum $file_mtime"
+  echo -n "$combined_string" | sha256sum | awk '{ print $1 }'
+}
+
+# Get checksum file path for a directory or file
+function get_checksum_file() {
+  local path=$1
   
-  # Check if the checksum file exists and read the previous checksum
+  if [ -d "$path" ]; then
+    # For directories, store in the directory itself
+    echo "${path}/.checksum"
+  else
+    # For files, store in a .checksums directory in the parent directory
+    local parent_dir=$(dirname "$path")
+    local base_filename=$(basename "$path")
+    # Create checksums directory if it doesn't exist
+    mkdir -p "${parent_dir}/.checksums" 2>/dev/null || true
+    echo "${parent_dir}/.checksums/${base_filename}.checksum"
+  fi
+}
+
+# Set checksum for a directory
+function set_dir_checksum() {
+  local dir=$1
+  local checksum_file=$(get_checksum_file "$dir")
+  local checksum=$(get_dir_checksum "$dir")
+  echo "$checksum" > "$checksum_file"
+}
+
+# Set checksum for a file
+function set_file_checksum() {
+  local file=$1
+  local checksum_file=$(get_checksum_file "$file")
+  local checksum=$(get_file_checksum "$file")
+  echo "$checksum" > "$checksum_file"
+}
+
+# Check if a path's checksum has changed
+function has_checksum_changed() {
+  local path=$1
+  local checksum_file=$(get_checksum_file "$path")
+  
+  # Calculate current checksum
+  if [ -d "$path" ]; then
+    local current_checksum=$(get_dir_checksum "$path")
+  else
+    local current_checksum=$(get_file_checksum "$path")
+  fi
+  
+  # Get previous checksum if it exists
   if [ -f "$checksum_file" ]; then
     local previous_checksum=$(cat "$checksum_file")
   else
     local previous_checksum=""
   fi
   
+  # Compare checksums
   if [[ "$current_checksum" != "$previous_checksum" ]]; then
-    return 0  # True, the directory has changed
+    return 0  # True, the checksum has changed
   else
-    return 1  # False, the directory has not changed
+    return 1  # False, the checksum hasn't changed
   fi
 }
 
-# Determine if a directory needs to be rebuilt
+############################################################
+# Main Checksum Functions
+############################################################
+
+# Check if any of the provided paths need to be rebuilt
 function needs_rebuild() {
-  local dir=$1
-  
-  # If lib directory has changed, force rebuild
-  if dir_has_changed "./lib"; then
+  # Always check lib directory first
+  if has_checksum_changed "./lib"; then
     echo "Library files in ./lib have changed. All patterns will be rebuilt."
     return 0  # True, force rebuild
   fi
   
-  # Check if the directory content has changed
-  if dir_has_changed "$dir"; then
-    return 0  # True, directory has changed
-  else
-    return 1  # False, no changes detected
-  fi
+  # Check each provided path for changes
+  for path in "$@"; do
+    if [ -e "$path" ] && has_checksum_changed "$path"; then
+      echo "Changes detected in $path, rebuild required."
+      return 0  # True, at least one path has changed
+    fi
+  done
+  
+  return 1  # False, no changes detected
 }
 
-# Update the directory checksum
-function update_dir_checksum() {
-  local dir=$1
-  local checksum_file="${dir}/.checksum"
-  local current_checksum=$(calculate_dir_checksum "$dir")
-  
-  # Save the current checksum
-  echo "$current_checksum" > "$checksum_file"
+# Update checksums for one or more paths (directories or files)
+function set_checksum() {
+  for path in "$@"; do
+    if [ -e "$path" ]; then
+      if [ -d "$path" ]; then
+        set_dir_checksum "$path"
+      else
+        set_file_checksum "$path"
+      fi
+    fi
+  done
 }
 
 ############################################################
@@ -217,8 +278,8 @@ function build_and_package_template() {
     popd
     echo "DONE $dir"
     
-    # Update the directory checksum
-    update_dir_checksum "$dir"
+    # Update the checksum
+    set_checksum "$dir"
   else
     echo "SKIPPING $dir (unchanged)"
   fi
@@ -230,8 +291,22 @@ function build_web_ui() {
   echo "Computing hash of ui folder contents"
   local UIHASH=$(calculate_hash "$dir")
   local WEBUI_ZIPFILE="src-${UIHASH}.zip"
+  local PREV_WEBUI_ZIPFILE=""
   
-  if needs_rebuild "$dir"; then
+  # Check if previous zipfile name exists and load it
+  if [ -f "/tmp/webui_zipfile.txt" ]; then
+    PREV_WEBUI_ZIPFILE=$(cat /tmp/webui_zipfile.txt)
+  fi
+  
+  # Force rebuild if zipfile name changed (even if directory content unchanged)
+  if [ "$WEBUI_ZIPFILE" != "$PREV_WEBUI_ZIPFILE" ]; then
+    echo "WebUI zipfile name changed from $PREV_WEBUI_ZIPFILE to $WEBUI_ZIPFILE, forcing rebuild"
+    local force_rebuild=true
+  else
+    local force_rebuild=false
+  fi
+  
+  if needs_rebuild "$dir" || [ "$force_rebuild" = true ]; then
     echo "PACKAGING $dir"
     pushd $dir
     
@@ -252,8 +327,8 @@ function build_web_ui() {
     aws s3 cp .aws-sam/$WEBUI_ZIPFILE s3://${WEBUIUI_SRC_S3_LOCATION}
     
     popd
-    # Update the directory checksum
-    update_dir_checksum "$dir"
+    # Update the checksum
+    set_checksum "$dir"
   else
     echo "SKIPPING $dir (unchanged)"
   fi
@@ -267,8 +342,7 @@ function build_main_template() {
   local webui_zipfile=$1
 
   echo "BUILDING main" 
-  dir="./src"
-  if needs_rebuild "$dir"; then
+  if needs_rebuild "./src" "./options" "./patterns" "template.yaml"; then
     sam build $USE_CONTAINER_FLAG --template-file template.yaml
     echo "PACKAGING main" 
     sam package \
@@ -276,10 +350,10 @@ function build_main_template() {
       --output-template-file .aws-sam/packaged.yaml \
       --s3-bucket ${BUCKET} \
       --s3-prefix ${PREFIX_AND_VERSION}
-    # Update the directory checksum
-    update_dir_checksum "$dir"
+    # Update the checksums
+    set_checksum "./src" "./options" "./patterns" "template.yaml"
   else
-    echo "SKIPPING sam packaging ($dir unchanged)"
+    echo "SKIPPING sam packaging (no changes detected)"
   fi
   
   local HASH=$(calculate_hash ".")
@@ -379,7 +453,7 @@ build_main_template "$WEBUI_ZIPFILE"
 TEMPLATE_URL=$(cat /tmp/template_url.txt)
 
 # Update the lib checksum after successful build
-update_dir_checksum "./lib"
+set_checksum "./lib"
 echo "Updated lib checksum file to track changes in the library directories"
 
 # Set public ACLs if requested
