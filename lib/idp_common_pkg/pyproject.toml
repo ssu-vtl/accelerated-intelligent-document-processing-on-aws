@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "idp_common"
-version = "0.1.0"
+version = "0.3.0"
 description = "Common utilities for GenAI IDP Accelerator patterns"
 authors = [
     {name = "AWS", email = "noreply@amazon.com"}
@@ -34,6 +34,7 @@ image = [
 ocr = [
     "Pillow>=11.1.0",
     "PyMuPDF>=1.25.5",
+    "amazon-textract-textractor>=1.9.1"
 ]
 
 # Classification module dependencies
@@ -50,6 +51,7 @@ extraction = [
 all = [
     "Pillow>=11.1.0",
     "PyMuPDF>=1.25.5",
+    "amazon-textract-textractor>=1.9.1",
 ]
 
 [project.urls]
