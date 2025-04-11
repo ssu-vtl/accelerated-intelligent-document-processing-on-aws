@@ -147,6 +147,42 @@ class OcrService:
         logger.info(f"Total time for OCR processing: {t2-t0:.2f} seconds")
         return document
 
+    def _feature_combo(self):
+        """Return the pricing feature combination string based on enhanced_features.
+        
+        Returns one of: "Tables", "Forms", "Tables+Forms", "Signatures", "Layout", or ""
+        
+        Note:
+        - Layout feature is included free with any combination of Forms, Tables
+        - Signatures feature is included free with Forms, Tables, and Layout
+        """
+        if not isinstance(self.enhanced_features, list) or not self.enhanced_features:
+            return ""
+            
+        features = set(self.enhanced_features)
+        
+        # Check for feature combinations
+        has_tables = "TABLES" in features
+        has_forms = "FORMS" in features
+        has_layout = "LAYOUT" in features
+        has_signatures = "SIGNATURES" in features
+        
+        # Tables + Forms
+        if has_tables and has_forms:
+            return "-Tables+Forms"
+        # Tables only
+        elif has_tables:
+            return "-Tables"
+        # Forms only
+        elif has_forms:
+            return "-Forms"
+        # Layout (only charged if not with Forms/Tables)
+        elif has_layout:
+            return "-Layout"
+        # Signatures (only charged if used alone)
+        elif has_signatures:
+            return "-Signatures"        
+        return ""
     def _process_single_page(
         self, 
         page_index: int, 
@@ -194,9 +230,11 @@ class OcrService:
                 Document={"Bytes": img_bytes}
             )
         
+        
         # Extract metering data
+        feature_combo = self._feature_combo()
         metering = {
-            f"textract/{self._get_api_name()}": {
+            f"textract/{self._get_api_name()}{feature_combo}": {
                 "pages": textract_result["DocumentMetadata"]["Pages"]
             }
         }
