@@ -272,22 +272,17 @@ class OcrService:
         """
         # Use textractor for parsing
         from textractor.parsers import response_parser
-        
-        # Parse the response
         parsed_response = response_parser.parse(response)
-        
-        # Extract plain text
-        plain_text = parsed_response.text
         
         # Extract markdown representation if available
         try:
-            markdown_text = parsed_response.to_markdown()
+            text = parsed_response.to_markdown()
         except (AttributeError, Exception) as e:
             # If markdown extraction fails, use plain text instead
-            markdown_text = plain_text
-            logger.warning(f"Failed to generate markdown: {str(e)}")
+            plain_text = parsed_response.text
+            text = plain_text
+            logger.warning(f"Failed to generate markdown - using plain text: {str(e)}")
         
         return {
-            "text": plain_text,
-            "markdown": markdown_text
+            "text": text,
         }
