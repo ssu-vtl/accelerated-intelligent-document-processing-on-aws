@@ -197,9 +197,10 @@ Resources:
       ServiceToken: !Ref UpdateConfigurationFunctionArn
       Default:
         notes: Default inference settings
-        features:
-          - name: LAYOUT
-          - name: SIGNATURES
+        ocr:
+          features:
+            - name: LAYOUT
+            - name: SIGNATURES
         classes:
           - name: letter
             description: A formal written message that is typically sent from one person to another
