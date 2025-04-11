@@ -12,7 +12,7 @@ import json
 import logging
 import os
 import time
-from typing import Dict, List, Tuple, Any, Optional, BinaryIO
+from typing import Dict, List, Tuple, Any, Optional, BinaryIO, Union
 from botocore.config import Config
 
 import fitz  # PyMuPDF
@@ -30,7 +30,7 @@ class OcrService:
         self,
         region: Optional[str] = None,
         max_workers: int = 20,
-        enhanced_features: bool = False,
+        enhanced_features: Union[bool, List[str]] = False,
     ):
         """
         Initialize the OCR service.
@@ -38,8 +38,10 @@ class OcrService:
         Args:
             region: AWS region for Textract service
             max_workers: Maximum number of concurrent workers for page processing
-            enhanced_features: If True, uses document analysis with tables, forms
-                           If False, uses basic text detection (faster)
+            enhanced_features: Controls Textract FeatureTypes for analyze_document API:
+                           - If False: Uses basic detect_document_text (faster, no features)
+                           - If List[str]: Uses analyze_document with specified features
+                              Valid features: TABLES, FORMS, SIGNATURES, LAYOUT
         """
         self.region = region or os.environ.get('AWS_REGION', 'us-east-1')
         self.max_workers = max_workers
@@ -185,7 +187,7 @@ class OcrService:
         logger.info(f"Time for image conversion (page {page_id}): {t1-t0:.6f} seconds")
         
         # Process with Textract
-        if self.enhanced_features:
+        if isinstance(self.enhanced_features, list) and self.enhanced_features:
             textract_result = self._analyze_document(img_bytes)
         else:
             textract_result = self.textract_client.detect_document_text(
@@ -208,11 +210,11 @@ class OcrService:
             content_type='application/json'
         )
         
-        # Parse and store text content
-        parsed_text = self._parse_textract_response(textract_result)
+        # Parse and store text content with markdown
+        parsed_result = self._parse_textract_response(textract_result)
         parsed_text_key = f"{prefix}/pages/{page_id}/result.json"
         s3.write_content(
-            {"text": parsed_text}, 
+            parsed_result, 
             output_bucket, 
             parsed_text_key, 
             content_type='application/json'
@@ -240,36 +242,52 @@ class OcrService:
         Returns:
             Textract API response
         """
+        # Use specified feature types
+        # Valid types are TABLES, FORMS, SIGNATURES, and LAYOUT
+        # Note: QUERIES is not supported as it requires additional parameters
         response = self.textract_client.analyze_document(
             Document={"Bytes": document_bytes},
-            FeatureTypes=["TABLES", "FORMS"]
+            FeatureTypes=self.enhanced_features
         )
         return response
     
     def _get_api_name(self) -> str:
         """Get the name of the Textract API being used."""
-        return "analyze_document" if self.enhanced_features else "detect_document_text"
+        # If enhanced_features is a non-empty list, we're using analyze_document
+        # Otherwise, we're using detect_document_text
+        return "analyze_document" if isinstance(self.enhanced_features, list) and self.enhanced_features else "detect_document_text"
     
-    def _parse_textract_response(self, response: Dict[str, Any]) -> str:
+    def _parse_textract_response(self, response: Dict[str, Any]) -> Dict[str, str]:
         """
-        Parse Textract response into text.
+        Parse Textract response into text and markdown.
 
-        In future versions, this could be enhanced to extract tables, forms, etc.
+        Uses textractor to extract both plain text and rich markdown format.
+        The markdown format preserves tables, forms, and layout information.
         
         Args:
             response: Raw Textract API response
 
         Returns:
-            Extracted text content
+            Dictionary with 'text' (plain text) and 'markdown' (formatted text) keys
         """
+        # Use textractor for parsing
+        from textractor.parsers import response_parser
+        
+        # Parse the response
+        parsed_response = response_parser.parse(response)
+        
+        # Extract plain text
+        plain_text = parsed_response.text
+        
+        # Extract markdown representation if available
         try:
-            # When available, use textractor for parsing
-            from textractor.parsers import response_parser
-            return response_parser.parse(response).text
-        except ImportError:
-            # Fallback to simple text extraction
-            text_lines = []
-            for block in response.get("Blocks", []):
-                if block.get("BlockType") == "LINE":
-                    text_lines.append(block.get("Text", ""))
-            return "\n".join(text_lines)
+            markdown_text = parsed_response.to_markdown()
+        except (AttributeError, Exception) as e:
+            # If markdown extraction fails, use plain text instead
+            markdown_text = plain_text
+            logger.warning(f"Failed to generate markdown: {str(e)}")
+        
+        return {
+            "text": plain_text,
+            "markdown": markdown_text
+        }

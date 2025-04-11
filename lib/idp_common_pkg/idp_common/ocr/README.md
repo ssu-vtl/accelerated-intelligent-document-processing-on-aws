@@ -10,12 +10,13 @@ The OCR service is designed to process PDF documents and extract text using AWS 
 
 - PDF processing with page-by-page OCR
 - Concurrent processing of pages for improved performance
-- Support for basic text detection (faster) or enhanced document analysis
+- Support for basic text detection (faster) or enhanced document analysis with granular Textract feature selection
 - Direct integration with the Document data model
 - Automatic S3 retrieval of input documents
 - S3 storage of intermediate and final results
 - Metering data collection for usage tracking
 - Comprehensive error handling
+- Rich markdown output for tables and forms when using enhanced features
 
 ## Usage Example
 
@@ -35,7 +36,10 @@ document = Document(
 ocr_service = ocr.OcrService(
     region='us-east-1',
     max_workers=20,
-    enhanced_features=False  # Set to True for tables, forms recognition
+    enhanced_features=False  # Default: basic text detection (faster)
+    # enhanced_features=["TABLES", "FORMS"]  # For table and form recognition
+    # enhanced_features=["LAYOUT"]  # For layout analysis
+    # enhanced_features=["TABLES", "FORMS", "SIGNATURES"]  # Multiple features
 )
 
 # Process document - this will automatically get the PDF from S3
@@ -45,7 +49,7 @@ processed_document = ocr_service.process_document(document)
 print(f"Processed {processed_document.num_pages} pages")
 for page_id, page in processed_document.pages.items():
     print(f"Page {page_id}: Image at {page.image_uri}")
-    print(f"Page {page_id}: Text at {page.parsed_text_uri}")
+    print(f"Page {page_id}: Text and Markdown at {page.parsed_text_uri}")
 ```
 
 ## Lambda Integration Example
@@ -69,7 +73,7 @@ def handler(event, context):
     service = ocr.OcrService(
         region=region,
         max_workers=MAX_WORKERS,
-        enhanced_features=False
+        enhanced_features=False  # Use basic OCR (or specify features as a list)
     )
     
     # Process the document - the service will read the PDF content directly
@@ -91,8 +95,9 @@ def handler(event, context):
 - ✅ Automatic document retrieval from S3
 - ✅ Comprehensive error handling
 
-### Phase 2: Enhanced Features (Future)
-- ✅ Support for table extraction and form recognition (basic implementation)
-- 🔲 Improved table and form recognition capabilities
-- 🔲 Markdown output format for richer text representation
+### Phase 2: Enhanced Features
+- ✅ Support for table extraction and form recognition
+- ✅ Granular control of Textract feature types (TABLES, FORMS, SIGNATURES, LAYOUT)
+- ✅ Improved parsing for extracted tables and forms
+- ✅ Markdown output format for richer text representation
 - 🔲 PDF processing options (resolution, format)

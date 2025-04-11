@@ -93,7 +93,8 @@ Provides OCR processing of documents using AWS Textract:
 - Document-based OCR processing with the `process_document()` method
 - Multi-page document processing with thread concurrency
 - Image extraction and optimization
-- Support for enhanced Textract features (tables, forms)
+- Support for enhanced Textract features (TABLES, FORMS, SIGNATURES, LAYOUT) with granular control
+- Rich markdown output for tables and forms preservation
 - Well-structured results for downstream processing
 
 ### Classification Service (`classification`)
@@ -144,7 +145,8 @@ document = Document(
 )
 
 # OCR Processing
-ocr_service = ocr.OcrService()
+ocr_service = ocr.OcrService()  # Basic text detection
+# ocr_service = ocr.OcrService(enhanced_features=["TABLES", "FORMS"])  # Enhanced features
 document = ocr_service.process_document(document)
 
 # Document Classification (choose your backend)
