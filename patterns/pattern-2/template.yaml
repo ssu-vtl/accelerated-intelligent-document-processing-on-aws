@@ -563,18 +563,30 @@ Resources:
                 price: 0.0000008
               - name: outputTokens
                 price: 0.000004
+              - name: cacheReadInputTokens
+                price: 0.00000008
+              - name: cacheWriteInputTokens
+                price: 0.000001
           - name: bedrock/us.anthropic.claude-3-5-sonnet-20241022-v2:0
             units:
               - name: inputTokens
                 price: 0.000003
               - name: outputTokens
                 price: 0.000015
+              - name: cacheReadInputTokens
+                price: 0.0000003
+              - name: cacheWriteInputTokens
+                price: 0.00000375
           - name: bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0
             units:
               - name: inputTokens
                 price: 0.000003
               - name: outputTokens
                 price: 0.000015
+              - name: cacheReadInputTokens
+                price: 0.0000003
+              - name: cacheWriteInputTokens
+                price: 0.00000375
           - name: bedrock/us.meta.llama3-2-1b-instruct-v1:0
             units:
               - name: inputTokens
