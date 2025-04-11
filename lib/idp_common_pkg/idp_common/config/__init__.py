@@ -5,21 +5,33 @@ from botocore.exceptions import ClientError
 import logging
 from copy import deepcopy
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 class ConfigurationReader:
-    def __init__(self):
+    def __init__(self, table_name=None):
         """
-        Initialize the configuration reader using the table name from environment variable
+        Initialize the configuration reader using the table name from environment variable or parameter
+        
+        Args:
+            table_name: Optional override for configuration table name
         """
-        table_name = os.environ['CONFIGURATION_TABLE_NAME']
+        table_name = table_name or os.environ.get('CONFIGURATION_TABLE_NAME')
+        if not table_name:
+            raise ValueError("Configuration table name not provided. Either set CONFIGURATION_TABLE_NAME environment variable or provide table_name parameter.")
+            
         self.dynamodb = boto3.resource('dynamodb')
         self.table = self.dynamodb.Table(table_name)
+        logger.info(f"Initialized ConfigurationReader with table: {table_name}")
 
     def get_configuration(self, config_type: str) -> Optional[Dict[str, Any]]:
         """
         Retrieve a configuration item from DynamoDB
+        
+        Args:
+            config_type: The configuration type to retrieve ('Default' or 'Custom')
+            
+        Returns:
+            Configuration dictionary if found, None otherwise
         """
         try:
             response = self.table.get_item(
@@ -35,6 +47,13 @@ class ConfigurationReader:
     def deep_merge(self, default: Dict[str, Any], custom: Dict[str, Any]) -> Dict[str, Any]:
         """
         Recursively merge two dictionaries, with custom values taking precedence
+        
+        Args:
+            default: The default configuration dictionary
+            custom: The custom configuration dictionary
+            
+        Returns:
+            Merged configuration dictionary
         """
         result = deepcopy(default)  # Create a deep copy to avoid modifying the original
 
@@ -51,6 +70,9 @@ class ConfigurationReader:
     def get_merged_configuration(self) -> Dict[str, Any]:
         """
         Get and merge Default and Custom configurations
+        
+        Returns:
+            Merged configuration dictionary
         """
         try:
             # Get Default configuration
@@ -80,10 +102,15 @@ class ConfigurationReader:
             logger.error(f"Error getting merged configuration: {str(e)}")
             raise
 
-# Helper function to get the merged configuration
-def get_config() -> Dict[str, Any]:
+def get_config(table_name=None) -> Dict[str, Any]:
     """
     Get the merged configuration using the environment variable for table name
+    
+    Args:
+        table_name: Optional override for configuration table name
+        
+    Returns:
+        Merged configuration dictionary
     """
-    reader = ConfigurationReader()
+    reader = ConfigurationReader(table_name)
     return reader.get_merged_configuration()
