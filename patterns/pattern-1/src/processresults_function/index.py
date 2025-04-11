@@ -223,13 +223,7 @@ def extract_markdown_from_json(raw_json):
         for page in raw_json['pages']:
             if 'representation' in page and 'markdown' in page['representation']:
                 markdown_texts.append(page['representation']['markdown'])
-    
-    # Extract from elements
-    if 'elements' in raw_json:
-        for element in raw_json['elements']:
-            if 'representation' in element and 'markdown' in element['representation']:
-                markdown_texts.append(element['representation']['markdown'])
-    
+       
     # Join with horizontal rule
     if markdown_texts:
         return '\n\n---\n\nPAGE BREAK\n\n---\n\n'.join(markdown_texts)
