@@ -230,8 +230,22 @@ function build_web_ui() {
   echo "Computing hash of ui folder contents"
   local UIHASH=$(calculate_hash "$dir")
   local WEBUI_ZIPFILE="src-${UIHASH}.zip"
+  local PREV_WEBUI_ZIPFILE=""
   
-  if needs_rebuild "$dir"; then
+  # Check if previous zipfile name exists and load it
+  if [ -f "/tmp/webui_zipfile.txt" ]; then
+    PREV_WEBUI_ZIPFILE=$(cat /tmp/webui_zipfile.txt)
+  fi
+  
+  # Force rebuild if zipfile name changed (even if directory content unchanged)
+  if [ "$WEBUI_ZIPFILE" != "$PREV_WEBUI_ZIPFILE" ]; then
+    echo "WebUI zipfile name changed from $PREV_WEBUI_ZIPFILE to $WEBUI_ZIPFILE, forcing rebuild"
+    local force_rebuild=true
+  else
+    local force_rebuild=false
+  fi
+  
+  if needs_rebuild "$dir" || [ "$force_rebuild" = true ]; then
     echo "PACKAGING $dir"
     pushd $dir
     
