@@ -232,7 +232,7 @@ def extract_markdown_from_json(raw_json):
     
     # Join with horizontal rule
     if markdown_texts:
-        return '\n\n---\n\n'.join(markdown_texts)
+        return '\n\n---\n\nPAGE BREAK\n\n---\n\n'.join(markdown_texts)
     return ""
 
 def process_bda_pages(output_bucket, object_key, document):
