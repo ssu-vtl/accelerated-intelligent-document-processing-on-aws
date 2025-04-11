@@ -7,7 +7,6 @@ Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v<VERSION>)
 Parameters:
 
   # Authorization params
-
   AdminEmail:
     Type: String
     Description: >-
@@ -419,10 +418,8 @@ Metadata:
         default: "Allowed Sign Up Email Domain"
       IDPPattern:
         default: "Prefdefined Document Processing Pattern"
-      Pattern3UDOPModelArtifactPath:
-        default: "Pattern1 - UDOP Model Artifact Path"
-      Pattern3ExtractionModel:
-        default: "Pattern1 - Extraction Model"
+      Pattern1BDAProjectArn:
+        default: "Pattern1 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN"
       Pattern2ClassificationModel:
         default: "Pattern2 - Classification Model"
       Pattern2ExtractionModel:
@@ -431,8 +428,10 @@ Metadata:
         default: "Pattern2 - Custom Classification Model ARN"
       Pattern2CustomExtractionModelARN:
         default: "Pattern2 - Custom Extraction Model ARN"
-      Pattern1BDAProjectArn:
-        default: "Pattern1 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN"
+      Pattern3UDOPModelArtifactPath:
+        default: "Pattern3 - UDOP Model Artifact Path"
+      Pattern3ExtractionModel:
+        default: "Pattern3 - Extraction Model"
       PostProcessingLambdaHookFunctionArn:
         default: "Post Processing Lambda Hook Function ARN"
       EvaluationBaselineBucketName:
