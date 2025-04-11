@@ -55,7 +55,7 @@ Parameters:
     AllowedValues:
       - "us.amazon.nova-lite-v1:0"
       - "us.amazon.nova-pro-v1:0"
-      - "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+      - "us.anthropic.claude-3-haiku-20240307-v1:0"
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
       - "us.meta.llama3-2-1b-instruct-v1:0"
@@ -72,7 +72,7 @@ Parameters:
     AllowedValues:
       - "us.amazon.nova-lite-v1:0"
       - "us.amazon.nova-pro-v1:0"
-      - "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+      - "us.anthropic.claude-3-haiku-20240307-v1:0"
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
       - "us.meta.llama3-2-1b-instruct-v1:0"
@@ -107,7 +107,7 @@ Parameters:
     AllowedValues:
       - "us.amazon.nova-lite-v1:0"
       - "us.amazon.nova-pro-v1:0"
-      - "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+      - "us.anthropic.claude-3-haiku-20240307-v1:0"
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
       - "us.meta.llama3-2-1b-instruct-v1:0"
@@ -163,7 +163,7 @@ Parameters:
     AllowedValues:
       - "us.amazon.nova-lite-v1:0"
       - "us.amazon.nova-pro-v1:0"
-      - "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+      - "us.anthropic.claude-3-haiku-20240307-v1:0"
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
       - "us.meta.llama3-2-1b-instruct-v1:0"
@@ -188,7 +188,7 @@ Parameters:
     AllowedValues:
       - "us.amazon.nova-lite-v1:0"
       - "us.amazon.nova-pro-v1:0"
-      - "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+      - "us.anthropic.claude-3-haiku-20240307-v1:0"
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
       - "us.meta.llama3-2-1b-instruct-v1:0"
