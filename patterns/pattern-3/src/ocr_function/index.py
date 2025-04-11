@@ -8,8 +8,11 @@ import logging
 import os
 import time
 
-from idp_common import ocr
+from idp_common import get_config, ocr
 from idp_common.models import Document
+
+# Configuration
+CONFIG = get_config()
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -31,10 +34,12 @@ def handler(event, context):
     t0 = time.time()
     
     # Initialize the OCR service
+    features = [feature['name'] for feature in CONFIG.get("ocr",{}).get("features",[])]
+    logger.info(f"Initializing OCR for MAX_WORKERS: {MAX_WORKERS}, enhanced_features: {features}")
     service = ocr.OcrService(
         region=region,
         max_workers=MAX_WORKERS,
-        enhanced_features=False  # Use basic OCR for now
+        enhanced_features=features
     )
     
     # Process the document - the service will read the PDF content directly
