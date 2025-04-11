@@ -1,6 +1,11 @@
 # Changelog
 
-## [0.2.16] - fix/refactor-to-modularize branch
+
+
+## [0.2.16] 
+
+### Add additional model choice
+- Claude, Nova, Meta, and DeepSeek model selection now available
 
 ### New Document-Based Architecture
 
