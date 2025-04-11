@@ -226,7 +226,6 @@ Resources:
         ocr:
           features:
             - name: LAYOUT
-            - name: SIGNATURES
         classes:
           - name: letter
             description: A formal written message that is typically sent from one person to another
