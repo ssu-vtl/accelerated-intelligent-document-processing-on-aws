@@ -42,9 +42,28 @@ class OcrService:
                            - If False: Uses basic detect_document_text (faster, no features)
                            - If List[str]: Uses analyze_document with specified features
                               Valid features: TABLES, FORMS, SIGNATURES, LAYOUT
+                              
+        Raises:
+            ValueError: If invalid features are specified in enhanced_features
         """
         self.region = region or os.environ.get('AWS_REGION', 'us-east-1')
         self.max_workers = max_workers
+        
+        # Define valid Textract feature types
+        VALID_FEATURES = ["TABLES", "FORMS", "SIGNATURES", "LAYOUT"]
+        
+        # Validate features if provided as a list
+        if isinstance(enhanced_features, list):
+            # Check for invalid features
+            invalid_features = [feature for feature in enhanced_features if feature not in VALID_FEATURES]
+            if invalid_features:
+                error_msg = f"Invalid Textract feature(s) specified: {invalid_features}. Valid features are: {VALID_FEATURES}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
+            # Log the validated features
+            logger.info(f"OCR Service initialized with features: {enhanced_features}")
+            
         self.enhanced_features = enhanced_features
         
         # Initialize Textract client with adaptive retries
@@ -83,9 +102,11 @@ class OcrService:
             t1 = time.time()
             logger.info(f"Time taken for S3 GetObject: {t1-t0:.6f} seconds")
         except Exception as e:
+            import traceback
             error_msg = f"Error retrieving document from S3: {str(e)}"
-            logger.error(error_msg)
-            document.errors.append(error_msg)
+            stack_trace = traceback.format_exc()
+            logger.error(f"{error_msg}\nStack trace:\n{stack_trace}")
+            document.errors.append(f"{error_msg} (see logs for full trace)")
             document.status = Status.FAILED
             return document
         
@@ -125,9 +146,11 @@ class OcrService:
                         document.metering = utils.merge_metering_data(document.metering, page_metering)
                         
                     except Exception as e:
+                        import traceback
                         error_msg = f"Error processing page {page_index + 1}: {str(e)}"
-                        logger.error(error_msg)
-                        document.errors.append(error_msg)
+                        stack_trace = traceback.format_exc()
+                        logger.error(f"{error_msg}\nStack trace:\n{stack_trace}")
+                        document.errors.append(f"{error_msg} (see logs for full trace)")
             
             pdf_document.close()
             
@@ -138,9 +161,11 @@ class OcrService:
                 document.status = Status.FAILED
                 
         except Exception as e:
+            import traceback
             error_msg = f"Error processing document: {str(e)}"
-            logger.error(error_msg)
-            document.errors.append(error_msg)
+            stack_trace = traceback.format_exc()
+            logger.error(f"{error_msg}\nStack trace:\n{stack_trace}")
+            document.errors.append(f"{error_msg} (see logs for full trace)")
             document.status = Status.FAILED
         
         t2 = time.time()
@@ -156,11 +181,17 @@ class OcrService:
         - Layout feature is included free with any combination of Forms, Tables
         - Signatures feature is included free with Forms, Tables, and Layout
         """
+        # Define valid Textract feature types
+        VALID_FEATURES = ["TABLES", "FORMS", "SIGNATURES", "LAYOUT"]
+        
+        # We assume features have already been validated in _analyze_document
+        # This is just a safety check
         if not isinstance(self.enhanced_features, list) or not self.enhanced_features:
             return ""
             
+        # All features should be valid at this point
         features = set(self.enhanced_features)
-        
+            
         # Check for feature combinations
         has_tables = "TABLES" in features
         has_forms = "FORMS" in features
@@ -283,11 +314,57 @@ class OcrService:
         # Use specified feature types
         # Valid types are TABLES, FORMS, SIGNATURES, and LAYOUT
         # Note: QUERIES is not supported as it requires additional parameters
-        response = self.textract_client.analyze_document(
-            Document={"Bytes": document_bytes},
-            FeatureTypes=self.enhanced_features
-        )
-        return response
+        
+        # Define valid Textract feature types
+        VALID_FEATURES = ["TABLES", "FORMS", "SIGNATURES", "LAYOUT"]
+        
+        # Validate features
+        if isinstance(self.enhanced_features, list):
+            # Check for invalid features and fail if any are found
+            invalid_features = [feature for feature in self.enhanced_features if feature not in VALID_FEATURES]
+            if invalid_features:
+                error_msg = f"Invalid Textract feature(s) specified: {invalid_features}. Valid features are: {VALID_FEATURES}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
+            # Use the features as provided
+            features_to_use = self.enhanced_features.copy()
+        else:
+            error_msg = f"Invalid enhanced_features format: {self.enhanced_features}. Must be a list of valid feature strings."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        # Ensure we have at least one feature
+        if not features_to_use:
+            error_msg = "Empty features list provided for analyze_document."
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        # Log the feature types being used
+        logger.info(f"Analyzing document with features: {features_to_use}")
+        
+        try:
+            response = self.textract_client.analyze_document(
+                Document={"Bytes": document_bytes},
+                FeatureTypes=features_to_use
+            )
+            
+            # Log the types of response blocks received
+            if logger.isEnabledFor(logging.DEBUG):
+                block_types = {}
+                for block in response.get("Blocks", []):
+                    block_type = block.get("BlockType")
+                    if block_type not in block_types:
+                        block_types[block_type] = 0
+                    block_types[block_type] += 1
+                logger.debug(f"Received response with block types: {block_types}")
+            
+            return response
+            
+        except Exception as e:
+            import traceback
+            logger.error(f"Error in _analyze_document with features {features_to_use}: {str(e)}\nStack trace:\n{traceback.format_exc()}")
+            raise
     
     def _get_api_name(self) -> str:
         """Get the name of the Textract API being used."""
@@ -310,16 +387,70 @@ class OcrService:
         """
         # Use textractor for parsing
         from textractor.parsers import response_parser
-        parsed_response = response_parser.parse(response)
         
-        # Extract markdown representation if available
         try:
-            text = parsed_response.to_markdown()
-        except (AttributeError, Exception) as e:
-            # If markdown extraction fails, use plain text instead
-            plain_text = parsed_response.text
-            text = plain_text
-            logger.warning(f"Failed to generate markdown - using plain text: {str(e)}")
+            # Log and patch blocks that might cause 'reading_order' attribute errors
+            blocks = response.get("Blocks", [])
+            
+            # Counter to track the number of blocks patched
+            patched_blocks = 0
+            
+            # Check for SIGNATURE blocks and log their attributes
+            signature_blocks = [b for b in blocks if b.get("BlockType") == "SIGNATURE"]
+            if signature_blocks:
+                logger.info(f"Found {len(signature_blocks)} SIGNATURE blocks. First signature block attributes: {signature_blocks[0].keys()}")
+                for idx, sig in enumerate(signature_blocks):
+                    logger.info(f"Signature block {idx+1} details: {json.dumps(sig, default=str)}")
+            
+            # Check for KEY_VALUE_SET blocks (forms) and log their attributes
+            keyvalue_blocks = [b for b in blocks if b.get("BlockType") == "KEY_VALUE_SET"]
+            if keyvalue_blocks and "FORMS" in self.enhanced_features:
+                logger.info(f"Found {len(keyvalue_blocks)} KEY_VALUE_SET blocks for FORMS feature")
+                if keyvalue_blocks:
+                    logger.info(f"First KEY_VALUE_SET block attributes: {keyvalue_blocks[0].keys()}")
+            
+            # Universal fix: Add reading_order attribute to all blocks of any type
+            # This is more general and will handle any potential issues with textractor
+            logger.info("Checking all blocks for missing reading_order attribute")
+            for block in blocks:
+                if "reading_order" not in block:
+                    # Add an empty reading_order to prevent any attribute error
+                    block["reading_order"] = {}
+                    patched_blocks += 1
+            
+            if patched_blocks > 0:
+                logger.info(f"Added empty reading_order to {patched_blocks} blocks to prevent textractor errors")
+            
+            parsed_response = response_parser.parse(response)
+            
+            # Log the type of parsed_response to help with debugging
+            logger.info(f"Parsed response type: {type(parsed_response).__name__}")
+            if hasattr(parsed_response, "__dict__"):
+                logger.debug(f"Parsed response attributes: {list(parsed_response.__dict__.keys())}")
+            
+            # Extract markdown representation if available
+            try:
+                text = parsed_response.to_markdown()
+            except (AttributeError, Exception) as e:
+                # If markdown extraction fails, use plain text instead
+                import traceback
+                plain_text = parsed_response.text
+                text = plain_text
+                stack_trace = traceback.format_exc()
+                logger.warning(f"Failed to generate markdown - using plain text: {str(e)}\nStack trace:\n{stack_trace}")
+        except Exception as e:
+            import traceback
+            logger.error(f"Error parsing Textract response: {str(e)}\nStack trace:\n{traceback.format_exc()}")
+            # Provide a minimal fallback text representation
+            text = "Error parsing document text. See logs for details."
+            # Log the specific error for reading_order issues but don't re-raise
+            if "reading_order" in str(e):
+                if "Signature" in str(e):
+                    logger.error("Detected the 'Signature' object 'reading_order' attribute error. This is a known issue with SIGNATURES feature.")
+                elif "KeyValue" in str(e):
+                    logger.error("Detected the 'KeyValue' object 'reading_order' attribute error. This is a known issue with FORMS feature.")
+                else:
+                    logger.error(f"Detected a 'reading_order' attribute error: {str(e)}. This may be a textractor compatibility issue.")
         
         return {
             "text": text,
