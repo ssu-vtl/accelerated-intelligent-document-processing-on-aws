@@ -86,7 +86,7 @@ Resources:
                     properties:
                       name:
                         type: string
-                        description: "Feature - allowed values: TABLES, FORMS, SIGNATURES, LAYOUT"
+                        description: "Feature - allowed values: NONE, TABLES, FORMS, SIGNATURES, LAYOUT"
           classes:
             order: 2
             type: array

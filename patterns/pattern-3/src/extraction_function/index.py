@@ -58,6 +58,12 @@ def handler(event, context):
     t1 = time.time()
     logger.info(f"Total extraction time: {t1-t0:.2f} seconds")
     
+    # Check if document processing failed
+    if section_document.status == Status.FAILED:
+        error_message = f"Extraction failed for document {section_document.id}, section {section_id}"
+        logger.error(error_message)
+        raise Exception(error_message)
+    
     # Set the status to EXTRACTED
     section_document.status = Status.EXTRACTED
     
