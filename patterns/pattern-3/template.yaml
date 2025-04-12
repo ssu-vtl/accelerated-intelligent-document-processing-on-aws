@@ -581,36 +581,18 @@ Resources:
                 price: 0.0000003
               - name: cacheWriteInputTokens
                 price: 0.00000375
-          - name: bedrock/us.meta.llama3-2-1b-instruct-v1:0
+          - name: bedrock/us.meta.llama3-2-11b-instruct-v1:0
             units:
               - name: inputTokens
-                price: 0.0000001
+                price: 0.00000016
               - name: outputTokens
-                price: 0.0000001
-          - name: bedrock/us.meta.llama3-2-3b-instruct-v1:0
-            units:
-              - name: inputTokens
-                price: 0.00000015
-              - name: outputTokens
-                price: 0.00000015
+                price: 0.00000016
           - name: bedrock/us.meta.llama3-2-90b-instruct-v1:0
             units:
               - name: inputTokens
                 price: 0.00000072
               - name: outputTokens
                 price: 0.00000072
-          - name: bedrock/us.meta.llama3-3-70b-instruct-v1:0
-            units:
-              - name: inputTokens
-                price: 0.00000072
-              - name: outputTokens
-                price: 0.00000072
-          - name: bedrock/us.deepseek.r1-v1:0
-            units:
-              - name: inputTokens
-                price: 0.00000135
-              - name: outputTokens
-                price: 0.0000054
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
