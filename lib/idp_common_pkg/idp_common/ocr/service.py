@@ -100,7 +100,7 @@ class OcrService:
             )
             pdf_content = response['Body'].read()
             t1 = time.time()
-            logger.info(f"Time taken for S3 GetObject: {t1-t0:.6f} seconds")
+            logger.debug(f"Time taken for S3 GetObject: {t1-t0:.6f} seconds")
         except Exception as e:
             import traceback
             error_msg = f"Error retrieving document from S3: {str(e)}"
@@ -169,7 +169,8 @@ class OcrService:
             document.status = Status.FAILED
         
         t2 = time.time()
-        logger.info(f"Total time for OCR processing: {t2-t0:.2f} seconds")
+        logger.info(f"OCR processing completed in {t2-t0:.2f} seconds")
+        logger.info(f"Processed {len(document.pages)} pages, with {len(document.errors)} errors")
         return document
 
     def _feature_combo(self):
@@ -251,11 +252,11 @@ class OcrService:
         )
         
         t1 = time.time()
-        logger.info(f"Time for image conversion (page {page_id}): {t1-t0:.6f} seconds")
+        logger.debug(f"Time for image conversion (page {page_id}): {t1-t0:.6f} seconds")
         
         # Process with Textract
         if isinstance(self.enhanced_features, list) and self.enhanced_features:
-            textract_result = self._analyze_document(img_bytes)
+            textract_result = self._analyze_document(img_bytes, page_id)
         else:
             textract_result = self.textract_client.detect_document_text(
                 Document={"Bytes": img_bytes}
@@ -280,7 +281,7 @@ class OcrService:
         )
         
         # Parse and store text content with markdown
-        parsed_result = self._parse_textract_response(textract_result)
+        parsed_result = self._parse_textract_response(textract_result, page_id)
         parsed_text_key = f"{prefix}/pages/{page_id}/result.json"
         s3.write_content(
             parsed_result, 
@@ -290,7 +291,7 @@ class OcrService:
         )
         
         t2 = time.time()
-        logger.info(f"Time for Textract (page {page_id}): {t2-t1:.6f} seconds")
+        logger.debug(f"Time for Textract (page {page_id}): {t2-t1:.6f} seconds")
         
         # Create and return page result
         result = {
@@ -301,12 +302,13 @@ class OcrService:
         
         return result, metering
     
-    def _analyze_document(self, document_bytes: bytes) -> Dict[str, Any]:
+    def _analyze_document(self, document_bytes: bytes, page_id: int = None) -> Dict[str, Any]:
         """
         Analyze document using enhanced Textract features.
 
         Args:
             document_bytes: Binary content of the document image
+            page_id: Optional page number for logging purposes
 
         Returns:
             Textract API response
@@ -315,38 +317,14 @@ class OcrService:
         # Valid types are TABLES, FORMS, SIGNATURES, and LAYOUT
         # Note: QUERIES is not supported as it requires additional parameters
         
-        # Define valid Textract feature types
-        VALID_FEATURES = ["TABLES", "FORMS", "SIGNATURES", "LAYOUT"]
-        
-        # Validate features
-        if isinstance(self.enhanced_features, list):
-            # Check for invalid features and fail if any are found
-            invalid_features = [feature for feature in self.enhanced_features if feature not in VALID_FEATURES]
-            if invalid_features:
-                error_msg = f"Invalid Textract feature(s) specified: {invalid_features}. Valid features are: {VALID_FEATURES}"
-                logger.error(error_msg)
-                raise ValueError(error_msg)
-            
-            # Use the features as provided
-            features_to_use = self.enhanced_features.copy()
-        else:
-            error_msg = f"Invalid enhanced_features format: {self.enhanced_features}. Must be a list of valid feature strings."
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-        
-        # Ensure we have at least one feature
-        if not features_to_use:
-            error_msg = "Empty features list provided for analyze_document."
-            logger.error(error_msg)
-            raise ValueError(error_msg)
-        
-        # Log the feature types being used
-        logger.info(f"Analyzing document with features: {features_to_use}")
+        # Features are already validated in __init__, so we can use them directly
+        page_info = f" for page {page_id}" if page_id else ""
+        logger.debug(f"Analyzing document{page_info} with features: {self.enhanced_features}")
         
         try:
             response = self.textract_client.analyze_document(
                 Document={"Bytes": document_bytes},
-                FeatureTypes=features_to_use
+                FeatureTypes=self.enhanced_features
             )
             
             # Log the types of response blocks received
@@ -363,7 +341,8 @@ class OcrService:
             
         except Exception as e:
             import traceback
-            logger.error(f"Error in _analyze_document with features {features_to_use}: {str(e)}\nStack trace:\n{traceback.format_exc()}")
+            page_info = f" for page {page_id}" if page_id else ""
+            logger.error(f"Error in _analyze_document{page_info} with features {self.enhanced_features}: {str(e)}\nStack trace:\n{traceback.format_exc()}")
             raise
     
     def _get_api_name(self) -> str:
@@ -372,86 +351,69 @@ class OcrService:
         # Otherwise, we're using detect_document_text
         return "analyze_document" if isinstance(self.enhanced_features, list) and self.enhanced_features else "detect_document_text"
     
-    def _parse_textract_response(self, response: Dict[str, Any]) -> Dict[str, str]:
+    def _parse_textract_response(self, response: Dict[str, Any], page_id: int = None) -> Dict[str, str]:
         """
-        Parse Textract response into text and markdown.
-
-        Uses textractor to extract both plain text and rich markdown format.
-        The markdown format preserves tables, forms, and layout information.
+        Parse Textract response into text.
         
         Args:
             response: Raw Textract API response
+            page_id: Optional page number for logging purposes
 
         Returns:
-            Dictionary with 'text' (plain text) and 'markdown' (formatted text) keys
+            Dictionary with 'text' key containing extracted text
         """
-        # Use textractor for parsing
         from textractor.parsers import response_parser
         
+        # Create page identifier for logging
+        page_info = f" for page {page_id}" if page_id else ""
+        
+        # Log enhanced features at debug level
+        logger.debug(f"Enhanced features{page_info}: {self.enhanced_features}")
+        
         try:
-            # Log and patch blocks that might cause 'reading_order' attribute errors
-            blocks = response.get("Blocks", [])
-            
-            # Counter to track the number of blocks patched
-            patched_blocks = 0
-            
-            # Check for SIGNATURE blocks and log their attributes
-            signature_blocks = [b for b in blocks if b.get("BlockType") == "SIGNATURE"]
-            if signature_blocks:
-                logger.info(f"Found {len(signature_blocks)} SIGNATURE blocks. First signature block attributes: {signature_blocks[0].keys()}")
-                for idx, sig in enumerate(signature_blocks):
-                    logger.info(f"Signature block {idx+1} details: {json.dumps(sig, default=str)}")
-            
-            # Check for KEY_VALUE_SET blocks (forms) and log their attributes
-            keyvalue_blocks = [b for b in blocks if b.get("BlockType") == "KEY_VALUE_SET"]
-            if keyvalue_blocks and "FORMS" in self.enhanced_features:
-                logger.info(f"Found {len(keyvalue_blocks)} KEY_VALUE_SET blocks for FORMS feature")
-                if keyvalue_blocks:
-                    logger.info(f"First KEY_VALUE_SET block attributes: {keyvalue_blocks[0].keys()}")
-            
-            # Universal fix: Add reading_order attribute to all blocks of any type
-            # This is more general and will handle any potential issues with textractor
-            logger.info("Checking all blocks for missing reading_order attribute")
-            for block in blocks:
-                if "reading_order" not in block:
-                    # Add an empty reading_order to prevent any attribute error
-                    block["reading_order"] = {}
-                    patched_blocks += 1
-            
-            if patched_blocks > 0:
-                logger.info(f"Added empty reading_order to {patched_blocks} blocks to prevent textractor errors")
-            
+            # Parse the response with textractor - debug level
+            logger.debug(f"Parsing Textract response{page_info} with textractor")
             parsed_response = response_parser.parse(response)
             
-            # Log the type of parsed_response to help with debugging
-            logger.info(f"Parsed response type: {type(parsed_response).__name__}")
-            if hasattr(parsed_response, "__dict__"):
-                logger.debug(f"Parsed response attributes: {list(parsed_response.__dict__.keys())}")
-            
-            # Extract markdown representation if available
             try:
+                # First try to convert to markdown
                 text = parsed_response.to_markdown()
-            except (AttributeError, Exception) as e:
-                # If markdown extraction fails, use plain text instead
-                import traceback
-                plain_text = parsed_response.text
-                text = plain_text
-                stack_trace = traceback.format_exc()
-                logger.warning(f"Failed to generate markdown - using plain text: {str(e)}\nStack trace:\n{stack_trace}")
-        except Exception as e:
-            import traceback
-            logger.error(f"Error parsing Textract response: {str(e)}\nStack trace:\n{traceback.format_exc()}")
-            # Provide a minimal fallback text representation
-            text = "Error parsing document text. See logs for details."
-            # Log the specific error for reading_order issues but don't re-raise
-            if "reading_order" in str(e):
-                if "Signature" in str(e):
-                    logger.error("Detected the 'Signature' object 'reading_order' attribute error. This is a known issue with SIGNATURES feature.")
-                elif "KeyValue" in str(e):
-                    logger.error("Detected the 'KeyValue' object 'reading_order' attribute error. This is a known issue with FORMS feature.")
-                else:
-                    logger.error(f"Detected a 'reading_order' attribute error: {str(e)}. This may be a textractor compatibility issue.")
+                logger.info(f"Successfully extracted markdown text{page_info}")
+            except Exception as e:
+                # If markdown conversion fails, use plain text instead
+                logger.warning(f"Markdown conversion failed{page_info}: {str(e)}")
+                
+                # Identify if it's a known issue - keep these as warnings
+                if "reading_order" in str(e):
+                    if "Signature" in str(e):
+                        logger.warning(f"Detected Signature object error{page_info} with SIGNATURES feature")
+                    elif "KeyValue" in str(e):
+                        logger.warning(f"Detected KeyValue object error{page_info} with FORMS feature")
+
+                # Use plain text instead
+                logger.warning(f"Falling back to plain text extraction{page_info}")
+                text = parsed_response.text
+                logger.info(f"Successfully extracted plain text{page_info}")
         
-        return {
-            "text": text,
-        }
+        except Exception as e:
+            # If parsing completely fails, extract text directly from blocks
+            logger.warning(f"Textractor parsing failed{page_info}: {str(e)}")
+            
+            # Simple extraction from LINE blocks as final fallback
+            logger.warning(f"Falling back to basic text extraction from blocks{page_info}")
+            blocks = response.get("Blocks", [])
+            
+            text_lines = []
+            for block in blocks:
+                if block.get("BlockType") == "LINE" and "Text" in block:
+                    text_lines.append(block["Text"])
+            
+            text = "\n".join(text_lines)
+            if not text:
+                text = f"Error extracting text from document{page_info}. No text content found."
+                logger.error(f"No text content found in document{page_info}")
+            else:
+                logger.info(f"Successfully extracted basic text{page_info}")
+        
+        return {"text": text}
+        
