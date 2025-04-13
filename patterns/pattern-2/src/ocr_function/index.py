@@ -35,8 +35,6 @@ def handler(event, context):
     
     # Initialize the OCR service
     features = [feature['name'] for feature in CONFIG.get("ocr",{}).get("features",[])]
-    # Filter out any features containing 'NONE' (case insensitive)
-    features = [feature for feature in features if 'none' not in feature.lower()]
     logger.info(f"Initializing OCR for MAX_WORKERS: {MAX_WORKERS}, enhanced_features: {features}")
     service = ocr.OcrService(
         region=region,
