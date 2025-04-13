@@ -90,7 +90,7 @@ Resources:
                       name:
                         type: string
                         description: "Feature - select one of the supported OCR feature types"
-                        enum: ["NONE", "TABLES", "FORMS", "SIGNATURES", "LAYOUT"]
+                        enum: ["TABLES", "FORMS", "SIGNATURES", "LAYOUT"]
           classes:
             order: 2
             type: array
