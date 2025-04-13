@@ -89,7 +89,8 @@ Resources:
                     properties:
                       name:
                         type: string
-                        description: "Feature - allowed values: NONE, TABLES, FORMS, SIGNATURES, LAYOUT"
+                        description: "Feature - select one of the supported OCR feature types"
+                        enum: ["NONE", "TABLES", "FORMS", "SIGNATURES", "LAYOUT"]
           classes:
             order: 2
             type: array
