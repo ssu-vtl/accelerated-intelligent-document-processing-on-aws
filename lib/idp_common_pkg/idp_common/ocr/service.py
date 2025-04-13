@@ -154,6 +154,18 @@ class OcrService:
             
             pdf_document.close()
             
+            # Sort the pages dictionary by ascending page number
+            logger.info(f"Sorting {len(document.pages)} pages by page number")
+            
+            # Create a new ordered dictionary with sorted pages
+            sorted_pages = {}
+            # Convert page_id to int for sorting, then back to string for the keys
+            for page_id in sorted(document.pages.keys(), key=lambda x: int(x)):
+                sorted_pages[page_id] = document.pages[page_id]
+            
+            # Replace the original pages dictionary with the sorted one
+            document.pages = sorted_pages
+            
             # If no errors occurred, mark as completed
             if not document.errors:
                 document.status = Status.OCR_COMPLETED
