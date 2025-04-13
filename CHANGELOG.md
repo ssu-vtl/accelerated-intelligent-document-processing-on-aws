@@ -1,5 +1,9 @@
 # Changelog
 
+## [unreleased]
+- Improved error handling in service classes
+- Support for enum config schema and corresponding picklist in UI. Used for Textract feature selection.
+- Removed LLM model choices preserving only multi-modal modals that support multiple image attachments
 
 ## [0.2.17]
 
