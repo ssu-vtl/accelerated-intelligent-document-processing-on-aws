@@ -7,25 +7,6 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
 - [Introduction](#introduction)
   - [Key Features](#key-features)
   - [Use Cases](#use-cases)
-- [Web User Interface](#web-user-interface)
-  - [Authentication Features](#authentication-features)
-  - [Deploying the Web UI](#deploying-the-web-ui)
-  - [Accessing the Web UI](#accessing-the-web-ui)
-  - [Running the UI Locally](#running-the-ui-locally)
-  - [Configuration Options](#configuration-options)
-  - [Security Considerations](#security-considerations)
-  - [Monitoring and Troubleshooting](#monitoring-and-troubleshooting)
-- [Document Knowledge Base Query](#document-knowledge-base-query)
-  - [How It Works](#how-it-works-1)
-  - [Query Features](#query-features)
-  - [Configuration](#configuration-1)
-- [Build, Publish, Deploy, Test](#build-publish-deploy-test)
-  - [Dependencies](#dependencies)
-  - [Build and Publish the solution](#build-and-publish-the-solution)
-  - [Test the solution](#test-the-solution)
-    - [Testing individual lambda functions locally](#testing-individual-lambda-functions-locally)
-    - [Steady state volume testing using load simulator script](#steady-state-volume-testing-using-load-simulator-script)
-    - [Variable volume testing using dynamic load simulator script](#variable-volume-testing-using-dynamic-load-simulator-script)
 - [Architecture](#architecture)
   - [Flow Overview](#flow-overview)
   - [Components](#components)
@@ -36,16 +17,39 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
   - [Pattern Selection and Deployment](#pattern-selection-and-deployment)
   - [Integrated Monitoring](#integrated-monitoring)
   - [Adding New Patterns](#adding-new-patterns)
-- [Evaluation Framework](#evaluation-framework)
+- [Build, Publish, Deploy, Test](#build-publish-deploy-test)
+  - [Dependencies](#dependencies)
+  - [Build and Publish the solution](#build-and-publish-the-solution)
+  - [Test the solution](#test-the-solution)
+    - [Testing individual lambda functions locally](#testing-individual-lambda-functions-locally)
+    - [Steady state volume testing using load simulator script](#steady-state-volume-testing-using-load-simulator-script)
+    - [Variable volume testing using dynamic load simulator script](#variable-volume-testing-using-dynamic-load-simulator-script)
+- [Web User Interface](#web-user-interface)
+  - [Authentication Features](#authentication-features)
+  - [Deploying the Web UI](#deploying-the-web-ui)
+  - [Accessing the Web UI](#accessing-the-web-ui)
+  - [Running the UI Locally](#running-the-ui-locally)
+  - [Configuration Options](#configuration-options)
+  - [Security Considerations](#security-considerations)
+  - [Monitoring and Troubleshooting](#monitoring-and-troubleshooting)
+- [Document Knowledge Base Query](#document-knowledge-base-query)
   - [How It Works](#how-it-works)
+  - [Query Features](#query-features)
   - [Configuration](#configuration)
+- [Evaluation Framework](#evaluation-framework)
+  - [How It Works](#how-it-works-1)
+  - [Configuration](#configuration-1)
   - [Viewing Reports](#viewing-reports)
   - [Best Practices](#best-practices)
   - [Metrics and Monitoring](#metrics-and-monitoring)
-- [Concurrency and Throttling Management](#concurrency-and-throttling-management)
-  - [Throttling and Retry (Bedrock and/or SageMaker)](#throttling-and-retry-bedrock-andor-sagemaker)
-  - [Step Functions Retry Configuration](#step-functions-retry-configuration)
-  - [Concurrency Control](#concurrency-control)
+- [Configuration / Customization](#configuration--customization)
+  - [Pattern Configuration via Web UI](#pattern-configuration-via-web-ui)
+  - [Stack Parameters](#stack-parameters)
+  - [Request Service Quota Limits for high volume processing](#request-service-quota-limits-for-high-volume-processing)
+  - [Cost Estimation](#cost-estimation)
+- [Customizing Extraction](#customizing-extraction)
+  - [Extraction Prompts](#extraction-prompts)
+  - [Extraction Attributes](#extraction-attributes)
 - [Monitoring and Logging](#monitoring-and-logging)
   - [CloudWatch Dashboard](#cloudwatch-dashboard)
     - [Latency Metrics](#latency-metrics)
@@ -55,16 +59,13 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
 - [Document Status Lookup](#document-status-lookup)
   - [Using the Lookup Script](#using-the-lookup-script)
   - [Response Format](#response-format)
-- [Additional scripts / utilities](#additional-scripts--utilities)
-- [Configuration / Customization](#configuration--customization)
-  - [Stack Parameters](#stack-parameters)
-  - [Request Service Quota Limits for high volume processing](#request-service-quota-limits-for-high-volume-processing)
-  - [Cost Estimation](#cost-estimation)
-- [Customizing Extraction](#customizing-extraction)
-  - [Extraction Prompts](#extraction-prompts)
-  - [Extraction Attributes](#extraction-attributes)
+- [Concurrency and Throttling Management](#concurrency-and-throttling-management)
+  - [Throttling and Retry (Bedrock and/or SageMaker)](#throttling-and-retry-bedrock-andor-sagemaker)
+  - [Step Functions Retry Configuration](#step-functions-retry-configuration)
+  - [Concurrency Control](#concurrency-control)
 - [Troubleshooting Guide](#troubleshooting-guide)
 - [Performance Considerations](#performance-considerations)
+- [Additional scripts / utilities](#additional-scripts--utilities)
 
 
 ## Introduction
@@ -75,19 +76,21 @@ A scalable, serverless solution for automated document processing and informatio
 
 - **Serverless Architecture**: Built entirely on AWS serverless technologies including Lambda, Step Functions, SQS, and DynamoDB, eliminating infrastructure management overhead
 - **Modular, pluggable patterns for classification, splitting, extraction**: Pre-built processing patterns using the latest state of the art models and AWS services.. or create your own.
+- **Advanced Classification Methods**: Support for both page-level and holistic document packet classification to handle complex multi-document inputs
 - **High Throughput Processing**: Handles large volumes of documents through intelligent queuing and concurrency management
 - **Built-in Resilience**: Features comprehensive error handling, automatic retries, and throttling management
 - **Cost Optimization**: Pay-per-use pricing model with built-in controls and real-time cost estimation
 - **Comprehensive Monitoring**: Rich CloudWatch dashboard with detailed metrics, logs, and alerts for end-to-end visibility
 - **Easy Document Tracking**: Built-in tracking system to monitor document status and processing times
 - **Secure by Design**: Implements encryption at rest, access controls, and secure communication between services
-- **Web User Interface**: Secure, modern WebUI for inspecting document workflow status, inputs, and outputs.
+- **Web User Interface**: Secure, modern WebUI for inspecting document workflow status, inputs, and outputs
 - **AI-Powered Evaluation**: Built-in framework to assess accuracy by comparing outputs against baseline data, with detailed AI-generated analysis reports
 - **Document Knowledge Base Query**: Interactive tool to ask natural language questions about your processed document collection with AI-generated responses and source citations
 
 ### Use Cases
 
 - Processing invoices, purchase orders, applications, and other document types
+- Processing multi-document packets with automatic document boundary detection
 - Extracting information from forms and applications
 - Automating document-heavy workflows
 - Converting legacy paper documents into structured digital data
@@ -108,7 +111,7 @@ The solution includes a responsive web-based user interface built with React tha
 - Detailed document processing metrics and status information
 - Inspection of processing outputs for section classification and information extraction
 - Accuracy evaluation reports, when baseline data is provided
-- Configurable inference settings and LLM prompts for the deployed pattern
+- View and edit pattern configuration, including document classes, prompt engineering, and model settings
 - Document upload from local computer  
 - Knowledge base querying for document collections
 
@@ -267,10 +270,13 @@ aws cloudformation deploy \
 
 **CLI Deploy Notes:**
 * `<the-pattern-name-here>` should be one of the valid pattern names encased in quotes. (Each pattern may have their own required parameter overrides, see README documentation for details.)
-  * `Pattern3 - Packet processing with Textract, SageMaker(UDOP), and Bedrock`
-  * `Pattern2 - Packet processing with Textract and Bedrock`
-    * (This is a great pattern to start with to try out the solution because it has no further dependencies.)
   * `Pattern1 - Packet or Media processing with Bedrock Data Automation (BDA)`
+    * Can use an existing Bedrock Data Automation project, or can create a new demo BDA project for you to try with the samples/lending_package.pdf file.
+  * `Pattern2 - Packet processing with Textract and Bedrock`
+    * This pattern supports both page-level and holistic classification methods
+    * This is a great pattern to start with to try out the solution because it has no further dependencies
+  * `Pattern3 - Packet processing with Textract, SageMaker(UDOP), and Bedrock`
+    * Requires a UDOP model in S3, that will be deployed on SageMaker during deployment.
 
 After you have deployed the stack, check the Outputs tab to inspect names and links to the dashboards, buckets, workflows and other solution resources.
 
@@ -381,7 +387,7 @@ Each pattern is implemented as a nested stack that contains pattern-specific res
 
 Current patterns include:
 - Pattern 1: Packet or Media processing with Bedrock Data Automation (BDA) ([README](./patterns/pattern-1/README.md))
-- Pattern 2: OCR → Bedrock Classification → Bedrock Extraction ([README](./patterns/pattern-2/README.md))
+- Pattern 2: OCR → Bedrock Classification (page-level or holistic) → Bedrock Extraction ([README](./patterns/pattern-2/README.md))
 - Pattern 3: OCR → UDOP Classification (SageMaker) → Bedrock Extraction  ([README](./patterns/pattern-3/README.md))
 
 
@@ -392,11 +398,11 @@ The pattern is selected at deployment time using the `IDPPattern` parameter:
 ```yaml
 IDPPattern:
   Type: String
-  Default: Pattern1
+  Default: Pattern2
   AllowedValues:
-    - Pattern1
-    - Pattern2
-    - Pattern3
+    - Pattern1  # Bedrock Data Automation (BDA)
+    - Pattern2  # Textract + Bedrock (page-level or holistic classification)
+    - Pattern3  # Textract + SageMaker UDOP + Bedrock
   Description: Choose from built-in IDP workflow patterns
 ```
 
@@ -406,9 +412,9 @@ When deployed, the main stack uses conditions to create the appropriate nested s
 
 ```yaml
 Conditions:
-  IsPattern3: !Equals [!Ref IDPPattern, "Pattern1"]
+  IsPattern1: !Equals [!Ref IDPPattern, "Pattern1"]
   IsPattern2: !Equals [!Ref IDPPattern, "Pattern2"]
-  etc.
+  IsPattern3: !Equals [!Ref IDPPattern, "Pattern3"]
 
 Resources:
   PATTERN1STACK:
@@ -533,7 +539,7 @@ EvaluationAutoEnabled:
   
 EvaluationModelId:
   Default: "us.amazon.nova-pro-v1:0"
-  Description: Model to use for evaluation reports
+  Description: Model to use for evaluation reports (e.g., "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
 ```
 
 ### Viewing Reports
@@ -695,6 +701,42 @@ All include average, p90, and maximum values
 
 ## Configuration / Customization
 
+### Pattern Configuration via Web UI
+
+The Web UI includes a dedicated Configuration page that allows you to view and modify the pattern configuration without redeploying the stack:
+
+1. **Accessing the Configuration Page**:
+   - Log in to the Web UI
+   - Navigate to the "Configuration" tab in the main navigation
+   - The current pattern's configuration is displayed in a structured form
+
+2. **Viewing Configuration**:
+   - The configuration is organized into sections: Notes, Classes, Classification, Extraction, and Pricing
+   - Each section can be expanded/collapsed for easier navigation
+   - The current settings are shown with their values and descriptions
+
+3. **Editing Configuration**:
+   - Click the "Edit" button to make changes
+   - Modify prompts, attributes, model parameters, and other settings
+   - Changes are validated in real-time to ensure they're properly formatted
+   - Click "Save" to apply changes, which take effect immediately for new document processing
+
+4. **Configuration Structure**:
+   - **Notes**: General information about the configuration
+   - **Classes**: Document types and their attributes for extraction
+   - **Classification**: Settings for document classification, including:
+     - Model selection
+     - Classification method (page-level or holistic)
+     - Temperature and other sampling parameters
+     - System and task prompts
+   - **Extraction**: Settings for field extraction, including:
+     - Model selection
+     - Temperature and other sampling parameters
+     - System and task prompts
+   - **Pricing**: Cost estimation settings for different services
+
+The configuration changes are stored in DynamoDB and applied to all new document processing jobs without requiring stack redeployment. This allows for rapid experimentation with different prompt strategies, document class definitions, and model parameters.
+
 ### Stack Parameters
 ```bash
 # Main Stack Parameters
@@ -709,6 +751,7 @@ Pattern1BDAProjectArn=''           # Bedrock Data Automation (BDA) project ARN
 
 # Pattern 2 Parameters (when selected) 
 Pattern2ClassificationModel='nova-pro...'           # Model for classification
+Pattern2ClassificationMethod='multimodalPageLevelClassification'  # Classification method (or 'textbasedHolisticClassification')
 Pattern2ExtractionModel='claude-3-sonnet...'        # Model for extraction
 
 # Pattern 3 Parameters (when selected)
@@ -723,11 +766,12 @@ Each pattern has its own set of parameters that are only required when that patt
 
 Consider requesting raised quotas for the following services, to avoid throttling errors:
 - Amazon Textract -> DetectDocumentText throttle limit in transactions per second 
-- Amazon Bedrock -> On-demand InvokeModel tokens per minute  
-- Amazon Bedrock -> On-demand InvokeModel requests per minute
-- Amazon Bedrock Data Automation -> Concurrent jobs (when using Pattern 3)
+- Amazon Bedrock -> On-demand InvokeModel tokens per minute (for Claude, Nova, etc. models)
+- Amazon Bedrock -> On-demand InvokeModel requests per minute 
+- Amazon Bedrock Data Automation -> Concurrent jobs (when using Pattern 1)
+- Amazon SageMaker -> Endpoint invocations per minute (when using Pattern 3)
 - AWS Lambda -> Concurrent executions
-- Amazon CloudWatch - Rate of PutMetricData requests
+- Amazon CloudWatch -> Rate of PutMetricData requests
 
 Use the CloudWatch Dashboard to check errors reported by Lambda functions during scale testing, to check for these, or other, service quota limit exceptions.
 
@@ -804,13 +848,68 @@ ShouldUseDocumentKnowledgeBase:
 DocumentKnowledgeBaseModel:
   Type: String
   Default: "us.amazon.nova-pro-v1:0"
-  Description: Bedrock model to use for knowledge base queries
+  Description: Bedrock model to use for knowledge base queries (e.g., "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
 ```
 
 When the feature is enabled, the solution:
 - Creates necessary OpenSearch resources for document indexing
 - Configures API endpoints for querying the knowledge base
 - Adds the query interface to the Web UI
+
+## Customizing Extraction
+
+You can customize the extraction capabilities of the solution to better handle specific document types and extract the information that matters most to your use case.
+
+### Extraction Prompts
+
+The extraction prompts control how the AI model interprets and extracts information from documents:
+
+1. **System Prompt**:
+   - Sets the overall behavior and context for the extraction model
+   - Defines the role and constraints for the model
+   - Provides general instructions for output formatting
+
+2. **Task Prompt**:
+   - Contains specific instructions for the extraction task
+   - Includes placeholders for dynamic content:
+     - `{DOCUMENT_CLASS}`: The detected document class
+     - `{ATTRIBUTE_NAMES_AND_DESCRIPTIONS}`: The attributes to extract
+     - `{DOCUMENT_TEXT}`: The OCR text from the document
+   - Can be customized to handle specific document formats or special cases
+
+To customize the extraction prompts:
+1. Navigate to the Configuration page in the Web UI
+2. Expand the "Extraction" section
+3. Click "Edit" and modify the prompts as needed
+4. Click "Save" to apply your changes
+
+### Extraction Attributes
+
+Attributes define what information to extract from each document class:
+
+1. **Document Classes**:
+   - Each document type (letter, invoice, form, etc.) has its own class definition
+   - Classes have names and descriptions that help the AI model identify them
+
+2. **Attributes**:
+   - Each class has a set of attributes to extract (e.g., invoice_number, sender_name)
+   - Attributes include detailed descriptions explaining where and how to find the information
+   - Descriptions can mention common labels, formats, and locations
+
+To customize extraction attributes:
+1. Navigate to the Configuration page in the Web UI
+2. Expand the "Classes" section
+3. Click "Edit" to:
+   - Add new document classes
+   - Modify existing classes
+   - Add or remove attributes
+   - Update attribute descriptions
+4. Click "Save" to apply your changes
+
+Testing attribute changes:
+1. Process a sample document through the workflow
+2. Check the extraction results in the Document Details page
+3. Iterate on your attribute definitions for better results
 
 ## Performance Considerations
 
