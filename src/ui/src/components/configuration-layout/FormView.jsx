@@ -336,6 +336,8 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
   const [activeAddModal, setActiveAddModal] = useState(null); // Path of the list currently showing add modal
   const [newItemName, setNewItemName] = useState('');
   const [nameError, setNameError] = useState('');
+  // For handling dropdown selection in modal
+  const [showNameAsDropdown, setShowNameAsDropdown] = useState(false);
 
   // Component-level function to add a new item with a name
   const addNewItem = (path, name) => {
@@ -817,6 +819,16 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                 setActiveAddModal(path);
                 setNewItemName('');
                 setNameError('');
+
+                // Check if name field has enum property for dropdown
+                const propertyDefinition = getPropertyFromPath(path);
+                const hasEnumForName = propertyDefinition?.items?.properties?.name?.enum !== undefined;
+                setShowNameAsDropdown(hasEnumForName);
+
+                // If it's a dropdown with enum values, set the default value to the first option
+                if (hasEnumForName && propertyDefinition.items.properties.name.enum.length > 0) {
+                  setNewItemName(propertyDefinition.items.properties.name.enum[0]);
+                }
               }}
             >
               Add {itemLabel}
@@ -1051,19 +1063,50 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
           </Box>
         }
       >
-        <FormField label="Name" description="Enter a unique name for this item" errorText={nameError}>
-          <Input
-            value={newItemName}
-            onChange={({ detail }) => {
-              setNewItemName(detail.value);
-              if (detail.value.trim()) {
-                setNameError('');
-              }
-            }}
-            placeholder="Enter name"
-            autoFocus
-          />
-        </FormField>
+        {activeAddModal && (
+          <FormField
+            label="Name"
+            description={
+              getPropertyFromPath(activeAddModal)?.items?.properties?.name?.description ||
+              'Enter a unique name for this item'
+            }
+            errorText={nameError}
+          >
+            {showNameAsDropdown ? (
+              // Dropdown select for enum values
+              <Select
+                selectedOption={{
+                  value: newItemName || '',
+                  label: newItemName || '',
+                }}
+                onChange={({ detail }) => {
+                  setNewItemName(detail.selectedOption.value);
+                  setNameError('');
+                }}
+                options={
+                  getPropertyFromPath(activeAddModal)?.items?.properties?.name?.enum?.map((opt) => ({
+                    value: opt,
+                    label: opt,
+                  })) || []
+                }
+                autoFocus
+              />
+            ) : (
+              // Text input for regular string values
+              <Input
+                value={newItemName}
+                onChange={({ detail }) => {
+                  setNewItemName(detail.value);
+                  if (detail.value.trim()) {
+                    setNameError('');
+                  }
+                }}
+                placeholder="Enter name"
+                autoFocus
+              />
+            )}
+          </FormField>
+        )}
       </Modal>
     </Box>
   );

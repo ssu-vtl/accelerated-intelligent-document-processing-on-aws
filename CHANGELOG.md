@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.18]
+- Improved error handling in service classes
+- Support for enum config schema and corresponding picklist in UI. Used for Textract feature selection.
+- Removed LLM model choices preserving only multi-modal modals that support multiple image attachments
+- Added support for textbased holistic packet classification in Pattern 2
+- New holistic classification method in ClassifierService for multi-document packet processing
+- Added new example notebook "e2e-holistic-packet-classification.ipynb" demonstrating the holistic classification approach
+- Updated Pattern 2 template with parameter for ClassificationMethod selection (multimodalPageLevelClassification or textbasedHolisticClassification)
+- Enhanced documentation and READMEs with information about classification methods
+- Reorganized main README.md structure for improved navigation and readability
 
 ## [0.2.17]
 
