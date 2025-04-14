@@ -29,6 +29,13 @@ Parameters:
     Type: String
     Default: 'us.amazon.nova-pro-v1:0'
 
+  ClassificationMethod:
+    Type: String
+    Default: 'multimodalPageLevelClassification'
+    AllowedValues:
+      - 'multimodalPageLevelClassification'
+      - 'textbasedHolisticClassification'
+
   ExtractionModel:
     Type: String
     Default: 'us.amazon.nova-pro-v1:0'
@@ -46,6 +53,9 @@ Parameters:
 
   ConfigurationTable:
     Type: String
+
+Conditions:
+  IsMultimodalPageLevelClassification: !Equals [!Ref ClassificationMethod, 'multimodalPageLevelClassification']
 
 
 Resources:
@@ -86,7 +96,8 @@ Resources:
                     properties:
                       name:
                         type: string
-                        description: "Feature - allowed values: TABLES, FORMS, SIGNATURES, LAYOUT"
+                        description: "Feature - select one of the supported OCR feature types"
+                        enum: ["TABLES", "FORMS", "SIGNATURES", "LAYOUT"]
           classes:
             order: 2
             type: array
@@ -137,6 +148,11 @@ Resources:
               model:
                 type: string
                 description: Model identifier
+              classificationMethod:
+                type: string
+                description: "Classification methodology to use"
+                enum: ["multimodalPageLevelClassification", "textbasedHolisticClassification"]
+                default: !Ref ClassificationMethod
               temperature:
                 type: number
                 minimum: 0
@@ -508,28 +524,79 @@ Resources:
                 description: Additional notes or remarks about the document. Look for sections labeled 'notes', 'remarks', or 'comments'.
         classification:
           model: !Ref ClassificationModel
+          classificationMethod: !Ref ClassificationMethod
           temperature: 0
           top_k: 200
-          system_prompt: |
-            You are a document classification system that analyzes business documents, forms, and publications. Your sole task is to classify documents into categories based on their visual layout and textual content. You must:
+          system_prompt: !If 
+            - IsMultimodalPageLevelClassification
+            - |
+              You are a document classification system that analyzes business documents, forms, and publications. Your sole task is to classify documents into categories based on their visual layout and textual content. You must:
 
-            1. Output only a JSON object containing a single "class" field with the classification label
-            2. Use exactly one of the predefined categories, using the exact spelling and case provided
-            3. Never include explanations, reasoning, or additional text in your response
-            4. Respond with nothing but the JSON containing the classification
+              1. Output only a JSON object containing a single "class" field with the classification label
+              2. Use exactly one of the predefined categories, using the exact spelling and case provided
+              3. Never include explanations, reasoning, or additional text in your response
+              4. Respond with nothing but the JSON containing the classification
 
-            Example correct response:
-            {"class": "letter"}
-          task_prompt: |
-            Classify this document into exactly one of these RVL-CDIP categories:
+              Example correct response:
+              {"class": "letter"}
+            - |
+              You are a document classification expert who can analyze and classify multiple documents and their page boundaries within a document package from various domains. Your task is to determine the document type based on its content and structure, using the provided document type definitions. Your output must be valid JSON according to the requested format.
+          task_prompt: !If 
+            - IsMultimodalPageLevelClassification
+            - |
+              Classify this document into exactly one of these categories:
 
-            {CLASS_NAMES_AND_DESCRIPTIONS}
+              {CLASS_NAMES_AND_DESCRIPTIONS}
 
-            Respond only with a JSON object containing the class label. For example: {{"class": "letter"}}
+              Respond only with a JSON object containing the class label. For example: {{"class": "letter"}}
 
-            <document_ocr_data>
-            {DOCUMENT_TEXT}
-            </document_ocr_data>
+              <document_ocr_data>
+              {DOCUMENT_TEXT}
+              </document_ocr_data>
+            - |
+              The <document-text> XML tags contains the text separated into pages from the document package. Each page will begin with a <page-number> XML tag indicating the one based page ordinal of the page text to follow.
+              <document-text>
+              {DOCUMENT_TEXT}
+              </document-text>
+
+              The <document-types> XML tags contain a markdown table of known doc types for detection.
+              <document-types>
+              {CLASS_NAMES_AND_DESCRIPTIONS}
+              </document-types>
+
+              <guidance>
+              Guidance for terminology found in the instructions.
+                  * ordinal_start_page: The one based beginning page of a document segment within the document package.
+                  * ordinal_end_page: The one based ending page of a document segment within the document package.
+                  * document_type: The document type code detected for a document segment.
+                  * Distinct documents of the same type may be adjacent to each other in the packet. Be sure to separate them into different document segments and don't combine them.
+              </guidance>
+
+              Follow these steps when classifying documents within the document package:
+              1. Examine the document package as a whole, and identify page ranges that are likely to belong to one of the <document-types>.
+              2. Match each page range with an identified document type.
+              3. Identify documents of the same type, that are not the same document but are adjacent to each other in the packet.
+              4. Separate unique documents of the same type adjacent to each other in the packet into distinct document segments. Important: Do not combine distinct documents of the same type into a single document segment.
+              5. For each identified document type, note the ordinal_start_page and ordinal_end_page.
+              6. Compile the classified documents into a list with their respective ordinal_start_page and ordinal_end_page.
+
+              Return your response as valid JSON according to this format:
+              ```json
+              {
+                  "segments": [
+                                    {
+                                      "ordinal_start_page": 1,
+                                      "ordinal_end_page": 2,
+                                      "type": "the first type of document detected"
+                                    },
+                                    {
+                                      "ordinal_start_page": 3,
+                                      "ordinal_end_page": 4,
+                                      "type": "the second type of document detected"
+                                    }
+                                  ]
+              }
+              ```
         extraction:
           model: !Ref ExtractionModel
           temperature: 0
@@ -629,36 +696,18 @@ Resources:
                 price: 0.0000003
               - name: cacheWriteInputTokens
                 price: 0.00000375
-          - name: bedrock/us.meta.llama3-2-1b-instruct-v1:0
+          - name: bedrock/us.meta.llama3-2-11b-instruct-v1:0
             units:
               - name: inputTokens
-                price: 0.0000001
+                price: 0.00000016
               - name: outputTokens
-                price: 0.0000001
-          - name: bedrock/us.meta.llama3-2-3b-instruct-v1:0
-            units:
-              - name: inputTokens
-                price: 0.00000015
-              - name: outputTokens
-                price: 0.00000015
+                price: 0.00000016
           - name: bedrock/us.meta.llama3-2-90b-instruct-v1:0
             units:
               - name: inputTokens
                 price: 0.00000072
               - name: outputTokens
                 price: 0.00000072
-          - name: bedrock/us.meta.llama3-3-70b-instruct-v1:0
-            units:
-              - name: inputTokens
-                price: 0.00000072
-              - name: outputTokens
-                price: 0.00000072
-          - name: bedrock/us.deepseek.r1-v1:0
-            units:
-              - name: inputTokens
-                price: 0.00000135
-              - name: outputTokens
-                price: 0.0000054
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 

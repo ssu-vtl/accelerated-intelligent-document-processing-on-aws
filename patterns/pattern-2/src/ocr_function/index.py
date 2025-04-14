@@ -9,7 +9,7 @@ import os
 import time
 
 from idp_common import get_config, ocr
-from idp_common.models import Document
+from idp_common.models import Document, Status
 
 # Configuration
 CONFIG = get_config()
@@ -44,6 +44,12 @@ def handler(event, context):
     
     # Process the document - the service will read the PDF content directly
     document = service.process_document(document)
+    
+    # Check if document processing failed
+    if document.status == Status.FAILED:
+        error_message = f"OCR processing failed for document {document.id}"
+        logger.error(error_message)
+        raise Exception(error_message)
     
     t1 = time.time()
     logger.info(f"Total OCR processing time: {t1-t0:.2f} seconds")

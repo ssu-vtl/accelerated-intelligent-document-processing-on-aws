@@ -2,7 +2,7 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: AWS GenAI IDP Accelerator - resources for IDP Pattern 1
+Description: AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)
 
 Parameters:
 
@@ -89,7 +89,8 @@ Resources:
                     properties:
                       name:
                         type: string
-                        description: "Feature - allowed values: TABLES, FORMS, SIGNATURES, LAYOUT"
+                        description: "Feature - select one of the supported OCR feature types"
+                        enum: ["TABLES", "FORMS", "SIGNATURES", "LAYOUT"]
           classes:
             order: 2
             type: array
@@ -581,36 +582,18 @@ Resources:
                 price: 0.0000003
               - name: cacheWriteInputTokens
                 price: 0.00000375
-          - name: bedrock/us.meta.llama3-2-1b-instruct-v1:0
+          - name: bedrock/us.meta.llama3-2-11b-instruct-v1:0
             units:
               - name: inputTokens
-                price: 0.0000001
+                price: 0.00000016
               - name: outputTokens
-                price: 0.0000001
-          - name: bedrock/us.meta.llama3-2-3b-instruct-v1:0
-            units:
-              - name: inputTokens
-                price: 0.00000015
-              - name: outputTokens
-                price: 0.00000015
+                price: 0.00000016
           - name: bedrock/us.meta.llama3-2-90b-instruct-v1:0
             units:
               - name: inputTokens
                 price: 0.00000072
               - name: outputTokens
                 price: 0.00000072
-          - name: bedrock/us.meta.llama3-3-70b-instruct-v1:0
-            units:
-              - name: inputTokens
-                price: 0.00000072
-              - name: outputTokens
-                price: 0.00000072
-          - name: bedrock/us.deepseek.r1-v1:0
-            units:
-              - name: inputTokens
-                price: 0.00000135
-              - name: outputTokens
-                price: 0.0000054
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
@@ -887,7 +870,7 @@ Resources:
   Dashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: !Sub "${AWS::StackName}-${AWS::Region}-Pattern1-Subset"
+      DashboardName: !Sub "${AWS::StackName}-${AWS::Region}-Pattern3-Subset"
       DashboardBody: !Sub |
         {
           "widgets": [
@@ -1272,10 +1255,10 @@ Outputs:
     Value: !Ref StateMachineLogGroup
 
   DashboardName:
-    Description: Name of the Pattern 1 CloudWatch Dashboard
+    Description: Name of the Pattern 3 (UDOP) CloudWatch Dashboard
     Value: !Ref Dashboard
 
   DashboardArn:
-    Description: ARN of the Pattern 1 CloudWatch Dashboard
+    Description: ARN of the Pattern 3 (UDOP) CloudWatch Dashboard
     Value: !Sub "arn:aws:cloudwatch::${AWS::AccountId}:dashboard/${Dashboard}"
 
