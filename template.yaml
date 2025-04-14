@@ -60,6 +60,14 @@ Parameters:
       - "Custom Fine Tuned Classification Model - NOT YET SUPPORTED"
     Description: Model to use for Classification
 
+  Pattern2ClassificationMethod:
+    Type: String
+    Default: "multimodalPageLevelClassification"
+    AllowedValues:
+      - "multimodalPageLevelClassification"
+      - "textbasedHolisticClassification"
+    Description: Method to use for Classification.
+
   Pattern2ExtractionModel:
     Type: String
     Default: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
@@ -351,6 +359,7 @@ Metadata:
           default: "Pattern 2 Configuration"
         Parameters:
           - Pattern2ClassificationModel
+          - Pattern2ClassificationMethod
           - Pattern2ExtractionModel
           - Pattern2CustomClassificationModelARN
           - Pattern2CustomExtractionModelARN
@@ -398,6 +407,8 @@ Metadata:
         default: "Pattern1 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN"
       Pattern2ClassificationModel:
         default: "Pattern2 - Classification Model"
+      Pattern2ClassificationMethod:
+        default: "Pattern2 - Classification Method"
       Pattern2ExtractionModel:
         default: "Pattern2 - Extraction Model"
       Pattern2CustomClassificationModelARN:
@@ -568,6 +579,7 @@ Resources:
         LogRetentionDays: !Ref LogRetentionDays
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
         ClassificationModel: !Ref Pattern2ClassificationModel
+        ClassificationMethod: !Ref Pattern2ClassificationMethod
         ExtractionModel: !Ref Pattern2ExtractionModel
         CustomClassificationModelARN: !Ref Pattern2CustomClassificationModelARN
         CustomExtractionModelARN: !Ref Pattern2CustomExtractionModelARN
