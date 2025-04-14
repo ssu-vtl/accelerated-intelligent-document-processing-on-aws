@@ -2,7 +2,7 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: AWS GenAI IDP Accelerator - resources for IDP Pattern 1
+Description: AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)
 
 Parameters:
 
@@ -870,7 +870,7 @@ Resources:
   Dashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
-      DashboardName: !Sub "${AWS::StackName}-${AWS::Region}-Pattern1-Subset"
+      DashboardName: !Sub "${AWS::StackName}-${AWS::Region}-Pattern3-Subset"
       DashboardBody: !Sub |
         {
           "widgets": [
@@ -1255,10 +1255,10 @@ Outputs:
     Value: !Ref StateMachineLogGroup
 
   DashboardName:
-    Description: Name of the Pattern 1 CloudWatch Dashboard
+    Description: Name of the Pattern 3 (UDOP) CloudWatch Dashboard
     Value: !Ref Dashboard
 
   DashboardArn:
-    Description: ARN of the Pattern 1 CloudWatch Dashboard
+    Description: ARN of the Pattern 3 (UDOP) CloudWatch Dashboard
     Value: !Sub "arn:aws:cloudwatch::${AWS::AccountId}:dashboard/${Dashboard}"
 
