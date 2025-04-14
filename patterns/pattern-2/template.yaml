@@ -138,6 +138,11 @@ Resources:
               model:
                 type: string
                 description: Model identifier
+              classificationMethod:
+                type: string
+                description: "Classification methodology to use"
+                enum: ["multimodalPageLevelClassification", "textbasedHolisticClassification"]
+                default: "multimodalPageLevelClassification"
               temperature:
                 type: number
                 minimum: 0
@@ -509,6 +514,7 @@ Resources:
                 description: Additional notes or remarks about the document. Look for sections labeled 'notes', 'remarks', or 'comments'.
         classification:
           model: !Ref ClassificationModel
+          classificationMethod: "multimodalPageLevelClassification"
           temperature: 0
           top_k: 200
           system_prompt: |
@@ -522,7 +528,7 @@ Resources:
             Example correct response:
             {"class": "letter"}
           task_prompt: |
-            Classify this document into exactly one of these RVL-CDIP categories:
+            Classify this document into exactly one of these categories:
 
             {CLASS_NAMES_AND_DESCRIPTIONS}
 
