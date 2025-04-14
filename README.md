@@ -298,8 +298,8 @@ Navigate into the project root directory and, in a bash shell, run:
     - checks your system dependencies for required packages (see Dependencies above)
     - creates CloudFormation templates and asset zip files
     - publishes the templates and required assets to an S3 bucket in your account called `<cfn_bucket_basename>-<region>` (it creates the bucket if it doesn't already exist)
-    - optionally add a final parameter `public` if you want to make the templates public. Note: your bucket and account must be configured not to Block Public Access using new ACLs.
     - e.g. `./publish.sh idp-1234567890 idp us-east-1`
+    - optionally add a final parameter `public` if you want to make the published artifacts publicly accessible (e.g. `./publish.sh idp-1234567890 idp us-east-1 public`). Note: your bucket and account must be configured not to Block Public Access using new ACLs.
 
 > * If the process throws an error `Docker daemon is not running` but Docker Desktop or similar is running, it may be necessary to examine the current docker context with the command `docker context ls`. 
 > * In order to set the Docker context daemon, the `docker context use` command can be issued. e.g. `docker context use desktop-linux` if the desktop-linux context should be used.
@@ -713,11 +713,13 @@ Cost estimates are derived from the pricing configuration in the system settings
 
 ## Customizing Extraction
 
-You can customize the extraction capabilities of the solution to better handle specific document types and extract the information that matters most to your use case.
+You can customize the extraction capabilities of the solution to better handle specific document types and extract the information that matters most to your use case. The configuration approach depends on which pattern you're using:
+
+> **Note for Pattern 1 (BDA)**: For Pattern 1, extraction is configured within the Bedrock Data Automation (BDA) project using BDA Blueprints. The extraction configuration described below applies only to Pattern 2 and Pattern 3, which use direct LLM-based extraction.
 
 ### Extraction Prompts
 
-The extraction prompts control how the AI model interprets and extracts information from documents:
+The extraction prompts control how the AI model interprets and extracts information from documents (Pattern 2 and Pattern 3 only):
 
 1. **System Prompt**:
    - Sets the overall behavior and context for the extraction model
@@ -740,7 +742,7 @@ To customize the extraction prompts:
 
 ### Extraction Attributes
 
-Attributes define what information to extract from each document class:
+Attributes define what information to extract from each document class (Pattern 2 and Pattern 3 only):
 
 1. **Document Classes**:
    - Each document type (letter, invoice, form, etc.) has its own class definition
