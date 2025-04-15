@@ -402,7 +402,7 @@ Metadata:
       AllowedSignUpEmailDomain:
         default: "Allowed Sign Up Email Domain"
       IDPPattern:
-        default: "Prefdefined Document Processing Pattern"
+        default: "Document Processing Pattern"
       Pattern1BDAProjectArn:
         default: "Pattern1 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN"
       Pattern2ClassificationModel:
