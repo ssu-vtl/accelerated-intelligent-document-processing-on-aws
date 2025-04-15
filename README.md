@@ -930,3 +930,12 @@ Increase maximum concurrency to maximize throughput for time sensitive workloads
   
 `compare_json_files.py [-h] [--output-dir OUTPUT_DIR] [--debug] bucket folder1 folder2:` _Handy tool to compare JSON files in different folders. Use it to assess, for example, the effects of using different models or prompts for extraction. Includes an AI summary of the key differences in the outputs._ 
 
+## Git Submodule
+> This repository contains a Git submodule in the `lib/GenAIDP` location. 
+More information on Git submodules can be found [HERE](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
+To initialize and update the submodule, use the following commands when cloning the repository:
+``` bash
+git submodule init
+git submodule update
+```
+
