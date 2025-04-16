@@ -16,6 +16,7 @@ class EvaluationMethod(Enum):
     BERT = "BERT"                 # Semantic similarity comparison using BERT
     HUNGARIAN = "HUNGARIAN"       # Bipartite matching for lists of values
     FUZZY = "FUZZY"               # Fuzzy string matching
+    LLM = "LLM"                   # LLM-based comparison using Bedrock models
 
 
 @dataclass
@@ -249,6 +250,7 @@ class DocumentEvaluationResult:
         sections.append("3. **FUZZY** - Fuzzy string matching using string similarity metrics (with optional evaluation_threshold)")
         sections.append("4. **BERT** - Semantic similarity comparison using BERT embeddings (with evaluation_threshold)")
         sections.append("5. **HUNGARIAN** - Bipartite matching algorithm for lists of values")
+        sections.append("6. **LLM** - Advanced semantic evaluation using Bedrock large language models")
         sections.append("")
         sections.append("Each attribute is configured with a specific evaluation method based on the data type and comparison needs.")
         

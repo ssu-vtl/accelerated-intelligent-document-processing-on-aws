@@ -12,7 +12,7 @@ import os
 from typing import Dict, List, Any, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
-from idp_common import s3, utils
+from idp_common import s3, utils, bedrock
 from idp_common.models import Document, Section, Status
 from idp_common.evaluation.models import (
     EvaluationMethod,
@@ -44,7 +44,42 @@ class EvaluationService:
         """
         self.config = config or {}
         self.region = region or self.config.get("region") or os.environ.get("AWS_REGION")
-        logger.info("Initialized evaluation service")
+        
+        # Set default LLM evaluation settings
+        self.llm_config = self.config.get("evaluation", {}).get("llm_method", {})
+        self.default_model = self.llm_config.get("model", "anthropic.claude-3-sonnet-20240229-v1:0")
+        self.default_temperature = self.llm_config.get("temperature", 0.0)
+        self.default_top_k = self.llm_config.get("top_k", 250)
+        self.default_system_prompt = self.llm_config.get("system_prompt", 
+            """You are an evaluator that helps determine if the predicted and expected values match.
+            Some examples of fields that can be in different formats are dates, addresses, and monetary amounts.
+            When comparing values, consider both semantic meaning and normalized formats.
+            
+            Respond with one of these categories:
+            TRUE POSITIVE: The fields have the same meaning, even if formats differ (e.g., 2023-05-15 and 2023/05/15).
+            FALSE POSITIVE: The expected field is None and the predicted field is populated, or the fields have different meanings.
+            TRUE NEGATIVE: Both the expected field and predicted field are None or empty.
+            FALSE NEGATIVE: The expected field is populated, but the predicted field is None or empty.
+            
+            Provide only the category (TRUE POSITIVE, FALSE POSITIVE, TRUE NEGATIVE, or FALSE NEGATIVE) and nothing else.
+            """)
+        
+        self.default_task_prompt = self.llm_config.get("task_prompt", 
+            """I need to evaluate attribute extraction for a document of class: {DOCUMENT_CLASS}
+            
+            Attribute: {ATTRIBUTE_NAME_AND_DESCRIPTION}
+            
+            Expected value:
+            {EXPECTED_VALUE}
+            
+            Predicted value:
+            {PREDICTED_VALUE}
+            
+            Does the predicted value match the expected value? Consider both the exact and semantic meaning.
+            Respond with only one of: TRUE POSITIVE, FALSE POSITIVE, TRUE NEGATIVE, or FALSE NEGATIVE.
+            """)
+            
+        logger.info("Initialized evaluation service with LLM configuration")
     
     def _get_attributes_for_class(self, class_name: str) -> List[EvaluationAttribute]:
         """
@@ -61,7 +96,7 @@ class EvaluationService:
             if class_config.get("name", "").lower() == class_name.lower():
                 attributes = []
                 for attr_config in class_config.get("attributes", []):
-                    eval_method = EvaluationMethod.EXACT  # Default method
+                    eval_method = EvaluationMethod.LLM  # Default method
                     threshold = 0.8  # Default evaluation threshold
                     
                     # Get evaluation method if specified in config
@@ -107,6 +142,129 @@ class EvaluationService:
         except Exception as e:
             logger.error(f"Error loading extraction results from {uri}: {str(e)}")
             return {}
+            
+    def _evaluate_with_llm(
+        self,
+        document_class: str,
+        attr_name: str,
+        attr_description: str,
+        expected: Any,
+        actual: Any
+    ) -> Tuple[bool, float]:
+        """
+        Evaluate attribute using LLM.
+        
+        Args:
+            document_class: Document class name
+            attr_name: Attribute name
+            attr_description: Attribute description
+            expected: Expected value
+            actual: Actual value
+            
+        Returns:
+            Tuple of (matched, score)
+        """
+        try:
+            # Format attribute description
+            attr_name_and_description = f"{attr_name}" 
+            if attr_description:
+                attr_name_and_description += f" - {attr_description}"
+            
+            logger.debug(f"LLM evaluation starting for attribute: {attr_name}")
+            logger.debug(f"Document class: {document_class}")
+            logger.debug(f"Attribute description: {attr_description}")
+                
+            # Handle None values
+            expected_str = str(expected) if expected is not None else "None"
+            actual_str = str(actual) if actual is not None else "None"
+            
+            logger.debug(f"Expected value: {expected_str}")
+            logger.debug(f"Actual value: {actual_str}")
+            
+            # Check if we're using the updated task prompt format or the older one
+            task_placeholders = {
+                "DOCUMENT_CLASS": document_class,
+                "ATTRIBUTE_NAME": attr_name,
+                "ATTRIBUTE_DESCRIPTION": attr_description,
+                "EXPECTED_VALUE": expected_str,
+                "ACTUAL_VALUE": actual_str,
+                # Also support the old format
+                "ATTRIBUTE_NAME_AND_DESCRIPTION": attr_name_and_description,
+                "PREDICTED_VALUE": actual_str
+            }
+            
+            # Format task prompt with placeholders
+            try:
+                logger.debug(f"Raw task prompt template: {self.default_task_prompt}")
+                # Try to identify which placeholders are used in the prompt
+                placeholders_used = []
+                for placeholder in task_placeholders.keys():
+                    if "{" + placeholder + "}" in self.default_task_prompt:
+                        placeholders_used.append(placeholder)
+                
+                logger.debug(f"Placeholders found in prompt: {placeholders_used}")
+                
+                # Format the prompt with detected placeholders
+                task_prompt = self.default_task_prompt.format(**task_placeholders)
+                logger.debug(f"Formatted task prompt: {task_prompt}")
+            except KeyError as e:
+                logger.error(f"Task prompt formatting error - missing placeholder: {e}")
+                # Try with a simpler format as fallback
+                task_prompt = f"""Document class: {document_class}
+                Attribute: {attr_name} - {attr_description}
+                Expected: {expected_str}
+                Actual: {actual_str}
+                Do these values match?"""
+                logger.debug(f"Using fallback prompt: {task_prompt}")
+            except Exception as e:
+                logger.error(f"Task prompt formatting error: {str(e)}")
+                raise
+            
+            # Create content for LLM request
+            content = [{"text": task_prompt}]
+            
+            # Log system prompt for debugging
+            logger.debug(f"System prompt: {self.default_system_prompt}")
+            logger.debug(f"Model: {self.default_model}")
+            
+            # Call Bedrock model
+            logger.debug("Calling Bedrock model")
+            response = bedrock.invoke_model(
+                model_id=self.default_model,
+                system_prompt=self.default_system_prompt,
+                content=content,
+                temperature=self.default_temperature,
+                top_k=self.default_top_k
+            )
+            
+            # Extract response text
+            result_text = bedrock.extract_text_from_response(response).strip()
+            logger.debug(f"Raw LLM response: {result_text}")
+            
+            # Try to parse as JSON first (new format)
+            try:
+                result_json = json.loads(result_text)
+                logger.debug(f"Parsed JSON response: {result_json}")
+                
+                # Extract values from JSON
+                if isinstance(result_json, dict):
+                    match_value = result_json.get("match", False)
+                    score_value = result_json.get("score", 0.0)
+                    reason = result_json.get("reason", "No reason provided")
+                    
+                    logger.info(f"LLM evaluation for {attr_name}: match={match_value}, score={score_value}, reason={reason}")
+                    return bool(match_value), float(score_value)
+            except Exception as e:
+                logger.error(f"Error parsing LLM response: {str(e)}")
+                logger.error(f"Raw response was: {result_text}")
+                logger.error(f'Response from LLM must be JSON like: {"match": boolean, "score": score, "reason": reason"}')
+                matched, score = False, 0.0
+                return matched, score
+            
+        except Exception as e:
+            logger.error(f"Error in LLM evaluation for {attr_name}: {str(e)}", exc_info=True)
+            # Fall back to exact comparison on failure
+            return compare_values(expected, actual, EvaluationMethod.EXACT)
     
     def _count_classifications(
         self, 
@@ -145,7 +303,16 @@ class EvaluationService:
         
         # Case 3: Both values exist, compare them
         else:
-            matched, score = compare_values(expected, actual, evaluation_method, threshold)
+            if evaluation_method == EvaluationMethod.LLM:
+                matched, score = self._evaluate_with_llm(
+                    document_class="unknown",  # We don't have the class name at this point
+                    attr_name=attr_name,
+                    attr_description="",
+                    expected=expected,
+                    actual=actual
+                )
+            else:
+                matched, score = compare_values(expected, actual, evaluation_method, threshold)
             if matched:
                 tp = 1  # Correct prediction
             else:
@@ -203,12 +370,21 @@ class EvaluationService:
             # Create attribute result
             matched = attr_tp > 0
             # Get score from comparison
-            _, score = compare_values(
-                expected=expected_value,
-                actual=actual_value,
-                method=attr_config.evaluation_method,
-                threshold=attr_config.evaluation_threshold
-            )
+            if attr_config.evaluation_method == EvaluationMethod.LLM:
+                matched, score = self._evaluate_with_llm(
+                    document_class=class_name,
+                    attr_name=attr_name,
+                    attr_description=attr_config.description,
+                    expected=expected_value,
+                    actual=actual_value
+                )
+            else:
+                _, score = compare_values(
+                    expected=expected_value,
+                    actual=actual_value,
+                    method=attr_config.evaluation_method,
+                    threshold=attr_config.evaluation_threshold
+                )
             
             # Add evaluation method and evaluation threshold to the result
             attribute_results.append(AttributeEvaluationResult(

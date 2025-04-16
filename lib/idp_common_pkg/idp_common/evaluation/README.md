@@ -31,6 +31,15 @@ from idp_common import ocr, classification, extraction, evaluation
 
 # Get configuration (with evaluation methods specified)
 config = {
+    "evaluation": {
+        "llm_method": {
+            "model": "anthropic.claude-3-sonnet-20240229-v1:0",
+            "temperature": 0.0,
+            "top_k": 250,
+            "system_prompt": "You are an evaluator that helps determine if the predicted and expected values match...",
+            "task_prompt": "I need to evaluate attribute extraction for a document of class: {DOCUMENT_CLASS}..."
+        }
+    },
     "classes": [
         {
             "name": "invoice",
@@ -50,6 +59,11 @@ config = {
                     "description": "Name of the vendor",
                     "evaluation_method": "FUZZY",  # Use fuzzy matching
                     "evaluation_threshold": 0.8  # Minimum similarity threshold
+                },
+                {
+                    "name": "notes",
+                    "description": "Additional notes about the invoice",
+                    "evaluation_method": "LLM"  # Use LLM-based evaluation (default method)
                 }
             ]
         }
@@ -90,6 +104,7 @@ The service supports multiple evaluation methods that can be configured for each
 - `FUZZY`: Fuzzy string matching with configurable evaluation_threshold
 - `HUNGARIAN`: Optimal matching for lists of values using the Hungarian algorithm
 - `BERT`: Semantic similarity comparison using BERT embeddings
+- `LLM`: LLM-based evaluation using Bedrock models for semantically comparable values
 
 ## Output
 
