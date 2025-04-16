@@ -62,7 +62,7 @@ class EvaluationService:
                 attributes = []
                 for attr_config in class_config.get("attributes", []):
                     eval_method = EvaluationMethod.EXACT  # Default method
-                    threshold = 0.8  # Default threshold
+                    threshold = 0.8  # Default evaluation threshold
                     
                     # Get evaluation method if specified in config
                     method_str = attr_config.get("evaluation_method", "EXACT")
@@ -72,14 +72,14 @@ class EvaluationService:
                         logger.warning(f"Unknown evaluation method: {method_str}, using EXACT")
                     
                     # Get threshold if applicable
-                    if "threshold" in attr_config:
-                        threshold = float(attr_config["threshold"])
+                    if "evaluation_threshold" in attr_config:
+                        threshold = float(attr_config["evaluation_threshold"])
                     
                     attributes.append(EvaluationAttribute(
                         name=attr_config.get("name", ""),
                         description=attr_config.get("description", ""),
                         evaluation_method=eval_method,
-                        threshold=threshold
+                        evaluation_threshold=threshold
                     ))
                 return attributes
         
@@ -114,7 +114,7 @@ class EvaluationService:
         expected: Any, 
         actual: Any, 
         evaluation_method: EvaluationMethod,
-        threshold: float
+        threshold: float  # Will keep this as threshold for backward compatibility
     ) -> Tuple[int, int, int, int, int, int]:
         """
         Count true/false positives/negatives for an attribute.
@@ -124,7 +124,7 @@ class EvaluationService:
             expected: Expected value
             actual: Actual value
             evaluation_method: Method to use for comparison
-            threshold: Threshold for fuzzy methods
+            threshold: Evaluation threshold for fuzzy methods
             
         Returns:
             Tuple of (tn, fp, fn, tp, fp1, fp2)
@@ -189,7 +189,7 @@ class EvaluationService:
                 expected=expected_value,
                 actual=actual_value,
                 evaluation_method=attr_config.evaluation_method,
-                threshold=attr_config.threshold
+                threshold=attr_config.evaluation_threshold
             )
             
             # Update counters
@@ -207,10 +207,10 @@ class EvaluationService:
                 expected=expected_value,
                 actual=actual_value,
                 method=attr_config.evaluation_method,
-                threshold=attr_config.threshold
+                threshold=attr_config.evaluation_threshold
             )
             
-            # Add evaluation method and threshold to the result
+            # Add evaluation method and evaluation threshold to the result
             attribute_results.append(AttributeEvaluationResult(
                 name=attr_name,
                 expected=expected_value,
@@ -218,7 +218,7 @@ class EvaluationService:
                 matched=matched,
                 score=score,
                 evaluation_method=attr_config.evaluation_method.value,
-                threshold=attr_config.threshold if attr_config.evaluation_method in [EvaluationMethod.FUZZY, EvaluationMethod.BERT] else None
+                evaluation_threshold=attr_config.evaluation_threshold if attr_config.evaluation_method in [EvaluationMethod.FUZZY, EvaluationMethod.BERT] else None
             ))
         
         # Calculate metrics

@@ -24,7 +24,7 @@ class EvaluationAttribute:
     name: str
     description: str
     evaluation_method: EvaluationMethod = EvaluationMethod.EXACT
-    threshold: float = 0.0  # Used for BERT and FUZZY methods
+    evaluation_threshold: float = 0.0  # Used for BERT and FUZZY methods
 
 
 @dataclass
@@ -37,7 +37,7 @@ class AttributeEvaluationResult:
     score: float = 1.0  # Score between 0 and 1 for fuzzy matching methods
     error_details: Optional[str] = None
     evaluation_method: str = "EXACT"
-    threshold: Optional[float] = None
+    evaluation_threshold: Optional[float] = None
 
 
 @dataclass
@@ -83,7 +83,7 @@ class DocumentEvaluationResult:
                             "score": ar.score,
                             "error_details": ar.error_details,
                             "evaluation_method": ar.evaluation_method,
-                            "threshold": ar.threshold
+                            "evaluation_threshold": ar.evaluation_threshold
                         }
                         for ar in sr.attributes
                     ]
@@ -218,10 +218,10 @@ class DocumentEvaluationResult:
             for ar in sr.attributes:
                 expected = str(ar.expected).replace("\n", " ")[:50]
                 actual = str(ar.actual).replace("\n", " ")[:50]
-                # Format the method with threshold if applicable
+                # Format the method with evaluation_threshold if applicable
                 method_display = ar.evaluation_method
-                if ar.threshold is not None and ar.evaluation_method in ["FUZZY", "BERT"]:
-                    method_display = f"{ar.evaluation_method} (threshold: {ar.threshold})"
+                if ar.evaluation_threshold is not None and ar.evaluation_method in ["FUZZY", "BERT"]:
+                    method_display = f"{ar.evaluation_method} (evaluation_threshold: {ar.evaluation_threshold})"
                 
                 # Add color-coded status symbols (will render in markdown-compatible viewers)
                 if ar.matched:
@@ -246,8 +246,8 @@ class DocumentEvaluationResult:
         sections.append("")
         sections.append("1. **EXACT** - Exact string match after stripping punctuation and whitespace")
         sections.append("2. **NUMERIC_EXACT** - Exact numeric match after normalizing")
-        sections.append("3. **FUZZY** - Fuzzy string matching using string similarity metrics (with optional threshold)")
-        sections.append("4. **BERT** - Semantic similarity comparison using BERT embeddings (with threshold)")
+        sections.append("3. **FUZZY** - Fuzzy string matching using string similarity metrics (with optional evaluation_threshold)")
+        sections.append("4. **BERT** - Semantic similarity comparison using BERT embeddings (with evaluation_threshold)")
         sections.append("5. **HUNGARIAN** - Bipartite matching algorithm for lists of values")
         sections.append("")
         sections.append("Each attribute is configured with a specific evaluation method based on the data type and comparison needs.")

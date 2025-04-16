@@ -49,7 +49,7 @@ config = {
                     "name": "vendor_name",
                     "description": "Name of the vendor",
                     "evaluation_method": "FUZZY",  # Use fuzzy matching
-                    "threshold": 0.8  # Minimum similarity threshold
+                    "evaluation_threshold": 0.8  # Minimum similarity threshold
                 }
             ]
         }
@@ -87,7 +87,7 @@ The service supports multiple evaluation methods that can be configured for each
 
 - `EXACT`: Exact string match (after normalizing whitespace and punctuation)
 - `NUMERIC_EXACT`: Exact match for numeric values (after normalizing currency symbols)
-- `FUZZY`: Fuzzy string matching with configurable threshold
+- `FUZZY`: Fuzzy string matching with configurable evaluation_threshold
 - `HUNGARIAN`: Optimal matching for lists of values using the Hungarian algorithm
 - `BERT`: Semantic similarity comparison using BERT embeddings
 
