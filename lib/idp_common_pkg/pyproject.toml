@@ -47,11 +47,19 @@ extraction = [
     "Pillow>=11.1.0",  # For image handling
 ]
 
+# Evaluation module dependencies
+evaluation = [
+    "munkres>=1.1.4",  # For Hungarian algorithm
+    "numpy>=1.24.0",   # For numeric operations
+]
+
 # Full package with all dependencies
 all = [
     "Pillow>=11.1.0",
     "PyMuPDF>=1.25.5",
     "amazon-textract-textractor>=1.9.1",
+    "munkres>=1.1.4",
+    "numpy>=1.24.0",
 ]
 
 [project.urls]
