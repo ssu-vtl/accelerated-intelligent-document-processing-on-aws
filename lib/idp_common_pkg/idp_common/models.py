@@ -100,6 +100,7 @@ class Document:
     # Processing metadata
     metering: Dict[str, Any] = field(default_factory=dict)
     evaluation_report_uri: Optional[str] = None
+    evaluation_result: Any = None  # Holds the DocumentEvaluationResult object
     errors: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
@@ -118,7 +119,8 @@ class Document:
             "num_pages": self.num_pages,
             "evaluation_report_uri": self.evaluation_report_uri,
             "errors": self.errors,
-            "metering": self.metering
+            "metering": self.metering,
+            # We don't include evaluation_result in the dict since it's an object
         }
         
         # Convert pages

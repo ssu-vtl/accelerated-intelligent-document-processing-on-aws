@@ -13,7 +13,7 @@ from typing import Dict, List, Any, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
 from idp_common import s3, utils
-from idp_common.models import Document, Section
+from idp_common.models import Document, Section, Status
 from idp_common.evaluation.models import (
     EvaluationMethod,
     EvaluationAttribute,
@@ -202,12 +202,23 @@ class EvaluationService:
             
             # Create attribute result
             matched = attr_tp > 0
+            # Get score from comparison
+            _, score = compare_values(
+                expected=expected_value,
+                actual=actual_value,
+                method=attr_config.evaluation_method,
+                threshold=attr_config.threshold
+            )
+            
+            # Add evaluation method and threshold to the result
             attribute_results.append(AttributeEvaluationResult(
                 name=attr_name,
                 expected=expected_value,
                 actual=actual_value,
                 matched=matched,
-                score=1.0 if matched else 0.0
+                score=score,
+                evaluation_method=attr_config.evaluation_method.value,
+                threshold=attr_config.threshold if attr_config.evaluation_method in [EvaluationMethod.FUZZY, EvaluationMethod.BERT] else None
             ))
         
         # Calculate metrics
@@ -223,152 +234,140 @@ class EvaluationService:
     def evaluate_document(
         self, 
         actual_document: Document, 
-        expected_document: Document
-    ) -> DocumentEvaluationResult:
-        """
-        Evaluate extraction results for an entire document.
-        
-        Args:
-            actual_document: Document with actual extraction results
-            expected_document: Document with expected extraction results
-            
-        Returns:
-            Evaluation results for the document
-        """
-        start_time = time.time()
-        section_results = []
-        
-        # Track overall metrics
-        total_tp = total_fp = total_fn = total_tn = total_fp1 = total_fp2 = 0
-        
-        # Process each section in the actual document
-        for actual_section in actual_document.sections:
-            section_id = actual_section.section_id
-            
-            # Find corresponding section in expected document
-            expected_section = next(
-                (s for s in expected_document.sections if s.section_id == section_id),
-                None
-            )
-            
-            if not expected_section:
-                logger.warning(f"No matching section found for section_id: {section_id}")
-                continue
-            
-            # Load extraction results
-            actual_uri = actual_section.extraction_result_uri
-            expected_uri = expected_section.extraction_result_uri
-            
-            if not actual_uri or not expected_uri:
-                logger.warning(f"Missing extraction URI for section: {section_id}")
-                continue
-            
-            actual_results = self._load_extraction_results(actual_uri)
-            expected_results = self._load_extraction_results(expected_uri)
-            
-            # Evaluate section
-            section_result = self.evaluate_section(
-                section=actual_section,
-                expected_results=expected_results,
-                actual_results=actual_results
-            )
-            
-            # Update overall counters from section metrics
-            section_metrics = section_result.metrics
-            precision = section_metrics.get("precision", 0)
-            recall = section_metrics.get("recall", 0)
-            
-            # Estimate TP, FP, FN from precision and recall
-            # (These are approximations as we don't have the raw counts)
-            if precision > 0 and recall > 0:
-                # These formulas are derived from:
-                # precision = tp / (tp + fp)
-                # recall = tp / (tp + fn)
-                # We solve for tp, fp, fn
-                section_tp = 1
-                section_fp = section_tp * (1 - precision) / precision if precision > 0 else 0
-                section_fn = section_tp * (1 - recall) / recall if recall > 0 else 0
-                
-                total_tp += section_tp
-                total_fp += section_fp
-                total_fn += section_fn
-            
-            section_results.append(section_result)
-        
-        # Calculate overall metrics
-        overall_metrics = calculate_metrics(
-            tp=total_tp, 
-            fp=total_fp, 
-            fn=total_fn, 
-            tn=total_tn, 
-            fp1=total_fp1, 
-            fp2=total_fp2
-        )
-        
-        execution_time = time.time() - start_time
-        
-        # Create and return document evaluation result
-        return DocumentEvaluationResult(
-            document_id=actual_document.id,
-            section_results=section_results,
-            overall_metrics=overall_metrics,
-            execution_time=execution_time
-        )
-    
-    def evaluate_and_store(
-        self, 
-        actual_document: Document, 
-        expected_document: Document
+        expected_document: Document,
+        store_results: bool = True
     ) -> Document:
         """
-        Evaluate document and store results in S3.
+        Evaluate extraction results for an entire document and store results in S3.
         
         Args:
             actual_document: Document with actual extraction results
             expected_document: Document with expected extraction results
+            store_results: Whether to store results in S3 (default: True)
             
         Returns:
             Updated actual document with evaluation results
         """
         try:
-            # Perform evaluation
-            evaluation_result = self.evaluate_document(
-                actual_document=actual_document,
-                expected_document=expected_document
+            # Start timing
+            start_time = time.time()
+            section_results = []
+            
+            # Track overall metrics
+            total_tp = total_fp = total_fn = total_tn = total_fp1 = total_fp2 = 0
+            
+            # Process each section in the actual document
+            for actual_section in actual_document.sections:
+                section_id = actual_section.section_id
+                
+                # Find corresponding section in expected document
+                expected_section = next(
+                    (s for s in expected_document.sections if s.section_id == section_id),
+                    None
+                )
+                
+                if not expected_section:
+                    logger.warning(f"No matching section found for section_id: {section_id}")
+                    continue
+                
+                # Load extraction results
+                actual_uri = actual_section.extraction_result_uri
+                expected_uri = expected_section.extraction_result_uri
+                
+                if not actual_uri or not expected_uri:
+                    logger.warning(f"Missing extraction URI for section: {section_id}")
+                    continue
+                
+                actual_results = self._load_extraction_results(actual_uri)
+                expected_results = self._load_extraction_results(expected_uri)
+                
+                # Evaluate section
+                section_result = self.evaluate_section(
+                    section=actual_section,
+                    expected_results=expected_results,
+                    actual_results=actual_results
+                )
+                
+                # Update overall counters from section metrics
+                section_metrics = section_result.metrics
+                precision = section_metrics.get("precision", 0)
+                recall = section_metrics.get("recall", 0)
+                
+                # Estimate TP, FP, FN from precision and recall
+                # (These are approximations as we don't have the raw counts)
+                if precision > 0 and recall > 0:
+                    # These formulas are derived from:
+                    # precision = tp / (tp + fp)
+                    # recall = tp / (tp + fn)
+                    # We solve for tp, fp, fn
+                    section_tp = 1
+                    section_fp = section_tp * (1 - precision) / precision if precision > 0 else 0
+                    section_fn = section_tp * (1 - recall) / recall if recall > 0 else 0
+                    
+                    total_tp += section_tp
+                    total_fp += section_fp
+                    total_fn += section_fn
+                
+                section_results.append(section_result)
+            
+            # Calculate overall metrics
+            overall_metrics = calculate_metrics(
+                tp=total_tp, 
+                fp=total_fp, 
+                fn=total_fn, 
+                tn=total_tn, 
+                fp1=total_fp1, 
+                fp2=total_fp2
             )
             
-            # Generate output path
-            output_bucket = actual_document.output_bucket
-            output_key = f"{actual_document.input_key}/evaluation/results.json"
-            output_uri = f"s3://{output_bucket}/{output_key}"
+            execution_time = time.time() - start_time
             
-            # Store evaluation results in S3
-            result_dict = evaluation_result.to_dict()
-            s3.write_content(
-                content=result_dict,
-                bucket=output_bucket,
-                key=output_key,
-                content_type="application/json"
+            # Create evaluation result
+            evaluation_result = DocumentEvaluationResult(
+                document_id=actual_document.id,
+                section_results=section_results,
+                overall_metrics=overall_metrics,
+                execution_time=execution_time
             )
             
-            # Generate Markdown report
-            markdown_report = evaluation_result.to_markdown()
-            report_key = f"{actual_document.input_key}/evaluation/report.md"
-            s3.write_content(
-                content=markdown_report,
-                bucket=output_bucket,
-                key=report_key,
-                content_type="text/markdown"
-            )
+            # Store results if requested
+            if store_results:
+                # Generate output path
+                output_bucket = actual_document.output_bucket
+                output_key = f"{actual_document.input_key}/evaluation/results.json"
+                
+                # Store evaluation results in S3
+                result_dict = evaluation_result.to_dict()
+                s3.write_content(
+                    content=result_dict,
+                    bucket=output_bucket,
+                    key=output_key,
+                    content_type="application/json"
+                )
+                
+                # Generate Markdown report
+                markdown_report = evaluation_result.to_markdown()
+                report_key = f"{actual_document.input_key}/evaluation/report.md"
+                s3.write_content(
+                    content=markdown_report,
+                    bucket=output_bucket,
+                    key=report_key,
+                    content_type="text/markdown"
+                )
+                
+                # Update document with evaluation report URI
+                actual_document.evaluation_report_uri = f"s3://{output_bucket}/{report_key}"
+                actual_document.status = Status.EVALUATED
+                
+                logger.info(f"Evaluation complete for document {actual_document.id}")
             
-            # Update document with evaluation report URI
-            actual_document.evaluation_report_uri = f"s3://{output_bucket}/{report_key}"
-            actual_document.status = "EVALUATED"
+            # Attach evaluation result to document for immediate use
+            actual_document.evaluation_result = evaluation_result
             
-            logger.info(f"Evaluation complete for document {actual_document.id}")
             return actual_document
-            
+                
         except Exception as e:
             logger.error(f"Error evaluating document: {str(e)}")
             actual_document.errors.append(f"Evaluation error: {str(e)}")
             return actual_document
+    
