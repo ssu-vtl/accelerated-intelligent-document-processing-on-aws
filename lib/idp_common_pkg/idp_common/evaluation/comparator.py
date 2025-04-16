@@ -305,6 +305,12 @@ def compare_values(
         # For simplicity, we'll fall back to fuzzy matching
         return compare_fuzzy(expected, actual, threshold)
     
+    elif method == EvaluationMethod.LLM:
+        # This will be handled by the service class directly
+        # The service will use the Bedrock client and LLM configuration
+        # Here we'll just return a placeholder that will be overwritten
+        return False, 0.0
+    
     else:
         # Default to exact matching
         return compare_exact(expected, actual)
