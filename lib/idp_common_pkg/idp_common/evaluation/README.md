@@ -4,15 +4,23 @@ The Evaluation Service component provides functionality to evaluate document ext
 
 ## Features
 
-- Compares document extraction results with expected results
+- Compares document extraction results with expected (ground truth) results
 - Supports multiple evaluation methods:
-  - Exact match
-  - Numeric exact match
-  - Fuzzy string matching
-  - Hungarian algorithm for lists
-  - BERT semantic similarity (requires additional dependencies)
-- Calculates metrics including precision, recall, F1 score, accuracy
-- Generates comprehensive evaluation reports in both JSON and Markdown formats
+  - Exact match - Character-for-character comparison after normalizing whitespace and punctuation
+  - Numeric exact match - Value-based comparison after normalizing numeric formats
+  - Fuzzy string matching - Similarity-based matching with configurable thresholds
+  - Hungarian algorithm - Optimal matching for lists of values
+  - BERT semantic similarity - Meaning-based comparison (requires additional dependencies)
+- Calculates key metrics including:
+  - Precision, Recall, and F1 score
+  - Accuracy and Error rates
+  - False alarm rate and False discovery rate
+- Generates rich, visual evaluation reports with:
+  - Color-coded status indicators
+  - Performance ratings
+  - Progress bar visualizations
+  - Detailed attribute comparisons
+- Supports both JSON and Markdown report formats
 - Fully integrated with the Document model architecture
 
 ## Usage
@@ -51,14 +59,26 @@ config = {
 # Create evaluation service
 evaluation_service = evaluation.EvaluationService(config=config)
 
-# Evaluate documents
-result_document = evaluation_service.evaluate_and_store(
+# Evaluate documents (stores results in S3 by default)
+result_document = evaluation_service.evaluate_document(
     actual_document=processed_document,
     expected_document=expected_document
 )
 
 # Access evaluation report URI
 evaluation_report_uri = result_document.evaluation_report_uri
+
+# You can also access the evaluation result directly
+evaluation_result = result_document.evaluation_result
+overall_metrics = evaluation_result.overall_metrics
+section_results = evaluation_result.section_results
+
+# Or skip storage if needed (for quick memory-only evaluations)
+memory_only_document = evaluation_service.evaluate_document(
+    actual_document=processed_document,
+    expected_document=expected_document,
+    store_results=False
+)
 ```
 
 ## Evaluation Methods
@@ -86,7 +106,30 @@ The evaluation calculates the following metrics:
 - **Recall**: Coverage of actual positive cases (TP / (TP + FN))
 - **F1 Score**: Harmonic mean of precision and recall
 - **Accuracy**: Overall correctness (TP + TN) / (TP + TN + FP + FN)
-- **False Alarm Rate**: Rate of false positives among negatives
-- **False Discovery Rate**: Rate of false positives among positive predictions
+- **False Alarm Rate (FAR)**: Rate of false positives among negatives (FP / (FP + TN))
+  - Measures how often the system extracts information that wasn't present in the document
+- **False Discovery Rate (FDR)**: Rate of false positives among positive predictions (FP / (FP + TP))
+  - Measures what proportion of the extracted information is incorrect
 
-These metrics are calculated at both the attribute level and document level.
+These metrics are calculated at both the attribute level (per field), section level (per document class), and document level (overall performance).
+
+## Visual Reporting
+
+The evaluation module produces richly formatted Markdown reports with:
+
+1. **Summary Dashboard**:
+   - Overall match rate with visual progress bar
+   - Color-coded indicators for key metrics (🟢 Excellent, 🟡 Good, 🟠 Fair, 🔴 Poor)
+   - Fraction of matched attributes (e.g., 8/10 attributes matched)
+
+2. **Performance Tables**:
+   - Metrics tables with value ratings
+   - First-column status indicators (✅/❌) for immediate identification of matches
+   - Detailed attribution of evaluation methods used for each field
+
+3. **Method Explanations**:
+   - Clear documentation of evaluation methods
+   - Descriptions of scoring mechanisms
+   - Guidance on interpreting results
+
+The reports are designed to provide both at-a-glance performance assessment and detailed diagnostic information.

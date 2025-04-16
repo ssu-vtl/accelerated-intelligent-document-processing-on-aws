@@ -36,6 +36,8 @@ class AttributeEvaluationResult:
     matched: bool
     score: float = 1.0  # Score between 0 and 1 for fuzzy matching methods
     error_details: Optional[str] = None
+    evaluation_method: str = "EXACT"
+    threshold: Optional[float] = None
 
 
 @dataclass
@@ -79,7 +81,9 @@ class DocumentEvaluationResult:
                             "actual": ar.actual,
                             "matched": ar.matched,
                             "score": ar.score,
-                            "error_details": ar.error_details
+                            "error_details": ar.error_details,
+                            "evaluation_method": ar.evaluation_method,
+                            "threshold": ar.threshold
                         }
                         for ar in sr.attributes
                     ]
@@ -92,15 +96,83 @@ class DocumentEvaluationResult:
         """Convert evaluation results to markdown format."""
         sections = []
         
-        # Add document overview
+        # Add document overview with visual summary
         sections.append(f"# Document Evaluation: {self.document_id}")
         sections.append("")
         
-        # Add overall metrics
+        # Get overall stats for visual summary
+        total_attributes = 0
+        matched_attributes = 0
+        for sr in self.section_results:
+            for attr in sr.attributes:
+                total_attributes += 1
+                if attr.matched:
+                    matched_attributes += 1
+        
+        match_rate = matched_attributes / total_attributes if total_attributes > 0 else 0
+        precision = self.overall_metrics.get("precision", 0)
+        recall = self.overall_metrics.get("recall", 0)
+        f1_score = self.overall_metrics.get("f1_score", 0)
+        
+        # Create visual summary with emojis
+        sections.append("## Summary")
+        
+        # Match rate indicator
+        if match_rate >= 0.9:
+            match_indicator = "🟢"
+        elif match_rate >= 0.7:
+            match_indicator = "🟡"
+        elif match_rate >= 0.5:
+            match_indicator = "🟠"
+        else:
+            match_indicator = "🔴"
+        
+        # F1 score indicator
+        if f1_score >= 0.9:
+            f1_indicator = "🟢"
+        elif f1_score >= 0.7:
+            f1_indicator = "🟡"
+        elif f1_score >= 0.5:
+            f1_indicator = "🟠"
+        else:
+            f1_indicator = "🔴"
+        
+        # Create a visual progress bar for match rate
+        match_percent = int(match_rate * 100)
+        progress_bar = f"[{'█' * (match_percent // 5)}{'░' * (20 - match_percent // 5)}] {match_percent}%"
+        
+        sections.append(f"- **Match Rate**: {match_indicator} {matched_attributes}/{total_attributes} attributes matched {progress_bar}")
+        sections.append(f"- **Precision**: {precision:.2f} | **Recall**: {recall:.2f} | **F1 Score**: {f1_indicator} {f1_score:.2f}")
+        sections.append("")
+        
+        # Add overall metrics with enhanced formatting
         sections.append("## Overall Metrics")
-        metrics_table = "| Metric | Value |\n| ------ | ----- |\n"
+        metrics_table = "| Metric | Value | Rating |\n| ------ | :----: | :----: |\n"
         for metric, value in self.overall_metrics.items():
-            metrics_table += f"| {metric} | {value:.4f} |\n"
+            # Add a visual indicator based on metric value
+            if metric in ["precision", "recall", "f1_score", "accuracy"]:
+                if value >= 0.9:
+                    indicator = "🟢 Excellent"
+                elif value >= 0.7:
+                    indicator = "🟡 Good"
+                elif value >= 0.5:
+                    indicator = "🟠 Fair"
+                else:
+                    indicator = "🔴 Poor"
+            elif metric in ["false_alarm_rate", "false_discovery_rate"]:
+                # For error metrics, lower is better
+                if value <= 0.1:
+                    indicator = "🟢 Excellent"
+                elif value <= 0.3:
+                    indicator = "🟡 Good"
+                elif value <= 0.5:
+                    indicator = "🟠 Fair"
+                else:
+                    indicator = "🔴 Poor"
+            else:
+                indicator = ""  # No rating for other metrics
+                
+            metrics_table += f"| {metric} | {value:.4f} | {indicator} |\n"
         sections.append(metrics_table)
         sections.append("")
         
@@ -108,26 +180,76 @@ class DocumentEvaluationResult:
         for sr in self.section_results:
             sections.append(f"## Section: {sr.section_id} ({sr.document_class})")
             
-            # Section metrics
+            # Section metrics with enhanced formatting
             sections.append("### Metrics")
-            metrics_table = "| Metric | Value |\n| ------ | ----- |\n"
+            metrics_table = "| Metric | Value | Rating |\n| ------ | :----: | :----: |\n"
             for metric, value in sr.metrics.items():
-                metrics_table += f"| {metric} | {value:.4f} |\n"
+                # Add a visual indicator based on metric value
+                if metric in ["precision", "recall", "f1_score", "accuracy"]:
+                    if value >= 0.9:
+                        indicator = "🟢 Excellent"
+                    elif value >= 0.7:
+                        indicator = "🟡 Good"
+                    elif value >= 0.5:
+                        indicator = "🟠 Fair"
+                    else:
+                        indicator = "🔴 Poor"
+                elif metric in ["false_alarm_rate", "false_discovery_rate"]:
+                    # For error metrics, lower is better
+                    if value <= 0.1:
+                        indicator = "🟢 Excellent"
+                    elif value <= 0.3:
+                        indicator = "🟡 Good"
+                    elif value <= 0.5:
+                        indicator = "🟠 Fair"
+                    else:
+                        indicator = "🔴 Poor"
+                else:
+                    indicator = ""  # No rating for other metrics
+                    
+                metrics_table += f"| {metric} | {value:.4f} | {indicator} |\n"
             sections.append(metrics_table)
             sections.append("")
             
             # Attribute results
             sections.append("### Attributes")
-            attr_table = "| Attribute | Expected | Actual | Matched | Score |\n"
-            attr_table += "| --------- | -------- | ------ | ------- | ----- |\n"
+            attr_table = "| Status | Attribute | Expected | Actual | Score | Method |\n"
+            attr_table += "| :----: | --------- | -------- | ------ | ----- | ------ |\n"
             for ar in sr.attributes:
                 expected = str(ar.expected).replace("\n", " ")[:50]
                 actual = str(ar.actual).replace("\n", " ")[:50]
-                attr_table += f"| {ar.name} | {expected} | {actual} | {ar.matched} | {ar.score:.2f} |\n"
+                # Format the method with threshold if applicable
+                method_display = ar.evaluation_method
+                if ar.threshold is not None and ar.evaluation_method in ["FUZZY", "BERT"]:
+                    method_display = f"{ar.evaluation_method} (threshold: {ar.threshold})"
+                
+                # Add color-coded status symbols (will render in markdown-compatible viewers)
+                if ar.matched:
+                    # Green checkmark for matched
+                    status_symbol = "✅"
+                else:
+                    # Red X for not matched
+                    status_symbol = "❌"
+                
+                attr_table += f"| {status_symbol} | {ar.name} | {expected} | {actual} | {ar.score:.2f} | {method_display} |\n"
             sections.append(attr_table)
             sections.append("")
         
         # Add execution time
         sections.append(f"Execution time: {self.execution_time:.2f} seconds")
+        
+        # Add evaluation methods explanation
+        sections.append("")
+        sections.append("## Evaluation Methods Used")
+        sections.append("")
+        sections.append("This evaluation used the following methods to compare expected and actual values:")
+        sections.append("")
+        sections.append("1. **EXACT** - Exact string match after stripping punctuation and whitespace")
+        sections.append("2. **NUMERIC_EXACT** - Exact numeric match after normalizing")
+        sections.append("3. **FUZZY** - Fuzzy string matching using string similarity metrics (with optional threshold)")
+        sections.append("4. **BERT** - Semantic similarity comparison using BERT embeddings (with threshold)")
+        sections.append("5. **HUNGARIAN** - Bipartite matching algorithm for lists of values")
+        sections.append("")
+        sections.append("Each attribute is configured with a specific evaluation method based on the data type and comparison needs.")
         
         return "\n".join(sections)
