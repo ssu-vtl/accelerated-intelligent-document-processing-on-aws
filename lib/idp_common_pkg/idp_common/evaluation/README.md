@@ -63,7 +63,7 @@ config = {
                 {
                     "name": "notes",
                     "description": "Additional notes about the invoice",
-                    "evaluation_method": "LLM"  # Use LLM-based evaluation (default method)
+                    "evaluation_method": "LLM"  # Use LLM-based evaluation (default method, also used when evaluation_method is missing)
                 }
             ]
         }

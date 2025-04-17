@@ -90,11 +90,11 @@ Respond ONLY with the JSON and nothing else.
                     threshold = 0.8  # Default evaluation threshold
                     
                     # Get evaluation method if specified in config
-                    method_str = attr_config.get("evaluation_method", "EXACT")
+                    method_str = attr_config.get("evaluation_method", "LLM")
                     try:
                         eval_method = EvaluationMethod(method_str.upper())
                     except ValueError:
-                        logger.warning(f"Unknown evaluation method: {method_str}, using EXACT")
+                        logger.warning(f"Unknown evaluation method: {method_str}, using LLM")
                     
                     # Get threshold if applicable
                     if "evaluation_threshold" in attr_config:
