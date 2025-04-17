@@ -92,11 +92,11 @@ def invoke_model(
             
             # Log detailed request parameters
             logger.info(f"Bedrock request attempt {retry_count + 1}/{max_retries}:")
-            logger.info(f"  - model: {model_id}")
-            logger.info(f"  - inferenceConfig: {inference_config}")
-            logger.info(f"  - system: {formatted_system_prompt}")
-            logger.info(f"  - messages: {sanitized_messages}")
-            logger.info(f"  - additionalModelRequestFields: {additional_model_fields}")
+            logger.debug(f"  - model: {model_id}")
+            logger.debug(f"  - inferenceConfig: {inference_config}")
+            logger.debug(f"  - system: {formatted_system_prompt}")
+            logger.debug(f"  - messages: {sanitized_messages}")
+            logger.debug(f"  - additionalModelRequestFields: {additional_model_fields}")
             
             attempt_start_time = time.time()
             response = bedrock_client.converse(
@@ -110,7 +110,7 @@ def invoke_model(
             
             # Log response details, but sanitize large content
             sanitized_response = _sanitize_response_for_logging(response)
-            logger.info(f"Bedrock request successful after {retry_count + 1} attempts. Duration: {duration:.2f}s")
+            logger.debug(f"Bedrock request successful after {retry_count + 1} attempts. Duration: {duration:.2f}s")
             logger.info(f"Response: {sanitized_response}")
             
             # Track successful requests and latency
