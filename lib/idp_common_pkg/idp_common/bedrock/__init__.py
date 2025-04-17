@@ -38,8 +38,8 @@ def invoke_model(
     model_id: str,
     system_prompt: Union[str, List[Dict[str, str]]],
     content: List[Dict[str, Any]],
-    temperature: float = 0.0,
-    top_k: Optional[float] = None,
+    temperature: Union[float, str] = 0.0,
+    top_k: Optional[Union[float, str]] = None,
     max_retries: int = MAX_RETRIES
 ) -> Dict[str, Any]:
     """
@@ -49,8 +49,8 @@ def invoke_model(
         model_id: The Bedrock model ID (e.g., 'anthropic.claude-3-sonnet-20240229-v1:0')
         system_prompt: The system prompt as string or list of content objects
         content: The content for the user message (can include text and images)
-        temperature: The temperature parameter for model inference
-        top_k: Optional top_k parameter for Anthropic models
+        temperature: The temperature parameter for model inference (float or string that can be converted to float)
+        top_k: Optional top_k parameter for Anthropic models (float or string that can be converted to float)
         max_retries: Maximum number of retry attempts
         
     Returns:
@@ -77,13 +77,30 @@ def invoke_model(
     }
     messages = [message]
     
+    # Convert temperature to float if it's a string
+    if isinstance(temperature, str):
+        try:
+            temperature = float(temperature)
+        except ValueError:
+            logger.warning(f"Failed to convert temperature value '{temperature}' to float. Using default 0.0")
+            temperature = 0.0
+    
     inference_config = {"temperature": temperature}
     
     # Add additional model fields if needed
+    additional_model_fields = None
     if "anthropic" in model_id.lower() and top_k is not None:
-        additional_model_fields = {"top_k": top_k}
-    else:
-        additional_model_fields = None
+        # Convert top_k to float if it's a string
+        if isinstance(top_k, str):
+            try:
+                top_k = float(top_k)
+            except ValueError:
+                logger.warning(f"Failed to convert top_k value '{top_k}' to float. Not using top_k.")
+                # Skip adding top_k if conversion fails
+            else:
+                additional_model_fields = {"top_k": top_k}
+        else:
+            additional_model_fields = {"top_k": top_k}
     
     while retry_count < max_retries:
         try:

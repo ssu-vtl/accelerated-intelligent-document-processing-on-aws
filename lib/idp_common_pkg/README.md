@@ -6,7 +6,7 @@ This package contains common utilities and services for the GenAI IDP Accelerato
 
 ### Core Data Model
 
-- **Document Model**: Central data structure for the entire IDP pipeline ([models.py](idp_common/models.py))
+- **Document Model**: Central data structure for the entire IDP pipeline ([models.py](idp_common/models.py), [README](idp_common/README.md))
 
 ### Core Services
 
@@ -83,10 +83,11 @@ result_uri = document.sections[0].extraction_result_uri
 
 ### Document Model (`models.py`)
 
-The central data model for the IDP processing pipeline:
+The central data model for the IDP processing pipeline ([README](idp_common/README.md)):
 - Represents the state of a document as it moves through processing
 - Tracks pages, sections, processing status, and results
 - Common data structure shared between all services
+- Support for loading baseline documents from S3 for evaluation
 
 ### OCR Service (`ocr`)
 
@@ -174,8 +175,8 @@ extraction_service = extraction.ExtractionService(config=cfg)
 document = extraction_service.process_document_section(document, section_id="section-1")
 
 # Evaluate extraction results
-# Create an expected document with ground truth data
-expected_document = create_ground_truth_document(document, expected_results)
+# Load expected document from baseline files in S3
+expected_document = Document.from_s3(bucket="baseline-bucket", input_key=document.input_key)
 evaluation_service = evaluation.EvaluationService(config=cfg)
 document = evaluation_service.evaluate_document(document, expected_document)
 # Access evaluation report URI
