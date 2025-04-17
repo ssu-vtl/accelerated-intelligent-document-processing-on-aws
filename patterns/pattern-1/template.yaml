@@ -102,19 +102,22 @@ Resources:
                       description:
                         type: string
                         description: Attribute description
+                        order: 1
                       evaluation_method:
                         type: string
                         description: Evaluation Method
-                        enum: ["LLM", "FUZZY", "BERT", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
+                        enum: ["", "LLM", "FUZZY", "BERT", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
+                        order: 3
                       evaluation_threshold:
                         type: number
                         description: Evaluation Threshold - used only for FUZZY and BERT methods
                         minimum: 0
                         maximum: 1
+                        order: 4
           evaluation:
             order: 4
             type: object
-            sectionLabel: Evaluation Configuration
+            sectionLabel: Evaluation Inference
             properties:
               llm_method:
                 type: object
