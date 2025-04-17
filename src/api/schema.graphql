@@ -20,6 +20,7 @@ type Document implements DynamoDbBase @aws_cognito_user_pools @aws_iam {
   Pages: [Page]
   Metering: AWSJSON
   EvaluationReportUri: String
+  EvaluationStatus: String
   ExpiresAfter: AWSTimestamp
 }
 
@@ -87,6 +88,7 @@ input UpdateDocumentInput {
   Pages: [PageInput]
   Metering: AWSJSON
   EvaluationReportUri: String
+  EvaluationStatus: String
 }
 
 input SectionInput {

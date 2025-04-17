@@ -232,7 +232,7 @@ const MeteringExpandableSection = ({ meteringData, documentItem }) => {
 const DocumentAttributes = ({ item }) => {
   return (
     <Container>
-      <ColumnLayout columns={6} variant="text-grid">
+      <ColumnLayout columns={7} variant="text-grid">
         <SpaceBetween size="xs">
           <div>
             <Box margin={{ bottom: 'xxxs' }} color="text-label">
@@ -284,6 +284,15 @@ const DocumentAttributes = ({ item }) => {
               <strong>Page Count</strong>
             </Box>
             <div>{item.pageCount || 0}</div>
+          </div>
+        </SpaceBetween>
+
+        <SpaceBetween size="xs">
+          <div>
+            <Box margin={{ bottom: 'xxxs' }} color="text-label">
+              <strong>Evaluation</strong>
+            </Box>
+            <div>{item.evaluationStatus || 'N/A'}</div>
           </div>
         </SpaceBetween>
       </ColumnLayout>
