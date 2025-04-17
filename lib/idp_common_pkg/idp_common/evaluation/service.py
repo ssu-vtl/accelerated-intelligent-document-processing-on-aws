@@ -51,32 +51,22 @@ class EvaluationService:
         self.default_temperature = self.llm_config.get("temperature", 0.0)
         self.default_top_k = self.llm_config.get("top_k", 250)
         self.default_system_prompt = self.llm_config.get("system_prompt", 
-            """You are an evaluator that helps determine if the predicted and expected values match.
-            Some examples of fields that can be in different formats are dates, addresses, and monetary amounts.
-            When comparing values, consider both semantic meaning and normalized formats.
-            
-            Respond with one of these categories:
-            TRUE POSITIVE: The fields have the same meaning, even if formats differ (e.g., 2023-05-15 and 2023/05/15).
-            FALSE POSITIVE: The expected field is None and the predicted field is populated, or the fields have different meanings.
-            TRUE NEGATIVE: Both the expected field and predicted field are None or empty.
-            FALSE NEGATIVE: The expected field is populated, but the predicted field is None or empty.
-            
-            Provide only the category (TRUE POSITIVE, FALSE POSITIVE, TRUE NEGATIVE, or FALSE NEGATIVE) and nothing else.
-            """)
+            """You are an evaluator that helps determine if the predicted and expected values match for document attribute extraction. You will consider the context and meaning rather than just exact string matching.""")
         
         self.default_task_prompt = self.llm_config.get("task_prompt", 
-            """I need to evaluate attribute extraction for a document of class: {DOCUMENT_CLASS}
-            
-            Attribute: {ATTRIBUTE_NAME_AND_DESCRIPTION}
-            
-            Expected value:
-            {EXPECTED_VALUE}
-            
-            Predicted value:
-            {PREDICTED_VALUE}
-            
-            Does the predicted value match the expected value? Consider both the exact and semantic meaning.
-            Respond with only one of: TRUE POSITIVE, FALSE POSITIVE, TRUE NEGATIVE, or FALSE NEGATIVE.
+            """I need to evaluate attribute extraction for a document of class: {DOCUMENT_CLASS}.
+
+For the attribute named "{ATTRIBUTE_NAME}" described as "{ATTRIBUTE_DESCRIPTION}":
+- Expected value: {EXPECTED_VALUE}
+- Actual value: {ACTUAL_VALUE}
+
+Do these values match in meaning, taking into account formatting differences, word order, abbreviations, and semantic equivalence?
+Provide your assessment as a JSON with three fields:
+- "match": boolean (true if they match, false if not)
+- "score": number between 0 and 1 representing the confidence/similarity score
+- "reason": brief explanation of your decision
+
+Respond ONLY with the JSON and nothing else.
             """)
             
         logger.info("Initialized evaluation service with LLM configuration")
@@ -143,128 +133,6 @@ class EvaluationService:
             logger.error(f"Error loading extraction results from {uri}: {str(e)}")
             return {}
             
-    def _evaluate_with_llm(
-        self,
-        document_class: str,
-        attr_name: str,
-        attr_description: str,
-        expected: Any,
-        actual: Any
-    ) -> Tuple[bool, float]:
-        """
-        Evaluate attribute using LLM.
-        
-        Args:
-            document_class: Document class name
-            attr_name: Attribute name
-            attr_description: Attribute description
-            expected: Expected value
-            actual: Actual value
-            
-        Returns:
-            Tuple of (matched, score)
-        """
-        try:
-            # Format attribute description
-            attr_name_and_description = f"{attr_name}" 
-            if attr_description:
-                attr_name_and_description += f" - {attr_description}"
-            
-            logger.debug(f"LLM evaluation starting for attribute: {attr_name}")
-            logger.debug(f"Document class: {document_class}")
-            logger.debug(f"Attribute description: {attr_description}")
-                
-            # Handle None values
-            expected_str = str(expected) if expected is not None else "None"
-            actual_str = str(actual) if actual is not None else "None"
-            
-            logger.debug(f"Expected value: {expected_str}")
-            logger.debug(f"Actual value: {actual_str}")
-            
-            # Check if we're using the updated task prompt format or the older one
-            task_placeholders = {
-                "DOCUMENT_CLASS": document_class,
-                "ATTRIBUTE_NAME": attr_name,
-                "ATTRIBUTE_DESCRIPTION": attr_description,
-                "EXPECTED_VALUE": expected_str,
-                "ACTUAL_VALUE": actual_str,
-                # Also support the old format
-                "ATTRIBUTE_NAME_AND_DESCRIPTION": attr_name_and_description,
-                "PREDICTED_VALUE": actual_str
-            }
-            
-            # Format task prompt with placeholders
-            try:
-                logger.debug(f"Raw task prompt template: {self.default_task_prompt}")
-                # Try to identify which placeholders are used in the prompt
-                placeholders_used = []
-                for placeholder in task_placeholders.keys():
-                    if "{" + placeholder + "}" in self.default_task_prompt:
-                        placeholders_used.append(placeholder)
-                
-                logger.debug(f"Placeholders found in prompt: {placeholders_used}")
-                
-                # Format the prompt with detected placeholders
-                task_prompt = self.default_task_prompt.format(**task_placeholders)
-                logger.debug(f"Formatted task prompt: {task_prompt}")
-            except KeyError as e:
-                logger.error(f"Task prompt formatting error - missing placeholder: {e}")
-                # Try with a simpler format as fallback
-                task_prompt = f"""Document class: {document_class}
-                Attribute: {attr_name} - {attr_description}
-                Expected: {expected_str}
-                Actual: {actual_str}
-                Do these values match?"""
-                logger.debug(f"Using fallback prompt: {task_prompt}")
-            except Exception as e:
-                logger.error(f"Task prompt formatting error: {str(e)}")
-                raise
-            
-            # Create content for LLM request
-            content = [{"text": task_prompt}]
-            
-            # Log system prompt for debugging
-            logger.debug(f"System prompt: {self.default_system_prompt}")
-            logger.debug(f"Model: {self.default_model}")
-            
-            # Call Bedrock model
-            logger.debug("Calling Bedrock model")
-            response = bedrock.invoke_model(
-                model_id=self.default_model,
-                system_prompt=self.default_system_prompt,
-                content=content,
-                temperature=self.default_temperature,
-                top_k=self.default_top_k
-            )
-            
-            # Extract response text
-            result_text = bedrock.extract_text_from_response(response).strip()
-            logger.debug(f"Raw LLM response: {result_text}")
-            
-            # Try to parse as JSON first (new format)
-            try:
-                result_json = json.loads(result_text)
-                logger.debug(f"Parsed JSON response: {result_json}")
-                
-                # Extract values from JSON
-                if isinstance(result_json, dict):
-                    match_value = result_json.get("match", False)
-                    score_value = result_json.get("score", 0.0)
-                    reason = result_json.get("reason", "No reason provided")
-                    
-                    logger.info(f"LLM evaluation for {attr_name}: match={match_value}, score={score_value}, reason={reason}")
-                    return bool(match_value), float(score_value)
-            except Exception as e:
-                logger.error(f"Error parsing LLM response: {str(e)}")
-                logger.error(f"Raw response was: {result_text}")
-                logger.error(f'Response from LLM must be JSON like: {"match": boolean, "score": score, "reason": reason"}')
-                matched, score = False, 0.0
-                return matched, score
-            
-        except Exception as e:
-            logger.error(f"Error in LLM evaluation for {attr_name}: {str(e)}", exc_info=True)
-            # Fall back to exact comparison on failure
-            return compare_values(expected, actual, EvaluationMethod.EXACT)
     
     def _count_classifications(
         self, 
@@ -272,8 +140,10 @@ class EvaluationService:
         expected: Any, 
         actual: Any, 
         evaluation_method: EvaluationMethod,
-        threshold: float  # Will keep this as threshold for backward compatibility
-    ) -> Tuple[int, int, int, int, int, int]:
+        threshold: float,
+        document_class: str = None,
+        attr_description: str = None
+    ) -> Tuple[int, int, int, int, int, int, float, Optional[str]]:
         """
         Count true/false positives/negatives for an attribute.
         
@@ -283,42 +153,62 @@ class EvaluationService:
             actual: Actual value
             evaluation_method: Method to use for comparison
             threshold: Evaluation threshold for fuzzy methods
+            document_class: Document class for LLM evaluation
+            attr_description: Attribute description for LLM evaluation
             
         Returns:
-            Tuple of (tn, fp, fn, tp, fp1, fp2)
+            Tuple of (tn, fp, fn, tp, fp1, fp2, score, reason)
         """
         # Initialize counters
         tn = fp = fn = tp = fp1 = fp2 = 0
+        score = 0.0
+        reason = None
         
         # Case 1: Expected value is None/empty
         if expected is None or (isinstance(expected, str) and not expected.strip()):
             if actual is None or (isinstance(actual, str) and not actual.strip()):
                 tn = 1  # Correctly didn't predict a value
+                score = 1.0
             else:
                 fp = fp1 = 1  # Incorrectly predicted a value when none expected
+                score = 0.0
         
         # Case 2: Expected value exists but actual doesn't
         elif actual is None or (isinstance(actual, str) and not actual.strip()):
             fn = 1  # Missing prediction (false negative)
+            score = 0.0
         
         # Case 3: Both values exist, compare them
         else:
+            # Prepare LLM config if needed
+            llm_config = None
             if evaluation_method == EvaluationMethod.LLM:
-                matched, score = self._evaluate_with_llm(
-                    document_class="unknown",  # We don't have the class name at this point
-                    attr_name=attr_name,
-                    attr_description="",
-                    expected=expected,
-                    actual=actual
-                )
-            else:
-                matched, score = compare_values(expected, actual, evaluation_method, threshold)
+                llm_config = {
+                    "model": self.default_model,
+                    "temperature": self.default_temperature,
+                    "top_k": self.default_top_k,
+                    "system_prompt": self.default_system_prompt,
+                    "task_prompt": self.default_task_prompt
+                }
+            
+            # Use compare_values for all evaluation methods
+            matched, score, reason = compare_values(
+                expected=expected,
+                actual=actual,
+                method=evaluation_method,
+                threshold=threshold,
+                document_class=document_class,
+                attr_name=attr_name,
+                attr_description=attr_description,
+                llm_config=llm_config
+            )
+                
             if matched:
                 tp = 1  # Correct prediction
             else:
                 fp = fp2 = 1  # Incorrect prediction
         
-        return tn, fp, fn, tp, fp1, fp2
+        return tn, fp, fn, tp, fp1, fp2, score, reason
     
     def evaluate_section(
         self, 
@@ -339,6 +229,7 @@ class EvaluationService:
         """
         class_name = section.classification
         attributes = self._get_attributes_for_class(class_name)
+        logger.debug(f"Evaluating Section {section.section_id} - class: {class_name}, content: {section}")
         
         # Evaluation counters
         tp = fp = fn = tn = fp1 = fp2 = 0
@@ -351,12 +242,14 @@ class EvaluationService:
             actual_value = actual_results.get(attr_name)
             
             # Count classifications
-            attr_tn, attr_fp, attr_fn, attr_tp, attr_fp1, attr_fp2 = self._count_classifications(
+            attr_tn, attr_fp, attr_fn, attr_tp, attr_fp1, attr_fp2, score, reason = self._count_classifications(
                 attr_name=attr_name,
                 expected=expected_value,
                 actual=actual_value,
                 evaluation_method=attr_config.evaluation_method,
-                threshold=attr_config.evaluation_threshold
+                threshold=attr_config.evaluation_threshold,
+                document_class=class_name,
+                attr_description=attr_config.description
             )
             
             # Update counters
@@ -367,24 +260,8 @@ class EvaluationService:
             fp1 += attr_fp1
             fp2 += attr_fp2
             
-            # Create attribute result
+            # Create attribute result - use the matched flag based on the true positive count
             matched = attr_tp > 0
-            # Get score from comparison
-            if attr_config.evaluation_method == EvaluationMethod.LLM:
-                matched, score = self._evaluate_with_llm(
-                    document_class=class_name,
-                    attr_name=attr_name,
-                    attr_description=attr_config.description,
-                    expected=expected_value,
-                    actual=actual_value
-                )
-            else:
-                _, score = compare_values(
-                    expected=expected_value,
-                    actual=actual_value,
-                    method=attr_config.evaluation_method,
-                    threshold=attr_config.evaluation_threshold
-                )
             
             # Add evaluation method and evaluation threshold to the result
             attribute_results.append(AttributeEvaluationResult(
@@ -393,6 +270,7 @@ class EvaluationService:
                 actual=actual_value,
                 matched=matched,
                 score=score,
+                reason=reason,
                 evaluation_method=attr_config.evaluation_method.value,
                 evaluation_threshold=attr_config.evaluation_threshold if attr_config.evaluation_method in [EvaluationMethod.FUZZY, EvaluationMethod.BERT] else None
             ))
@@ -464,25 +342,24 @@ class EvaluationService:
                     actual_results=actual_results
                 )
                 
-                # Update overall counters from section metrics
-                section_metrics = section_result.metrics
-                precision = section_metrics.get("precision", 0)
-                recall = section_metrics.get("recall", 0)
-                
-                # Estimate TP, FP, FN from precision and recall
-                # (These are approximations as we don't have the raw counts)
-                if precision > 0 and recall > 0:
-                    # These formulas are derived from:
-                    # precision = tp / (tp + fp)
-                    # recall = tp / (tp + fn)
-                    # We solve for tp, fp, fn
-                    section_tp = 1
-                    section_fp = section_tp * (1 - precision) / precision if precision > 0 else 0
-                    section_fn = section_tp * (1 - recall) / recall if recall > 0 else 0
-                    
-                    total_tp += section_tp
-                    total_fp += section_fp
-                    total_fn += section_fn
+                # Collect raw counts from section for accurate overall metrics
+                # Count matches and mismatches in the attributes
+                for attr in section_result.attributes:
+                    if attr.matched:
+                        total_tp += 1
+                    else:
+                        # Handle different error cases
+                        if attr.expected is None or (isinstance(attr.expected, str) and not attr.expected.strip()):
+                            if attr.actual is None or (isinstance(attr.actual, str) and not attr.actual.strip()):
+                                total_tn += 1  # Both empty/None
+                            else:
+                                total_fp += 1  # Expected None, got value
+                                total_fp1 += 1
+                        elif attr.actual is None or (isinstance(attr.actual, str) and not attr.actual.strip()):
+                            total_fn += 1  # Expected value, got None
+                        else:
+                            total_fp += 1  # Both have values but don't match
+                            total_fp2 += 1
                 
                 section_results.append(section_result)
             
@@ -546,4 +423,3 @@ class EvaluationService:
             logger.error(f"Error evaluating document: {str(e)}")
             actual_document.errors.append(f"Evaluation error: {str(e)}")
             return actual_document
-    

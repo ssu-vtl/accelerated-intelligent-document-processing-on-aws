@@ -6,11 +6,14 @@ This module provides methods to compare expected and actual values using various
 
 import re
 import ast
+import json
+import logging
 from typing import Any, Tuple, List, Union, Optional
 from munkres import Munkres, make_cost_matrix
-import numpy as np
 
 from idp_common.evaluation.models import EvaluationMethod
+
+logger = logging.getLogger(__name__)
 
 
 def strip_punctuation_space(text: str) -> str:
@@ -164,7 +167,7 @@ def compare_hungarian(expected: Any, actual: Any) -> Tuple[int, int]:
         return 0, 0
     
     # Create cost matrix for Hungarian algorithm
-    matrix = np.zeros((len(expected_list), len(actual_list)))
+    matrix = [[0 for _ in range(len(actual_list))] for _ in range(len(expected_list))]
     
     # Fill matrix with comparison scores
     for i, exp_val in enumerate(expected_list):
@@ -173,21 +176,21 @@ def compare_hungarian(expected: Any, actual: Any) -> Tuple[int, int]:
             try:
                 exp_num = normalize_numeric(exp_val)
                 act_num = normalize_numeric(act_val)
-                matrix[i, j] = 1.0 if exp_num == act_num else 0.0
+                matrix[i][j] = 1.0 if exp_num == act_num else 0.0
             except ValueError:
                 exp_str = strip_punctuation_space(exp_val)
                 act_str = strip_punctuation_space(act_val)
-                matrix[i, j] = 1.0 if exp_str == act_str else 0.0
+                matrix[i][j] = 1.0 if exp_str == act_str else 0.0
     
     # Convert to cost matrix (Hungarian algorithm minimizes cost)
     cost_matrix = make_cost_matrix(matrix, lambda x: 1-x)
     
     # Compute the optimal assignment
     m = Munkres()
-    indexes = m.compute(cost_matrix.tolist())
+    indexes = m.compute(cost_matrix)
     
     # Count matches
-    true_positives = sum(1 for i, j in indexes if matrix[i, j] > 0)
+    true_positives = sum(1 for i, j in indexes if matrix[i][j] > 0)
     false_positives = len(actual_list) - true_positives
     
     return true_positives, false_positives
@@ -268,8 +271,12 @@ def compare_values(
     expected: Any, 
     actual: Any, 
     method: EvaluationMethod, 
-    threshold: float = 0.8
-) -> Tuple[bool, float]:
+    threshold: float = 0.8,
+    document_class: str = None,
+    attr_name: str = None,
+    attr_description: str = None,
+    llm_config: dict = None
+) -> Tuple[bool, float, Optional[str]]:
     """
     Compare values using the specified method.
     
@@ -278,39 +285,200 @@ def compare_values(
         actual: Actual value
         method: Comparison method to use
         threshold: Threshold for fuzzy/BERT methods
+        document_class: Document class name (for LLM evaluation)
+        attr_name: Attribute name (for LLM evaluation)
+        attr_description: Attribute description (for LLM evaluation)
+        llm_config: Configuration for LLM invocation
         
     Returns:
-        Tuple of (matched, score)
+        Tuple of (matched, score, reason)
     """
+    # Initialize reason as None for non-LLM methods
+    reason = None
+    
     if method == EvaluationMethod.EXACT:
-        return compare_exact(expected, actual)
+        matched, score = compare_exact(expected, actual)
     
     elif method == EvaluationMethod.NUMERIC_EXACT:
-        return compare_numeric(expected, actual)
+        matched, score = compare_numeric(expected, actual)
     
     elif method == EvaluationMethod.FUZZY:
-        return compare_fuzzy(expected, actual, threshold)
+        matched, score = compare_fuzzy(expected, actual, threshold)
     
     elif method == EvaluationMethod.HUNGARIAN:
         tp, fp = compare_hungarian(expected, actual)
         # Convert Hungarian output to match/score format
         if tp + fp == 0:
-            return True, 1.0  # Both lists empty
-        matched = tp > 0 and fp == 0
-        score = tp / (tp + fp) if tp + fp > 0 else 0.0
-        return matched, score
+            matched, score = True, 1.0  # Both lists empty
+        else:
+            matched = tp > 0 and fp == 0
+            score = tp / (tp + fp) if tp + fp > 0 else 0.0
     
     elif method == EvaluationMethod.BERT:
         # BERT comparison would require additional dependencies
         # For simplicity, we'll fall back to fuzzy matching
-        return compare_fuzzy(expected, actual, threshold)
+        matched, score = compare_fuzzy(expected, actual, threshold)
     
     elif method == EvaluationMethod.LLM:
-        # This will be handled by the service class directly
-        # The service will use the Bedrock client and LLM configuration
-        # Here we'll just return a placeholder that will be overwritten
-        return False, 0.0
+        # Use the compare_llm function directly
+        matched, score, reason = compare_llm(
+            expected=expected, 
+            actual=actual, 
+            document_class=document_class, 
+            attr_name=attr_name, 
+            attr_description=attr_description,
+            llm_config=llm_config
+        )
     
     else:
         # Default to exact matching
-        return compare_exact(expected, actual)
+        matched, score = compare_exact(expected, actual)
+    
+    return matched, score, reason
+
+
+def compare_llm(
+    expected: Any,
+    actual: Any,
+    document_class: str = None,
+    attr_name: str = None,
+    attr_description: str = None,
+    llm_config: dict = None,
+    bedrock_invoker = None
+) -> Tuple[bool, float, Optional[str]]:
+    """
+    Compare values using LLM to determine semantic equivalence.
+    
+    Args:
+        expected: Expected value
+        actual: Actual value
+        document_class: Document class name
+        attr_name: Attribute name
+        attr_description: Attribute description
+        llm_config: Configuration for LLM invocation
+        bedrock_invoker: Function to invoke Bedrock models
+        
+    Returns:
+        Tuple of (matched, score, reason)
+    """
+    if not bedrock_invoker:
+        # Import here to avoid circular imports
+        from idp_common import bedrock
+        bedrock_invoker = bedrock.invoke_model
+        
+    try:
+        # Format attribute description
+        doc_class = document_class if document_class else "unknown"
+        name = attr_name if attr_name else "attribute"
+        desc = attr_description if attr_description else ""
+        
+        # Default LLM configuration if not provided
+        config = llm_config or {}
+        model = config.get("model", "us.anthropic.claude-3-sonnet-20240229-v1:0")
+        temperature = config.get("temperature", 0.0)
+        top_k = config.get("top_k", 250)
+        
+        # Get system and task prompts from config or use defaults
+        system_prompt = config.get("system_prompt", 
+            """You are an evaluator that helps determine if the predicted and expected values match for document attribute extraction. You will consider the context and meaning rather than just exact string matching.""")
+            
+        task_prompt_template = config.get("task_prompt", 
+            """I need to evaluate attribute extraction for a document of class: {DOCUMENT_CLASS}.
+
+For the attribute named "{ATTRIBUTE_NAME}" described as "{ATTRIBUTE_DESCRIPTION}":
+- Expected value: {EXPECTED_VALUE}
+- Actual value: {ACTUAL_VALUE}
+
+Do these values match in meaning, taking into account formatting differences, word order, abbreviations, and semantic equivalence?
+Provide your assessment as a JSON with three fields:
+- "match": boolean (true if they match, false if not)
+- "score": number between 0 and 1 representing the confidence/similarity score
+- "reason": brief explanation of your decision
+
+Respond ONLY with the JSON and nothing else.""")
+        
+        # Log for debugging
+        logger.debug(f"LLM evaluation starting for attribute: {name}")
+        logger.debug(f"Document class: {doc_class}")
+        logger.debug(f"Attribute description: {desc}")
+            
+        # Handle None values
+        expected_str = str(expected) if expected is not None else "None"
+        actual_str = str(actual) if actual is not None else "None"
+        
+        logger.debug(f"Expected value: {expected_str}")
+        logger.debug(f"Actual value: {actual_str}")
+        
+        # Identify placeholders in the task prompt template
+        import re
+        placeholders = re.findall(r'\{([^}]+)\}', task_prompt_template)
+        logger.debug(f"Detected placeholders in prompt: {placeholders}")
+        
+        # Create task_placeholders with only the placeholders found in the template
+        task_placeholders = {}
+        if "DOCUMENT_CLASS" in placeholders:
+            task_placeholders["DOCUMENT_CLASS"] = doc_class
+        if "ATTRIBUTE_NAME" in placeholders:
+            task_placeholders["ATTRIBUTE_NAME"] = name
+        if "ATTRIBUTE_DESCRIPTION" in placeholders:
+            task_placeholders["ATTRIBUTE_DESCRIPTION"] = desc
+        if "EXPECTED_VALUE" in placeholders:
+            task_placeholders["EXPECTED_VALUE"] = expected_str
+        if "ACTUAL_VALUE" in placeholders:
+            task_placeholders["ACTUAL_VALUE"] = actual_str
+
+        try:
+            # Format the prompt with placeholders
+            task_prompt = task_prompt_template.format(**task_placeholders)
+            logger.debug(f"Successfully formatted task prompt with {len(task_placeholders)} placeholders")
+        except Exception as e:
+            error_msg = f"Task prompt formatting error: {str(e)}"
+            logger.error(error_msg)
+            return False, 0.0, error_msg
+        
+        # Create content for LLM request
+        content = [{"text": task_prompt}]
+        
+        # Log system prompt for debugging
+        logger.debug(f"Calling Bedrock model: {model}")
+        
+        # Call Bedrock model
+        response = bedrock_invoker(
+            model_id=model,
+            system_prompt=system_prompt,
+            content=content,
+            temperature=temperature,
+            top_k=top_k
+        )
+        
+        # Extract and parse response
+        from idp_common import bedrock
+        result_text = bedrock.extract_text_from_response(response).strip()
+        logger.debug(f"Raw LLM response: {result_text}")
+        
+        # Try to parse as JSON
+        try:
+            result_json = json.loads(result_text)
+            # Extract values from JSON
+            match_value = result_json.get("match", False)
+            score_value = result_json.get("score", 0.0)
+            reason = result_json.get("reason", "No reason provided")
+            logger.info(f"LLM evaluation for {name}: match={match_value}, score={score_value}, reason={reason}")
+            return bool(match_value), float(score_value), reason
+        except json.JSONDecodeError as e:
+            error_msg = f"Error parsing LLM response as JSON: {str(e)}"
+            logger.error(error_msg)
+            logger.error(f"Raw response was: {result_text}")
+            logger.error(f'Response from LLM must be JSON like: {"match": boolean, "score": float, "reason": string}')
+            return False, 0.0, error_msg
+        except Exception as e:
+            error_msg = f"Unexpected error processing LLM response: {str(e)}"
+            logger.error(error_msg)
+            logger.error(f"Raw response was: {result_text}")
+            return False, 0.0, error_msg
+        
+    except Exception as e:
+        error_msg=f"Error in LLM evaluation for {attr_name}: {str(e)}"
+        logger.error(error_msg)
+        logger.error(f"Raw response was: {result_text}")
+        return False, 0.0, error_msg

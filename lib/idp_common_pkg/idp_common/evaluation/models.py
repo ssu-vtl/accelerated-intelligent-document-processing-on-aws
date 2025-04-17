@@ -36,6 +36,7 @@ class AttributeEvaluationResult:
     actual: Any
     matched: bool
     score: float = 1.0  # Score between 0 and 1 for fuzzy matching methods
+    reason: Optional[str] = None  # Explanation from LLM evaluation
     error_details: Optional[str] = None
     evaluation_method: str = "EXACT"
     evaluation_threshold: Optional[float] = None
@@ -82,6 +83,7 @@ class DocumentEvaluationResult:
                             "actual": ar.actual,
                             "matched": ar.matched,
                             "score": ar.score,
+                            "reason": ar.reason,
                             "error_details": ar.error_details,
                             "evaluation_method": ar.evaluation_method,
                             "evaluation_threshold": ar.evaluation_threshold
@@ -214,11 +216,12 @@ class DocumentEvaluationResult:
             
             # Attribute results
             sections.append("### Attributes")
-            attr_table = "| Status | Attribute | Expected | Actual | Score | Method |\n"
-            attr_table += "| :----: | --------- | -------- | ------ | ----- | ------ |\n"
+            attr_table = "| Status | Attribute | Expected | Actual | Score | Method | Reason |\n"
+            attr_table += "| :----: | --------- | -------- | ------ | ----- | ------ | ------ |\n"
             for ar in sr.attributes:
                 expected = str(ar.expected).replace("\n", " ")[:50]
                 actual = str(ar.actual).replace("\n", " ")[:50]
+                reason = str(ar.reason).replace("\n", " ")[:80] if ar.reason else ""
                 # Format the method with evaluation_threshold if applicable
                 method_display = ar.evaluation_method
                 if ar.evaluation_threshold is not None and ar.evaluation_method in ["FUZZY", "BERT"]:
@@ -232,7 +235,7 @@ class DocumentEvaluationResult:
                     # Red X for not matched
                     status_symbol = "❌"
                 
-                attr_table += f"| {status_symbol} | {ar.name} | {expected} | {actual} | {ar.score:.2f} | {method_display} |\n"
+                attr_table += f"| {status_symbol} | {ar.name} | {expected} | {actual} | {ar.score:.2f} | {method_display} | {reason} |\n"
             sections.append(attr_table)
             sections.append("")
         
