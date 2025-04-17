@@ -1686,7 +1686,7 @@ Resources:
       CodeUri: src/lambda/evaluation_function/
       Handler: index.handler
       Runtime: python3.12
-      Timeout: 30
+      Timeout: 900
       DeadLetterQueue:
         Type: SQS
         TargetArn: !GetAtt EvaluationFunctionDLQ.Arn
@@ -1694,7 +1694,6 @@ Resources:
         LogGroup: !Ref EvaluationFunctionLogGroup
       Environment:
         Variables:
-          EVALUATION_MODEL_ID: !Ref EvaluationLLMModelId
           METRIC_NAMESPACE: !Ref AWS::StackName
           APPSYNC_API_URL: !GetAtt GraphQLApi.GraphQLUrl
           PROCESSING_OUTPUT_BUCKET: !Ref OutputBucket
@@ -1703,9 +1702,12 @@ Resources:
             - ShouldCreateEvaluationBaselineBucket
             - !Ref EvaluationBaselineBucket
             - !Ref EvaluationBaselineBucketName
+          CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TrackingTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ConfigurationTable
         - S3ReadPolicy:
             BucketName: !If
             - ShouldCreateEvaluationBaselineBucket
