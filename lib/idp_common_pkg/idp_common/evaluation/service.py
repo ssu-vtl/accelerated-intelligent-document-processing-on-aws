@@ -174,6 +174,8 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             if actual is None or (isinstance(actual, str) and not actual.strip()):
                 tn = 1  # Correctly didn't predict a value
                 score = 1.0
+                # Set reason to explain automatic match when both are empty
+                reason = "Both actual and expected values are missing, so they are matched."
             else:
                 fp = fp1 = 1  # Incorrectly predicted a value when none expected
                 score = 0.0
@@ -266,8 +268,14 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             fp1 += attr_fp1
             fp2 += attr_fp2
             
-            # Create attribute result - use the matched flag based on the true positive count
-            matched = attr_tp > 0
+            # Determine if this is a match
+            # Case where both values are empty - should always be a match
+            if ((expected_value is None or (isinstance(expected_value, str) and not expected_value.strip())) and
+                (actual_value is None or (isinstance(actual_value, str) and not actual_value.strip()))):
+                matched = True
+            else:
+                # Otherwise, use the TP count
+                matched = attr_tp > 0
             
             # Add evaluation method and evaluation threshold to the result
             attribute_results.append(AttributeEvaluationResult(
@@ -351,20 +359,29 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                 # Collect raw counts from section for accurate overall metrics
                 # Count matches and mismatches in the attributes
                 for attr in section_result.attributes:
-                    if attr.matched:
+                    # Check if both are None/Empty - this should always be a match
+                    is_expected_empty = attr.expected is None or (isinstance(attr.expected, str) and not attr.expected.strip())
+                    is_actual_empty = attr.actual is None or (isinstance(attr.actual, str) and not attr.actual.strip())
+                    
+                    if is_expected_empty and is_actual_empty:
+                        # Both values are None/Empty, this should be considered a match (TN)
+                        total_tn += 1
+                        # Make sure the matched flag is set correctly
+                        attr.matched = True  # Force the matched flag to True if not already
+                    elif attr.matched:
                         total_tp += 1
                     else:
                         # Handle different error cases
-                        if attr.expected is None or (isinstance(attr.expected, str) and not attr.expected.strip()):
-                            if attr.actual is None or (isinstance(attr.actual, str) and not attr.actual.strip()):
-                                total_tn += 1  # Both empty/None
-                            else:
-                                total_fp += 1  # Expected None, got value
-                                total_fp1 += 1
-                        elif attr.actual is None or (isinstance(attr.actual, str) and not attr.actual.strip()):
-                            total_fn += 1  # Expected value, got None
+                        if is_expected_empty:
+                            # Expected None/Empty, got a value
+                            total_fp += 1
+                            total_fp1 += 1
+                        elif is_actual_empty:
+                            # Expected a value, got None/Empty
+                            total_fn += 1
                         else:
-                            total_fp += 1  # Both have values but don't match
+                            # Both have values but don't match
+                            total_fp += 1
                             total_fp2 += 1
                 
                 section_results.append(section_result)

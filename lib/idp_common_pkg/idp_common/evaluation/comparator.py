@@ -76,6 +76,10 @@ def compare_exact(expected: Any, actual: Any) -> Tuple[bool, float]:
     if expected is None or actual is None:
         return False, 0.0
     
+    # Check if both values are empty strings
+    if isinstance(expected, str) and not expected.strip() and isinstance(actual, str) and not actual.strip():
+        return True, 1.0
+    
     expected_str = strip_punctuation_space(str(expected))
     actual_str = strip_punctuation_space(str(actual))
     
@@ -94,6 +98,10 @@ def compare_numeric(expected: Any, actual: Any) -> Tuple[bool, float]:
         Tuple of (matched, score)
     """
     if expected is None and actual is None:
+        return True, 1.0
+    
+    # Check if both values are empty strings
+    if isinstance(expected, str) and not expected.strip() and isinstance(actual, str) and not actual.strip():
         return True, 1.0
     
     if expected is None or actual is None:
@@ -260,6 +268,10 @@ def compare_fuzzy(expected: Any, actual: Any, threshold: float = 0.8) -> Tuple[b
     if expected is None and actual is None:
         return True, 1.0
     
+    # Check if both values are empty strings
+    if isinstance(expected, str) and not expected.strip() and isinstance(actual, str) and not actual.strip():
+        return True, 1.0
+    
     if expected is None or actual is None:
         return False, 0.0
     
@@ -296,6 +308,14 @@ def compare_values(
     # Initialize reason as None for non-LLM methods
     reason = None
     
+    # Check for both None/Empty case first - handle consistently across all methods
+    is_expected_empty = expected is None or (isinstance(expected, str) and not expected.strip())
+    is_actual_empty = actual is None or (isinstance(actual, str) and not actual.strip())
+    
+    if is_expected_empty and is_actual_empty:
+        return True, 1.0, "Both actual and expected values are missing, so they are matched."
+    
+    # Continue with method-specific logic
     if method == EvaluationMethod.EXACT:
         matched, score = compare_exact(expected, actual)
     
