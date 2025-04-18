@@ -3,40 +3,20 @@ import React, { useState, useEffect } from 'react';
 import { Box } from '@awsui/components-react';
 import { API, Logger } from 'aws-amplify';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import getFileContents from '../../graphql/queries/getFileContents';
+import './EvaluationReportViewer.css';
 
 const logger = new Logger('EvaluationReportViewer');
 
-// Define markdown components outside of render
-const H1 = ({ children }) => <h1 className="text-2xl font-bold mb-4">{children}</h1>;
-const H2 = ({ children }) => <h2 className="text-xl font-bold mb-3">{children}</h2>;
-const H3 = ({ children }) => <h3 className="text-lg font-bold mb-2">{children}</h3>;
-const Paragraph = ({ children }) => <p className="mb-4">{children}</p>;
-const UnorderedList = ({ children }) => <ul className="list-disc ml-4 mb-4">{children}</ul>;
-const OrderedList = ({ children }) => <ol className="list-decimal ml-4 mb-4">{children}</ol>;
-const CodeBlock = ({ inline, children }) => {
-  if (inline) {
-    return <code className="bg-gray-100 px-1 rounded">{children}</code>;
-  }
-  return <code className="block bg-gray-100 p-4 rounded mb-4">{children}</code>;
-};
-
 const MarkdownViewer = ({ content }) => (
-  <Box className="markdown-viewer p-8 bg-white" style={{ maxHeight: '800px', overflowY: 'auto' }}>
-    <ReactMarkdown
-      className="prose prose-sm max-w-none"
-      components={{
-        h1: H1,
-        h2: H2,
-        h3: H3,
-        p: Paragraph,
-        ul: UnorderedList,
-        ol: OrderedList,
-        code: CodeBlock,
-      }}
-    >
-      {content}
-    </ReactMarkdown>
+  <Box className="markdown-viewer">
+    <div className="table-container">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+        {content}
+      </ReactMarkdown>
+    </div>
   </Box>
 );
 
