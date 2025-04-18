@@ -286,7 +286,7 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                 score=score,
                 reason=reason,
                 evaluation_method=attr_config.evaluation_method.value,
-                evaluation_threshold=attr_config.evaluation_threshold if attr_config.evaluation_method in [EvaluationMethod.FUZZY, EvaluationMethod.BERT] else None
+                evaluation_threshold=attr_config.evaluation_threshold if attr_config.evaluation_method in [EvaluationMethod.FUZZY, EvaluationMethod.SEMANTIC] else None
             ))
         
         # Calculate metrics

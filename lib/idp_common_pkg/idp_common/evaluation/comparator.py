@@ -8,10 +8,12 @@ import re
 import ast
 import json
 import logging
+import math
 from typing import Any, Tuple, List, Union, Optional
 from munkres import Munkres, make_cost_matrix
 
 from idp_common.evaluation.models import EvaluationMethod
+from idp_common import bedrock
 
 logger = logging.getLogger(__name__)
 
@@ -278,6 +280,94 @@ def compare_fuzzy(expected: Any, actual: Any, threshold: float = 0.8) -> Tuple[b
     score = fuzz_score(str(expected), str(actual))
     return score >= threshold, score
 
+def cosine_similarity(v1: List[float], v2: List[float]) -> float:
+    """
+    Calculate cosine similarity between two vectors.
+    
+    Args:
+        v1: First vector
+        v2: Second vector
+        
+    Returns:
+        Cosine similarity (0.0 to 1.0)
+    """
+    if not v1 or not v2:
+        return 0.0
+    
+    # Ensure vectors are the same length
+    if len(v1) != len(v2):
+        logger.warning(f"Vector lengths don't match: {len(v1)} vs {len(v2)}")
+        min_len = min(len(v1), len(v2))
+        v1 = v1[:min_len]
+        v2 = v2[:min_len]
+    
+    # Calculate dot product and magnitudes
+    dot_product = sum(a * b for a, b in zip(v1, v2))
+    magnitude1 = math.sqrt(sum(a * a for a in v1))
+    magnitude2 = math.sqrt(sum(b * b for b in v2))
+    
+    # Avoid division by zero
+    if magnitude1 == 0 or magnitude2 == 0:
+        return 0.0
+    
+    # Calculate cosine similarity
+    return dot_product / (magnitude1 * magnitude2)
+
+def compare_semantic(expected: Any, actual: Any, threshold: float = 0.8, 
+                     model_id: str = "amazon.titan-embed-text-v1") -> Tuple[bool, float]:
+    """
+    Compare values using semantic embedding similarity.
+    
+    Args:
+        expected: Expected value
+        actual: Actual value
+        threshold: Minimum similarity score to consider a match (0.0 to 1.0)
+        model_id: The embedding model to use
+        
+    Returns:
+        Tuple of (matched, score)
+    """
+    if expected is None and actual is None:
+        return True, 1.0
+    
+    # Check if both values are empty strings
+    if isinstance(expected, str) and not expected.strip() and isinstance(actual, str) and not actual.strip():
+        return True, 1.0
+    
+    if expected is None or actual is None:
+        return False, 0.0
+    
+    try:
+        # Generate embeddings for both values
+        expected_str = str(expected)
+        actual_str = str(actual)
+        
+        # Log embedding generation
+        logger.info(f"Generating embeddings for semantic comparison using model: {model_id}")
+        logger.debug(f"Expected text: {expected_str[:100]}{'...' if len(expected_str) > 100 else ''}")
+        logger.debug(f"Actual text: {actual_str[:100]}{'...' if len(actual_str) > 100 else ''}")
+        
+        # Generate embeddings
+        expected_embedding = bedrock.generate_embedding(expected_str, model_id)
+        actual_embedding = bedrock.generate_embedding(actual_str, model_id)
+        
+        # If either embedding is empty, fall back to fuzzy matching
+        if not expected_embedding or not actual_embedding:
+            logger.warning("Failed to generate embeddings, falling back to fuzzy matching")
+            return compare_fuzzy(expected, actual, threshold)
+        
+        # Calculate cosine similarity
+        similarity = cosine_similarity(expected_embedding, actual_embedding)
+        logger.info(f"Semantic similarity score: {similarity:.4f}")
+        
+        return similarity >= threshold, similarity
+        
+    except Exception as e:
+        logger.error(f"Error in semantic comparison: {str(e)}", exc_info=True)
+        # Fall back to fuzzy matching on error
+        logger.warning("Error in semantic comparison, falling back to fuzzy matching")
+        return compare_fuzzy(expected, actual, threshold)
+
 
 def compare_values(
     expected: Any, 
@@ -334,10 +424,9 @@ def compare_values(
             matched = tp > 0 and fp == 0
             score = tp / (tp + fp) if tp + fp > 0 else 0.0
     
-    elif method == EvaluationMethod.BERT:
-        # BERT comparison would require additional dependencies
-        # For simplicity, we'll fall back to fuzzy matching
-        matched, score = compare_fuzzy(expected, actual, threshold)
+    elif method == EvaluationMethod.SEMANTIC:
+        # Use embedding-based semantic comparison with configurable threshold
+        matched, score = compare_semantic(expected, actual, threshold)
     
     elif method == EvaluationMethod.LLM:
         # Use the compare_llm function directly

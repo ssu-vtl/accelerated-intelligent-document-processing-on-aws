@@ -145,11 +145,11 @@ Resources:
                       evaluation_method:
                         type: string
                         description: Evaluation Method
-                        enum: ["", "LLM", "FUZZY", "BERT", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
+                        enum: ["", "LLM", "SEMANTIC", "FUZZY", "BERT", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
                         order: 2
                       evaluation_threshold:
                         type: number
-                        description: Evaluation Threshold - used only for FUZZY and BERT methods
+                        description: Evaluation Threshold - used only for SEMANTIC and FUZZY methods
                         minimum: 0
                         maximum: 1
                         order: 3

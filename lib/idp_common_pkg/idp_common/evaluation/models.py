@@ -13,7 +13,7 @@ class EvaluationMethod(Enum):
     """Evaluation method types for different field comparison approaches."""
     EXACT = "EXACT"               # Exact string match after stripping punctuation and whitespace
     NUMERIC_EXACT = "NUMERIC_EXACT"  # Exact numeric match after normalizing
-    BERT = "BERT"                 # Semantic similarity comparison using BERT
+    SEMANTIC = "SEMANTIC"         # Semantic similarity comparison using embeddings
     HUNGARIAN = "HUNGARIAN"       # Bipartite matching for lists of values
     FUZZY = "FUZZY"               # Fuzzy string matching
     LLM = "LLM"                   # LLM-based comparison using Bedrock models
@@ -25,7 +25,7 @@ class EvaluationAttribute:
     name: str
     description: str
     evaluation_method: EvaluationMethod = EvaluationMethod.EXACT
-    evaluation_threshold: float = 0.0  # Used for BERT and FUZZY methods
+    evaluation_threshold: float = 0.8  # Used for SEMANTIC and FUZZY methods
 
 
 @dataclass
@@ -225,7 +225,7 @@ class DocumentEvaluationResult:
                 reason = str(ar.reason).replace("\n", " ") if ar.reason else ""
                 # Format the method with evaluation_threshold if applicable
                 method_display = ar.evaluation_method
-                if ar.evaluation_threshold is not None and ar.evaluation_method in ["FUZZY", "BERT"]:
+                if ar.evaluation_threshold is not None and ar.evaluation_method in ["FUZZY", "SEMANTIC"]:
                     method_display = f"{ar.evaluation_method} (evaluation_threshold: {ar.evaluation_threshold})"
                 
                 # Add color-coded status symbols (will render in markdown-compatible viewers)
@@ -251,8 +251,8 @@ class DocumentEvaluationResult:
         sections.append("")
         sections.append("1. **EXACT** - Exact string match after stripping punctuation and whitespace")
         sections.append("2. **NUMERIC_EXACT** - Exact numeric match after normalizing")
-        sections.append("3. **FUZZY** - Fuzzy string matching using string similarity metrics (with optional evaluation_threshold)")
-        sections.append("4. **BERT** - Semantic similarity comparison using BERT embeddings (with evaluation_threshold)")
+        sections.append("3. **FUZZY** - Fuzzy string matching using string similarity metrics (with evaluation_threshold)")
+        sections.append("4. **SEMANTIC** - Semantic similarity comparison using Bedrock Titan embeddings (with evaluation_threshold)")
         sections.append("5. **HUNGARIAN** - Bipartite matching algorithm for lists of values")
         sections.append("6. **LLM** - Advanced semantic evaluation using Bedrock large language models")
         sections.append("")

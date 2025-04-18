@@ -291,6 +291,122 @@ def extract_text_from_response(response: Dict[str, Any]) -> str:
     response_obj = response.get("response", response)
     return response_obj['output']['message']['content'][0].get("text", "")
 
+def generate_embedding(text: str, model_id: str = "amazon.titan-embed-text-v1") -> List[float]:
+    """
+    Generate an embedding vector for the given text using Amazon Bedrock
+    
+    Args:
+        text: The text to generate embeddings for
+        model_id: The embedding model ID to use (default: amazon.titan-embed-text-v1)
+        
+    Returns:
+        List of floats representing the embedding vector
+    """
+    if not text or not isinstance(text, str):
+        # Return an empty vector for empty input
+        return []
+        
+    bedrock_client = get_bedrock_client()
+    retry_count = 0
+    last_exception = None
+    max_retries = MAX_RETRIES
+    
+    # Track total embedding requests
+    put_metric('BedrockEmbeddingRequestsTotal', 1)
+    
+    # Normalize whitespace and prepare the input text
+    normalized_text = " ".join(text.split())
+    
+    # Prepare the request body based on the model
+    if "amazon.titan-embed" in model_id:
+        request_body = json.dumps({
+            "inputText": normalized_text
+        })
+    else:
+        # Default format for other models
+        request_body = json.dumps({
+            "text": normalized_text
+        })
+    
+    while retry_count < max_retries:
+        try:
+            logger.info(f"Bedrock embedding request attempt {retry_count + 1}/{max_retries}:")
+            logger.debug(f"  - model: {model_id}")
+            logger.debug(f"  - input text length: {len(normalized_text)} characters")
+            
+            attempt_start_time = time.time()
+            response = bedrock_client.invoke_model(
+                modelId=model_id,
+                contentType="application/json",
+                accept="application/json",
+                body=request_body
+            )
+            duration = time.time() - attempt_start_time
+            
+            # Extract the embedding vector from response
+            response_body = json.loads(response["body"].read())
+            
+            # Handle different response formats based on the model
+            if "amazon.titan-embed" in model_id:
+                embedding = response_body.get("embedding", [])
+            else:
+                # Default extraction format
+                embedding = response_body.get("embedding", [])
+            
+            # Track successful requests and latency
+            put_metric('BedrockEmbeddingRequestsSucceeded', 1)
+            put_metric('BedrockEmbeddingRequestLatency', duration * 1000, 'Milliseconds')
+            
+            logger.debug(f"Generated embedding with {len(embedding)} dimensions")
+            return embedding
+            
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            error_message = e.response['Error']['Message']
+            
+            retryable_errors = [
+                'ThrottlingException', 
+                'ServiceQuotaExceededException', 
+                'RequestLimitExceeded', 
+                'TooManyRequestsException', 
+                'ServiceUnavailableException'
+            ]
+            
+            if error_code in retryable_errors:
+                retry_count += 1
+                put_metric('BedrockEmbeddingThrottles', 1)
+                
+                if retry_count == max_retries:
+                    logger.error(f"Max retries ({max_retries}) exceeded for embedding. Last error: {error_message}")
+                    put_metric('BedrockEmbeddingRequestsFailed', 1)
+                    put_metric('BedrockEmbeddingMaxRetriesExceeded', 1)
+                    raise
+                
+                backoff = calculate_backoff(retry_count)
+                logger.warning(f"Bedrock throttling occurred (attempt {retry_count}/{max_retries}). "
+                            f"Error: {error_message}. "
+                            f"Backing off for {backoff:.2f}s")
+                
+                time.sleep(backoff)
+                last_exception = e
+            else:
+                logger.error(f"Non-retryable Bedrock error for embedding: {error_code} - {error_message}")
+                put_metric('BedrockEmbeddingRequestsFailed', 1)
+                put_metric('BedrockEmbeddingNonRetryableErrors', 1)
+                raise
+    
+        except Exception as e:
+            logger.error(f"Unexpected error generating embedding: {str(e)}", exc_info=True)
+            put_metric('BedrockEmbeddingRequestsFailed', 1)
+            put_metric('BedrockEmbeddingUnexpectedErrors', 1)
+            raise
+    
+    if last_exception:
+        raise last_exception
+    
+    # Should never reach here, but return empty embedding if it does
+    return []
+
 
 def format_prompt(prompt_template: str, substitutions: Dict[str, str], required_placeholders: List[str] = None) -> str:
     """
