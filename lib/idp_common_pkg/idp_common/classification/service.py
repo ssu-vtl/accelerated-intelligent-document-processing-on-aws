@@ -174,21 +174,8 @@ class ClassificationService:
         Raises:
             ValueError: If a required placeholder is missing from the template
         """
-        # Validate required placeholders if specified
-        if required_placeholders:
-            missing_placeholders = [p for p in required_placeholders if f"{{{p}}}" not in prompt_template]
-            if missing_placeholders:
-                raise ValueError(f"Prompt template must contain the following placeholders: {', '.join([f'{{{p}}}' for p in missing_placeholders])}")
-        
-        # Check if template uses {PLACEHOLDER} format and convert to %(PLACEHOLDER)s if needed
-        if any(f"{{{key}}}" in prompt_template for key in substitutions):
-            for key in substitutions:
-                placeholder = f"{{{key}}}"
-                if placeholder in prompt_template:
-                    prompt_template = prompt_template.replace(placeholder, f"%({key})s")
-                    
-        # Apply substitutions using % operator
-        return prompt_template % substitutions
+        from idp_common.bedrock import format_prompt
+        return format_prompt(prompt_template, substitutions, required_placeholders)
 
     def classify_page_bedrock(
         self,

@@ -290,3 +290,35 @@ def extract_text_from_response(response: Dict[str, Any]) -> str:
     """
     response_obj = response.get("response", response)
     return response_obj['output']['message']['content'][0].get("text", "")
+
+
+def format_prompt(prompt_template: str, substitutions: Dict[str, str], required_placeholders: List[str] = None) -> str:
+    """
+    Prepare prompt from template by replacing placeholders with values.
+    
+    Args:
+        prompt_template: The prompt template with placeholders in {PLACEHOLDER} format
+        substitutions: Dictionary of placeholder values
+        required_placeholders: List of placeholder names that must be present in the template
+        
+    Returns:
+        String with placeholders replaced by values
+        
+    Raises:
+        ValueError: If a required placeholder is missing from the template
+    """
+    # Validate required placeholders if specified
+    if required_placeholders:
+        missing_placeholders = [p for p in required_placeholders if f"{{{p}}}" not in prompt_template]
+        if missing_placeholders:
+            raise ValueError(f"Prompt template must contain the following placeholders: {', '.join([f'{{{p}}}' for p in missing_placeholders])}")
+    
+    # Check if template uses {PLACEHOLDER} format and convert to %(PLACEHOLDER)s for secure replacement
+    if any(f"{{{key}}}" in prompt_template for key in substitutions):
+        for key in substitutions:
+            placeholder = f"{{{key}}}"
+            if placeholder in prompt_template:
+                prompt_template = prompt_template.replace(placeholder, f"%({key})s")
+                
+    # Apply substitutions using % operator which is safer than .format()
+    return prompt_template % substitutions

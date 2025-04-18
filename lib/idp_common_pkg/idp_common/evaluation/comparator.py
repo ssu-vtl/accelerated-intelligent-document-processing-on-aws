@@ -395,7 +395,13 @@ Provide your assessment as a JSON with three fields:
 - "score": number between 0 and 1 representing the confidence/similarity score
 - "reason": brief explanation of your decision
 
-Respond ONLY with the JSON and nothing else.""")
+Respond ONLY with the JSON and nothing else.  Here's the exact format:
+{
+  "match": true or false,
+  "score": 0.0 to 1.0,
+  "reason": "Your explanation here"
+}
+""")
         
         # Log for debugging
         logger.debug(f"LLM evaluation starting for attribute: {name}")
@@ -409,30 +415,29 @@ Respond ONLY with the JSON and nothing else.""")
         logger.debug(f"Expected value: {expected_str}")
         logger.debug(f"Actual value: {actual_str}")
         
-        # Identify placeholders in the task prompt template
-        import re
-        placeholders = re.findall(r'\{([^}]+)\}', task_prompt_template)
-        logger.debug(f"Detected placeholders in prompt: {placeholders}")
-        
-        # Create task_placeholders with only the placeholders found in the template
-        task_placeholders = {}
-        if "DOCUMENT_CLASS" in placeholders:
-            task_placeholders["DOCUMENT_CLASS"] = doc_class
-        if "ATTRIBUTE_NAME" in placeholders:
-            task_placeholders["ATTRIBUTE_NAME"] = name
-        if "ATTRIBUTE_DESCRIPTION" in placeholders:
-            task_placeholders["ATTRIBUTE_DESCRIPTION"] = desc
-        if "EXPECTED_VALUE" in placeholders:
-            task_placeholders["EXPECTED_VALUE"] = expected_str
-        if "ACTUAL_VALUE" in placeholders:
-            task_placeholders["ACTUAL_VALUE"] = actual_str
+        # Create task_placeholders dictionary with all possible placeholders
+        task_placeholders = {
+            "DOCUMENT_CLASS": doc_class,
+            "ATTRIBUTE_NAME": name,
+            "ATTRIBUTE_DESCRIPTION": desc,
+            "EXPECTED_VALUE": expected_str,
+            "ACTUAL_VALUE": actual_str
+        }
 
         try:
-            # Format the prompt with placeholders
-            task_prompt = task_prompt_template.format(**task_placeholders)
+            # Use the common format_prompt function from bedrock
+            from idp_common.bedrock import format_prompt
+            
+            task_prompt = format_prompt(
+                task_prompt_template,
+                task_placeholders,
+                required_placeholders=None  # Don't validate specific placeholders as they may vary
+            )
             logger.debug(f"Successfully formatted task prompt with {len(task_placeholders)} placeholders")
         except Exception as e:
             error_msg = f"Task prompt formatting error: {str(e)}"
+            logger.error(f"Prompt template: '{task_prompt_template}'")
+            logger.error(f"Placeholders: '{task_placeholders}'")
             logger.error(error_msg)
             return False, 0.0, error_msg
         
