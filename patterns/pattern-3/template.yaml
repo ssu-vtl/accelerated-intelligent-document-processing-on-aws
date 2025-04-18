@@ -38,6 +38,11 @@ Parameters:
   
   ConfigurationTable:
     Type: String
+    
+  EvaluationLLMModelId:
+    Type: String
+    Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
+    Description: Model to use for LLM-based Evaluation
 
 
 Resources:
@@ -121,12 +126,29 @@ Resources:
                       - name
                       - description
                     properties:
+                    properties:
                       name:
                         type: string
                         description: Attribute name
+                        order: 0
                       description:
                         type: string
                         description: Attribute description
+                        order: 1
+                      # Group these fields in a new row with columns for side-by-side display
+                      evaluation_method:
+                        type: string
+                        description: Evaluation Method
+                        enum: ["", "LLM", "SEMANTIC", "FUZZY", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
+                        order: 2
+                      evaluation_threshold:
+                        type: number
+                        description: Evaluation Threshold - used only for SEMANTIC and FUZZY methods
+                        minimum: 0
+                        maximum: 1
+                        order: 3
+                    # This controls the layout of the form fields inside each attribute item
+                    columns: 2
           extraction:
             order: 4
             type: object
@@ -156,9 +178,36 @@ Resources:
                 description: System prompt
               task_prompt:
                 type: string
-                description: Task prompt - supports parameters {DOCUMENT_CLASS} (replaced with the detected class label), {ATTRIBUTE_NAMES_AND_DESCRIPTIONS} (replaced with the attribute names and descriptions for the detected class), and {DOCUMENT_TEXT} (replaced by the OCR output). 
-          pricing:
+                description: Task prompt - supports placeholders {DOCUMENT_CLASS} (replaced with the detected class label), {ATTRIBUTE_NAMES_AND_DESCRIPTIONS} (replaced with the attribute names and descriptions for the detected class), and {DOCUMENT_TEXT} (replaced by the OCR output).
+          evaluation:
             order: 5
+            type: object
+            sectionLabel: Evaluation Inference
+            properties:
+              llm_method:
+                type: object
+                properties:
+                  model:
+                    type: string
+                    description: Bedrock model ID
+                  temperature:
+                    type: number
+                    description: Model temperature
+                    default: 0.0
+                  top_k:
+                    type: number
+                    description: Model top_k parameter
+                    default: 250
+                  system_prompt:
+                    type: string
+                    format: textarea
+                    description: System prompt for LLM evaluation
+                  task_prompt:
+                    type: string
+                    format: textarea
+                    description: Task prompt for LLM evaluation - supports parameters {DOCUMENT_CLASS}, {ATTRIBUTE_NAME}, {ATTRIBUTE_DESCRIPTION}, {EXPECTED_VALUE} and {ACTUAL_VALUE}
+          pricing:
+            order: 6
             type: array
             sectionLabel: Pricing Estimates - check https://aws.amazon.com/bedrock/pricing/ & https://aws.amazon.com/textract/pricing/
             listLabel: Services
@@ -198,6 +247,32 @@ Resources:
       ServiceToken: !Ref UpdateConfigurationFunctionArn
       Default:
         notes: Default inference settings
+        evaluation:
+          llm_method:
+            model: !Ref EvaluationLLMModelId
+            temperature: 0.0
+            top_k: 250
+            system_prompt: |
+              You are an evaluator that helps determine if the predicted and expected values match for document attribute extraction. You will consider the context and meaning rather than just exact string matching.
+            task_prompt: |
+              I need to evaluate attribute extraction for a document of class: {DOCUMENT_CLASS}.
+              
+              For the attribute named "{ATTRIBUTE_NAME}" described as "{ATTRIBUTE_DESCRIPTION}":
+              - Expected value: {EXPECTED_VALUE}
+              - Actual value: {ACTUAL_VALUE}
+              
+              Do these values match in meaning, taking into account formatting differences, word order, abbreviations, and semantic equivalence?
+              Provide your assessment as a JSON with three fields:
+              - "match": boolean (true if they match, false if not)
+              - "score": number between 0 and 1 representing the confidence/similarity score
+              - "reason": brief explanation of your decision
+              
+              Respond ONLY with the JSON and nothing else. Here's the exact format:
+              {
+                "match": true or false,
+                "score": 0.0 to 1.0,
+                "reason": "Your explanation here"
+              }
         ocr:
           features:
             - name: LAYOUT
