@@ -1,46 +1,92 @@
 /* eslint-disable react/prop-types */
-import React, { useState, useEffect } from 'react';
-import { Box } from '@awsui/components-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Box, Button, SpaceBetween } from '@awsui/components-react';
 import { API, Logger } from 'aws-amplify';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import getFileContents from '../../graphql/queries/getFileContents';
+import './EvaluationReportViewer.css';
 
 const logger = new Logger('EvaluationReportViewer');
 
-// Define markdown components outside of render
-const H1 = ({ children }) => <h1 className="text-2xl font-bold mb-4">{children}</h1>;
-const H2 = ({ children }) => <h2 className="text-xl font-bold mb-3">{children}</h2>;
-const H3 = ({ children }) => <h3 className="text-lg font-bold mb-2">{children}</h3>;
-const Paragraph = ({ children }) => <p className="mb-4">{children}</p>;
-const UnorderedList = ({ children }) => <ul className="list-disc ml-4 mb-4">{children}</ul>;
-const OrderedList = ({ children }) => <ol className="list-decimal ml-4 mb-4">{children}</ol>;
-const CodeBlock = ({ inline, children }) => {
-  if (inline) {
-    return <code className="bg-gray-100 px-1 rounded">{children}</code>;
-  }
-  return <code className="block bg-gray-100 p-4 rounded mb-4">{children}</code>;
+const MarkdownViewer = ({ content, documentName }) => {
+  const contentRef = useRef(null);
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Evaluation Report - ${documentName || 'Document'}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            table { border-collapse: collapse; margin: 16px 0; width: auto; }
+            th, td { border: 1px solid #ddd; padding: 8px 12px; }
+            th { background-color: #f1f1f1; font-weight: bold; text-align: left; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            h1 { font-size: 24px; margin-bottom: 16px; }
+            h2 { font-size: 20px; margin-bottom: 12px; margin-top: 24px; }
+            h3 { font-size: 18px; margin-bottom: 8px; margin-top: 16px; }
+          </style>
+        </head>
+        <body>
+          <div>${contentRef.current?.innerHTML || ''}</div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.print();
+    };
+  };
+
+  const handleDownload = () => {
+    // Create a blob from the markdown content
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+
+    // Create a temporary link element
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${documentName || 'evaluation-report'}.md`;
+
+    // Append, click, and remove
+    document.body.appendChild(a);
+    a.click();
+
+    // Clean up
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Box className="markdown-viewer">
+      <div className="tools-container">
+        <SpaceBetween direction="horizontal" size="xs">
+          <Button variant="normal" onClick={handleDownload} iconName="download" iconAlign="left" formAction="none">
+            Download
+          </Button>
+          <Button variant="normal" onClick={handlePrint} iconAlign="left" formAction="none">
+            Print
+          </Button>
+        </SpaceBetween>
+      </div>
+
+      <div className="table-container" ref={contentRef}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+          {content}
+        </ReactMarkdown>
+      </div>
+    </Box>
+  );
 };
 
-const MarkdownViewer = ({ content }) => (
-  <Box className="markdown-viewer p-8 bg-white" style={{ maxHeight: '800px', overflowY: 'auto' }}>
-    <ReactMarkdown
-      className="prose prose-sm max-w-none"
-      components={{
-        h1: H1,
-        h2: H2,
-        h3: H3,
-        p: Paragraph,
-        ul: UnorderedList,
-        ol: OrderedList,
-        code: CodeBlock,
-      }}
-    >
-      {content}
-    </ReactMarkdown>
-  </Box>
-);
-
-const EvaluationReportViewer = ({ evaluationReportUri }) => {
+const EvaluationReportViewer = ({ evaluationReportUri, documentId }) => {
   const [reportContent, setReportContent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -98,7 +144,7 @@ const EvaluationReportViewer = ({ evaluationReportUri }) => {
     );
   }
 
-  return reportContent && <MarkdownViewer content={reportContent} />;
+  return reportContent && <MarkdownViewer content={reportContent} documentName={documentId || 'evaluation-report'} />;
 };
 
 export default EvaluationReportViewer;

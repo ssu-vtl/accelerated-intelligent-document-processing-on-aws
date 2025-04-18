@@ -3,17 +3,15 @@ import json
 import os
 from datetime import datetime, timezone
 import logging
-from appsync_helper import AppSyncClient, UPDATE_DOCUMENT, AppSyncError
-import requests
+from appsync_helper import AppSyncClient, UPDATE_DOCUMENT
 from botocore.exceptions import ClientError
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from idp_common.models import Document, Status
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
-OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET']
 
 dynamodb = boto3.resource('dynamodb')
 cloudwatch = boto3.client('cloudwatch')
@@ -204,13 +202,10 @@ def handler(event, context):
         if event['detail'].get('output'):
             output_data = json.loads(event['detail']['output'])
         
-        # Get object key - try from document first if available
+        # Get object key from document
         try:
             if "document" in input_data:
                 object_key = input_data["document"]["input_key"]
-            elif "detail" in input_data and "object" in input_data["detail"]:
-                # Fallback to original format if document not available
-                object_key = input_data['detail']['object']['key']
             else:
                 raise ValueError("Unable to find object key in input")
         except (KeyError, TypeError) as e:
