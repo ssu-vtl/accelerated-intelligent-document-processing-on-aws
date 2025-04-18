@@ -221,7 +221,8 @@ class DocumentEvaluationResult:
             for ar in sr.attributes:
                 expected = str(ar.expected).replace("\n", " ")[:50]
                 actual = str(ar.actual).replace("\n", " ")[:50]
-                reason = str(ar.reason).replace("\n", " ")[:80] if ar.reason else ""
+                # Don't truncate the reason field for the report
+                reason = str(ar.reason).replace("\n", " ") if ar.reason else ""
                 # Format the method with evaluation_threshold if applicable
                 method_display = ar.evaluation_method
                 if ar.evaluation_threshold is not None and ar.evaluation_method in ["FUZZY", "BERT"]:
