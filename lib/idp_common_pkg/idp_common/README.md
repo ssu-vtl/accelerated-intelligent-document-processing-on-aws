@@ -1,6 +1,28 @@
-# IDP Common Models
+# IDP Common Library
 
-This module provides the core data model for the IDP processing pipeline. The model classes represent documents, pages, and sections as they move through various processing stages.
+This library provides common utilities and data models for the Intelligent Document Processing (IDP) pipeline.
+
+## Modules
+
+### Models
+
+The core data model for the IDP processing pipeline. The model classes represent documents, pages, and sections as they move through various processing stages.
+
+### Bedrock
+
+Utility functions for working with Amazon Bedrock LLM services, including model invocation, response handling, and prompt preparation.
+
+### Classification
+
+Services for document classification using LLMs.
+
+### Extraction
+
+Services for field extraction from documents using LLMs.
+
+### Evaluation
+
+Tools for evaluating extraction and classification results against baselines.
 
 ## Key Classes
 
@@ -221,3 +243,41 @@ expected_document = Document.from_s3(
 
 # Now both documents can be compared for evaluation
 ```
+
+## Working with LLM Prompts
+
+The library provides standardized utilities for working with LLM prompts:
+
+### Format Prompt Templates
+
+The `bedrock.format_prompt` function provides a standard way to replace placeholders in prompt templates:
+
+```python
+from idp_common.bedrock import format_prompt
+
+# Template with placeholders
+template = """
+Classify this document into one of the following types:
+{CLASS_NAMES_AND_DESCRIPTIONS}
+
+Document text:
+{DOCUMENT_TEXT}
+"""
+
+# Substitutions to apply
+substitutions = {
+    "CLASS_NAMES_AND_DESCRIPTIONS": "Invoice, Receipt, Contract",
+    "DOCUMENT_TEXT": "INVOICE #12345\nDate: 2023-05-15\nTotal: $1,250.00"
+}
+
+# Required placeholders (will raise ValueError if missing)
+required = ["DOCUMENT_TEXT", "CLASS_NAMES_AND_DESCRIPTIONS"]
+
+# Apply substitutions
+prompt = format_prompt(template, substitutions, required)
+```
+
+This function:
+- Validates that required placeholders exist in the template
+- Handles replacement in a way that protects against format string vulnerabilities
+- Provides consistent behavior across classification, extraction, and evaluation services
