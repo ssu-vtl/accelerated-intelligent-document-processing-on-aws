@@ -10,7 +10,8 @@ The Evaluation Service component provides functionality to evaluate document ext
   - Numeric exact match - Value-based comparison after normalizing numeric formats
   - Fuzzy string matching - Similarity-based matching with configurable thresholds
   - Hungarian algorithm - Optimal matching for lists of values
-  - BERT semantic similarity - Meaning-based comparison (requires additional dependencies)
+  - Semantic similarity - Meaning-based comparison using Bedrock Titan embeddings
+  - LLM-based semantic evaluation - Advanced meaning comparison with explanation using Bedrock models
 - Calculates key metrics including:
   - Precision, Recall, and F1 score
   - Accuracy and Error rates
@@ -61,6 +62,12 @@ config = {
                     "evaluation_threshold": 0.8  # Minimum similarity threshold
                 },
                 {
+                    "name": "line_items",
+                    "description": "List of items in the invoice",
+                    "evaluation_method": "SEMANTIC",  # Use embedding-based semantic matching
+                    "evaluation_threshold": 0.8  # Minimum similarity threshold
+                },
+                {
                     "name": "notes",
                     "description": "Additional notes about the invoice",
                     "evaluation_method": "LLM"  # Use LLM-based evaluation (default method, also used when evaluation_method is missing)
@@ -103,8 +110,24 @@ The service supports multiple evaluation methods that can be configured for each
 - `NUMERIC_EXACT`: Exact match for numeric values (after normalizing currency symbols)
 - `FUZZY`: Fuzzy string matching with configurable evaluation_threshold
 - `HUNGARIAN`: Optimal matching for lists of values using the Hungarian algorithm
-- `BERT`: Semantic similarity comparison using BERT embeddings
-- `LLM`: LLM-based evaluation using Bedrock models for semantically comparable values
+- `SEMANTIC`: Efficient semantic similarity comparison using Bedrock Titan embeddings (amazon.titan-embed-text-v1)
+- `LLM`: LLM-based evaluation using Bedrock models (Claude or Titan) for semantically comparable values with detailed explanations
+
+### Semantic vs LLM Evaluation
+
+The service offers two approaches for semantic evaluation:
+
+- **SEMANTIC Method**: Uses embedding-based comparison with Bedrock Titan embeddings
+  - Faster and more cost-effective than LLM-based evaluation
+  - Provides similarity scores without explanations
+  - Great for high-volume comparisons where speed is important
+  - Configurable threshold for matching sensitivity
+  
+- **LLM Method**: Uses Bedrock Claude or other LLM models
+  - Provides detailed reasoning for why values match or don't match
+  - Better at handling implicit/explicit information differences
+  - More nuanced understanding of semantic equivalence
+  - Ideal for cases where understanding the rationale is important
 
 ## Output
 
