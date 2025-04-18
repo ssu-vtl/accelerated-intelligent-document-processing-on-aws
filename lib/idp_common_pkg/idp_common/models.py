@@ -18,6 +18,7 @@ class Status(Enum):
     OCR_COMPLETED = "OCR_COMPLETED"  # OCR processing completed
     CLASSIFIED = "CLASSIFIED"   # Document classification completed
     EXTRACTED = "EXTRACTED"     # Information extraction completed
+    SUMMARIZED = "SUMMARIZED"   # Document summarization completed
     PROCESSED = "PROCESSED"     # All processing completed
     FAILED = "FAILED"           # Processing failed
     EVALUATED = "EVALUATED"     # Document has been evaluated against baseline
@@ -96,6 +97,8 @@ class Document:
     num_pages: int = 0
     pages: Dict[str, Page] = field(default_factory=dict)
     sections: List[Section] = field(default_factory=list)
+    summary: Optional[str] = None
+    detailed_summary: Optional[str] = None
     
     # Processing metadata
     metering: Dict[str, Any] = field(default_factory=dict)
@@ -116,6 +119,8 @@ class Document:
             "completion_time": self.completion_time,
             "workflow_execution_arn": self.workflow_execution_arn,
             "num_pages": self.num_pages,
+            "summary": self.summary,
+            "detailed_summary": self.detailed_summary,
             "evaluation_report_uri": self.evaluation_report_uri,
             "errors": self.errors,
             "metering": self.metering
@@ -165,6 +170,8 @@ class Document:
             completion_time=data.get('completion_time'),
             workflow_execution_arn=data.get('workflow_execution_arn'),
             evaluation_report_uri=data.get('evaluation_report_uri'),
+            summary=data.get('summary'),
+            detailed_summary=data.get('detailed_summary'),
             metering=data.get('metering', {}),
             errors=data.get('errors', [])
         )
