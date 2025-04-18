@@ -247,6 +247,7 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             actual_value = actual_results.get(attr_name)
             
             # Count classifications
+            logger.info(f"Comparing: {attr_name} using {attr_config.evaluation_method} - from class {class_name}, section {section.section_id}")
             attr_tn, attr_fp, attr_fn, attr_tp, attr_fp1, attr_fp2, score, reason = self._count_classifications(
                 attr_name=attr_name,
                 expected=expected_value,
