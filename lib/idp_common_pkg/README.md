@@ -6,13 +6,14 @@ This package contains common utilities and services for the GenAI IDP Accelerato
 
 ### Core Data Model
 
-- **Document Model**: Central data structure for the entire IDP pipeline ([models.py](idp_common/models.py))
+- **Document Model**: Central data structure for the entire IDP pipeline ([models.py](idp_common/models.py), [README](idp_common/README.md))
 
 ### Core Services
 
 - **OCR**: Document OCR processing with AWS Textract ([README](idp_common/ocr/README.md))
 - **Classification**: Document classification using LLMs and SageMaker/UDOP ([README](idp_common/classification/README.md))
 - **Extraction**: Field extraction from documents using LLMs ([README](idp_common/extraction/README.md))
+- **Evaluation**: Compare extraction results against ground truth for accuracy measurement ([README](idp_common/evaluation/README.md))
 
 ### AWS Service Clients
 
@@ -82,10 +83,11 @@ result_uri = document.sections[0].extraction_result_uri
 
 ### Document Model (`models.py`)
 
-The central data model for the IDP processing pipeline:
+The central data model for the IDP processing pipeline ([README](idp_common/README.md)):
 - Represents the state of a document as it moves through processing
 - Tracks pages, sections, processing status, and results
 - Common data structure shared between all services
+- Support for loading baseline documents from S3 for evaluation
 
 ### OCR Service (`ocr`)
 
@@ -117,6 +119,17 @@ Field extraction from documents using multimodal LLMs:
 - Flexible prompt templates configurable via the configuration system
 - Results stored in S3 with URIs tracked in the Document model
 
+### Evaluation Service (`evaluation`)
+
+Evaluate extraction results against ground truth:
+- Document-based evaluation with the `evaluate_document()` method
+- Multiple configurable evaluation methods (EXACT, FUZZY, NUMERIC_EXACT, etc.)
+- Rich metrics calculation (precision, recall, F1, accuracy)
+- Visual markdown reports with color-coded indicators
+- Per-attribute, section, and document-level metrics
+- Integration with the Document model for seamless evaluation
+- Results and reports stored in S3 with URIs tracked in the Document
+
 ## Basic Usage
 
 ```python
@@ -130,7 +143,8 @@ from idp_common import (
     get_config,    # Direct access to the configuration function
     ocr,           # OCR service and models
     classification, # Classification service and models
-    extraction     # Extraction service and models
+    extraction,    # Extraction service and models
+    evaluation     # Evaluation service and models
 )
 from idp_common.models import Document, Status
 
@@ -159,6 +173,16 @@ document = classification_service.classify_document(document)
 # Field Extraction for a section
 extraction_service = extraction.ExtractionService(config=cfg)
 document = extraction_service.process_document_section(document, section_id="section-1")
+
+# Evaluate extraction results
+# Load expected document from baseline files in S3
+expected_document = Document.from_s3(bucket="baseline-bucket", input_key=document.input_key)
+evaluation_service = evaluation.EvaluationService(config=cfg)
+document = evaluation_service.evaluate_document(document, expected_document)
+# Access evaluation report URI
+report_uri = document.evaluation_report_uri
+# The evaluation result is also available directly
+evaluation_result = document.evaluation_result
 
 # Publish a metric
 metrics.put_metric("MetricName", 1)
@@ -209,6 +233,9 @@ pip install "idp_common[classification]"
 
 # Install with extraction support
 pip install "idp_common[extraction]"
+
+# Install with evaluation support
+pip install "idp_common[evaluation]"
 
 # Install with image processing support
 pip install "idp_common[image]"

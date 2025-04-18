@@ -27,6 +27,7 @@ export default gql`
         TextUri
       }
       EvaluationReportUri
+      EvaluationStatus
       ExpiresAfter
     }
   }

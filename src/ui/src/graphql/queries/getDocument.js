@@ -28,6 +28,7 @@ export default gql`
       }
       Metering
       EvaluationReportUri
+      EvaluationStatus
       ExpiresAfter
     }
   }
