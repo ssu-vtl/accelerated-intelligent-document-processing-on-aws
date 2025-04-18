@@ -145,7 +145,7 @@ Resources:
                       evaluation_method:
                         type: string
                         description: Evaluation Method
-                        enum: ["", "LLM", "SEMANTIC", "FUZZY", "BERT", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
+                        enum: ["", "LLM", "SEMANTIC", "FUZZY", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
                         order: 2
                       evaluation_threshold:
                         type: number
