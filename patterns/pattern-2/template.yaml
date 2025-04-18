@@ -647,13 +647,27 @@ Resources:
                   * Distinct documents of the same type may be adjacent to each other in the packet. Be sure to separate them into different document segments and don't combine them.
               </guidance>
 
+              <document-splitting-guidance>
+              When deciding whether pages belong to the same document segment:
+              - Content continuity: Pages with continuing paragraphs, numbered sections, or ongoing narratives likely belong to the same document.
+              - Visual/formatting consistency: Similar layouts, headers, footers, and styling suggest pages belong together.
+              - Logical completion: A document typically has a beginning, middle, and end structure.
+              - Document boundaries: Look for clear indicators of a new document such as new title pages, cover sheets, or significantly different subject matter.
+              - Content similarity: Pages discussing the same topic or subject likely belong to the same document.
+
+              Pages should be grouped together when they represent a coherent, continuous document, even if they span multiple pages. Split documents only when there is clear evidence that a new, distinct document begins.
+              </document-splitting-guidance>
+
+              CRITICAL: You must ONLY use document types explicitly listed in the <document-types> section. Do not create, invent, or use any document type not found in this list. If a document doesn't clearly match any listed type, assign it to the most similar listed type or "other" if that option is provided.
+
               Follow these steps when classifying documents within the document package:
               1. Examine the document package as a whole, and identify page ranges that are likely to belong to one of the <document-types>.
-              2. Match each page range with an identified document type.
+              2. Match each page range with an identified document type from the provided list ONLY.
               3. Identify documents of the same type, that are not the same document but are adjacent to each other in the packet.
               4. Separate unique documents of the same type adjacent to each other in the packet into distinct document segments. Important: Do not combine distinct documents of the same type into a single document segment.
               5. For each identified document type, note the ordinal_start_page and ordinal_end_page.
               6. Compile the classified documents into a list with their respective ordinal_start_page and ordinal_end_page.
+              7. Before finalizing, verify that each document type in your response exactly matches one from the <document-types> list.
 
               Return your response as valid JSON according to this format:
               ```json
