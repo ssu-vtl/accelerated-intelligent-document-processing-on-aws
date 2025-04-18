@@ -12,6 +12,10 @@ The Evaluation Service component provides functionality to evaluate document ext
   - Hungarian algorithm - Optimal matching for lists of values
   - Semantic similarity - Meaning-based comparison using Bedrock Titan embeddings
   - LLM-based semantic evaluation - Advanced meaning comparison with explanation using Bedrock models
+- Smart attribute discovery and evaluation:
+  - Automatically discovers attributes in the extraction results not defined in the configuration
+  - Handles attributes found only in expected data, only in actual data, or in both
+  - Applies default comparison method (LLM) for unconfigured attributes with clear indication
 - Calculates key metrics including:
   - Precision, Recall, and F1 score
   - Accuracy and Error rates
@@ -128,6 +132,7 @@ The service offers two approaches for semantic evaluation:
   - Better at handling implicit/explicit information differences
   - More nuanced understanding of semantic equivalence
   - Ideal for cases where understanding the rationale is important
+  - Used as the default method for attributes discovered in the data but not in the configuration
 
 ## Output
 
@@ -169,5 +174,40 @@ The evaluation module produces richly formatted Markdown reports with:
    - Clear documentation of evaluation methods
    - Descriptions of scoring mechanisms
    - Guidance on interpreting results
+   - Indications for attributes that were discovered in the data but not in the configuration
 
 The reports are designed to provide both at-a-glance performance assessment and detailed diagnostic information.
+
+## Auto-Discovery of Attributes
+
+The EvaluationService can automatically discover and evaluate attributes that exist in the data but are not defined in the configuration:
+
+```python
+# Sample extracted data may have more attributes than configured
+actual_results = {
+    "invoice_number": "INV-12345",          # In configuration
+    "amount_due": 1250.00,                  # In configuration
+    "issue_date": "2023-01-15",             # Not in configuration
+    "due_date": "2023-02-15"                # Not in configuration
+}
+
+expected_results = {
+    "invoice_number": "INV-12345",          # In configuration
+    "amount_due": "$1,250.00",              # In configuration 
+    "issue_date": "01/15/2023",             # Not in configuration
+    "reference_number": "REF-98765"         # Not in configuration, missing in actual
+}
+
+# The service will:
+# 1. Evaluate invoice_number and amount_due using methods in configuration
+# 2. Discover issue_date (in both) and evaluate using LLM (default method)
+# 3. Discover due_date (only in actual) and evaluate as not matched
+# 4. Discover reference_number (only in expected) and evaluate as not matched
+# 5. Add "[Default method - attribute not specified in the configuration]" to reason for discovered attributes
+```
+
+This capability is particularly useful for:
+- Exploratory evaluation when the complete schema is not yet defined
+- Handling variations in extraction outputs that may contain additional information
+- Identifying potential new attributes to add to the configuration
+- Ensuring all extracted data is evaluated, even without explicit configuration
