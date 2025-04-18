@@ -126,24 +126,29 @@ Resources:
                       - name
                       - description
                     properties:
+                    properties:
                       name:
                         type: string
                         description: Attribute name
+                        order: 0
                       description:
                         type: string
                         description: Attribute description
                         order: 1
+                      # Group these fields in a new row with columns for side-by-side display
                       evaluation_method:
                         type: string
                         description: Evaluation Method
                         enum: ["", "LLM", "FUZZY", "BERT", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
-                        order: 3
+                        order: 2
                       evaluation_threshold:
                         type: number
                         description: Evaluation Threshold - used only for FUZZY and BERT methods
                         minimum: 0
                         maximum: 1
-                        order: 4
+                        order: 3
+                    # This controls the layout of the form fields inside each attribute item
+                    columns: 2
           extraction:
             order: 4
             type: object
@@ -173,7 +178,7 @@ Resources:
                 description: System prompt
               task_prompt:
                 type: string
-                description: Task prompt - supports parameters {DOCUMENT_CLASS} (replaced with the detected class label), {ATTRIBUTE_NAMES_AND_DESCRIPTIONS} (replaced with the attribute names and descriptions for the detected class), and {DOCUMENT_TEXT} (replaced by the OCR output).
+                description: Task prompt - supports placeholders {DOCUMENT_CLASS} (replaced with the detected class label), {ATTRIBUTE_NAMES_AND_DESCRIPTIONS} (replaced with the attribute names and descriptions for the detected class), and {DOCUMENT_TEXT} (replaced by the OCR output).
           evaluation:
             order: 5
             type: object
@@ -200,7 +205,7 @@ Resources:
                   task_prompt:
                     type: string
                     format: textarea
-                    description: Task prompt with placeholders for LLM evaluation 
+                    description: Task prompt for LLM evaluation - supports parameters {DOCUMENT_CLASS}, {ATTRIBUTE_NAME}, {ATTRIBUTE_DESCRIPTION}, {EXPECTED_VALUE} and {ACTUAL_VALUE}
           pricing:
             order: 6
             type: array
@@ -262,7 +267,12 @@ Resources:
               - "score": number between 0 and 1 representing the confidence/similarity score
               - "reason": brief explanation of your decision
               
-              Respond ONLY with the JSON and nothing else.
+              Respond ONLY with the JSON and nothing else. Here's the exact format:
+              {
+                "match": true or false,
+                "score": 0.0 to 1.0,
+                "reason": "Your explanation here"
+              }
         ocr:
           features:
             - name: LAYOUT
