@@ -136,21 +136,25 @@ Resources:
                       name:
                         type: string
                         description: Attribute name
+                        order: 0
                       description:
                         type: string
                         description: Attribute description
                         order: 1
+                      # Group these fields in a new row with columns for side-by-side display
                       evaluation_method:
                         type: string
                         description: Evaluation Method
                         enum: ["", "LLM", "FUZZY", "BERT", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
-                        order: 3
+                        order: 2
                       evaluation_threshold:
                         type: number
                         description: Evaluation Threshold - used only for FUZZY and BERT methods
                         minimum: 0
                         maximum: 1
-                        order: 4
+                        order: 3
+                    # This controls the layout of the form fields inside each attribute item
+                    columns: 2
           classification:
             order: 3
             type: object
