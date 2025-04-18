@@ -458,6 +458,48 @@ Respond ONLY with the JSON and nothing else.""")
         
         # Try to parse as JSON
         try:
+            # First attempt to find JSON block within text using regex
+            # This pattern looks for balanced braces to find JSON objects
+            json_pattern = r'(\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\})'
+            json_matches = re.findall(json_pattern, result_text)
+            
+            # Check for code blocks with ```json ... ``` pattern
+            code_block_pattern = r'```json\s*([\s\S]*?)\s*```'
+            code_blocks = re.findall(code_block_pattern, result_text)
+            
+            # Try to parse code blocks first if they exist
+            for code_block in code_blocks:
+                try:
+                    result_json = json.loads(code_block)
+                    # Check if the JSON has the expected fields
+                    if "match" in result_json and "score" in result_json:
+                        match_value = result_json.get("match", False)
+                        score_value = result_json.get("score", 0.0)
+                        reason = result_json.get("reason", "No reason provided")
+                        logger.info(f"LLM evaluation for {name} (from code block): match={match_value}, score={score_value}, reason={reason}")
+                        return bool(match_value), float(score_value), reason
+                except json.JSONDecodeError:
+                    # This code block wasn't valid JSON, try next one
+                    continue
+            
+            # If we found potential JSON blocks
+            if json_matches:
+                # Try each potential JSON block
+                for json_block in json_matches:
+                    try:
+                        result_json = json.loads(json_block)
+                        # Check if the JSON has the expected fields
+                        if "match" in result_json and "score" in result_json:
+                            match_value = result_json.get("match", False)
+                            score_value = result_json.get("score", 0.0)
+                            reason = result_json.get("reason", "No reason provided")
+                            logger.info(f"LLM evaluation for {name}: match={match_value}, score={score_value}, reason={reason}")
+                            return bool(match_value), float(score_value), reason
+                    except json.JSONDecodeError:
+                        # This particular block wasn't valid JSON, try next one
+                        continue
+            
+            # If we didn't find a valid JSON block, try the entire text
             result_json = json.loads(result_text)
             # Extract values from JSON
             match_value = result_json.get("match", False)
@@ -469,6 +511,28 @@ Respond ONLY with the JSON and nothing else.""")
             error_msg = f"Error parsing LLM response as JSON: {str(e)}"
             logger.error(error_msg)
             logger.error(f"Raw response was: {result_text}")
+            
+            # Last-ditch effort: try a very flexible pattern to extract key information
+            # Look for match/score/reason patterns directly 
+            try:
+                match_pattern = r'"?match"?\s*[:=]\s*(true|false)'
+                score_pattern = r'"?score"?\s*[:=]\s*([0-9]*\.?[0-9]+)'
+                reason_pattern = r'"?reason"?\s*[:=]\s*"([^"]*)"'
+                
+                match_search = re.search(match_pattern, result_text.lower())
+                score_search = re.search(score_pattern, result_text.lower())
+                reason_search = re.search(reason_pattern, result_text)
+                
+                if match_search and score_search:
+                    match_value = match_search.group(1).lower() == "true"
+                    score_value = float(score_search.group(1))
+                    reason = reason_search.group(1) if reason_search else "No reason extracted"
+                    
+                    logger.info(f"LLM evaluation for {name} (extracted from text): match={match_value}, score={score_value}")
+                    return bool(match_value), float(score_value), reason
+            except Exception as extract_error:
+                logger.error(f"Failed to extract values from malformed response: {str(extract_error)}")
+            
             logger.error(f'Response from LLM must be JSON like: {"match": boolean, "score": float, "reason": string}')
             return False, 0.0, error_msg
         except Exception as e:

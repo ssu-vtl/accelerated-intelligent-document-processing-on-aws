@@ -66,7 +66,12 @@ Provide your assessment as a JSON with three fields:
 - "score": number between 0 and 1 representing the confidence/similarity score
 - "reason": brief explanation of your decision
 
-Respond ONLY with the JSON and nothing else.
+IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the exact format:
+{
+  "match": true or false,
+  "score": 0.0 to 1.0,
+  "reason": "Your explanation here"
+}
             """)
             
         logger.info("Initialized evaluation service with LLM configuration")
