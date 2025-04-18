@@ -235,18 +235,22 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             Evaluation results for the section
         """
         class_name = section.classification
-        attributes = self._get_attributes_for_class(class_name)
+        configured_attributes = self._get_attributes_for_class(class_name)
         logger.debug(f"Evaluating Section {section.section_id} - class: {class_name}, content: {section}")
         
         # Evaluation counters
         tp = fp = fn = tn = fp1 = fp2 = 0
         attribute_results = []
         
-        # Evaluate each attribute
-        for attr_config in attributes:
+        # Create a set of attribute names already processed from configuration
+        processed_attr_names = set()
+        
+        # First evaluate attributes defined in configuration
+        for attr_config in configured_attributes:
             attr_name = attr_config.name
             expected_value = expected_results.get(attr_name)
             actual_value = actual_results.get(attr_name)
+            processed_attr_names.add(attr_name)
             
             # Count classifications
             logger.info(f"Comparing: {attr_name} using {attr_config.evaluation_method} - from class {class_name}, section {section.section_id}")
@@ -287,6 +291,79 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                 reason=reason,
                 evaluation_method=attr_config.evaluation_method.value,
                 evaluation_threshold=attr_config.evaluation_threshold if attr_config.evaluation_method in [EvaluationMethod.FUZZY, EvaluationMethod.SEMANTIC] else None
+            ))
+        
+        # Now find attributes that exist in the data but not in configuration
+        # Get all attribute names from both expected and actual results
+        all_attr_names = set(expected_results.keys()).union(set(actual_results.keys()))
+        
+        # Filter out attributes already processed from configuration
+        unconfigured_attr_names = all_attr_names - processed_attr_names
+        
+        # For each unconfigured attribute, apply default evaluation
+        for attr_name in unconfigured_attr_names:
+            expected_value = expected_results.get(attr_name)
+            actual_value = actual_results.get(attr_name)
+            
+            # Use LLM as the default evaluation method for unconfigured attributes
+            default_method = EvaluationMethod.LLM
+            default_threshold = 0.8
+            default_description = f"Attribute found in data but not in configuration"
+            
+            logger.info(f"Comparing unconfigured attribute: {attr_name} using {default_method} - from class {class_name}, section {section.section_id}")
+            
+            attr_tn, attr_fp, attr_fn, attr_tp, attr_fp1, attr_fp2, score, reason = self._count_classifications(
+                attr_name=attr_name,
+                expected=expected_value,
+                actual=actual_value,
+                evaluation_method=default_method,
+                threshold=default_threshold,
+                document_class=class_name,
+                attr_description=default_description
+            )
+            
+            # Update counters
+            tn += attr_tn
+            fp += attr_fp
+            fn += attr_fn
+            tp += attr_tp
+            fp1 += attr_fp1
+            fp2 += attr_fp2
+            
+            # Determine if this is a match
+            # Cases:
+            # 1. Both values are missing - should be a match
+            if ((expected_value is None or (isinstance(expected_value, str) and not expected_value.strip())) and
+                (actual_value is None or (isinstance(actual_value, str) and not actual_value.strip()))):
+                matched = True
+            # 2. Expected exists but actual doesn't - should not be a match (false negative)
+            elif (expected_value is not None and 
+                  (actual_value is None or (isinstance(actual_value, str) and not actual_value.strip()))):
+                matched = False
+            # 3. Actual exists but expected doesn't - should not be a match (false positive)
+            elif (actual_value is not None and 
+                  (expected_value is None or (isinstance(expected_value, str) and not expected_value.strip()))):
+                matched = False
+            # 4. Both exist - use TP count from comparison
+            else:
+                matched = attr_tp > 0
+            
+            # Add note about unconfigured attribute to reason
+            if reason:
+                reason = f"{reason} [Default method - attribute not specified in the configuration]"
+            else:
+                reason = "[Default method - attribute not specified in the configuration]"
+            
+            # Add the result
+            attribute_results.append(AttributeEvaluationResult(
+                name=attr_name,
+                expected=expected_value,
+                actual=actual_value,
+                matched=matched,
+                score=score,
+                reason=reason,
+                evaluation_method=default_method.value,
+                evaluation_threshold=default_threshold if default_method in [EvaluationMethod.FUZZY, EvaluationMethod.SEMANTIC] else None
             ))
         
         # Calculate metrics
