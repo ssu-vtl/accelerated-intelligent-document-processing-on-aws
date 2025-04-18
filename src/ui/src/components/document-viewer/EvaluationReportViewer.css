@@ -4,6 +4,20 @@
   background-color: white;
   overflow-y: auto;
   max-height: 800px;
+  position: relative;
+}
+
+/* Tools container for download/print buttons */
+.tools-container {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  justify-content: flex-end;
+  z-index: 10;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 4px;
+  padding: 4px;
 }
 
 /* Table container for proper scrolling */
