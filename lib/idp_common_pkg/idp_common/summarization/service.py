@@ -8,11 +8,12 @@ This module provides a service for summarizing documents using various backends:
 import json
 import logging
 import os
+import time
 import boto3
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Tuple
 
 from idp_common import bedrock, s3, utils
-from idp_common.summarization.models import DocumentSummary
+from idp_common.summarization.models import DocumentSummary, DocumentSummarizationResult
 from idp_common.models import Document, Status
 
 logger = logging.getLogger(__name__)
@@ -55,13 +56,10 @@ class SummarizationService:
         else:
             raise ValueError(f"Unsupported backend: {self.backend}")
 
-    def _get_summarization_config(self, style: str = None) -> Dict[str, Any]:
+    def _get_summarization_config(self) -> Dict[str, Any]:
         """
         Get and validate the summarization configuration.
-        
-        Args:
-            style: Optional summarization style to use
-            
+                    
         Returns:
             Dict with validated summarization configuration parameters
             
@@ -75,29 +73,11 @@ class SummarizationService:
             "top_k": float(summarization_config.get("top_k", 0.5)),
         }
         
-        # Get default style if none specified
-        if not style:
-            style = summarization_config.get("default_style", "default")
-        
-        # Get style configuration
-        styles = summarization_config.get("summarization_styles", {})
-        if style not in styles:
-            logger.warning(f"Summarization style '{style}' not found, using 'default' instead")
-            style = "default"
-            
-        style_config = styles.get(style, {})
-        
-        # Get style parameters
-        max_length = style_config.get("max_length", 1000)
-        style_instructions = style_config.get("style_instructions", "")
-        
         # Validate system prompt
         system_prompt = summarization_config.get("system_prompt")
         if not system_prompt:
             raise ValueError("No system_prompt found in summarization configuration")
         
-        # Replace placeholders in system prompt
-        system_prompt = system_prompt.replace("{STYLE_INSTRUCTIONS}", style_instructions)
         config["system_prompt"] = system_prompt
         
         # Validate task prompt
@@ -105,68 +85,9 @@ class SummarizationService:
         if not task_prompt:
             raise ValueError("No task_prompt found in summarization configuration")
         
-        # Replace max_length placeholder in task prompt
-        task_prompt = task_prompt.replace("{MAX_LENGTH}", str(max_length))
         config["task_prompt"] = task_prompt
         
-        # Add style to config for metadata
-        config["style"] = style
-        
         return config
-
-    def _prepare_prompt_from_template(self, prompt_template: str, substitutions: Dict[str, str], required_placeholders: List[str] = None) -> str:
-        """
-        Prepare prompt from template by replacing placeholders with values.
-        
-        Args:
-            prompt_template: The prompt template with placeholders
-            substitutions: Dictionary of placeholder values
-            required_placeholders: List of placeholder names that must be present in the template
-            
-        Returns:
-            String with placeholders replaced by values
-            
-        Raises:
-            ValueError: If a required placeholder is missing from the template
-        """
-        # Validate required placeholders if specified
-        if required_placeholders:
-            missing_placeholders = [p for p in required_placeholders if f"{{{p}}}" not in prompt_template]
-            if missing_placeholders:
-                raise ValueError(f"Prompt template must contain the following placeholders: {', '.join([f'{{{p}}}' for p in missing_placeholders])}")
-        
-        # Check if template uses {PLACEHOLDER} format and convert to %(PLACEHOLDER)s if needed
-        if any(f"{{{key}}}" in prompt_template for key in substitutions):
-            for key in substitutions:
-                placeholder = f"{{{key}}}"
-                if placeholder in prompt_template:
-                    prompt_template = prompt_template.replace(placeholder, f"%({key})s")
-                    
-        # Apply substitutions using % operator
-        return prompt_template % substitutions
-
-    def _invoke_bedrock_model(
-        self,
-        content: List[Dict[str, Any]],
-        config: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        Invoke Bedrock model with standard parameters.
-        
-        Args:
-            content: Content to send to the model
-            config: Configuration with model parameters
-            
-        Returns:
-            Dictionary with response and metering data
-        """
-        return bedrock.invoke_model(
-            model_id=config["model_id"],
-            system_prompt=config["system_prompt"],
-            content=content,
-            temperature=config["temperature"],
-            top_k=config["top_k"]
-        )
 
     def _extract_json(self, text: str) -> str:
         """Extract JSON string from text."""
@@ -193,30 +114,63 @@ class SummarizationService:
         # If we can't find JSON, return the text as-is
         return text
 
-    def summarize_text(self, text: str, style: str = None) -> DocumentSummary:
+    def _invoke_bedrock_model(
+        self,
+        content: List[Dict[str, Any]],
+        config: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Invoke Bedrock model with standard parameters.
+        
+        Args:
+            content: Content to send to the model
+            config: Configuration with model parameters
+            
+        Returns:
+            Dictionary with response and metering data
+        """
+        return bedrock.invoke_model(
+            model_id=config["model_id"],
+            system_prompt=config["system_prompt"],
+            content=content,
+            temperature=config["temperature"],
+            top_k=config["top_k"]
+        )
+
+    def _create_error_summary(self, error_message: str) -> DocumentSummary:
+        """
+        Create a standard error summary with error information.
+        
+        Args:
+            error_message: Error message to include in metadata
+            
+        Returns:
+            DocumentSummary with error result
+        """
+        return DocumentSummary(
+            content={"error": "Error generating summary"},
+            metadata={"error": error_message}
+        )
+
+    def process_text(self, text: str) -> DocumentSummary:
         """
         Summarize text content using the configured backend.
         
         Args:
             text: Text content to summarize
-            style: Optional summarization style to use (default, concise, detailed, executive, technical)
             
         Returns:
-            DocumentSummary: Summary of the text content
+            DocumentSummary: Summary of the text content with flexible structure
         """
         if not text:
             logger.warning("Empty text provided for summarization")
-            return DocumentSummary(
-                brief_summary="No content to summarize",
-                detailed_summary="",
-                metadata={"error": "Empty text provided"}
-            )
+            return self._create_error_summary("Empty text provided")
         
-        # Get summarization configuration with optional style
-        config = self._get_summarization_config(style)
+        # Get summarization configuration
+        config = self._get_summarization_config()
         
         # Use common function to prepare prompt with required placeholder validation
-        task_prompt = self._prepare_prompt_from_template(
+        task_prompt = bedrock.format_prompt(
             config["task_prompt"], 
             {
                 "DOCUMENT_TEXT": text
@@ -226,7 +180,7 @@ class SummarizationService:
         
         content = [{"text": task_prompt}]
         
-        logger.info(f"Summarizing text with Bedrock using style: {config['style']}")
+        logger.info("Summarizing text with Bedrock")
         
         # Invoke Bedrock model
         try:
@@ -246,50 +200,52 @@ class SummarizationService:
                 summary_json = self._extract_json(summary_text)
                 summary_data = json.loads(summary_json)
                 
-                # Create and return summary result
-                summary = DocumentSummary(
-                    brief_summary=summary_data.get("brief_summary", ""),
-                    detailed_summary=summary_data.get("detailed_summary", "")
+                # Create summary with whatever fields were returned
+                return DocumentSummary(
+                    content=summary_data,
+                    metadata={"metering": metering}
                 )
-                summary.metadata = {"metering": metering, "style": config['style']}
-                return summary
+                
             except Exception as e:
                 logger.warning(f"Failed to parse JSON from response: {e}")
-                # Fallback to using the raw text
-                summary = DocumentSummary(
-                    brief_summary="Summary parsing failed",
-                    detailed_summary=summary_text[:1000] + ("..." if len(summary_text) > 1000 else "")
+                # Fallback to using the raw text as a single content field
+                error_content = {
+                    "error": "Summary parsing failed",
+                    "content": summary_text[:1000] + ("..." if len(summary_text) > 1000 else "")
+                }
+                
+                return DocumentSummary(
+                    content=error_content,
+                    metadata={"error": str(e), "metering": metering}
                 )
-                summary.metadata = {"error": str(e), "metering": metering}
-                return summary
                 
         except Exception as e:
             logger.error(f"Error summarizing text: {str(e)}")
-            # Return error result
-            summary = DocumentSummary(
-                brief_summary="Error generating summary",
-                detailed_summary=""
-            )
-            summary.metadata = {"error": str(e)}
-            return summary
+            return self._create_error_summary(str(e))
 
-    def summarize_document(self, document: Document, style: str = None) -> Document:
+    def process_document(self, document: Document, store_results: bool = True) -> Document:
         """
         Summarize a document and update the Document object with the summary.
         
         Args:
             document: Document object to summarize
-            style: Optional summarization style to use (default, concise, detailed, executive, technical)
+            store_results: Whether to store results in S3 (default: True)
             
         Returns:
-            Document: Updated Document object with summary
+            Document: Updated Document object with summary and summarization_result
         """
         if not document.pages:
             logger.warning("Document has no pages to summarize")
-            document.summary = "Document has no pages to summarize"
-            return document
+            return self._update_document_status(
+                document, 
+                success=False, 
+                error_message="Document has no pages to summarize"
+            )
         
         try:
+            # Start timing
+            start_time = time.time()
+            
             # Combine text from all pages
             all_text = ""
             for page_id, page in sorted(document.pages.items()):
@@ -303,50 +259,90 @@ class SummarizationService:
             
             if not all_text:
                 logger.warning("No text content found in document pages")
-                document.summary = "No text content found in document pages"
-                return document
+                return self._update_document_status(
+                    document, 
+                    success=False, 
+                    error_message="No text content found in document pages"
+                )
             
-            # Generate summary with specified style
-            summary = self.summarize_text(all_text, style)
+            # Generate summary
+            summary = self.process_text(all_text)
             
-            # Update document with summary
-            document.summary = summary.brief_summary
-            document.detailed_summary = summary.detailed_summary
+            # Calculate execution time
+            execution_time = time.time() - start_time
             
-            # Store style in metadata if available
-            if hasattr(document, 'metadata') and isinstance(document.metadata, dict):
-                document.metadata["summarization_style"] = summary.metadata.get("style", "default")
+            # Create summarization result object
+            summarization_result = DocumentSummarizationResult(
+                document_id=document.id,
+                summary=summary,
+                execution_time=execution_time
+            )
+            
+            # Attach summarization result to document for immediate use
+            document.summarization_result = summarization_result
+            
+            # Store results if requested
+            if store_results:
+                # Generate markdown report
+                markdown_report = summarization_result.to_markdown()
+                
+                # Store report in S3
+                output_bucket = document.output_bucket
+                report_key = f"{document.input_key}/summary/summary.md"
+                
+                s3.write_content(
+                    content=markdown_report,
+                    bucket=output_bucket,
+                    key=report_key,
+                    content_type="text/markdown"
+                )
+                
+                # Update document and summarization result with summary report URI
+                document.summary_report_uri = f"s3://{output_bucket}/{report_key}"
+                summarization_result.output_uri = document.summary_report_uri
             
             # Update document metering
             if "metering" in summary.metadata:
                 document.metering = utils.merge_metering_data(document.metering, summary.metadata["metering"])
             
-            logger.info(f"Document summarized successfully using style: {summary.metadata.get('style', 'default')}")
+            # Update document status
+            document = self._update_document_status(document)
+            
+            if store_results:
+                logger.info(f"Document summarized successfully. Summary report stored at: {document.summary_report_uri}")
+            else:
+                logger.info(f"Document summarized successfully. No summary report stored.")
             
         except Exception as e:
             error_msg = f"Error summarizing document: {str(e)}"
             logger.error(error_msg)
-            document.errors.append(error_msg)
-            document.summary = "Error generating summary"
+            document = self._update_document_status(document, success=False, error_message=error_msg)
         
         return document
-        
-    def get_available_styles(self) -> Dict[str, Dict[str, Any]]:
+    
+    def _update_document_status(self, document: Document, success: bool = True, error_message: Optional[str] = None) -> Document:
         """
-        Get available summarization styles from configuration.
+        Update document status based on processing results.
         
-        Returns:
-            Dict of available summarization styles with their descriptions
-        """
-        summarization_config = self.config.get("summarization", {})
-        styles = summarization_config.get("summarization_styles", {})
-        
-        # Create a simplified version with just the descriptions and max_length
-        result = {}
-        for style_name, style_config in styles.items():
-            result[style_name] = {
-                "description": style_config.get("description", ""),
-                "max_length": style_config.get("max_length", 0)
-            }
+        Args:
+            document: Document to update
+            success: Whether processing was successful
+            error_message: Optional error message to add
             
-        return result
+        Returns:
+            Updated document with appropriate status
+        """
+        if error_message and error_message not in document.errors:
+            document.errors.append(error_message)
+            
+        if not success:
+            document.status = Status.FAILED
+            if error_message:
+                logger.error(error_message)
+        else:
+            # Set status to SUMMARIZED even with non-fatal errors
+            document.status = Status.SUMMARIZED
+            if document.errors:
+                logger.warning(f"Document summarized with {len(document.errors)} errors")
+                
+        return document
