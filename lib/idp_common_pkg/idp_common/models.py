@@ -97,13 +97,13 @@ class Document:
     num_pages: int = 0
     pages: Dict[str, Page] = field(default_factory=dict)
     sections: List[Section] = field(default_factory=list)
-    summary: Optional[str] = None
-    detailed_summary: Optional[str] = None
+    summary_report_uri: Optional[str] = None
     
     # Processing metadata
     metering: Dict[str, Any] = field(default_factory=dict)
     evaluation_report_uri: Optional[str] = None
     evaluation_result: Any = None  # Holds the DocumentEvaluationResult object
+    summarization_result: Any = None  # Holds the DocumentSummarizationResult object
     errors: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
@@ -120,12 +120,11 @@ class Document:
             "completion_time": self.completion_time,
             "workflow_execution_arn": self.workflow_execution_arn,
             "num_pages": self.num_pages,
-            "summary": self.summary,
-            "detailed_summary": self.detailed_summary,
+            "summary_report_uri": self.summary_report_uri,
             "evaluation_report_uri": self.evaluation_report_uri,
             "errors": self.errors,
             "metering": self.metering,
-            # We don't include evaluation_result in the dict since it's an object
+            # We don't include evaluation_result or summarization_result in the dict since they're objects
         }
         
         # Convert pages
@@ -172,8 +171,7 @@ class Document:
             completion_time=data.get('completion_time'),
             workflow_execution_arn=data.get('workflow_execution_arn'),
             evaluation_report_uri=data.get('evaluation_report_uri'),
-            summary=data.get('summary'),
-            detailed_summary=data.get('detailed_summary'),
+            summary_report_uri=data.get('summary_report_uri'),
             metering=data.get('metering', {}),
             errors=data.get('errors', [])
         )

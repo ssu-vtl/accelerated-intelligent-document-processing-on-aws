@@ -1,0 +1,242 @@
+# Summarization Service
+
+The Summarization Service module provides functionality for generating summaries of documents using LLMs through AWS Bedrock.
+
+## Overview
+
+The Summarization Service processes document text through a Bedrock LLM to extract key information and present it in flexible formats. The service is designed to integrate with the IDP pipeline to enable automatic document summarization with support for any JSON structure returned by LLMs. It dynamically adapts to whatever fields are returned in the JSON response from the model.
+
+## Main Components
+
+### DocumentSummary
+
+The `DocumentSummary` class provides a flexible container for any JSON structure returned by LLMs:
+
+```python
+@dataclass
+class DocumentSummary:
+    """Flexible model for document summary results that can handle any JSON structure."""
+    
+    content: Dict[str, Any]
+    """The raw content from the summarization result, containing any fields the LLM returned."""
+    
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    """Optional metadata about the summarization process."""
+    
+    def __getitem__(self, key: str) -> Any:
+        """Allow dictionary-like access to summary fields."""
+    
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a summary field with an optional default value."""
+    
+    def keys(self) -> List[str]:
+        """Get a list of available keys in the summary."""
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation."""
+```
+
+### DocumentSummarizationResult
+
+The `DocumentSummarizationResult` class contains the comprehensive summarization results:
+
+```python
+@dataclass
+class DocumentSummarizationResult:
+    """Comprehensive summarization result for a document."""
+    document_id: str
+    summary: DocumentSummary
+    execution_time: float = 0.0
+    output_uri: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation."""
+        
+    def to_markdown(self) -> str:
+        """Convert summarization results to markdown format."""
+```
+
+### SummarizationService
+
+The `SummarizationService` class handles the core summarization functionality:
+
+```python
+class SummarizationService:
+    """Service for summarizing documents using various backends."""
+    
+    def __init__(
+        self,
+        region: str = None,
+        config: Dict[str, Any] = None,
+        backend: str = "bedrock"
+    ):
+        # Initialize service with region, config and backend
+        
+    def process_text(self, text: str) -> DocumentSummary:
+        # Process raw text to generate a summary with flexible structure
+        
+    def process_document(
+        self, 
+        document: Document, 
+        store_results: bool = True
+    ) -> Document:
+        # Process a Document object and update it with summary information
+        # store_results parameter controls whether to create and store the markdown report
+```
+
+## Usage Examples
+
+### Summarizing Text
+
+```python
+from idp_common.summarization.service import SummarizationService
+
+# Initialize service with config
+summarization_service = SummarizationService(config=config)
+
+# Summarize text with flexible format
+text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit..."
+summary = summarization_service.process_text(text)
+
+# Access fields directly using dictionary-like syntax
+for key in summary.keys():
+    print(f"{key}: {summary[key]}")
+
+# Or using get() with optional default value
+overview = summary.get('overview', 'No overview available')
+key_points = summary.get('key_points', [])
+```
+
+### Summarizing a Document
+
+```python
+from idp_common.models import Document
+from idp_common.summarization.service import SummarizationService
+
+# Initialize service
+summarization_service = SummarizationService(config=config)
+
+# Load document
+document = Document.from_dict(document_data)
+
+# Process document and store markdown results in S3 (default)
+document = summarization_service.process_document(document)
+
+# Access summary through the result object
+summary = document.summarization_result.summary
+print(f"Available fields: {summary.keys()}")
+
+# Access any field directly
+for field in summary.keys():
+    print(f"{field}: {summary[field]}")
+
+# Access execution info and report URI
+print(f"Execution Time: {document.summarization_result.execution_time:.2f} seconds")
+print(f"Summary Report URI: {document.summary_report_uri}")
+
+# Process document without storing results in S3
+document = summarization_service.process_document(document, store_results=False)
+
+# Document has summarization_result but no summary_report_uri
+print(f"Has summarization_result: {document.summarization_result is not None}")
+print(f"Has summary_report_uri: {document.summary_report_uri is not None}")
+```
+
+## Configuration
+
+The service requires configuration with the following structure:
+
+```json
+{
+  "summarization": {
+    "model": "us.amazon.nova-pro-v1:0",
+    "temperature": 0,
+    "top_k": 0.5,
+    "system_prompt": "You are an expert document summarizer. Create a balanced summary that captures key points.",
+    "task_prompt": "Summarize the following document:\n\n{DOCUMENT_TEXT}\n\nProvide your summary in JSON format with the following fields:\n- 'brief_summary': A brief 1-2 sentence overview\n- 'detailed_summary': A comprehensive summary with key points\n\nEnsure the response is valid JSON."
+  }
+}
+```
+
+The service can handle any JSON structure returned by the model. You can use any field names in your prompt template:
+
+```json
+{
+  "summarization": {
+    "task_prompt": "Summarize the following document:\n\n{DOCUMENT_TEXT}\n\nProvide your summary in JSON format with the following fields:\n- 'overview': A brief 1-2 sentence overview\n- 'key_points': A list of the most important points\n- 'sections': A dictionary of section titles and summaries\n- 'entities': Important entities mentioned in the document\n\nEnsure all JSON fields are properly formatted and the response is valid JSON."
+  }
+}
+```
+
+Important considerations for the prompt template:
+1. Always request a valid JSON response format
+2. Specify the exact fields you want to include
+3. Include any formatting or style instructions directly in the prompt
+4. Fields can have any names and be nested as needed
+
+## Integration with Document Pipeline
+
+The Summarization Service integrates with the IDP pipeline by:
+
+1. Reading all available document page text
+2. Combining the text with page markers
+3. Sending the text to Bedrock LLM for summarization
+4. Parsing the JSON response from the LLM with any structure
+5. Creating a `DocumentSummary` with the parsed JSON content
+6. Creating a `DocumentSummarizationResult` object with results and timing information
+7. Optionally generating a markdown summary report and storing it in S3 (when `store_results=True`)
+8. Updating the document with:
+   - `summarization_result`: Complete result object with summary, timing, and URI
+   - `summary_report_uri`: S3 URI to the markdown report (only when `store_results=True`)
+9. Setting the document status to `Status.SUMMARIZED`
+
+### Flexible Structure Handling
+
+The main advantage of this service is that it can work with any JSON structure returned by the LLM:
+
+1. You can specify any JSON structure in your prompt template
+2. The service preserves the exact structure returned by the model
+3. The markdown report dynamically creates sections based on the JSON keys
+
+### Summary Report
+
+When `store_results=True` (the default), the service generates a markdown summary report that is stored in S3 at the location:
+```
+s3://{output_bucket}/{document.input_key}/summary/summary.md
+```
+
+The report dynamically creates sections based on the JSON keys returned:
+
+```markdown
+# Document Summary: doc-123
+
+## Overview
+This is a brief overview of the document.
+
+## Key Points
+- Point 1
+- Point 2
+- Point 3
+
+## Sections
+### Introduction
+Content about the introduction
+
+### Main Content
+Content about the main points
+
+## Entities
+- Entity 1
+- Entity 2
+
+Execution time: 1.25 seconds
+```
+
+Special formatting is applied based on the data type:
+- Lists are formatted as bullet points
+- Dictionaries are formatted as nested sections
+- Strings are presented as-is
+
+The report is generated using the `to_markdown()` method of the `DocumentSummarizationResult` class and can be accessed through `document.summary_report_uri` or `document.summarization_result.output_uri`.
+
+When `store_results=False`, the document is still updated with the summary information and the `summarization_result` object, but no markdown report is generated or stored in S3.
