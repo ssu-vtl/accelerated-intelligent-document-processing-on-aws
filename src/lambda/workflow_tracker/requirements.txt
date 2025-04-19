@@ -1,3 +1,2 @@
-requests
 ./lib/appsync_helper_pkg  # appsync_helper package
 ./lib/idp_common_pkg  # idp_common package with Document model

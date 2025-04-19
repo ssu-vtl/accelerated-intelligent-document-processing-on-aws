@@ -556,7 +556,7 @@ When the feature is enabled, the solution:
 The solution includes a built-in evaluation framework to assess the accuracy of document processing outputs. This allows you to:
 
 - Compare processing outputs against baseline (ground truth) data
-- Generate detailed evaluation reports using AI
+- Generate detailed evaluation reports using configurable methods and thresholds, including exact, fuzzy, semantic, and LLM powered comparisons. 
 - Track and improve processing accuracy over time
 
 ### How It Works
@@ -585,10 +585,6 @@ Set the following parameters during stack deployment:
 EvaluationBaselineBucketName:
   Description: Existing bucket with baseline data, or leave empty to create new bucket
   
-EvaluationPattern: 
-  Default: "LLM as a judge"
-  Description: Evaluation method to use
-
 EvaluationAutoEnabled:
   Default: true
   Description: Automatically evaluate each document (if baseline exists)
@@ -640,7 +636,7 @@ The Web UI includes a dedicated Configuration page that allows you to view and m
    - The current pattern's configuration is displayed in a structured form
 
 2. **Viewing Configuration**:
-   - The configuration is organized into sections: Notes, Classes, Classification, Extraction, and Pricing
+   - The configuration is organized into sections: Notes, Classes, Classification, Extraction, Evaluation, and Pricing
    - Each section can be expanded/collapsed for easier navigation
    - The current settings are shown with their values and descriptions
 
@@ -652,13 +648,17 @@ The Web UI includes a dedicated Configuration page that allows you to view and m
 
 4. **Configuration Structure**:
    - **Notes**: General information about the configuration
-   - **Classes**: Document types and their attributes for extraction
+   - **Classes**: Document types and their attributes for extraction, and (optional) evaluation method specification for evaluation.
    - **Classification**: Settings for document classification, including:
      - Model selection
      - Classification method (page-level or holistic)
      - Temperature and other sampling parameters
      - System and task prompts
    - **Extraction**: Settings for field extraction, including:
+     - Model selection
+     - Temperature and other sampling parameters
+     - System and task prompts
+   - **Evaluation**: Settings for field evaluation, including:
      - Model selection
      - Temperature and other sampling parameters
      - System and task prompts
@@ -929,4 +929,13 @@ Increase maximum concurrency to maximize throughput for time sensitive workloads
 `stop_workflows.sh <stack-name>:` _The Andon Chord! Purges all pending message from the SQS Document Queue, and stops all running State machine executions._
   
 `compare_json_files.py [-h] [--output-dir OUTPUT_DIR] [--debug] bucket folder1 folder2:` _Handy tool to compare JSON files in different folders. Use it to assess, for example, the effects of using different models or prompts for extraction. Includes an AI summary of the key differences in the outputs._ 
+
+## Git Submodule
+> This repository contains a Git submodule in the `lib/GenAIDP` location. 
+More information on Git submodules can be found [HERE](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
+To initialize and update the submodule, use the following commands when cloning the repository:
+``` bash
+git submodule init
+git submodule update
+```
 

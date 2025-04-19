@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.19]
+- Added enhanced EvaluationService with smart attribute discovery and evaluation
+  - Automatically discovers and evaluates attributes not defined in configuration
+  - Applies default semantic evaluation to unconfigured attributes using LLM method
+  - Handles all attribute cases: in both expected/actual, only in expected, only in actual
+  - Added new demo notebook examples showing smart attribute discovery in action
+- Added SEMANTIC evaluation method using embedding-based comparison
+
+
 ## [0.2.18]
 - Improved error handling in service classes
 - Support for enum config schema and corresponding picklist in UI. Used for Textract feature selection.
