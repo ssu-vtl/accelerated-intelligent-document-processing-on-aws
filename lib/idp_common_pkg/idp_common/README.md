@@ -32,6 +32,10 @@ Services for extracting text and structure from documents using AWS Textract.
 
 Services for generating document summaries using LLMs.
 
+### AppSync
+
+Services for storing and retrieving documents through AWS AppSync GraphQL API, with seamless conversion between Document objects and AppSync schema.
+
 ## Key Classes
 
 ### Document
@@ -385,4 +389,32 @@ document = summarization_service.process_document(document)
 print(f"Brief summary: {document.summary}")
 print(f"Detailed summary: {document.detailed_summary}")
 print(f"Summary report: {document.summary_report_uri}")
+```
+
+### DocumentAppSyncService
+
+Manages document storage and retrieval through AWS AppSync:
+
+```python
+from idp_common.appsync import DocumentAppSyncService
+from idp_common.models import Document, Status
+
+# Create a document
+document = Document(
+    id="doc-123",
+    input_key="documents/sample.pdf",
+    status=Status.QUEUED
+)
+
+# Initialize the service
+appsync_service = DocumentAppSyncService()
+
+# Create document in AppSync with 90-day TTL
+ttl = appsync_service.calculate_ttl(days=90)
+object_key = appsync_service.create_document(document, expires_after=ttl)
+
+# Later, update the document
+document.status = Status.PROCESSED
+document.num_pages = 5
+updated_document = appsync_service.update_document(document)
 ```

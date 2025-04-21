@@ -53,6 +53,11 @@ evaluation = [
     "numpy>=1.24.0",   # For numeric operations
 ]
 
+# Appsync module dependencies
+appsync = [
+    "requests>=2.32.3",
+]
+
 # Full package with all dependencies
 all = [
     "Pillow>=11.1.0",
@@ -60,6 +65,7 @@ all = [
     "amazon-textract-textractor>=1.9.1",
     "munkres>=1.1.4",
     "numpy>=1.24.0",
+    "requests>=2.32.3",
 ]
 
 [project.urls]
