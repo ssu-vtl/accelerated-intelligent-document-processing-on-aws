@@ -132,6 +132,7 @@ mutation UpdateDocument($input: UpdateDocumentInput!) {
         Metering
         EvaluationReportUri
         EvaluationStatus
+        SummaryReportUri
         ExpiresAfter
     }
 }

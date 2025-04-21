@@ -302,6 +302,15 @@ const DocumentAttributes = ({ item }) => {
             <div>{item.evaluationStatus || 'N/A'}</div>
           </div>
         </SpaceBetween>
+
+        <SpaceBetween size="xs">
+          <div>
+            <Box margin={{ bottom: 'xxxs' }} color="text-label">
+              <strong>Summary</strong>
+            </Box>
+            <div>{item.summaryReportUri ? 'Available' : 'N/A'}</div>
+          </div>
+        </SpaceBetween>
       </ColumnLayout>
     </Container>
   );
@@ -342,7 +351,11 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, o
           )}
         </SpaceBetween>
       </Container>
-      <DocumentViewers objectKey={item.objectKey} evaluationReportUri={item.evaluationReportUri} />
+      <DocumentViewers
+        objectKey={item.objectKey}
+        evaluationReportUri={item.evaluationReportUri}
+        summaryReportUri={item.summaryReportUri}
+      />
       <SectionsPanel sections={item.sections} />
       <PagesPanel pages={item.pages} />
     </SpaceBetween>
