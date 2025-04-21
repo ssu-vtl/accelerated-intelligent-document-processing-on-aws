@@ -30,45 +30,45 @@ def update_document_completion(object_key: str, workflow_status: str, output_dat
     sections = []
     pages = []
     metering = None
+    summary_report_uri = ""
     
     # Get sections, pages, and metering data if workflow succeeded
     if workflow_status == 'SUCCEEDED' and output_data:
         try:
-            # Get the processed document from the output data
-            processed_result = output_data.get("ProcessedResult", {})
+            # Get the processed document from the output data 
+            workflow_result = output_data.get("ProcessedResult", output_data.get("SummarizationResult", {}))
             
-            if "document" in processed_result:
+            if "document" in workflow_result:
                 # Get document from the final processing step
-                document = Document.from_dict(processed_result.get("document", {}))
+                document = Document.from_dict(workflow_result.get("document", {}))
                 
-                if document.status == Status.PROCESSED:
-                    # Extract data for AppSync update
-                    pageCount = document.num_pages
-                    
-                    # Convert sections to format expected by AppSync
-                    for section in document.sections:
-                        sections.append({
-                            "Id": section.section_id,
-                            "PageIds": section.page_ids,
-                            "Class": section.classification,
-                            "OutputJSONUri": section.extraction_result_uri
-                        })
-                    
-                    # Convert pages to format expected by AppSync
-                    for page_id, page in document.pages.items():
-                        pages.append({
-                            "Id": page.page_id,
-                            "Class": page.classification,
-                            "TextUri": page.parsed_text_uri,
-                            "ImageUri": page.image_uri
-                        })
-                    
-                    # Get metering data
-                    metering = document.metering
-                    
-                    logger.info(f"Successfully extracted data from Document object with {len(document.sections)} sections and {len(document.pages)} pages")
-                else:
-                    logger.warning(f"Document not in PROCESSED state: {document.status}")
+                # Extract data for AppSync update
+                pageCount = document.num_pages
+                
+                # Convert sections to format expected by AppSync
+                for section in document.sections:
+                    sections.append({
+                        "Id": section.section_id,
+                        "PageIds": section.page_ids,
+                        "Class": section.classification,
+                        "OutputJSONUri": section.extraction_result_uri
+                    })
+                
+                # Convert pages to format expected by AppSync
+                for page_id, page in document.pages.items():
+                    pages.append({
+                        "Id": page.page_id,
+                        "Class": page.classification,
+                        "TextUri": page.parsed_text_uri,
+                        "ImageUri": page.image_uri
+                    })
+                
+                # Get metering data
+                metering = document.metering
+                
+                # Get summary report URI if available
+                summary_report_uri = getattr(document, 'summary_report_uri', None)
+
             else:
                 logger.warning("No document found in ProcessedResult")
                 
@@ -88,14 +88,15 @@ def update_document_completion(object_key: str, workflow_status: str, output_dat
             'WorkflowStatus': workflow_status,
             'PageCount': pageCount,
             'Sections': sections,
-            'Pages': pages
+            'Pages': pages,              
+            'SummaryReportUri': summary_report_uri
         }
     }
     
     # Add metering data if available
     if metering:
         update_input['input']['Metering'] = metering
-    
+        
     logger.info(f"Updating document via AppSync: {update_input}")
     result = appsync.execute_mutation(UPDATE_DOCUMENT, update_input)
     return result['updateDocument']

@@ -36,6 +36,11 @@ Parameters:
     Default: ''
     Description: Bedrock Data Automation (BDA) project ARN
 
+  SummarizationModel:
+    Type: String
+    Default: 'DISABLED'
+    Description: Model to use for document summarization, or DISABLED to skip summarization
+
   UpdateConfigurationFunctionArn:
     Type: String
 
@@ -47,6 +52,9 @@ Parameters:
     Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
     Description: Model to use for LLM-based Evaluation
 
+
+Conditions:
+  IsSummarizationEnabled: !Not [!Equals [!Ref SummarizationModel, "DISABLED"]]
 
 Resources:
 
@@ -120,7 +128,7 @@ Resources:
                     # This controls the layout of the form fields inside each attribute item
                     columns: 2
           evaluation:
-            order: 4
+            order: 3
             type: object
             sectionLabel: Evaluation Inference
             properties:
@@ -144,6 +152,31 @@ Resources:
                     type: string
                     format: textarea
                     description: Task prompt for LLM evaluation - supports parameters {DOCUMENT_CLASS}, {ATTRIBUTE_NAME}, {ATTRIBUTE_DESCRIPTION}, {EXPECTED_VALUE} and {ACTUAL_VALUE}
+          summarization:
+            order: 4
+            type: object
+            sectionLabel: Summarization Inference
+            properties:
+              enabled:
+                type: boolean
+                description: Enable document summarization
+              model:
+                type: string
+                description: Bedrock model ID for summarization
+              temperature:
+                type: number
+                description: Model temperature for summarization
+              top_k:
+                type: number
+                description: Model top_k parameter for summarization
+              system_prompt:
+                type: string
+                format: textarea
+                description: System prompt for document summarization
+              task_prompt:
+                type: string
+                format: textarea
+                description: Task prompt for document summarization - supports parameter {DOCUMENT_TEXT}
           pricing:
             order: 5
             type: array
@@ -211,6 +244,32 @@ Resources:
                 "score": 0.0 to 1.0,
                 "reason": "Your explanation here"
               }
+        summarization:
+          enabled: !If [IsSummarizationEnabled, true, false]
+          model: !Ref SummarizationModel
+          temperature: 0.0
+          top_k: 0.5
+          system_prompt: |
+            You are a document summarization expert who can analyze and summarize documents from various domains including medical, financial, legal, and general business documents. Your task is to create a summary that captures the key information, main points, and important details from the document. Your output must be in valid JSON format.
+          task_prompt: |
+            Analyze the provided document and create a comprehensive summary.
+            <document>
+            {DOCUMENT_TEXT}
+            </document>
+            
+            Create a summary that captures the essential information from the document. Your summary should:
+            1. Extract key information, main points, and important details
+            2. Maintain the original document's organizational structure where appropriate
+            3. Preserve important facts, figures, dates, and entities\n4. Reduce the length while retaining all critical information
+            5. The detailed summary should be approximately 1000 words in length
+            
+            Return your response as valid JSON with the following structure:
+            ```json
+            {
+              "brief_summary": "A 1-2 sentence overview of what this document is about",
+              "detailed_summary": "A comprehensive summary following the summarization style"
+            }
+            ```
         pricing:
           - name: bda/documents-custom
             units:
@@ -229,6 +288,8 @@ Resources:
       DefinitionSubstitutions:
         InvokeBDALambdaArn: !GetAtt InvokeBDAFunction.Arn
         ProcessResultsLambdaArn: !GetAtt ProcessResultsFunction.Arn
+        IsSummarizationEnabled: !If [IsSummarizationEnabled, "true", "false"]
+        SummarizationLambdaArn: !GetAtt SummarizationFunction.Arn
         OutputBucket: !Ref OutputBucket
         WorkingBucket: !Ref WorkingBucket
         BDAProjectArn: !Ref BDAProjectArn
@@ -242,6 +303,8 @@ Resources:
             FunctionName: !Ref InvokeBDAFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref ProcessResultsFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref SummarizationFunction
         - CloudWatchLogsFullAccess
 
   StateMachineLogGroup:
@@ -370,6 +433,66 @@ Resources:
     Properties:
       KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       LogGroupName: !Sub "/${AWS::StackName}/lambda/ProcessResultsFunction"
+      RetentionInDays: !Ref LogRetentionDays
+
+  SummarizationFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Cloudwatch does not support resource-level permissions"
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"    
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    Properties:
+      CodeUri: src/summarization_function/
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 900
+      MemorySize: 4096
+      Environment:
+        Variables:
+          METRIC_NAMESPACE: !Ref StackName
+          CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
+      LoggingConfig:
+        LogGroup: !Ref SummarizationFunctionLogGroup
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3ReadPolicy:
+            BucketName: !Ref InputBucket
+        - S3CrudPolicy:
+            BucketName: !Ref OutputBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigurationTable
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: !Ref CustomerManagedEncryptionKeyArn
+          - Effect: Allow
+            Action: bedrock:InvokeModel
+            Resource: 
+                - !Sub "arn:aws:bedrock:*::foundation-model/*"
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+
+  SummarizationFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/SummarizationFunction"
       RetentionInDays: !Ref LogRetentionDays
 
   BDACompletionFunctionDLQ:
@@ -647,6 +770,43 @@ Resources:
                 "query": "SOURCE '${ProcessResultsFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
                 "region": "${AWS::Region}",
                 "title": "ProcessResults Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${SummarizationFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Summarization Function Duration",
+                "period": 300,
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                },
+                "stat": "Average",
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${SummarizationFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Summarization Lambda Errors",
                 "view": "table"
               }
             }
