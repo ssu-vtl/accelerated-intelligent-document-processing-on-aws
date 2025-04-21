@@ -4,7 +4,7 @@ import { SpaceBetween, Box, Button, StatusIndicator } from '@awsui/components-re
 import { API, graphqlOperation, Logger } from 'aws-amplify';
 import copyToBaselineMutation from '../../graphql/queries/copyToBaseline';
 import FileViewer from '../document-viewer/FileViewer';
-import MarkdownReportViewer from '../document-viewer/MarkdownReportViewer';
+import { MarkdownReport } from '../document-viewer/MarkdownViewer';
 
 const logger = new Logger('DocumentViewers');
 
@@ -64,7 +64,7 @@ const ViewerContent = ({
       )}
       {isReportVisible && (
         <div className="flex-1 min-w-0">
-          <MarkdownReportViewer
+          <MarkdownReport
             reportUri={evaluationReportUri}
             documentId={objectKey}
             title="Evaluation Report"
@@ -74,7 +74,7 @@ const ViewerContent = ({
       )}
       {isSummaryVisible && (
         <div className="flex-1 min-w-0">
-          <MarkdownReportViewer
+          <MarkdownReport
             reportUri={summaryReportUri}
             documentId={objectKey}
             title="Document Summary"

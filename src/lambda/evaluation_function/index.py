@@ -77,15 +77,15 @@ def handler(event, context):
         
         if output_data:
             # Get the processed document from the output data
-            processed_result = output_data.get("ProcessedResult", {})
+            processed_result = output_data.get("Result", {})
             if "document" in processed_result:
                 # Get document from the final processing step
                 actual_document = Document.from_dict(processed_result.get("document", {}))
                 logger.info(f"Successfully loaded actual document with {len(actual_document.pages)} pages and {len(actual_document.sections)} sections")
                 logger.info(f"Actual (Document): {actual_document}")
             else:
-                logger.error("No document found in ProcessedResult")
-                raise ValueError("No document found in ProcessedResult")
+                logger.error("No document found in Result")
+                raise ValueError("No document found in Result")
                 
             # Update document status to STARTED
             update_document_evaluation_status(actual_document, "STARTED")
