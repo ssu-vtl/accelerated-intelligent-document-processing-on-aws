@@ -106,7 +106,7 @@ class DocumentAppSyncService:
                     "Id": page_id_int,
                     "Class": page.classification or "",
                     "ImageUri": page.image_uri or "",
-                    "TextUri": page.raw_text_uri or ""
+                    "TextUri": page.parsed_text_uri or page.raw_text_uri or ""
                 }
                 pages_data.append(page_data)
             
