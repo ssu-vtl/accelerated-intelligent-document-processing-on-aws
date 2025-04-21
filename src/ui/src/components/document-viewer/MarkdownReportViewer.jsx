@@ -6,11 +6,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import getFileContents from '../../graphql/queries/getFileContents';
-import './EvaluationReportViewer.css';
+import './MarkdownReportViewer.css';
 
-const logger = new Logger('EvaluationReportViewer');
+const logger = new Logger('MarkdownReportViewer');
 
-const MarkdownViewer = ({ content, documentName }) => {
+const MarkdownViewer = ({ content, documentName, title }) => {
   const contentRef = useRef(null);
 
   const handlePrint = () => {
@@ -19,7 +19,7 @@ const MarkdownViewer = ({ content, documentName }) => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Evaluation Report - ${documentName || 'Document'}</title>
+          <title>${title || 'Report'} - ${documentName || 'Document'}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
             table { border-collapse: collapse; margin: 16px 0; width: auto; }
@@ -53,7 +53,7 @@ const MarkdownViewer = ({ content, documentName }) => {
     // Create a temporary link element
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${documentName || 'evaluation-report'}.md`;
+    a.download = `${documentName || title.toLowerCase().replace(/\s+/g, '-') || 'report'}.md`;
 
     // Append, click, and remove
     document.body.appendChild(a);
@@ -86,44 +86,44 @@ const MarkdownViewer = ({ content, documentName }) => {
   );
 };
 
-const EvaluationReportViewer = ({ evaluationReportUri, documentId }) => {
+const MarkdownReportViewer = ({ reportUri, documentId, title = 'Report', emptyMessage }) => {
   const [reportContent, setReportContent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchReport = async () => {
-      if (!evaluationReportUri) return;
+      if (!reportUri) return;
 
       setIsLoading(true);
       setError(null);
       try {
-        logger.info('Fetching evaluation report:', evaluationReportUri);
+        logger.info(`Fetching ${title}:`, reportUri);
 
         const response = await API.graphql({
           query: getFileContents,
-          variables: { s3Uri: evaluationReportUri },
+          variables: { s3Uri: reportUri },
         });
 
         const content = response.data.getFileContents;
-        logger.debug('Received report content:', `${content.substring(0, 100)}...`);
+        logger.debug(`Received ${title} content:`, `${content.substring(0, 100)}...`);
 
         setReportContent(content);
       } catch (err) {
-        logger.error('Error fetching evaluation report:', err);
-        setError('Failed to load evaluation report. Please try again.');
+        logger.error(`Error fetching ${title}:`, err);
+        setError(`Failed to load ${title.toLowerCase()}. Please try again.`);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchReport();
-  }, [evaluationReportUri]);
+  }, [reportUri, title]);
 
-  if (!evaluationReportUri) {
+  if (!reportUri) {
     return (
       <Box color="text-status-inactive" padding={{ top: 's' }}>
-        Evaluation report not available for this document
+        {emptyMessage || `${title} not available for this document`}
       </Box>
     );
   }
@@ -139,12 +139,14 @@ const EvaluationReportViewer = ({ evaluationReportUri, documentId }) => {
   if (isLoading) {
     return (
       <Box textAlign="center" padding="s">
-        Loading evaluation report...
+        Loading {title.toLowerCase()}...
       </Box>
     );
   }
 
-  return reportContent && <MarkdownViewer content={reportContent} documentName={documentId || 'evaluation-report'} />;
+  return (
+    reportContent && <MarkdownViewer content={reportContent} documentName={documentId || 'document'} title={title} />
+  );
 };
 
-export default EvaluationReportViewer;
+export default MarkdownReportViewer;
