@@ -52,6 +52,7 @@ def update_document_evaluation_status(document: Document, status: EvaluationStat
     Raises:
         AppSyncError: If the GraphQL operation fails
     """
+    document.status = Status.PROCESSED
     document.evaluation_status = status.value
     logger.info(f"Updating document via AppSync: {document.input_key} with status: {status.value}")
     return appsync_service.update_document(document)
