@@ -140,10 +140,11 @@ class DocumentAppSyncService:
         if document.metering:
             input_data["Metering"] = json.dumps(document.metering)
             
-        # Add evaluation report if available
+        # Add evaluation status & report if available
+        if document.evaluation_status
+            input_data["EvaluationStatus"] = document.evaluation_status
         if document.evaluation_report_uri:
             input_data["EvaluationReportUri"] = document.evaluation_report_uri
-            input_data["EvaluationStatus"] = "COMPLETED"
             
         # Add summary report if available
         if document.summary_report_uri:

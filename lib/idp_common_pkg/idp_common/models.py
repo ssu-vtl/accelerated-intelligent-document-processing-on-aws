@@ -106,6 +106,7 @@ class Document:
     
     # Processing metadata
     metering: Dict[str, Any] = field(default_factory=dict)
+    evaluation_status: Optional[str] = None
     evaluation_report_uri: Optional[str] = None
     evaluation_result: Any = None  # Holds the DocumentEvaluationResult object
     summarization_result: Any = None  # Holds the DocumentSummarizationResult object
@@ -127,6 +128,7 @@ class Document:
             "workflow_execution_arn": self.workflow_execution_arn,
             "num_pages": self.num_pages,
             "summary_report_uri": self.summary_report_uri,
+            "evaluation_status": self.evaluation_status,
             "evaluation_report_uri": self.evaluation_report_uri,
             "errors": self.errors,
             "metering": self.metering,
@@ -177,6 +179,7 @@ class Document:
             start_time=data.get('start_time'),
             completion_time=data.get('completion_time'),
             workflow_execution_arn=data.get('workflow_execution_arn'),
+            evaluation_status=data.get('evaluation_status'),
             evaluation_report_uri=data.get('evaluation_report_uri'),
             summary_report_uri=data.get('summary_report_uri'),
             metering=data.get('metering', {}),
