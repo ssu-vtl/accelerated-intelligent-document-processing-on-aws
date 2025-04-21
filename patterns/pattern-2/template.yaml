@@ -758,6 +758,12 @@ Resources:
           - name: bedrock/us.anthropic.claude-3-haiku-20240307-v1:0
             units:
               - name: inputTokens
+                price: 0.00000025
+              - name: outputTokens
+                price: 0.00000125
+          - name: bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0
+            units:
+              - name: inputTokens
                 price: 0.0000008
               - name: outputTokens
                 price: 0.000004
@@ -785,18 +791,6 @@ Resources:
                 price: 0.0000003
               - name: cacheWriteInputTokens
                 price: 0.00000375
-          - name: bedrock/us.meta.llama3-2-11b-instruct-v1:0
-            units:
-              - name: inputTokens
-                price: 0.00000016
-              - name: outputTokens
-                price: 0.00000016
-          - name: bedrock/us.meta.llama3-2-90b-instruct-v1:0
-            units:
-              - name: inputTokens
-                price: 0.00000072
-              - name: outputTokens
-                price: 0.00000072
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
