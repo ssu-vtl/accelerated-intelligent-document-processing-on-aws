@@ -47,7 +47,7 @@ Parameters:
 
   Pattern1SummarizationModel:
     Type: String
-    Default: "us.amazon.nova-lite-v1:0"
+    Default: "us.amazon.nova-pro-v1:0"
     AllowedValues:
       - "DISABLED"
       - "us.amazon.nova-lite-v1:0"
@@ -94,7 +94,7 @@ Parameters:
 
   Pattern2SummarizationModel:
     Type: String
-    Default: "DISABLED"
+    Default: "us.amazon.nova-pro-v1:0"
     AllowedValues:
       - "DISABLED"
       - "us.amazon.nova-lite-v1:0"
@@ -136,7 +136,7 @@ Parameters:
 
   Pattern3SummarizationModel:
     Type: String
-    Default: "DISABLED"
+    Default: "us.amazon.nova-pro-v1:0"
     AllowedValues:
       - "DISABLED"
       - "us.amazon.nova-lite-v1:0"
