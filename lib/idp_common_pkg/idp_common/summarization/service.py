@@ -223,6 +223,139 @@ class SummarizationService:
             logger.error(f"Error summarizing text: {str(e)}")
             return self._create_error_summary(str(e))
 
+    def process_document_section(self, document: Document, section_id: str) -> Document:
+        """
+        Summarize a specific section of a document and update the Document object with the summary.
+        
+        Args:
+            document: Document object containing the section to summarize
+            section_id: ID of the section to summarize
+            
+        Returns:
+            Document: Updated Document object with section summary
+        """
+        # Validate input document
+        if not document:
+            logger.error("No document provided")
+            return document
+        
+        if not document.sections:
+            logger.error("Document has no sections to process")
+            document.errors.append("Document has no sections to process")
+            return document
+        
+        # Find the section with the given ID
+        section = None
+        for s in document.sections:
+            if s.section_id == section_id:
+                section = s
+                break
+        
+        if not section:
+            error_msg = f"Section {section_id} not found in document"
+            logger.error(error_msg)
+            document.errors.append(error_msg)
+            return document
+        
+        # Extract information about the section
+        class_label = section.classification
+        output_bucket = document.output_bucket
+        output_prefix = document.input_key
+        output_key = f"{output_prefix}/sections/{section.section_id}/summary.json"
+        output_md_key = f"{output_prefix}/sections/{section.section_id}/summary.md"
+        output_uri = f"s3://{output_bucket}/{output_key}"
+        
+        # Check if the section has required pages
+        if not section.page_ids:
+            error_msg = f"Section {section_id} has no page IDs"
+            logger.error(error_msg)
+            document.errors.append(error_msg)
+            return document
+        
+        # Sort pages by page number
+        sorted_page_ids = sorted(section.page_ids, key=int)
+        start_page = int(sorted_page_ids[0])
+        end_page = int(sorted_page_ids[-1])
+        logger.info(f"Summarizing section {section_id}, class {class_label}: pages {start_page}-{end_page}")
+        
+        try:
+            # Start timing
+            start_time = time.time()
+            
+            # Read document text from all pages in order
+            all_text = ""
+            for page_id in sorted_page_ids:
+                if page_id not in document.pages:
+                    error_msg = f"Page {page_id} not found in document"
+                    logger.error(error_msg)
+                    document.errors.append(error_msg)
+                    continue
+                
+                page = document.pages[page_id]
+                text_path = page.parsed_text_uri
+                page_text = s3.get_text_content(text_path)
+                all_text += f"<page-number>{page_id}</page-number>\n{page_text}\n\n"
+            
+            if not all_text:
+                logger.warning(f"No text content found in section {section_id}")
+                return self._update_document_status(
+                    document, 
+                    success=False, 
+                    error_message=f"No text content found in section {section_id}"
+                )
+            
+            # Generate summary
+            summary = self.process_text(all_text)
+            
+            # Calculate execution time
+            execution_time = time.time() - start_time
+            
+            # Create summarization result object
+            summarization_result = DocumentSummarizationResult(
+                document_id=document.id,
+                summary=summary,
+                execution_time=execution_time
+            )
+            
+            # Store results in S3
+            # Store JSON result
+            s3.write_content(
+                content=summary.content,
+                bucket=output_bucket,
+                key=output_key,
+                content_type="application/json"
+            )
+            
+            # Generate and store markdown report
+            markdown_report = summarization_result.to_markdown()
+            s3.write_content(
+                content=markdown_report,
+                bucket=output_bucket,
+                key=output_md_key,
+                content_type="text/markdown"
+            )
+            
+            # Update section with summary URI
+            # Initialize attributes if it's None
+            if section.attributes is None:
+                section.attributes = {}
+            
+            section.attributes['summary_uri'] = output_uri
+            section.attributes['summary_md_uri'] = f"s3://{output_bucket}/{output_md_key}"
+            
+            # Update document metering
+            if "metering" in summary.metadata:
+                document.metering = utils.merge_metering_data(document.metering, summary.metadata["metering"])
+            
+            logger.info(f"Section {section_id} summarized successfully. Summary stored at: {output_uri}")
+            
+        except Exception as e:
+            error_msg = f"Error summarizing section {section_id}: {str(e)}"
+            logger.error(error_msg)
+            document.errors.append(error_msg)
+        
+        return document
+    
     def process_document(self, document: Document, store_results: bool = True) -> Document:
         """
         Summarize a document and update the Document object with the summary.
