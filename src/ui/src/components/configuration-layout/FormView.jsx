@@ -486,12 +486,25 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     // Check if this is a top-level object (path is empty)
     const isTopLevel = path === '';
 
+    // Sort properties by their order attribute if present
+    const getSortedObjectProperties = (properties) => {
+      const entries = Object.entries(properties);
+      // Add an order property if not present (default to 999)
+      const withOrder = entries.map(([propKey, propSchema]) => ({
+        propKey,
+        propSchema,
+        order: propSchema.order !== undefined ? parseInt(propSchema.order, 10) : 999,
+      }));
+      // Sort by order
+      return withOrder.sort((a, b) => a.order - b.order);
+    };
+
     // For top-level objects with sectionLabel, we shouldn't add a container here
     // as it's already being added in renderTopLevelProperty
     if (property.sectionLabel && isTopLevel) {
       return (
         <SpaceBetween size="s">
-          {Object.entries(property.properties).map(([propKey, propSchema]) => {
+          {getSortedObjectProperties(property.properties).map(({ propKey, propSchema }) => {
             return <Box key={propKey}>{renderField(propKey, propSchema, fullPath)}</Box>;
           })}
         </SpaceBetween>
@@ -504,7 +517,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       return (
         <Container header={<Header variant="h3">{sectionTitle}</Header>}>
           <SpaceBetween size="s">
-            {Object.entries(property.properties).map(([propKey, propSchema]) => {
+            {getSortedObjectProperties(property.properties).map(({ propKey, propSchema }) => {
               return <Box key={propKey}>{renderField(propKey, propSchema, fullPath)}</Box>;
             })}
           </SpaceBetween>
@@ -516,7 +529,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     return (
       <Box padding="s">
         <SpaceBetween size="xs">
-          {Object.entries(property.properties).map(([propKey, propSchema]) => {
+          {getSortedObjectProperties(property.properties).map(({ propKey, propSchema }) => {
             const nestedPropSchema =
               propSchema.type === 'list' || propSchema.type === 'array'
                 ? { ...propSchema, nestLevel: nestLevel + 1 }
@@ -686,7 +699,8 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                           .map(([propKey, prop]) => ({
                             propKey,
                             prop,
-                            order: prop.order || 999,
+                            // Use the specific order if provided, otherwise default to 999
+                            order: prop.order !== undefined ? parseInt(prop.order, 10) : 999,
                           }))
                           .sort((a, b) => a.order - b.order);
 
@@ -997,7 +1011,8 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     const withOrder = entries.map(([key, prop]) => ({
       key,
       property: prop,
-      order: prop.order ? parseInt(prop.order, 10) : 999,
+      // Use the specific order if provided, otherwise default to 999
+      order: prop.order !== undefined ? parseInt(prop.order, 10) : 999,
     }));
 
     // Sort by order
