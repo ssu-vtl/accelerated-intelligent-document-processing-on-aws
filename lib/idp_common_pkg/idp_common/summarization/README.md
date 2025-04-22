@@ -75,6 +75,14 @@ class SummarizationService:
     def process_text(self, text: str) -> DocumentSummary:
         # Process raw text to generate a summary with flexible structure
         
+    def process_document_section(
+        self,
+        document: Document,
+        section_id: str
+    ) -> Document:
+        # Process a specific section of a document and update the Document object with the summary
+        # Stores summary results in S3 and updates section.attributes with URIs
+        
     def process_document(
         self, 
         document: Document, 
@@ -107,39 +115,42 @@ overview = summary.get('overview', 'No overview available')
 key_points = summary.get('key_points', [])
 ```
 
-### Summarizing a Document
+### Summarizing a Document Section
 
 ```python
 from idp_common.models import Document
 from idp_common.summarization.service import SummarizationService
+import json
 
 # Initialize service
 summarization_service = SummarizationService(config=config)
 
 # Load document
-document = Document.from_dict(document_data)
+document = Document.from_s3("your-bucket", "your-document-key")
 
-# Process document and store markdown results in S3 (default)
-document = summarization_service.process_document(document)
+# Process a specific section
+section_id = "section-1"
+document = summarization_service.process_document_section(document, section_id)
 
-# Access summary through the result object
-summary = document.summarization_result.summary
-print(f"Available fields: {summary.keys()}")
+# Find the processed section
+section = next((s for s in document.sections if s.section_id == section_id), None)
 
-# Access any field directly
-for field in summary.keys():
-    print(f"{field}: {summary[field]}")
-
-# Access execution info and report URI
-print(f"Execution Time: {document.summarization_result.execution_time:.2f} seconds")
-print(f"Summary Report URI: {document.summary_report_uri}")
-
-# Process document without storing results in S3
-document = summarization_service.process_document(document, store_results=False)
-
-# Document has summarization_result but no summary_report_uri
-print(f"Has summarization_result: {document.summarization_result is not None}")
-print(f"Has summary_report_uri: {document.summary_report_uri is not None}")
+if section and section.attributes and 'summary_uri' in section.attributes:
+    # Access the summary from S3
+    from idp_common import s3
+    summary_uri = section.attributes['summary_uri']
+    summary_content = s3.get_json_content(summary_uri)
+    
+    # Print the summary content
+    print(f"Summary for section {section_id} ({section.classification}):")
+    print(json.dumps(summary_content, indent=2))
+    
+    # Access the markdown version
+    markdown_uri = section.attributes['summary_md_uri']
+    markdown_content = s3.get_text_content(markdown_uri)
+    print(f"\nMarkdown Summary:\n{markdown_content[:500]}...")
+else:
+    print(f"No summary available for section {section_id}")
 ```
 
 ## Configuration
@@ -240,3 +251,113 @@ Special formatting is applied based on the data type:
 The report is generated using the `to_markdown()` method of the `DocumentSummarizationResult` class and can be accessed through `document.summary_report_uri` or `document.summarization_result.output_uri`.
 
 When `store_results=False`, the document is still updated with the summary information and the `summarization_result` object, but no markdown report is generated or stored in S3.
+### Summarizing a Document
+
+```python
+from idp_common.models import Document
+from idp_common.summarization.service import SummarizationService
+
+# Initialize service
+summarization_service = SummarizationService(config=config)
+
+# Load document
+document = Document.from_dict(document_data)
+
+# Process document and store markdown results in S3 (default)
+document = summarization_service.process_document(document)
+
+# Access summary through the result object
+summary = document.summarization_result.summary
+print(f"Available fields: {summary.keys()}")
+
+# Access any field directly
+for field in summary.keys():
+    print(f"{field}: {summary[field]}")
+
+# Access execution info and report URI
+print(f"Execution Time: {document.summarization_result.execution_time:.2f} seconds")
+print(f"Summary Report URI: {document.summary_report_uri}")
+
+# Process document without storing results in S3
+document = summarization_service.process_document(document, store_results=False)
+
+# Document has summarization_result but no summary_report_uri
+print(f"Has summarization_result: {document.summarization_result is not None}")
+print(f"Has summary_report_uri: {document.summary_report_uri is not None}")
+```
+## Section-Level Summarization
+
+The `process_document_section` method allows you to generate summaries for specific sections of a document. This is particularly useful for multi-class documents where different sections may require different types of summaries.
+
+### How It Works
+
+1. **Input**: Takes a Document object and a section_id
+2. **Processing**:
+   - Validates the document and finds the specified section
+   - Extracts text from all pages in the section
+   - Generates a summary using the Bedrock LLM
+   - Stores the summary in S3 in both JSON and Markdown formats
+3. **Output**: 
+   - Updates the section's attributes with links to the summary files
+   - Returns the updated Document object
+
+### Key Features
+
+- **Section-specific processing**: Focuses only on the pages in the specified section
+- **Attribute initialization**: Safely initializes `section.attributes` to an empty dictionary if it's `None`
+- **Dual format storage**: Stores both JSON and Markdown versions of the summary
+- **Error handling**: Gracefully handles errors and updates the document's error list
+
+### Storage Locations
+
+For a section with ID `section-id`, the summaries are stored at:
+- JSON: `s3://{output_bucket}/{document.input_key}/sections/{section_id}/summary.json`
+- Markdown: `s3://{output_bucket}/{document.input_key}/sections/{section_id}/summary.md`
+
+### Section Attributes
+
+After processing, the section's attributes will contain:
+- `summary_uri`: S3 URI for the JSON summary
+- `summary_md_uri`: S3 URI for the Markdown summary
+
+### Processing Multiple Sections
+
+You can process multiple sections sequentially:
+
+```python
+# Process all sections in a document
+for section in document.sections:
+    document = summarization_service.process_document_section(
+        document=document,
+        section_id=section.section_id
+    )
+```
+
+Or process them in parallel for better performance:
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+
+def process_section(section_id):
+    return summarization_service.process_document_section(
+        document=document.copy(),  # Create a copy to avoid concurrency issues
+        section_id=section_id
+    )
+
+# Process sections in parallel
+with ThreadPoolExecutor(max_workers=4) as executor:
+    section_ids = [section.section_id for section in document.sections]
+    results = list(executor.map(process_section, section_ids))
+    
+    # Merge results if needed
+    # (This is a simplified example - you would need to merge the results properly)
+    for result_doc in results:
+        # Update the original document with section results
+        for section in result_doc.sections:
+            # Find matching section in original document
+            orig_section = next((s for s in document.sections if s.section_id == section.section_id), None)
+            if orig_section and section.attributes:
+                if orig_section.attributes is None:
+                    orig_section.attributes = {}
+                orig_section.attributes.update(section.attributes)
+```
