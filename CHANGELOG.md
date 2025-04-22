@@ -7,6 +7,10 @@
   - New summarization function added to all patterns
   - Added end-to-end document summarization notebook example
 - Integration of AppSync helper package into idp_common_pkg
+- Enhanced the Hungarian evaluation method with configurable comparators
+  - Added support for EXACT, FUZZY, and NUMERIC comparators for Hungarian method
+  - Implemented a flexible comparator pattern similar to GenAIDP
+  - Added dynamic UI form fields based on evaluation method selection
   
 ### Changed
 - Refactored code for better maintainability
