@@ -15,9 +15,14 @@ class Status(Enum):
     """Document processing status."""
     QUEUED = "QUEUED"           # Initial state when document is added to queue
     STARTED = "STARTED"         # Step function workflow has started
+    OCR_STARTED = "OCR_RUNNING"  # OCR processing started
     OCR_COMPLETED = "OCR_COMPLETED"  # OCR processing completed
+    CLASSIFYING = "CLASSIFYING" # Document classification started
     CLASSIFIED = "CLASSIFIED"   # Document classification completed
+    EXTRACTING = "EXTRACTING"   # Information extraction started
     EXTRACTED = "EXTRACTED"     # Information extraction completed
+    SUMMARIZING = "SUMMARIZING" # Document summarization started
+    SUMMARIZED = "SUMMARIZED"   # Document summarization completed
     PROCESSED = "PROCESSED"     # All processing completed
     FAILED = "FAILED"           # Processing failed
     EVALUATED = "EVALUATED"     # Document has been evaluated against baseline
@@ -87,6 +92,7 @@ class Document:
     
     # Processing state and timing
     status: Status = Status.QUEUED
+    initial_event_time: Optional[str] = None
     queued_time: Optional[str] = None
     start_time: Optional[str] = None
     completion_time: Optional[str] = None
@@ -96,11 +102,14 @@ class Document:
     num_pages: int = 0
     pages: Dict[str, Page] = field(default_factory=dict)
     sections: List[Section] = field(default_factory=list)
+    summary_report_uri: Optional[str] = None
     
     # Processing metadata
     metering: Dict[str, Any] = field(default_factory=dict)
+    evaluation_status: Optional[str] = None
     evaluation_report_uri: Optional[str] = None
     evaluation_result: Any = None  # Holds the DocumentEvaluationResult object
+    summarization_result: Any = None  # Holds the DocumentSummarizationResult object
     errors: List[str] = field(default_factory=list)
     
     def to_dict(self) -> Dict[str, Any]:
@@ -112,15 +121,18 @@ class Document:
             "input_key": self.input_key,
             "output_bucket": self.output_bucket,
             "status": self.status.value,
+            "initial_event_time": self.initial_event_time,
             "queued_time": self.queued_time,
             "start_time": self.start_time,
             "completion_time": self.completion_time,
             "workflow_execution_arn": self.workflow_execution_arn,
             "num_pages": self.num_pages,
+            "summary_report_uri": self.summary_report_uri,
+            "evaluation_status": self.evaluation_status,
             "evaluation_report_uri": self.evaluation_report_uri,
             "errors": self.errors,
             "metering": self.metering,
-            # We don't include evaluation_result in the dict since it's an object
+            # We don't include evaluation_result or summarization_result in the dict since they're objects
         }
         
         # Convert pages
@@ -162,11 +174,14 @@ class Document:
             input_key=data.get('input_key'),
             output_bucket=data.get('output_bucket'),
             num_pages=data.get('num_pages', 0),
+            initial_event_time=data.get('initial_event_time'),
             queued_time=data.get('queued_time'),
             start_time=data.get('start_time'),
             completion_time=data.get('completion_time'),
             workflow_execution_arn=data.get('workflow_execution_arn'),
+            evaluation_status=data.get('evaluation_status'),
             evaluation_report_uri=data.get('evaluation_report_uri'),
+            summary_report_uri=data.get('summary_report_uri'),
             metering=data.get('metering', {}),
             errors=data.get('errors', [])
         )
@@ -212,12 +227,14 @@ class Document:
         """Create a Document from an S3 event."""
         input_bucket = event.get("detail", {}).get("bucket", {}).get("name", "")
         input_key = event.get("detail", {}).get("object", {}).get("key", "")
+        initial_event_time = event.get("time", "")
         
         return cls(
             id=input_key,
             input_bucket=input_bucket,
             input_key=input_key,
             output_bucket=output_bucket,
+            initial_event_time=initial_event_time,
             status=Status.QUEUED
         )
     

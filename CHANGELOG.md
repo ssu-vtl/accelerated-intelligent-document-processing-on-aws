@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- Added document summarization functionality
+  - New summarization service with default model set to Claude 3 Haiku
+  - New summarization function added to all patterns
+  - Added end-to-end document summarization notebook example
+- Integration of AppSync helper package into idp_common_pkg
+  
+### Changed
+- Refactored code for better maintainability
+- Updated UI components to support markdown viewing
+- Set default evaluation model to Claude 3 Haiku
+- Various bug fixes and improvements
+
 ## [0.2.19]
 - Added enhanced EvaluationService with smart attribute discovery and evaluation
   - Automatically discovers and evaluates attributes not defined in configuration

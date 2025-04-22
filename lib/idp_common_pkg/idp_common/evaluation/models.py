@@ -219,8 +219,8 @@ class DocumentEvaluationResult:
             attr_table = "| Status | Attribute | Expected | Actual | Score | Method | Reason |\n"
             attr_table += "| :----: | --------- | -------- | ------ | ----- | ------ | ------ |\n"
             for ar in sr.attributes:
-                expected = str(ar.expected).replace("\n", " ")[:50]
-                actual = str(ar.actual).replace("\n", " ")[:50]
+                expected = str(ar.expected).replace("\n", " ")
+                actual = str(ar.actual).replace("\n", " ")
                 # Don't truncate the reason field for the report
                 reason = str(ar.reason).replace("\n", " ") if ar.reason else ""
                 # Format the method with evaluation_threshold if applicable
