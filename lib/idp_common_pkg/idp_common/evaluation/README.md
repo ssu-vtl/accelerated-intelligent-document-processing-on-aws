@@ -72,6 +72,25 @@ config = {
                     "evaluation_threshold": 0.8  # Minimum similarity threshold
                 },
                 {
+                    "name": "transaction_list",
+                    "description": "List of transactions from the invoice",
+                    "evaluation_method": "HUNGARIAN",  # Use Hungarian algorithm for list matching
+                    "hungarian_comparator": "EXACT"  # Use exact string comparison (default)
+                },
+                {
+                    "name": "payment_methods",
+                    "description": "List of payment methods accepted",
+                    "evaluation_method": "HUNGARIAN",  # Use Hungarian algorithm with fuzzy matching
+                    "hungarian_comparator": "FUZZY",  # Use fuzzy string comparison
+                    "evaluation_threshold": 0.7  # Similarity threshold for fuzzy matching
+                },
+                {
+                    "name": "amounts",
+                    "description": "List of monetary amounts",
+                    "evaluation_method": "HUNGARIAN",  # Use Hungarian algorithm with numeric matching
+                    "hungarian_comparator": "NUMERIC"  # Use numeric comparison after normalization
+                },
+                {
                     "name": "notes",
                     "description": "Additional notes about the invoice",
                     "evaluation_method": "LLM"  # Use LLM-based evaluation (default method, also used when evaluation_method is missing)
@@ -113,7 +132,10 @@ The service supports multiple evaluation methods that can be configured for each
 - `EXACT`: Exact string match (after normalizing whitespace and punctuation)
 - `NUMERIC_EXACT`: Exact match for numeric values (after normalizing currency symbols)
 - `FUZZY`: Fuzzy string matching with configurable evaluation_threshold
-- `HUNGARIAN`: Optimal matching for lists of values using the Hungarian algorithm
+- `HUNGARIAN`: Optimal matching for lists of values using the Hungarian algorithm with configurable comparator types:
+  - `EXACT`: Default comparator for exact string matching (after normalization)
+  - `FUZZY`: Fuzzy string matching with configurable threshold
+  - `NUMERIC`: Numeric comparison after normalizing currency symbols and formats
 - `SEMANTIC`: Efficient semantic similarity comparison using Bedrock Titan embeddings (amazon.titan-embed-text-v1)
 - `LLM`: LLM-based evaluation using Bedrock models (Claude or Titan) for semantically comparable values with detailed explanations
 
@@ -168,13 +190,24 @@ The evaluation module produces richly formatted Markdown reports with:
 2. **Performance Tables**:
    - Metrics tables with value ratings
    - First-column status indicators (✅/❌) for immediate identification of matches
-   - Detailed attribution of evaluation methods used for each field
+   - Detailed attribution of evaluation methods used for each field, including:
+     - Method types (EXACT, FUZZY, HUNGARIAN, etc.)
+     - Thresholds for fuzzy and semantic matching methods
+     - Comparator types for the Hungarian method
+     - Combined display for HUNGARIAN with FUZZY comparator showing both comparator type and threshold
 
 3. **Method Explanations**:
    - Clear documentation of evaluation methods
    - Descriptions of scoring mechanisms
    - Guidance on interpreting results
    - Indications for attributes that were discovered in the data but not in the configuration
+
+Examples of method display in reports:
+- `EXACT` - Simple exact matching
+- `FUZZY (threshold: 0.8)` - Fuzzy matching with threshold
+- `HUNGARIAN (comparator: EXACT)` - Hungarian algorithm with exact matching
+- `HUNGARIAN (comparator: FUZZY, threshold: 0.7)` - Hungarian with fuzzy matching and threshold
+- `HUNGARIAN (comparator: NUMERIC)` - Hungarian with numeric comparison
 
 The reports are designed to provide both at-a-glance performance assessment and detailed diagnostic information.
 
