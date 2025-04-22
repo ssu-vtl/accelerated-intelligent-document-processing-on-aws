@@ -24,6 +24,18 @@ Services for field extraction from documents using LLMs.
 
 Tools for evaluating extraction and classification results against baselines.
 
+### OCR
+
+Services for extracting text and structure from documents using AWS Textract.
+
+### Summarization
+
+Services for generating document summaries using LLMs.
+
+### AppSync
+
+Services for storing and retrieving documents through AWS AppSync GraphQL API, with seamless conversion between Document objects and AppSync schema.
+
 ## Key Classes
 
 ### Document
@@ -54,6 +66,8 @@ class Document:
     num_pages: int = 0
     pages: Dict[str, Page] = field(default_factory=dict)
     sections: List[Section] = field(default_factory=list)
+    summary: Optional[str] = None
+    detailed_summary: Optional[str] = None
     
     # Processing metadata
     metering: Dict[str, Any] = field(default_factory=dict)
@@ -108,6 +122,7 @@ class Status(Enum):
     OCR_COMPLETED = "OCR_COMPLETED"  # OCR processing completed
     CLASSIFIED = "CLASSIFIED"   # Document classification completed
     EXTRACTED = "EXTRACTED"     # Information extraction completed
+    SUMMARIZED = "SUMMARIZED"   # Document summarization completed
     PROCESSED = "PROCESSED"     # All processing completed
     FAILED = "FAILED"           # Processing failed
     EVALUATED = "EVALUATED"     # Document has been evaluated against baseline
@@ -280,4 +295,126 @@ prompt = format_prompt(template, substitutions, required)
 This function:
 - Validates that required placeholders exist in the template
 - Handles replacement in a way that protects against format string vulnerabilities
-- Provides consistent behavior across classification, extraction, and evaluation services
+- Provides consistent behavior across classification, extraction, evaluation, and summarization services
+
+## Service Classes
+
+The library provides several service classes for different document processing tasks:
+
+### OcrService
+
+Processes documents to extract text, tables, and forms using AWS Textract:
+
+```python
+from idp_common.ocr.service import OcrService
+from idp_common.models import Document
+
+ocr_service = OcrService(
+    region="us-east-1",
+    enhanced_features=["TABLES", "FORMS"]
+)
+
+# Process a document
+document = Document(id="doc-123", input_bucket="bucket", input_key="doc.pdf")
+processed_document = ocr_service.process_document(document)
+```
+
+### ClassificationService
+
+Classifies documents or document pages:
+
+```python
+from idp_common.classification.service import ClassificationService
+
+classification_service = ClassificationService(
+    region="us-east-1",
+    config=config
+)
+
+# Classify a document
+document = classification_service.classify_document(document)
+```
+
+### ExtractionService
+
+Extracts structured information from document sections:
+
+```python
+from idp_common.extraction.service import ExtractionService
+
+extraction_service = ExtractionService(
+    region="us-east-1",
+    config=config
+)
+
+# Process a section
+document = extraction_service.process_document_section(document, section_id="1")
+```
+
+### EvaluationService
+
+Compares extraction results against baseline data:
+
+```python
+from idp_common.evaluation.service import EvaluationService
+
+evaluation_service = EvaluationService(
+    region="us-east-1",
+    config=config
+)
+
+# Evaluate a document
+evaluated_document = evaluation_service.evaluate_document(
+    actual_document=document,
+    expected_document=baseline_document
+)
+```
+
+### SummarizationService
+
+Generates document summaries and creates markdown summary reports:
+
+```python
+from idp_common.summarization.service import SummarizationService
+
+summarization_service = SummarizationService(
+    region="us-east-1",
+    config=config
+)
+
+# Get a document summary
+document = summarization_service.process_document(document)
+
+# Access the document summary information
+print(f"Brief summary: {document.summary}")
+print(f"Detailed summary: {document.detailed_summary}")
+print(f"Summary report: {document.summary_report_uri}")
+```
+
+### DocumentAppSyncService
+
+Manages document storage and retrieval through AWS AppSync:
+
+```python
+from idp_common.appsync import DocumentAppSyncService
+from idp_common.models import Document, Status
+
+# Create a document
+document = Document(
+    id="doc-123",
+    input_key="documents/sample.pdf",
+    status=Status.QUEUED
+)
+
+# Initialize the service
+appsync_service = DocumentAppSyncService()
+
+# Create document in AppSync with 90-day TTL
+ttl = appsync_service.calculate_ttl(days=90)
+object_key = appsync_service.create_document(document, expires_after=ttl)
+
+# Later, update the document
+document.status = Status.PROCESSED
+document.num_pages = 5
+updated_document = appsync_service.update_document(document)
+```

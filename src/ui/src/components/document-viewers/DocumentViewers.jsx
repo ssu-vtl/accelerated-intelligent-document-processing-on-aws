@@ -4,17 +4,20 @@ import { SpaceBetween, Box, Button, StatusIndicator } from '@awsui/components-re
 import { API, graphqlOperation, Logger } from 'aws-amplify';
 import copyToBaselineMutation from '../../graphql/queries/copyToBaseline';
 import FileViewer from '../document-viewer/FileViewer';
-import EvaluationReportViewer from '../document-viewer/EvaluationReportViewer';
+import { MarkdownReport } from '../document-viewer/MarkdownViewer';
 
 const logger = new Logger('DocumentViewers');
 
 const ViewerControls = ({
   onViewSource,
   onViewReport,
+  onViewSummary,
   onSetAsBaseline,
   isSourceVisible,
   isReportVisible,
+  isSummaryVisible,
   evaluationReportUri,
+  summaryReportUri,
   copyStatus,
 }) => (
   <SpaceBetween direction="horizontal" size="xs">
@@ -26,6 +29,11 @@ const ViewerControls = ({
         {isReportVisible ? 'Close Evaluation Report' : 'View Evaluation Report'}
       </Button>
     )}
+    {summaryReportUri && (
+      <Button onClick={onViewSummary} variant={isSummaryVisible ? 'primary' : 'normal'}>
+        {isSummaryVisible ? 'Close Document Summary' : 'View Document Summary'}
+      </Button>
+    )}
     <Button onClick={onSetAsBaseline} disabled={copyStatus === 'in-progress'}>
       Use as Evaluation Baseline
     </Button>
@@ -35,8 +43,15 @@ const ViewerControls = ({
   </SpaceBetween>
 );
 
-const ViewerContent = ({ isSourceVisible, isReportVisible, objectKey, evaluationReportUri }) => {
-  if (!isSourceVisible && !isReportVisible) {
+const ViewerContent = ({
+  isSourceVisible,
+  isReportVisible,
+  isSummaryVisible,
+  objectKey,
+  evaluationReportUri,
+  summaryReportUri,
+}) => {
+  if (!isSourceVisible && !isReportVisible && !isSummaryVisible) {
     return null;
   }
 
@@ -49,10 +64,21 @@ const ViewerContent = ({ isSourceVisible, isReportVisible, objectKey, evaluation
       )}
       {isReportVisible && (
         <div className="flex-1 min-w-0">
-          <EvaluationReportViewer
-            objectKey={objectKey}
-            evaluationReportUri={evaluationReportUri}
-            showControls={false}
+          <MarkdownReport
+            reportUri={evaluationReportUri}
+            documentId={objectKey}
+            title="Evaluation Report"
+            emptyMessage="Evaluation report not available for this document"
+          />
+        </div>
+      )}
+      {isSummaryVisible && (
+        <div className="flex-1 min-w-0">
+          <MarkdownReport
+            reportUri={summaryReportUri}
+            documentId={objectKey}
+            title="Document Summary"
+            emptyMessage="Summary report not available for this document"
           />
         </div>
       )}
@@ -60,9 +86,10 @@ const ViewerContent = ({ isSourceVisible, isReportVisible, objectKey, evaluation
   );
 };
 
-const DocumentViewers = ({ objectKey, evaluationReportUri }) => {
+const DocumentViewers = ({ objectKey, evaluationReportUri, summaryReportUri }) => {
   const [isSourceVisible, setIsSourceVisible] = useState(false);
   const [isReportVisible, setIsReportVisible] = useState(false);
+  const [isSummaryVisible, setIsSummaryVisible] = useState(false);
   const [copyStatus, setCopyStatus] = useState(null);
 
   const handleViewSource = () => {
@@ -71,6 +98,10 @@ const DocumentViewers = ({ objectKey, evaluationReportUri }) => {
 
   const handleViewReport = () => {
     setIsReportVisible(!isReportVisible);
+  };
+
+  const handleViewSummary = () => {
+    setIsSummaryVisible(!isSummaryVisible);
   };
 
   const handleSetAsBaseline = async () => {
@@ -101,17 +132,22 @@ const DocumentViewers = ({ objectKey, evaluationReportUri }) => {
         <ViewerControls
           onViewSource={handleViewSource}
           onViewReport={handleViewReport}
+          onViewSummary={handleViewSummary}
           onSetAsBaseline={handleSetAsBaseline}
           isSourceVisible={isSourceVisible}
           isReportVisible={isReportVisible}
+          isSummaryVisible={isSummaryVisible}
           evaluationReportUri={evaluationReportUri}
+          summaryReportUri={summaryReportUri}
           copyStatus={copyStatus}
         />
         <ViewerContent
           isSourceVisible={isSourceVisible}
           isReportVisible={isReportVisible}
+          isSummaryVisible={isSummaryVisible}
           objectKey={objectKey}
           evaluationReportUri={evaluationReportUri}
+          summaryReportUri={summaryReportUri}
         />
       </SpaceBetween>
     </Box>

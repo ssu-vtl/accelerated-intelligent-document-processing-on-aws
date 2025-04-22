@@ -338,8 +338,8 @@ def process_bda_pages(output_bucket, object_key, document):
             )
             document.pages[page_id] = page
             
-            # Create metadata file for the raw text URI
-            create_metadata_file(raw_text_uri, doc_class, 'page')
+            # Create metadata file for the parsed text URI
+            create_metadata_file(parsed_result_uri, doc_class, 'page')
         
         # Update document page count
         document.num_pages = len(document.pages)

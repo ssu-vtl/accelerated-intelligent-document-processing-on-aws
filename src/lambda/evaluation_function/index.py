@@ -9,12 +9,13 @@ import json
 import os
 import logging
 import time
-from typing import Dict, Any
-from appsync_helper import AppSyncClient, UPDATE_DOCUMENT
+from typing import Dict, Any, Optional
+from enum import Enum
 
 # Import IDP common packages
-from idp_common.models import Document
+from idp_common.models import Document, Status
 from idp_common import get_config, evaluation
+from idp_common.appsync import DocumentAppSyncService
 
 # Configure logging
 logger = logging.getLogger()
@@ -24,44 +25,125 @@ logger.setLevel(logging.INFO)
 METRIC_NAMESPACE = os.environ.get('METRIC_NAMESPACE', 'GENAIDP')
 BASELINE_BUCKET = os.environ['BASELINE_BUCKET']
 
-print(os.environ["CONFIGURATION_TABLE_NAME"])
-
 # Configuration
 CONFIG = get_config()
 
-# Create AppSync client
-appsync = AppSyncClient()
+# Create AppSync service
+appsync_service = DocumentAppSyncService()
 
-def update_document_tracker(object_key: str, evaluationReportUri: str = None, evaluationStatus: str = None) -> Dict[str, Any]:
+# Define evaluation status constants
+class EvaluationStatus(Enum):
+    STARTED = "STARTED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    NO_BASELINE = "NO_BASELINE"
+
+def update_document_evaluation_status(document: Document, status: EvaluationStatus) -> Document:
     """
-    Update document status via AppSync
+    Update document evaluation status via AppSync
     
     Args:
-        object_key: The document key
-        evaluationReportUri: S3 path to generated evaluation report (optional)
-        evaluationStatus: Status of the evaluation (optional)
+        document: The Document object to update
+        status: The evaluation status
         
     Returns:
-        The updated document data
+        The updated Document object
         
     Raises:
         AppSyncError: If the GraphQL operation fails
     """
-    update_input = {
-        'input': {
-            'ObjectKey': object_key
-        }
-    }
+    document.status = Status.PROCESSED
+    document.evaluation_status = status.value
+    logger.info(f"Updating document via AppSync: {document.input_key} with status: {status.value}")
+    return appsync_service.update_document(document)
+
+def extract_document_from_event(event: Dict[str, Any]) -> Optional[Document]:
+    """
+    Extract document from Lambda event
     
-    if evaluationReportUri is not None:
-        update_input['input']['EvaluationReportUri'] = evaluationReportUri
+    Args:
+        event: Lambda event
         
-    if evaluationStatus is not None:
-        update_input['input']['EvaluationStatus'] = evaluationStatus
+    Returns:
+        Document object or None if not found
+        
+    Raises:
+        ValueError: If document cannot be extracted from event
+    """
+    try:
+        input_data = json.loads(event['detail']['input'])
+        output_data = json.loads(event['detail']['output'])
+        
+        if not output_data:
+            raise ValueError("No output data found in event")
+            
+        # Get the processed document from the output data
+        processed_result = output_data.get("Result", {})
+        if "document" not in processed_result:
+            raise ValueError("No document found in Result")
+            
+        # Get document from the final processing step
+        document = Document.from_dict(processed_result.get("document", {}))
+        logger.info(f"Successfully loaded actual document with {len(document.pages)} pages and {len(document.sections)} sections")
+        return document
+    except Exception as e:
+        logger.error(f"Error extracting document from event: {str(e)}")
+        raise ValueError(f"Failed to extract document from event: {str(e)}")
+
+def load_baseline_document(document_key: str) -> Optional[Document]:
+    """
+    Load baseline document from S3
     
-    logger.info(f"Updating document via AppSync: {update_input}")
-    result = appsync.execute_mutation(UPDATE_DOCUMENT, update_input)
-    return result['updateDocument']
+    Args:
+        document_key: The document key to load
+        
+    Returns:
+        Document object or None if no baseline is found
+        
+    Raises:
+        ValueError: If baseline document cannot be loaded
+    """
+    try:
+        logger.info(f"Loading baseline document for {document_key} from {BASELINE_BUCKET}")
+        
+        expected_document = Document.from_s3(
+            bucket=BASELINE_BUCKET, 
+            input_key=document_key
+        )
+        
+        # Check if the expected document has meaningful data
+        if not expected_document.pages or not expected_document.sections:
+            logger.warning(f"No baseline data found for {document_key} in {BASELINE_BUCKET} (empty document)")
+            return None
+            
+        # Baseline data exists and is valid
+        logger.info(f"Successfully loaded expected (baseline) document with {len(expected_document.pages)} pages and {len(expected_document.sections)} sections")
+        return expected_document
+        
+    except Exception as e:
+        logger.error(f"Error loading baseline document: {str(e)}")
+        raise ValueError(f"Failed to load baseline document: {str(e)}")
+
+def create_response(status_code: int, message: str, additional_data: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    Create a standardized response
+    
+    Args:
+        status_code: HTTP status code
+        message: Response message
+        additional_data: Optional additional data to include in response
+        
+    Returns:
+        Formatted response dictionary
+    """
+    response = {
+        'statusCode': status_code,
+        'body': json.dumps({
+            'message': message,
+            **(additional_data or {})
+        })
+    }
+    return response
 
 def handler(event, context):
     """
@@ -74,70 +156,30 @@ def handler(event, context):
     Returns:
         Response with evaluation results
     """
-    object_key = None
+    actual_document = None
+    start_time = time.time()
+    
     try:
         logger.info(f"Starting evaluation process with event: {json.dumps(event, indent=2)}")
-        start_time = time.time()
         
-        # Extract data from event
-        input_data = json.loads(event['detail']['input'])
-        output_data = json.loads(event['detail']['output'])
+        # Extract document from event
+        actual_document = extract_document_from_event(event)
         
-        if output_data:
-            # Get the processed document from the output data
-            processed_result = output_data.get("ProcessedResult", {})
-            if "document" in processed_result:
-                # Get document from the final processing step
-                actual_document = Document.from_dict(processed_result.get("document", {}))
-                logger.info(f"Successfully loaded actual document with {len(actual_document.pages)} pages and {len(actual_document.sections)} sections")
-                logger.info(f"Actual (Document): {actual_document}")
-            else:
-                logger.error("No document found in ProcessedResult")
-                raise ValueError("No document found in ProcessedResult")
-                
-            # Extract the object key (input_key) for finding baseline documents
-            object_key = actual_document.input_key
-            
-            # Update document status to STARTED
-            update_document_tracker(object_key, evaluationStatus="STARTED")
-            logger.info(f"Updated document evaluation status to STARTED")
-            
-            # Create expected document from baseline files in the baseline bucket
-            logger.info(f"Loading baseline document for {object_key} from {BASELINE_BUCKET}")
-            try:
-                expected_document = Document.from_s3(
-                    bucket=BASELINE_BUCKET, 
-                    input_key=object_key
-                )
-                
-                # Check if the expected document has any meaningful data
-                if not expected_document.pages or not expected_document.sections:
-                    logger.warning(f"No baseline data found for {object_key} in {BASELINE_BUCKET} (empty document)")
-                    # Update document status to indicate no baseline data
-                    update_document_tracker(object_key, evaluationStatus="NO_BASELINE")
-                    logger.info(f"Updated document evaluation status to NO_BASELINE")
-                    
-                    # Exit without attempting evaluation
-                    return {
-                        'statusCode': 200,
-                        'body': json.dumps({
-                            'message': 'Evaluation skipped - no baseline data available',
-                            'document_key': object_key
-                        })
-                    }
-                
-                # Baseline data exists and is valid
-                logger.info(f"Successfully loaded expected (baseline) document with {len(expected_document.pages)} pages and {len(expected_document.sections)} sections")
-                logger.info(f"Expected (Document): {expected_document}")
-                
-            except Exception as e:
-                logger.error(f"Error loading baseline document: {str(e)}")
-                # Update document status to FAILED before raising the exception
-                if object_key:
-                    update_document_tracker(object_key, evaluationStatus="FAILED")
-                    logger.info(f"Updated document evaluation status to FAILED")
-                raise ValueError(f"Failed to load baseline document: {str(e)}")
-               
+        # Update document status to STARTED
+        update_document_evaluation_status(actual_document, EvaluationStatus.STARTED)
+        
+        # Load baseline document
+        expected_document = load_baseline_document(actual_document.input_key)
+        
+        # If no baseline document is found, update status and exit
+        if not expected_document:
+            update_document_evaluation_status(actual_document, EvaluationStatus.NO_BASELINE)
+            return create_response(
+                200,
+                'Evaluation skipped - no baseline data available',
+                {'document_key': actual_document.input_key}
+            )
+        
         # Create evaluation service
         evaluation_service = evaluation.EvaluationService(config=CONFIG)
         
@@ -149,43 +191,36 @@ def handler(event, context):
             store_results=True
         )
         
-        # Get the evaluation report URI
-        evaluation_report_uri = evaluated_document.evaluation_report_uri
-        
-        # Record execution time
-        execution_time = time.time() - start_time
-        
-        # Update document status in AppSync to COMPLETED
-        update_document_tracker(object_key, evaluation_report_uri, evaluationStatus="COMPLETED")
-        logger.info(f"Document tracker updated with report URI and evaluation status COMPLETED")
-                
+        # Check for evaluation errors
+        if evaluated_document.errors:
+            error_msg = f"Evaluation encountered errors: {evaluated_document.errors}"
+            logger.error(error_msg)
+            update_document_evaluation_status(evaluated_document, EvaluationStatus.FAILED)
+            return create_response(500, 'Evaluation failed', {'error': error_msg})
+       
+        # Update document evaluation status to COMPLETED
+        update_document_evaluation_status(evaluated_document, EvaluationStatus.COMPLETED)
         logger.info("Evaluation process completed successfully")
         
-        return {
-            'statusCode': 200,
-            'body': json.dumps({
-                'message': 'Evaluation completed successfully',
-                'report_location': evaluation_report_uri,
-                'execution_time': execution_time
-            })
-        }
+        # Return success response
+        return create_response(
+            200,
+            'Evaluation completed successfully',
+            {
+                'report_location': evaluated_document.evaluation_report_uri,
+                'execution_time': time.time() - start_time
+            }
+        )
     
     except Exception as e:
         error_msg = f"Error in lambda_handler: {str(e)}"
         logger.error(error_msg)
         
-        # Update document status to FAILED if we have the object key
-        if object_key:
+        # Update document status to FAILED if we have the document
+        if actual_document:
             try:
-                update_document_tracker(object_key, evaluationStatus="FAILED")
-                logger.info(f"Updated document evaluation status to FAILED")
+                update_document_evaluation_status(actual_document, EvaluationStatus.FAILED)
             except Exception as update_error:
                 logger.error(f"Failed to update evaluation status: {str(update_error)}")
         
-        return {
-            'statusCode': 500,
-            'body': json.dumps({
-                'message': 'Evaluation failed',
-                'error': error_msg
-            })
-        }
+        return create_response(500, 'Evaluation failed', {'error': error_msg})

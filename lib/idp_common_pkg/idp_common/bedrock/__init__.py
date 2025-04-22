@@ -170,7 +170,8 @@ def invoke_model(
                 'ServiceQuotaExceededException', 
                 'RequestLimitExceeded', 
                 'TooManyRequestsException', 
-                'ServiceUnavailableException'
+                'ServiceUnavailableException',
+                'ModelErrorException'
             ]
             
             if error_code in retryable_errors:

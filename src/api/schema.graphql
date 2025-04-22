@@ -21,6 +21,7 @@ type Document implements DynamoDbBase @aws_cognito_user_pools @aws_iam {
   Metering: AWSJSON
   EvaluationReportUri: String
   EvaluationStatus: String
+  SummaryReportUri: String
   ExpiresAfter: AWSTimestamp
 }
 
@@ -89,6 +90,7 @@ input UpdateDocumentInput {
   Metering: AWSJSON
   EvaluationReportUri: String
   EvaluationStatus: String
+  SummaryReportUri: String
 }
 
 input SectionInput {

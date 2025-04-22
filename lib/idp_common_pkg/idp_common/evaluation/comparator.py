@@ -658,5 +658,4 @@ Respond ONLY with the JSON and nothing else.  Here's the exact format:
     except Exception as e:
         error_msg=f"Error in LLM evaluation for {attr_name}: {str(e)}"
         logger.error(error_msg)
-        logger.error(f"Raw response was: {result_text}")
         return False, 0.0, error_msg
