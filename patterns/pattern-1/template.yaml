@@ -138,51 +138,52 @@ Resources:
                   model:
                     type: string
                     description: Bedrock model ID
+                    order: 1
                   temperature:
                     type: number
-                    description: Model temperature
+                    description: Sampling temperature
+                    order: 2
                   top_k:
                     type: number
-                    description: Model top_k parameter
+                    description: Sampling Top K
+                    order: 3
                   system_prompt:
                     type: string
                     format: textarea
                     description: System prompt for LLM evaluation
+                    order: 4
                   task_prompt:
                     type: string
                     format: textarea
                     description: Task prompt for LLM evaluation - supports parameters {DOCUMENT_CLASS}, {ATTRIBUTE_NAME}, {ATTRIBUTE_DESCRIPTION}, {EXPECTED_VALUE} and {ACTUAL_VALUE}
+                    order: 5
           summarization:
             order: 4
             type: object
             sectionLabel: Summarization Inference
             properties:
-              enabled:
-                type: boolean
-                description: Enable document summarization
-                order: 1
               model:
                 type: string
-                description: Bedrock model ID for summarization
-                order: 2
+                description: Bedrock model ID
+                order: 1
               temperature:
                 type: number
-                description: Model temperature for summarization
-                order: 3
+                description: Sampling temperature
+                order: 2
               top_k:
                 type: number
-                description: Model top_k parameter for summarization
-                order: 4
+                description: Sampling Top K
+                order: 3
               system_prompt:
                 type: string
                 format: textarea
-                description: System prompt for document summarization
-                order: 5
+                description: System prompt
+                order: 4
               task_prompt:
                 type: string
                 format: textarea
-                description: Task prompt for document summarization - supports parameter {DOCUMENT_TEXT}
-                order: 6
+                description: Task prompt - supports parameter {DOCUMENT_TEXT}
+                order: 5
           pricing:
             order: 5
             type: array
@@ -251,7 +252,6 @@ Resources:
                 "reason": "Your explanation here"
               }
         summarization:
-          enabled: !If [IsSummarizationEnabled, true, false]
           model: !Ref SummarizationModel
           temperature: 0.0
           top_k: 0.5
