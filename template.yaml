@@ -212,6 +212,21 @@ Parameters:
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     Description: Model to use for optional Document Knowledge Base
 
+  # Optional Bedrock Guardrail Configuration
+  BedrockGuardrailId:
+    Type: String
+    Default: ""
+    AllowedPattern: "^(|[a-z0-9]+)$"
+    Description: >
+      Optionally provide the *Id* (not name) of an *existing* Bedrock Guardrail to be used for all Bedrock and Bedrock Knowledge Base interactions.
+
+  BedrockGuardrailVersion:
+    Type: String
+    Default: "DRAFT"
+    AllowedPattern: "^(|(([1-9][0-9]{0,7})|(DRAFT)))$"
+    Description: >
+      If you provided a Bedrock Guardrail Id above, provide the corresponding Guardrail version here.
+
   # General Configuration
   MaxConcurrentWorkflows:
     Type: Number
@@ -419,6 +434,11 @@ Metadata:
           - DocumentKnowledgeBase
           - KnowledgeBaseModelId
       - Label:
+          default: "Bedrock Guardrail Configuration"
+        Parameters:
+          - BedrockGuardrailId
+          - BedrockGuardrailVersion
+      - Label:
           default: "General Configuration"
         Parameters:
           - MaxConcurrentWorkflows
@@ -471,6 +491,10 @@ Metadata:
         default: "Document Knowledge Base Configuration"
       KnowledgeBaseModelId:
         default: "Knowledge Base Model Id"
+      BedrockGuardrailId:
+        default: "Bedrock Guardrail Id"
+      BedrockGuardrailVersion:
+        default: "Bedrock Guardrail Version"
       MaxConcurrentWorkflows:
         default: "Maximum Concurrent Workflows"
       DataRetentionInDays:
