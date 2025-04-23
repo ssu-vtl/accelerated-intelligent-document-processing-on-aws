@@ -877,6 +877,12 @@ Resources:
           - Effect: Allow
             Action: sagemaker:InvokeEndpoint
             Resource: !GetAtt SAGEMAKERCLASSIFIERSTACK.Outputs.EndpointArn
+          - !If
+            - HasGuardrailConfig
+            - Effect: Allow
+              Action: bedrock:ApplyGuardrail
+              Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
+            - !Ref AWS::NoValue
   
   ClassificationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -938,6 +944,12 @@ Resources:
             Resource: 
                 - !Sub "arn:aws:bedrock:*::foundation-model/*"
                 - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          - !If
+            - HasGuardrailConfig
+            - Effect: Allow
+              Action: bedrock:ApplyGuardrail
+              Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
+            - !Ref AWS::NoValue
 
   ExtractionFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -1052,6 +1064,12 @@ Resources:
             Resource: 
                 - !Sub "arn:aws:bedrock:*::foundation-model/*"
                 - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          - !If
+            - HasGuardrailConfig
+            - Effect: Allow
+              Action: bedrock:ApplyGuardrail
+              Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
+            - !Ref AWS::NoValue
 
   SummarizationFunctionLogGroup:
     Type: AWS::Logs::LogGroup

@@ -27,6 +27,7 @@ The GenAI Intelligent Document Processing (GenAIIDP) Accelerator demonstrates st
 ### Strengths
 
 - **Defense in Depth**: Multiple security layers including IAM roles with least privilege, encryption at rest, and secure API access.
+- **Content Safety**: Integration with Amazon Bedrock Guardrails to enforce content policies, block sensitive information, and prevent model misuse.
 - **Authentication**: Cognito user pools with configurable password policies and MFA support.
 - **Authorization**: Fine-grained access controls for different components and resources.
 - **Data Protection**: S3 bucket encryption, DynamoDB encryption, and secure transmission of data.
@@ -90,7 +91,8 @@ The GenAI Intelligent Document Processing (GenAIIDP) Accelerator demonstrates st
 - Add cost anomaly detection to identify unexpected usage patterns.
 - Consider implementing tiered storage strategies for processed documents based on access patterns.
 - Evaluate model selection based on cost-performance tradeoffs for different document types.
-- Add budget alerts and guardrails to prevent unexpected costs during high-volume processing.
+- Add budget alerts and cost controls to prevent unexpected costs during high-volume processing.
+- Leverage Bedrock Guardrails to constrain model behavior and reduce the risk of costly token overuse.
 
 ## 6. Sustainability
 
