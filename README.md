@@ -31,6 +31,7 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
   - [Running the UI Locally](#running-the-ui-locally)
   - [Configuration Options](#configuration-options)
   - [Security Considerations](#security-considerations)
+    - [Web Application Firewall (WAF)](#web-application-firewall-waf)
   - [Monitoring and Troubleshooting](#monitoring-and-troubleshooting)
 - [Document Knowledge Base Query](#document-knowledge-base-query)
   - [How It Works](#how-it-works)
@@ -59,6 +60,10 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
 - [Document Status Lookup](#document-status-lookup)
   - [Using the Lookup Script](#using-the-lookup-script)
   - [Response Format](#response-format)
+- [Bedrock Guardrail Integration](#bedrock-guardrail-integration)
+  - [How Guardrails Work](#how-guardrails-work)
+  - [Configuring Guardrails](#configuring-guardrails)
+  - [Best Practices](#best-practices-1)
 - [Concurrency and Throttling Management](#concurrency-and-throttling-management)
   - [Throttling and Retry (Bedrock and/or SageMaker)](#throttling-and-retry-bedrock-andor-sagemaker)
   - [Step Functions Retry Configuration](#step-functions-retry-configuration)
@@ -476,6 +481,22 @@ The web UI implementation includes several security features:
 - CloudFront distribution uses secure configuration
 - S3 buckets are configured with appropriate security policies
 - API access is controlled through IAM and Cognito
+- Web Application Firewall (WAF) protection for AppSync API
+
+#### Web Application Firewall (WAF)
+
+The solution includes AWS WAF integration to protect your AppSync API:
+
+- **IP-based access control**: Restrict API access to specific IP ranges
+- **Default behavior**: By default (`0.0.0.0/0`), WAF is disabled and all IPs are allowed
+- **Configuration**: Use the `WAFAllowedIPv4Ranges` parameter to specify allowed IP ranges
+  - Example: `"192.168.1.0/24,10.0.0.0/16"` (comma-separated list of CIDR blocks)
+- **Security benefit**: When properly configured, WAF blocks all traffic except from your trusted IP ranges
+
+When configuring the WAF:
+- IP ranges must be in valid CIDR notation (e.g., `192.168.1.0/24`)
+- Multiple ranges should be comma-separated
+- The WAF is only enabled when the parameter is set to something other than the default `0.0.0.0/0`
 
 ### Monitoring and Troubleshooting
 
@@ -676,6 +697,7 @@ ExecutionTimeThresholdMs=30000                      # Duration threshold in mill
 IDPPattern='Pattern1'                               # Choose processing pattern to deploy
 BedrockGuardrailId=''                               # Optional: ID of existing Bedrock Guardrail
 BedrockGuardrailVersion=''                          # Optional: Version of existing Bedrock Guardrail
+WAFAllowedIPv4Ranges='0.0.0.0/0'                    # IP restrictions for API access (default allows all)
 
 # Pattern 1 Parameters (when selected) 
 Pattern1BDAProjectArn=''           # Bedrock Data Automation (BDA) project ARN
