@@ -212,6 +212,21 @@ Parameters:
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     Description: Model to use for optional Document Knowledge Base
 
+  # Optional Bedrock Guardrail Configuration
+  BedrockGuardrailId:
+    Type: String
+    Default: ""
+    AllowedPattern: "^(|[a-z0-9]+)$"
+    Description: >
+      Optionally provide the *Id* (not name) of an *existing* Bedrock Guardrail (looks like: wxyz3ab12x34) to be used for all Bedrock and Bedrock Knowledge Base interactions.
+
+  BedrockGuardrailVersion:
+    Type: String
+    Default: "DRAFT"
+    AllowedPattern: "^(|(([1-9][0-9]{0,7})|(DRAFT)))$"
+    Description: >
+      If you provided a Bedrock Guardrail Id above, provide the corresponding Guardrail version here (e.g. DRAFT|1|2|...).
+
   # General Configuration
   MaxConcurrentWorkflows:
     Type: Number
@@ -358,6 +373,7 @@ Conditions:
       !Condition IsPattern1,
       !Equals [!Ref Pattern1BDAProjectArn, ""]
     ]
+  HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
 
   # General rules
   ShouldAllowSignUpEmailDomain:
@@ -419,6 +435,11 @@ Metadata:
           - DocumentKnowledgeBase
           - KnowledgeBaseModelId
       - Label:
+          default: "Bedrock Guardrail Configuration"
+        Parameters:
+          - BedrockGuardrailId
+          - BedrockGuardrailVersion
+      - Label:
           default: "General Configuration"
         Parameters:
           - MaxConcurrentWorkflows
@@ -471,6 +492,10 @@ Metadata:
         default: "Document Knowledge Base Configuration"
       KnowledgeBaseModelId:
         default: "Knowledge Base Model Id"
+      BedrockGuardrailId:
+        default: "Bedrock Guardrail Id"
+      BedrockGuardrailVersion:
+        default: "Bedrock Guardrail Version"
       MaxConcurrentWorkflows:
         default: "Maximum Concurrent Workflows"
       DataRetentionInDays:
@@ -595,6 +620,8 @@ Resources:
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
+        BedrockGuardrailId: !Ref BedrockGuardrailId
+        BedrockGuardrailVersion: !Ref BedrockGuardrailVersion
         BDAProjectArn: !If
           - ShouldCreateBDASampleProject
           - !GetAtt BDASAMPLEPROJECT.Outputs.ProjectArn
@@ -618,6 +645,8 @@ Resources:
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
+        BedrockGuardrailId: !Ref BedrockGuardrailId
+        BedrockGuardrailVersion: !Ref BedrockGuardrailVersion
         ClassificationModel: !Ref Pattern2ClassificationModel
         ClassificationMethod: !Ref Pattern2ClassificationMethod
         ExtractionModel: !Ref Pattern2ExtractionModel
@@ -643,6 +672,8 @@ Resources:
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
+        BedrockGuardrailId: !Ref BedrockGuardrailId
+        BedrockGuardrailVersion: !Ref BedrockGuardrailVersion
         UDOPModelArtifactPath: !Ref Pattern3UDOPModelArtifactPath
         ExtractionModel: !Ref Pattern3ExtractionModel
         SummarizationModel: !Ref Pattern3SummarizationModel
@@ -3515,6 +3546,7 @@ Resources:
           KB_ACCOUNT_ID: !Ref AWS::AccountId
           KB_REGION: !Ref AWS::Region
           MODEL_ID: !Ref KnowledgeBaseModelId
+          GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
       LoggingConfig:
         LogGroup: !Ref QueryKnowledgeBaseResolverFunctionLogGroup
       Policies:
@@ -3538,6 +3570,14 @@ Resources:
               - "bedrock:GetInferenceProfile"
             Resource:
               - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          - !If
+            - HasGuardrailConfig
+            - Effect: Allow
+              Action:
+                - "bedrock:ApplyGuardrail"
+              Resource:
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
+            - !Ref AWS::NoValue
           - Effect: Allow
             Action:
               - kms:Encrypt
