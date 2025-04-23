@@ -849,7 +849,7 @@ The solution includes native support for Amazon Bedrock Guardrails to help enfor
 ### How Guardrails Work
 
 Bedrock Guardrails are applied to:
-- All model invocations through the IDP Common library
+- All model invocations through the IDP Common library (except pattern-2 classification)
 - Knowledge Base queries through the Knowledge Base resolver
 - Any other direct Bedrock API calls in the solution
 

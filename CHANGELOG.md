@@ -13,7 +13,7 @@
   - Added dynamic UI form fields based on evaluation method selection
 - Added Bedrock Guardrail integration
   - New parameters BedrockGuardrailId and BedrockGuardrailVersion for optional guardrail configuration
-  - Support for applying guardrails in all Bedrock model invocations
+  - Support for applying guardrails in Bedrock model invocations (except classification)
   - Added guardrail functionality to Knowledge Base queries
   - Enhanced security and content safety for model interactions
   

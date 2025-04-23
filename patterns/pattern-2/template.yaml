@@ -982,7 +982,8 @@ Resources:
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
-          GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
+          # Guardrails break classification
+          # GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
       LoggingConfig:
         LogGroup: !Ref ClassificationFunctionLogGroup
       Policies:
