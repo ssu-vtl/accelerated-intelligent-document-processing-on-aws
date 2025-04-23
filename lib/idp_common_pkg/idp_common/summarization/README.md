@@ -89,6 +89,7 @@ class SummarizationService:
         store_results: bool = True
     ) -> Document:
         # Process a Document object and update it with summary information
+        # Automatically detects whether to use section-based or whole document summarization
         # store_results parameter controls whether to create and store the markdown report
 ```
 
@@ -251,6 +252,92 @@ Special formatting is applied based on the data type:
 The report is generated using the `to_markdown()` method of the `DocumentSummarizationResult` class and can be accessed through `document.summary_report_uri` or `document.summarization_result.output_uri`.
 
 When `store_results=False`, the document is still updated with the summary information and the `summarization_result` object, but no markdown report is generated or stored in S3.
+
+## Document Summarization Approaches
+
+The `process_document` method now supports two different approaches to document summarization:
+
+### 1. Section-Based Summarization
+
+When a document has defined sections, the service will:
+
+```python
+from idp_common.models import Document
+from idp_common.summarization.service import SummarizationService
+
+# Initialize service
+summarization_service = SummarizationService(config=config)
+
+# Load document with sections already defined
+document = Document.from_dict(document_data)
+
+# Process document - will use section-based approach automatically
+document = summarization_service.process_document(document)
+
+# Access the combined summary report
+print(f"Summary Report URI: {document.summary_report_uri}")
+
+# Access individual section summaries
+for section in document.sections:
+    if section.attributes and 'summary_uri' in section.attributes:
+        print(f"Section {section.section_id} summary: {section.attributes['summary_uri']}")
+```
+
+This approach:
+1. Processes each section separately using `process_document_section`
+2. Stores individual section summaries in S3
+3. Combines all section summaries into a comprehensive document summary
+4. Generates a markdown report with all section summaries
+
+The combined markdown report will include all section summaries in a structured format:
+
+```markdown
+# Document Summary: doc-123
+
+This summary combines results from all document sections.
+
+## Section Summaries
+
+# Section: introduction
+
+[Introduction section summary content]
+
+# Section: financial_data
+
+[Financial data section summary content]
+
+Total execution time: 10.25 seconds
+```
+
+### 2. Whole Document Summarization
+
+When a document has no defined sections, the service automatically falls back to summarizing the entire document at once:
+
+```python
+from idp_common.models import Document
+from idp_common.summarization.service import SummarizationService
+
+# Initialize service
+summarization_service = SummarizationService(config=config)
+
+# Load document without sections
+document = Document.from_dict(document_data)
+document.sections = []  # No sections defined
+
+# Process document - will use whole document approach automatically
+document = summarization_service.process_document(document)
+
+# Access the summary report
+print(f"Summary Report URI: {document.summary_report_uri}")
+```
+
+This approach:
+1. Combines text from all pages
+2. Generates a single summary for the entire document
+3. Stores the summary in S3
+
+The markdown report will follow the standard format based on the JSON fields returned by the model.
+
 ### Summarizing a Document
 
 ```python
@@ -264,6 +351,7 @@ summarization_service = SummarizationService(config=config)
 document = Document.from_dict(document_data)
 
 # Process document and store markdown results in S3 (default)
+# Will automatically use section-based or whole document approach
 document = summarization_service.process_document(document)
 
 # Access summary through the result object
@@ -285,6 +373,7 @@ document = summarization_service.process_document(document, store_results=False)
 print(f"Has summarization_result: {document.summarization_result is not None}")
 print(f"Has summary_report_uri: {document.summary_report_uri is not None}")
 ```
+
 ## Section-Level Summarization
 
 The `process_document_section` method allows you to generate summaries for specific sections of a document. This is particularly useful for multi-class documents where different sections may require different types of summaries.
