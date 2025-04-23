@@ -93,6 +93,7 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                 for attr_config in class_config.get("attributes", []):
                     eval_method = EvaluationMethod.LLM  # Default method
                     threshold = 0.8  # Default evaluation threshold
+                    comparator_type = None  # Default to None
                     
                     # Get evaluation method if specified in config
                     method_str = attr_config.get("evaluation_method", "LLM")
@@ -105,11 +106,16 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                     if "evaluation_threshold" in attr_config:
                         threshold = float(attr_config["evaluation_threshold"])
                     
+                    # Get comparator type for Hungarian method
+                    if eval_method == EvaluationMethod.HUNGARIAN:
+                        comparator_type = attr_config.get("hungarian_comparator", "EXACT")
+                    
                     attributes.append(EvaluationAttribute(
                         name=attr_config.get("name", ""),
                         description=attr_config.get("description", ""),
                         evaluation_method=eval_method,
-                        evaluation_threshold=threshold
+                        evaluation_threshold=threshold,
+                        comparator_type=comparator_type
                     ))
                 return attributes
         
@@ -147,7 +153,8 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
         evaluation_method: EvaluationMethod,
         threshold: float,
         document_class: str = None,
-        attr_description: str = None
+        attr_description: str = None,
+        comparator_type: str = None
     ) -> Tuple[int, int, int, int, int, int, float, Optional[str]]:
         """
         Count true/false positives/negatives for an attribute.
@@ -160,6 +167,7 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             threshold: Evaluation threshold for fuzzy methods
             document_class: Document class for LLM evaluation
             attr_description: Attribute description for LLM evaluation
+            comparator_type: Type of comparator for Hungarian method
             
         Returns:
             Tuple of (tn, fp, fn, tp, fp1, fp2, score, reason)
@@ -207,7 +215,8 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                 document_class=document_class,
                 attr_name=attr_name,
                 attr_description=attr_description,
-                llm_config=llm_config
+                llm_config=llm_config,
+                comparator_type=comparator_type
             )
                 
             if matched:
@@ -261,7 +270,8 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                 evaluation_method=attr_config.evaluation_method,
                 threshold=attr_config.evaluation_threshold,
                 document_class=class_name,
-                attr_description=attr_config.description
+                attr_description=attr_config.description,
+                comparator_type=attr_config.comparator_type
             )
             
             # Update counters
@@ -281,7 +291,14 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                 # Otherwise, use the TP count
                 matched = attr_tp > 0
             
-            # Add evaluation method and evaluation threshold to the result
+            # Add evaluation method, threshold, and comparator type to the result
+            # Determine when to include the evaluation threshold
+            include_threshold = (
+                attr_config.evaluation_method in [EvaluationMethod.FUZZY, EvaluationMethod.SEMANTIC] or
+                (attr_config.evaluation_method == EvaluationMethod.HUNGARIAN and 
+                 attr_config.comparator_type == "FUZZY")
+            )
+            
             attribute_results.append(AttributeEvaluationResult(
                 name=attr_name,
                 expected=expected_value,
@@ -290,7 +307,8 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                 score=score,
                 reason=reason,
                 evaluation_method=attr_config.evaluation_method.value,
-                evaluation_threshold=attr_config.evaluation_threshold if attr_config.evaluation_method in [EvaluationMethod.FUZZY, EvaluationMethod.SEMANTIC] else None
+                evaluation_threshold=attr_config.evaluation_threshold if include_threshold else None,
+                comparator_type=attr_config.comparator_type if attr_config.evaluation_method == EvaluationMethod.HUNGARIAN else None
             ))
         
         # Now find attributes that exist in the data but not in configuration
@@ -363,7 +381,8 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                 score=score,
                 reason=reason,
                 evaluation_method=default_method.value,
-                evaluation_threshold=default_threshold if default_method in [EvaluationMethod.FUZZY, EvaluationMethod.SEMANTIC] else None
+                evaluation_threshold=default_threshold if default_method in [EvaluationMethod.FUZZY, EvaluationMethod.SEMANTIC] else None,
+                comparator_type=None  # No comparator_type for default method
             ))
         
         # Calculate metrics

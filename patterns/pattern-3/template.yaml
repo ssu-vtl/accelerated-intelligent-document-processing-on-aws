@@ -149,12 +149,25 @@ Resources:
                         description: Evaluation Method
                         enum: ["", "LLM", "SEMANTIC", "FUZZY", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
                         order: 2
+                      hungarian_comparator:
+                        type: string
+                        description: "Comparator type for HUNGARIAN method"
+                        enum: ["EXACT", "FUZZY", "NUMERIC"]
+                        order: 3
+                        dependsOn: {
+                          field: "evaluation_method",
+                          value: "HUNGARIAN"
+                        }
                       evaluation_threshold:
                         type: number
-                        description: Evaluation Threshold - used only for SEMANTIC and FUZZY methods
+                        description: Evaluation Threshold - used for SEMANTIC, FUZZY, and HUNGARIAN_FUZZY methods
                         minimum: 0
                         maximum: 1
-                        order: 3
+                        order: 4
+                        dependsOn: {
+                          field: "evaluation_method",
+                          values: ["SEMANTIC", "FUZZY", "HUNGARIAN_FUZZY"]
+                        }
                     # This controls the layout of the form fields inside each attribute item
                     columns: 2
           extraction:

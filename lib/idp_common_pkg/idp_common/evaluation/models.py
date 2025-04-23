@@ -25,7 +25,8 @@ class EvaluationAttribute:
     name: str
     description: str
     evaluation_method: EvaluationMethod = EvaluationMethod.EXACT
-    evaluation_threshold: float = 0.8  # Used for SEMANTIC and FUZZY methods
+    evaluation_threshold: float = 0.8  # Used for SEMANTIC, and FUZZY methods
+    comparator_type: Optional[str] = None  # Used for HUNGARIAN method
 
 
 @dataclass
@@ -40,6 +41,7 @@ class AttributeEvaluationResult:
     error_details: Optional[str] = None
     evaluation_method: str = "EXACT"
     evaluation_threshold: Optional[float] = None
+    comparator_type: Optional[str] = None  # Used for HUNGARIAN methods
 
 
 @dataclass
@@ -86,7 +88,8 @@ class DocumentEvaluationResult:
                             "reason": ar.reason,
                             "error_details": ar.error_details,
                             "evaluation_method": ar.evaluation_method,
-                            "evaluation_threshold": ar.evaluation_threshold
+                            "evaluation_threshold": ar.evaluation_threshold,
+                            "comparator_type": ar.comparator_type
                         }
                         for ar in sr.attributes
                     ]
@@ -223,10 +226,20 @@ class DocumentEvaluationResult:
                 actual = str(ar.actual).replace("\n", " ")
                 # Don't truncate the reason field for the report
                 reason = str(ar.reason).replace("\n", " ") if ar.reason else ""
-                # Format the method with evaluation_threshold if applicable
+                # Format the method with evaluation_threshold and comparator_type if applicable
                 method_display = ar.evaluation_method
+                
+                # Add threshold for methods that use it directly
                 if ar.evaluation_threshold is not None and ar.evaluation_method in ["FUZZY", "SEMANTIC"]:
-                    method_display = f"{ar.evaluation_method} (evaluation_threshold: {ar.evaluation_threshold})"
+                    method_display = f"{ar.evaluation_method} (threshold: {ar.evaluation_threshold})"
+                
+                # Add comparator type for Hungarian method
+                if ar.comparator_type is not None and ar.evaluation_method == "HUNGARIAN":
+                    # If comparator is FUZZY, also include the threshold
+                    if ar.comparator_type == "FUZZY" and ar.evaluation_threshold is not None:
+                        method_display = f"{ar.evaluation_method} (comparator: {ar.comparator_type}, threshold: {ar.evaluation_threshold})"
+                    else:
+                        method_display = f"{ar.evaluation_method} (comparator: {ar.comparator_type})"
                 
                 # Add color-coded status symbols (will render in markdown-compatible viewers)
                 if ar.matched:
@@ -254,6 +267,9 @@ class DocumentEvaluationResult:
         sections.append("3. **FUZZY** - Fuzzy string matching using string similarity metrics (with evaluation_threshold)")
         sections.append("4. **SEMANTIC** - Semantic similarity comparison using Bedrock Titan embeddings (with evaluation_threshold)")
         sections.append("5. **HUNGARIAN** - Bipartite matching algorithm for lists of values")
+        sections.append("   - **EXACT** - Hungarian matching with exact string comparison")
+        sections.append("   - **FUZZY** - Hungarian matching with fuzzy string comparison (with evaluation_threshold)")
+        sections.append("   - **NUMERIC** - Hungarian matching with numeric comparison")
         sections.append("6. **LLM** - Advanced semantic evaluation using Bedrock large language models")
         sections.append("")
         sections.append("Each attribute is configured with a specific evaluation method based on the data type and comparison needs.")
