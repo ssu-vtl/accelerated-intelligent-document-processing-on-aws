@@ -138,7 +138,16 @@ const MarkdownReport = ({ reportUri, documentId, title = 'Report', emptyMessage 
           variables: { s3Uri: reportUri },
         });
 
-        const content = response.data.getFileContents;
+        // Get content from the updated response structure
+        const result = response.data.getFileContents;
+        const { content } = result;
+        logger.debug(`Received ${title} content type:`, result.contentType);
+        logger.debug(`Binary content?`, result.isBinary);
+        if (result.isBinary === true) {
+          setError(`This file contains binary content that cannot be viewed in the ${title.toLowerCase()}.`);
+          setIsLoading(false);
+          return;
+        }
         logger.debug(`Received ${title} content:`, `${content.substring(0, 100)}...`);
 
         setReportContent(content);
