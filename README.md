@@ -859,6 +859,7 @@ When enabled, guardrails can:
 - Apply topic filtering based on your organization's policies
 - Prevent model misuse
 - Provide tracing information for audit and compliance
+- Mask Personally Identifiable Information (PII) in output documents and summaries
 
 ### Configuring Guardrails
 
