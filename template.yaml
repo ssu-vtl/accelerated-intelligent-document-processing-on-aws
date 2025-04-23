@@ -3570,6 +3570,14 @@ Resources:
               - "bedrock:GetInferenceProfile"
             Resource:
               - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          - !If
+            - HasGuardrailConfig
+            - Effect: Allow
+              Action:
+                - "bedrock:ApplyGuardrail"
+              Resource:
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}/version/${BedrockGuardrailVersion}"
+            - !Ref AWS::NoValue
           - Effect: Allow
             Action:
               - kms:Encrypt
