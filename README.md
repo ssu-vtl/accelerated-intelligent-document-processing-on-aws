@@ -674,6 +674,8 @@ LogRetentionDays=30                                 # CloudWatch log retention
 ErrorThreshold=1                                    # Errors before alerting
 ExecutionTimeThresholdMs=30000                      # Duration threshold in millisecs
 IDPPattern='Pattern1'                               # Choose processing pattern to deploy
+BedrockGuardrailId=''                               # Optional: ID of existing Bedrock Guardrail
+BedrockGuardrailVersion=''                          # Optional: Version of existing Bedrock Guardrail
 
 # Pattern 1 Parameters (when selected) 
 Pattern1BDAProjectArn=''           # Bedrock Data Automation (BDA) project ARN
@@ -839,6 +841,51 @@ All include average, p90, and maximum values
   }
 }
 ```
+
+## Bedrock Guardrail Integration
+
+The solution includes native support for Amazon Bedrock Guardrails to help enforce content safety, security, and policy compliance across all Bedrock model interactions.
+
+### How Guardrails Work
+
+Bedrock Guardrails are applied to:
+- All model invocations through the IDP Common library (except pattern-2 classification)
+- Knowledge Base queries through the Knowledge Base resolver
+- Any other direct Bedrock API calls in the solution
+
+When enabled, guardrails can:
+- Filter harmful content from model outputs
+- Block sensitive information in prompts or responses
+- Apply topic filtering based on your organization's policies
+- Prevent model misuse
+- Provide tracing information for audit and compliance
+- Mask Personally Identifiable Information (PII) in output documents and summaries
+
+### Configuring Guardrails
+
+1. **Prerequisites**:
+   - You must create a Bedrock Guardrail in your AWS account **before** deploying or updating the stack
+   - Note the Guardrail ID and Version you want to use
+
+2. **Deployment Parameters**:
+   - `BedrockGuardrailId`: Enter the ID (not name) of your existing Bedrock Guardrail
+   - `BedrockGuardrailVersion`: Enter the version of your Guardrail (e.g., "Draft" or a specific version)
+
+3. **Implementation**:
+   - The guardrail configuration is passed to all Lambda functions that interact with Bedrock
+   - The environment variable `GUARDRAIL_ID_AND_VERSION` contains the ID and version in format `id:version`
+   - When both values are provided, guardrails are automatically applied to all model invocations
+
+4. **Monitoring**:
+   - Debug logs show when guardrails are being applied
+   - Guardrail trace information is available in responses when enabled
+
+### Best Practices
+
+- Test your guardrail configuration thoroughly before deployment
+- Use tracing to audit guardrail behavior during testing
+- Consider creating different guardrails for different environments (dev/test/prod)
+- Regularly update guardrails as your compliance requirements evolve
 
 ## Concurrency and Throttling Management
 

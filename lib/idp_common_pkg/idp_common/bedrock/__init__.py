@@ -3,7 +3,7 @@ import json
 import os
 import time
 import logging
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, Tuple
 from botocore.exceptions import ClientError
 from ..utils import calculate_backoff
 from ..metrics import put_metric
@@ -33,6 +33,31 @@ def get_bedrock_client():
         region = os.environ.get('AWS_REGION')
         _bedrock_client = boto3.client('bedrock-runtime', region_name=region)
     return _bedrock_client
+
+def get_guardrail_config() -> Optional[Dict[str, str]]:
+    """
+    Get guardrail configuration from environment if available
+    
+    Returns:
+        Optional guardrail configuration dict with id and version
+    """
+    guardrail_env = os.environ.get("GUARDRAIL_ID_AND_VERSION", "")
+    if not guardrail_env:
+        return None
+        
+    try:
+        guardrail_id, guardrail_version = guardrail_env.split(":")
+        if guardrail_id and guardrail_version:
+            logger.debug(f"Using Bedrock Guardrail ID: {guardrail_id}, Version: {guardrail_version}")
+            return {
+                "guardrailIdentifier": guardrail_id,
+                "guardrailVersion": guardrail_version,
+                "trace": "enabled"  # Enable tracing for guardrail violations
+            }
+    except ValueError:
+        logger.warning(f"Invalid GUARDRAIL_ID_AND_VERSION format: {guardrail_env}. Expected format: 'id:version'")
+        
+    return None
 
 def invoke_model(
     model_id: str,
@@ -102,6 +127,9 @@ def invoke_model(
         else:
             additional_model_fields = {"top_k": top_k}
     
+    # Get guardrail configuration if available
+    guardrail_config = get_guardrail_config()
+    
     while retry_count < max_retries:
         try:
             # Create a copy of the messages to sanitize for logging
@@ -115,14 +143,26 @@ def invoke_model(
             logger.debug(f"  - messages: {sanitized_messages}")
             logger.debug(f"  - additionalModelRequestFields: {additional_model_fields}")
             
+            # Log guardrail usage if configured
+            if guardrail_config:
+                logger.debug(f"  - guardrailConfig: {guardrail_config}")
+            
             attempt_start_time = time.time()
-            response = bedrock_client.converse(
-                modelId=model_id,
-                messages=messages,
-                system=formatted_system_prompt,
-                inferenceConfig=inference_config,
-                additionalModelRequestFields=additional_model_fields
-            )
+            
+            # Build converse parameters
+            converse_params = {
+                "modelId": model_id,
+                "messages": messages,
+                "system": formatted_system_prompt,
+                "inferenceConfig": inference_config,
+                "additionalModelRequestFields": additional_model_fields
+            }
+            
+            # Add guardrail config if available
+            if guardrail_config:
+                converse_params["guardrailConfig"] = guardrail_config
+            
+            response = bedrock_client.converse(**converse_params)
             duration = time.time() - attempt_start_time
             
             # Log response details, but sanitize large content

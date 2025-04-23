@@ -51,10 +51,21 @@ Parameters:
     Type: String
     Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
     Description: Model to use for LLM-based Evaluation
+    
+  BedrockGuardrailId:
+    Type: String
+    Default: ""
+    Description: "Optionally provide the Id (not name) of an existing Bedrock Guardrail to be used for Bedrock interactions"
+    
+  BedrockGuardrailVersion:
+    Type: String
+    Default: ""
+    Description: "If you provided a Bedrock Guardrail Id above, provide the corresponding Guardrail version here"
 
 
 Conditions:
   IsSummarizationEnabled: !Not [!Equals [!Ref SummarizationModel, "DISABLED"]]
+  HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
 
 Resources:
 
@@ -267,7 +278,7 @@ Resources:
         summarization:
           model: !Ref SummarizationModel
           temperature: 0.0
-          top_k: 0.5
+          top_k: 250
           system_prompt: |
             You are a document summarization expert who can analyze and summarize documents from various domains including medical, financial, legal, and general business documents. Your task is to create a summary that captures the key information, main points, and important details from the document. Your output must be in valid JSON format. 
             Summarization Style: Balanced\nCreate a balanced summary that provides a moderate level of detail. Include the main points and key supporting information, while maintaining the document's overall structure. Aim for a comprehensive yet concise summary.
@@ -528,6 +539,7 @@ Resources:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
+          GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
       LoggingConfig:
         LogGroup: !Ref SummarizationFunctionLogGroup
       Policies:
@@ -555,6 +567,12 @@ Resources:
             Resource: 
                 - !Sub "arn:aws:bedrock:*::foundation-model/*"
                 - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          - !If
+            - HasGuardrailConfig
+            - Effect: Allow
+              Action: bedrock:ApplyGuardrail
+              Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
+            - !Ref AWS::NoValue
 
   SummarizationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
