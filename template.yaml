@@ -373,6 +373,7 @@ Conditions:
       !Condition IsPattern1,
       !Equals [!Ref Pattern1BDAProjectArn, ""]
     ]
+  HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
 
   # General rules
   ShouldAllowSignUpEmailDomain:
@@ -619,6 +620,8 @@ Resources:
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
+        BedrockGuardrailId: !Ref BedrockGuardrailId
+        BedrockGuardrailVersion: !Ref BedrockGuardrailVersion
         BDAProjectArn: !If
           - ShouldCreateBDASampleProject
           - !GetAtt BDASAMPLEPROJECT.Outputs.ProjectArn
@@ -642,6 +645,8 @@ Resources:
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
+        BedrockGuardrailId: !Ref BedrockGuardrailId
+        BedrockGuardrailVersion: !Ref BedrockGuardrailVersion
         ClassificationModel: !Ref Pattern2ClassificationModel
         ClassificationMethod: !Ref Pattern2ClassificationMethod
         ExtractionModel: !Ref Pattern2ExtractionModel
@@ -667,6 +672,8 @@ Resources:
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
+        BedrockGuardrailId: !Ref BedrockGuardrailId
+        BedrockGuardrailVersion: !Ref BedrockGuardrailVersion
         UDOPModelArtifactPath: !Ref Pattern3UDOPModelArtifactPath
         ExtractionModel: !Ref Pattern3ExtractionModel
         SummarizationModel: !Ref Pattern3SummarizationModel
@@ -3539,6 +3546,7 @@ Resources:
           KB_ACCOUNT_ID: !Ref AWS::AccountId
           KB_REGION: !Ref AWS::Region
           MODEL_ID: !Ref KnowledgeBaseModelId
+          GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
       LoggingConfig:
         LogGroup: !Ref QueryKnowledgeBaseResolverFunctionLogGroup
       Policies:
