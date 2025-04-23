@@ -51,10 +51,21 @@ Parameters:
     Type: String
     Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
     Description: Model to use for LLM-based Evaluation
+    
+  BedrockGuardrailId:
+    Type: String
+    Default: ""
+    Description: "Optionally provide the Id (not name) of an existing Bedrock Guardrail to be used for Bedrock interactions"
+    
+  BedrockGuardrailVersion:
+    Type: String
+    Default: ""
+    Description: "If you provided a Bedrock Guardrail Id above, provide the corresponding Guardrail version here"
 
 
 Conditions:
   IsSummarizationEnabled: !Not [!Equals [!Ref SummarizationModel, "DISABLED"]]
+  HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
 
 Resources:
 
@@ -528,6 +539,7 @@ Resources:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
+          GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
       LoggingConfig:
         LogGroup: !Ref SummarizationFunctionLogGroup
       Policies:

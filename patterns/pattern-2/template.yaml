@@ -63,10 +63,21 @@ Parameters:
     Type: String
     Default: 'DISABLED'
     Description: Model to use for document summarization, or DISABLED to skip summarization
+    
+  BedrockGuardrailId:
+    Type: String
+    Default: ""
+    Description: "Optionally provide the Id (not name) of an existing Bedrock Guardrail to be used for Bedrock interactions"
+    
+  BedrockGuardrailVersion:
+    Type: String
+    Default: ""
+    Description: "If you provided a Bedrock Guardrail Id above, provide the corresponding Guardrail version here"
 
 Conditions:
   IsMultimodalPageLevelClassification: !Equals [!Ref ClassificationMethod, 'multimodalPageLevelClassification']
   IsSummarizationEnabled: !Not [!Equals [!Ref SummarizationModel, "DISABLED"]]
+  HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
 
 
 Resources:
@@ -971,6 +982,7 @@ Resources:
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
+          GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
       LoggingConfig:
         LogGroup: !Ref ClassificationFunctionLogGroup
       Policies:
@@ -1031,6 +1043,7 @@ Resources:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
+          GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
       LoggingConfig:
         LogGroup: !Ref ExtractionFunctionLogGroup
       Policies:
@@ -1143,6 +1156,7 @@ Resources:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
+          GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
       LoggingConfig:
         LogGroup: !Ref SummarizationFunctionLogGroup
       Policies:
