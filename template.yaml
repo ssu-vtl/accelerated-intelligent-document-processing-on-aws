@@ -218,14 +218,14 @@ Parameters:
     Default: ""
     AllowedPattern: "^(|[a-z0-9]+)$"
     Description: >
-      Optionally provide the *Id* (not name) of an *existing* Bedrock Guardrail to be used for all Bedrock and Bedrock Knowledge Base interactions.
+      Optionally provide the *Id* (not name) of an *existing* Bedrock Guardrail (looks like: wxyz3ab12x34) to be used for all Bedrock and Bedrock Knowledge Base interactions.
 
   BedrockGuardrailVersion:
     Type: String
     Default: "DRAFT"
     AllowedPattern: "^(|(([1-9][0-9]{0,7})|(DRAFT)))$"
     Description: >
-      If you provided a Bedrock Guardrail Id above, provide the corresponding Guardrail version here.
+      If you provided a Bedrock Guardrail Id above, provide the corresponding Guardrail version here (e.g. DRAFT|1|2|...).
 
   # General Configuration
   MaxConcurrentWorkflows:
