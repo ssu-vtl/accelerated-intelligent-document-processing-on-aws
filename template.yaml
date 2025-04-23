@@ -3576,7 +3576,7 @@ Resources:
               Action:
                 - "bedrock:ApplyGuardrail"
               Resource:
-                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}/version/${BedrockGuardrailVersion}"
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
             - !Ref AWS::NoValue
           - Effect: Allow
             Action:
