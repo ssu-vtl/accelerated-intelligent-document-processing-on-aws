@@ -50,8 +50,9 @@ def get_guardrail_config() -> Optional[Dict[str, str]]:
         if guardrail_id and guardrail_version:
             logger.debug(f"Using Bedrock Guardrail ID: {guardrail_id}, Version: {guardrail_version}")
             return {
-                "guardrailId": guardrail_id,
-                "guardrailVersion": guardrail_version
+                "guardrailIdentifier": guardrail_id,
+                "guardrailVersion": guardrail_version,
+                "trace": "enabled"  # Enable tracing for guardrail violations
             }
     except ValueError:
         logger.warning(f"Invalid GUARDRAIL_ID_AND_VERSION format: {guardrail_env}. Expected format: 'id:version'")

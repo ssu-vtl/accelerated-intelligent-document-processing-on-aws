@@ -42,7 +42,10 @@ def get_kb_response(query, sessionId):
         try:
             guardrail_id, guardrail_version = GUARDRAIL_ENV.split(":")
             if guardrail_id and guardrail_version:
-                input["guardrailConfig"] = {
+                if "generationConfiguration" not in input["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]:
+                    input["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"] = {}
+                
+                input["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"]["guardrailConfiguration"] = {
                     "guardrailId": guardrail_id,
                     "guardrailVersion": guardrail_version
                 }
