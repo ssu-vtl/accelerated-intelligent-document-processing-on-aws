@@ -862,6 +862,28 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
   }
 
   function renderInputField(key, property, value, path) {
+    // Check if this field depends on another field's value
+    if (property.dependsOn) {
+      const dependencyField = property.dependsOn.field;
+      const dependencyValues = Array.isArray(property.dependsOn.values)
+        ? property.dependsOn.values
+        : [property.dependsOn.value];
+
+      // Get the parent path (directory containing the current field)
+      const parentPath = path.substring(0, path.lastIndexOf('.'));
+
+      // Get the full path to the dependency field
+      const dependencyPath = parentPath.length > 0 ? `${parentPath}.${dependencyField}` : dependencyField;
+
+      // Get the current value of the dependency field
+      const dependencyValue = getValueAtPath(formValues, dependencyPath);
+
+      // If dependency value doesn't match any required values, hide this field
+      if (dependencyValue === undefined || !dependencyValues.includes(dependencyValue)) {
+        return null; // Don't render this field
+      }
+    }
+
     let input;
 
     // Add debug info
