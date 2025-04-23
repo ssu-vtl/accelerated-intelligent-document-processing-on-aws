@@ -938,4 +938,6 @@ To initialize and update the submodule, use the following commands when cloning 
 git submodule init
 git submodule update
 ```
-
+### Gitlab CI/CD Runners
+> To clone a submodule in a Gitlab CI/CD runner, it's required to allow permissions from the parent repository (this repository) to the child repository ([GenAIDP](https://gitlab.aws.dev/genaiic-reusable-assets/engagement-artifacts/GenAIDP/-/settings/ci_cd#js-token-access))
+Details on thie mechanism can be found [HERE](https://docs.gitlab.com/ci/jobs/ci_job_token/#use-a-job-token).
