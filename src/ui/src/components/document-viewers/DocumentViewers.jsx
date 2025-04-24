@@ -108,10 +108,10 @@ const DocumentViewers = ({ objectKey, evaluationReportUri, summaryReportUri, eva
     let messageTimer;
 
     if (copyStatus === 'show-message') {
-      // Clear the message after 10 seconds
+      // Clear the message after 5 seconds
       messageTimer = setTimeout(() => {
         setCopyStatus(null);
-      }, 10000);
+      }, 5000);
     }
 
     // Cleanup timer
