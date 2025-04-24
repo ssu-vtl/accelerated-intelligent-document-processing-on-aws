@@ -79,17 +79,21 @@ def batch_copy_s3_objects(source_bucket, destination_bucket, object_keys):
     
     return successful, failed
 
-def handler(event, context):
-    logger.info(f"Received event: {json.dumps(event)}")
+def copy_files_async(object_key, source_bucket, destination_bucket):
+    """
+    Copy files asynchronously from source bucket to destination bucket
+    
+    Args:
+        object_key: The object key prefix to copy
+        source_bucket: Source S3 bucket
+        destination_bucket: Destination S3 bucket
+        
+    Returns:
+        Dictionary with copy operation results
+    """
     start_time = time.time()
-
+    
     try:
-        object_key = event['arguments']['objectKey']
-        
-        # Get bucket names from environment variables
-        source_bucket = os.environ['OUTPUT_BUCKET']
-        destination_bucket = os.environ['EVALUATION_BASELINE_BUCKET']
-        
         # Create S3 client with optimized configuration
         s3_client = boto3.client('s3', config=Config(
             max_pool_connections=MAX_WORKERS*2,
@@ -105,24 +109,31 @@ def handler(event, context):
 
         # Collect all objects to copy
         objects_to_copy = []
+        has_contents = False
+        
         for page in paginator.paginate(**operation_parameters):
-            if 'Contents' not in page:
-                continue
-                
-            for obj in page['Contents']:
-                objects_to_copy.append(obj['Key'])
+            if 'Contents' in page:
+                has_contents = True
+                for obj in page['Contents']:
+                    objects_to_copy.append(obj['Key'])
         
         total_objects = len(objects_to_copy)
-        if total_objects == 0:
-            return {
-                'success': True,
-                'message': f'No objects found under prefix {object_key}'
-            }
-            
         logger.info(f"Found {total_objects} objects to copy under prefix {object_key}")
         
+        if total_objects == 0:
+            logger.warning(f"No objects found to copy under prefix: {object_key}")
+            if not has_contents:
+                logger.warning(f"Prefix {object_key} may not exist in bucket {source_bucket}")
+                
+            return {
+                'success': True,
+                'message': f'No objects found under prefix {object_key}',
+                'copied': 0,
+                'failed': 0,
+                'elapsed_seconds': 0
+            }
+        
         # Determine optimal batch size based on total files and available workers
-        # Using max(workers, 1) to ensure we don't divide by zero
         workers_to_use = min(MAX_WORKERS, total_objects)
         
         # Calculate batch size - divide total files evenly among workers
@@ -191,16 +202,274 @@ def handler(event, context):
             'elapsed_seconds': elapsed_time
         }
         
-    except ClientError as e:
-        error_message = str(e)
-        logger.error(f'Failed to copy files: {error_message}')
-        return {
-            'success': False,
-            'message': f'Failed to copy files: {error_message}'
-        }
     except Exception as e:
-        logger.error(f'Unexpected error: {str(e)}')
+        logger.error(f'Error in async copy operation: {str(e)}')
         return {
             'success': False,
-            'message': f'Unexpected error: {str(e)}'
+            'message': f'Error in async copy operation: {str(e)}',
+            'copied': 0,
+            'failed': 0,
+            'elapsed_seconds': time.time() - start_time
         }
+
+def update_document_copy_status(object_key, evaluation_status=None):
+    """
+    Update the document with copy operation status and evaluation status
+    
+    Args:
+        object_key: The document key
+        status_data: The copy operation status data
+        evaluation_status: Optional status to set in EvaluationStatus field
+    """
+    logger.info(f"Updating document {object_key} with status: {evaluation_status}")
+    
+    try:
+        # Import at function level to avoid circular imports
+        from idp_common.models import Document, Status
+        from idp_common.appsync.service import DocumentAppSyncService
+        
+        logger.info("Imported required modules")
+        
+        # Create a minimal document for update
+        document = Document(
+            id=object_key,
+            input_key=object_key
+        )
+        logger.info(f"Created document object with ID: {object_key}")
+        
+        # Set the evaluation status if provided
+        if evaluation_status:
+            document.evaluation_status = evaluation_status
+            logger.info(f"Setting evaluation status to {evaluation_status}")
+        
+        # Add baseline copy metrics to the document metering for tracking
+        if not document.metering:
+            document.metering = {}
+        
+        # Update the document in AppSync
+        logger.info("Creating AppSync service")
+        appsync_service = DocumentAppSyncService()
+        
+        # Check if APPSYNC_API_URL is set in environment
+        from os import environ
+        logger.info(f"APPSYNC_API_URL from environment: {environ.get('APPSYNC_API_URL')}")
+        
+        logger.info("Calling update_document on AppSync service")
+        result = appsync_service.update_document(document)
+        logger.info(f"Document update result: {result}")
+        
+        logger.info(f"Successfully updated document {object_key} with baseline copy status")
+        return True
+        
+    except Exception as e:
+        import traceback
+        stack_trace = traceback.format_exc()
+        logger.error(f"Failed to update document with copy status: {str(e)}\nStack trace: {stack_trace}")
+        return False
+
+def start_async_copy(object_key, source_bucket, destination_bucket):
+    """
+    Start asynchronous copy operation by invoking this Lambda asynchronously
+    
+    Args:
+        object_key: The object key prefix to copy
+        source_bucket: Source S3 bucket
+        destination_bucket: Destination S3 bucket
+    """
+    # Create a Lambda client
+    lambda_client = boto3.client('lambda')
+    
+    # Get this Lambda's function name from the environment
+    function_name = os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
+    logger.info(f"Lambda function name from environment: {function_name}")
+    
+    if not function_name:
+        logger.error("Could not determine Lambda function name")
+        return False
+    
+    # Create the payload for the async invocation
+    payload = {
+        'async_operation': 'copy_files',
+        'object_key': object_key,
+        'source_bucket': source_bucket,
+        'destination_bucket': destination_bucket
+    }
+    logger.info(f"Prepared async invocation payload: {payload}")
+    
+    try:
+        # First, update the document status to indicate copying is in progress
+        logger.info(f"Updating document status to BASELINE_COPYING for {object_key}")
+        
+        # Set the document's evaluation status to BASELINE_COPYING
+        try:
+            update_document_copy_status(object_key, "BASELINE_COPYING")
+            logger.info("Successfully updated document status to BASELINE_COPYING")
+        except Exception as update_err:
+            logger.error(f"Failed to update initial document status: {str(update_err)}")
+            # Continue anyway to attempt the async invocation
+        
+        # Invoke the Lambda asynchronously (Event invocation type)
+        logger.info(f"Invoking Lambda function {function_name} asynchronously")
+        response = lambda_client.invoke(
+            FunctionName=function_name,
+            InvocationType='Event',
+            Payload=json.dumps(payload)
+        )
+        
+        logger.info(f"Lambda invoke response: {response}")
+        
+        # Check if the invocation was accepted
+        if response['StatusCode'] == 202:  # 202 Accepted
+            logger.info(f"Successfully started async copy operation for {object_key}")
+            return True
+        else:
+            logger.error(f"Failed to start async operation. Status: {response['StatusCode']}")
+            update_document_copy_status(object_key, "BASELINE_ERROR")
+            return False
+            
+    except Exception as e:
+        import traceback
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error invoking Lambda asynchronously: {str(e)}\nStack trace: {stack_trace}")
+        
+        try:
+            update_document_copy_status(object_key, "BASELINE_ERROR")
+        except Exception as update_err:
+            logger.error(f"Failed to update error status: {str(update_err)}")
+            
+        return False
+
+def handler(event, context):
+    """
+    Lambda handler for both synchronous API calls and asynchronous processing
+    
+    Handles two types of invocations:
+    1. API Gateway/AppSync invocation (normal GraphQL mutation)
+    2. Asynchronous invocation from another Lambda instance
+    """
+    logger.info(f"Received event: {json.dumps(event)}")
+    logger.info(f"Lambda context: {context.function_name}, remaining time: {context.get_remaining_time_in_millis()}ms")
+    logger.info(f"Environment variables: OUTPUT_BUCKET={os.environ.get('OUTPUT_BUCKET')}, EVALUATION_BASELINE_BUCKET={os.environ.get('EVALUATION_BASELINE_BUCKET')}")
+
+    # Check if this is an asynchronous operation
+    if 'async_operation' in event and event['async_operation'] == 'copy_files':
+        logger.info("Executing async copy operation")
+        # This is an asynchronous copy operation invoked by another Lambda
+        object_key = event['object_key']
+        source_bucket = event['source_bucket']
+        destination_bucket = event['destination_bucket']
+        
+        logger.info(f"Async operation parameters: object_key={object_key}, source_bucket={source_bucket}, destination_bucket={destination_bucket}")
+        
+        try:
+            # Perform the actual file copying
+            logger.info("Starting file copy operation")
+            result = copy_files_async(object_key, source_bucket, destination_bucket)
+            logger.info(f"Copy operation completed with result: {result}")
+            
+            # Determine final status based on success/failure
+            if result['success']:
+                # Successful copy operation
+                evaluation_status = "BASELINE_AVAILABLE"
+            else:
+                # Failed copy operation
+                evaluation_status = "BASELINE_ERROR"
+            
+            logger.info(f"Setting evaluation status to: {evaluation_status}")
+            
+            # Update the document with the result and new status
+            update_document_copy_status(object_key, evaluation_status)
+            
+            # Async Lambda invocations don't need a return value
+            return {
+                'success': result['success'],
+                'message': result['message']
+            }
+            
+        except Exception as e:
+            import traceback
+            stack_trace = traceback.format_exc()
+            logger.error(f"Error in async operation: {str(e)}\nStack trace: {stack_trace}")
+            
+            try:
+                update_document_copy_status(object_key, "BASELINE_ERROR")
+            except Exception as update_err:
+                logger.error(f"Failed to update document status: {str(update_err)}")
+            
+            # Return error but don't raise exception for async invocations
+            return {
+                'success': False,
+                'message': f'Error in async operation: {str(e)}'
+            }
+    
+    # Normal GraphQL mutation handling
+    else:
+        logger.info("Executing normal GraphQL mutation handler")
+        try:
+            # Extract parameters from the GraphQL event
+            object_key = event['arguments']['objectKey']
+            logger.info(f"GraphQL mutation parameters: object_key={object_key}")
+            
+            # Get bucket names from environment variables
+            source_bucket = os.environ['OUTPUT_BUCKET']
+            destination_bucket = os.environ['EVALUATION_BASELINE_BUCKET']
+            logger.info(f"Using buckets: source={source_bucket}, destination={destination_bucket}")
+            
+            # For prefix-based operations, we don't check for object existence
+            # since we're working with a prefix (folder) not a specific object
+            logger.info(f"Will copy all objects under prefix: {source_bucket}/{object_key}/")
+            
+            # Check if the prefix exists by listing objects
+            s3_client = boto3.client('s3')
+            try:
+                # List objects with a limit of 1 to see if the prefix exists
+                response = s3_client.list_objects_v2(
+                    Bucket=source_bucket,
+                    Prefix=object_key,
+                    MaxKeys=1
+                )
+                
+                # If the prefix doesn't exist or is empty, response won't have 'Contents'
+                if 'Contents' not in response or len(response['Contents']) == 0:
+                    logger.warning(f"No objects found under prefix: {source_bucket}/{object_key}/")
+                    # We'll continue anyway, as the copy operation will just be a no-op if no files exist
+                else:
+                    logger.info(f"Found objects under prefix: {source_bucket}/{object_key}/")
+            except Exception as e:
+                logger.warning(f"Error checking prefix: {str(e)}")
+                # Continue anyway, as the copy operation will handle errors
+            
+            # Start asynchronous copy operation
+            logger.info("Starting async copy operation")
+            result = start_async_copy(object_key, source_bucket, destination_bucket)
+            logger.info(f"Async copy start result: {result}")
+            
+            if result:
+                # Return immediate success response
+                logger.info("Successfully started async copy operation")
+                return {
+                    'success': True,
+                    'message': f'Copy operation started for {object_key}. The process will continue in the background.'
+                }
+            else:
+                logger.error("Failed to start async copy operation")
+                return {
+                    'success': False,
+                    'message': f'Failed to start copy operation for {object_key}'
+                }
+            
+        except ClientError as e:
+            error_message = str(e)
+            logger.error(f'Failed to initialize copy operation: {error_message}')
+            return {
+                'success': False,
+                'message': f'Failed to initialize copy operation: {error_message}'
+            }
+        except Exception as e:
+            import traceback
+            stack_trace = traceback.format_exc()
+            logger.error(f'Unexpected error: {str(e)}\nStack trace: {stack_trace}')
+            return {
+                'success': False,
+                'message': f'Unexpected error: {str(e)}'
+            }

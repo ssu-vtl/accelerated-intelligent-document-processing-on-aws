@@ -3390,6 +3390,7 @@ Resources:
             - ShouldCreateEvaluationBaselineBucket
             - !Ref EvaluationBaselineBucket
             - !Ref EvaluationBaselineBucketName
+          APPSYNC_API_URL: !GetAtt GraphQLApi.GraphQLUrl
       LoggingConfig:
         LogGroup: !Ref CopyToBaselineResolverFunctionLogGroup
       Policies:
@@ -3409,6 +3410,19 @@ Resources:
                 - kms:GenerateDataKey*
                 - kms:DescribeKey
               Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+        # Allow the function to invoke itself asynchronously
+        - Statement:
+            - Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !Sub "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-CopyToBaselineResolverFunction-*"
+        # Allow AppSync access for document updates
+        - Statement:
+            - Effect: Allow
+              Action:
+                - appsync:GraphQL
+              Resource:
+                - !Sub "${GraphQLApi.Arn}/types/Mutation/*"
 
   CopyToBaselineResolverFunctionLogGroup:
     Type: AWS::Logs::LogGroup
