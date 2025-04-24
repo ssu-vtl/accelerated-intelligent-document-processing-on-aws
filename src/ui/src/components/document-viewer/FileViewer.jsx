@@ -25,6 +25,28 @@ const createSafeDataUrl = (content, contentType) => {
   return `data:${contentType};charset=utf-8,${encodeURIComponent(content)}`;
 };
 
+// Helper function to detect file type from object key or content type
+const detectFileType = (objectKey, contentType) => {
+  // First check content type if available
+  if (contentType) {
+    if (contentType.includes('pdf')) return 'pdf';
+    if (contentType.includes('image/')) return 'image';
+    if (contentType.includes('html')) return 'html';
+    if (contentType.includes('text/')) return 'text';
+    if (contentType.includes('json')) return 'json';
+  }
+  // Fallback to checking file extension
+  if (objectKey) {
+    const extension = objectKey.split('.').pop().toLowerCase();
+    if (extension === 'pdf') return 'pdf';
+    if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(extension)) return 'image';
+    if (extension === 'html' || extension === 'htm') return 'html';
+    if (['txt', 'md', 'csv', 'log'].includes(extension)) return 'text';
+    if (extension === 'json') return 'json';
+  }
+  return 'unknown';
+};
+
 const FileViewer = ({ objectKey }) => {
   const [presignedUrl, setPresignedUrl] = useState(null);
   const [fileContent, setFileContent] = useState(null);
@@ -51,12 +73,15 @@ const FileViewer = ({ objectKey }) => {
       // Set content and type
       setFileContent(result.content);
       setContentType(result.contentType);
+      // Get file type
+      const fileType = detectFileType(objectKey, result.contentType);
+      logger.info('Detected file type:', fileType);
 
       // Determine view method based on content type and binary flag
-      if (result.isBinary === true) {
-        // Always use presigned URL for binary content
+      if (fileType === 'pdf' || result.isBinary === true) {
+        // Always use presigned URL for PDFs and binary content
         setViewMethod('presigned');
-      } else if (result.contentType.includes('html') || result.contentType.includes('text/plain')) {
+      } else if (fileType === 'html' || fileType === 'text') {
         // Use content-based viewing for HTML and text content
         setViewMethod('content');
       } else {
@@ -142,6 +167,26 @@ const FileViewer = ({ objectKey }) => {
 
   // Render presigned URL viewer (for PDFs, images, etc.)
   if (viewMethod === 'presigned' && presignedUrl) {
+    // Get the file type
+    const fileType = detectFileType(objectKey, contentType);
+    const isPdf = fileType === 'pdf';
+    if (isPdf) {
+      // Special handling for PDFs - use object tag instead of iframe for better PDF support
+      return (
+        <Box className="document-container" padding={{ top: 's' }}>
+          <object data={presignedUrl} type="application/pdf" width="100%" height="800px" className="h-full w-full">
+            <p>
+              It appears your browser does not support embedded PDFs. You can{' '}
+              <a href={presignedUrl} target="_blank" rel="noopener noreferrer">
+                download the PDF
+              </a>{' '}
+              instead.
+            </p>
+          </object>
+        </Box>
+      );
+    }
+    // For non-PDF content, use iframe with appropriate sandbox settings
     return (
       <Box className="document-container" padding={{ top: 's' }}>
         <iframe
