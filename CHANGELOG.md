@@ -16,11 +16,22 @@
   - Support for applying guardrails in Bedrock model invocations (except classification)
   - Added guardrail functionality to Knowledge Base queries
   - Enhanced security and content safety for model interactions
+- Improved performance with parallelized operations
+  - Enhanced EvaluationService with multi-threaded processing for faster evaluation
+    - Parallel processing of document sections using ThreadPoolExecutor
+    - Intelligent attribute evaluation parallelization with LLM-specific optimizations
+    - Dynamic batch sizing based on workload for optimal resource utilization
+  - Reimplemented Copy to Baseline functionality with asynchronous processing
+    - Asynchronous Lambda invocation pattern for processing large document collections
+    - EvaluationStatus-based progress tracking and UI integration
+    - Batch-based S3 object copying for improved efficiency
+    - File operation batching with optimal batch size calculation
   
 ### Changed
 - Refactored code for better maintainability
 - Updated UI components to support markdown viewing
 - Set default evaluation model to Claude 3 Haiku
+- Improved AppSync timeout handling for long-running operations
 - Various bug fixes and improvements
 
 ## [0.2.19]
