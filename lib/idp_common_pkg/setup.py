@@ -21,7 +21,7 @@ extras_require = {
     "ocr": [
         "Pillow>=11.1.0",
         "PyMuPDF>=1.25.5",
-        "amazon-textract-textractor>=1.9.1",
+        "amazon-textract-textractor>=1.9.2",
     ],
     
     # Classification module dependencies
