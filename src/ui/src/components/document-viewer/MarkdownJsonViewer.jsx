@@ -195,9 +195,16 @@ const MarkdownJsonViewer = ({ fileUri, fileType = 'text', buttonText = 'View Fil
         variables: { s3Uri: fileUri },
       });
 
-      const fetchedContent = response.data.getFileContents;
+      // Handle the updated response structure
+      const result = response.data.getFileContents;
+      const fetchedContent = result.content;
+      logger.debug('Received content type:', result.contentType);
+      logger.debug('Binary content?', result.isBinary);
+      if (result.isBinary === true) {
+        setError('This file contains binary content that cannot be viewed in the Markdown viewer.');
+        return;
+      }
       logger.debug('Received content:', `${fetchedContent.substring(0, 100)}...`);
-
       setFileContent(fetchedContent);
     } catch (err) {
       logger.error('Error fetching content:', err);
