@@ -491,12 +491,14 @@ The solution includes AWS WAF integration to protect your AppSync API:
 - **Default behavior**: By default (`0.0.0.0/0`), WAF is disabled and all IPs are allowed
 - **Configuration**: Use the `WAFAllowedIPv4Ranges` parameter to specify allowed IP ranges
   - Example: `"192.168.1.0/24,10.0.0.0/16"` (comma-separated list of CIDR blocks)
-- **Security benefit**: When properly configured, WAF blocks all traffic except from your trusted IP ranges
+- **Security benefit**: When properly configured, WAF blocks all traffic except from your trusted IP ranges and AWS Lambda service IP ranges
+- **Lambda service access**: The solution automatically maintains a WAF IPSet with current AWS Lambda service IP ranges to ensure Lambda functions can always access the AppSync API even when IP restrictions are enabled
 
 When configuring the WAF:
 - IP ranges must be in valid CIDR notation (e.g., `192.168.1.0/24`)
 - Multiple ranges should be comma-separated
 - The WAF is only enabled when the parameter is set to something other than the default `0.0.0.0/0`
+- Lambda functions within your account will automatically have access to the AppSync API regardless of IP restrictions
 
 ### Monitoring and Troubleshooting
 
