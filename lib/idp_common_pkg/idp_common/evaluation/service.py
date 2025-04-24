@@ -9,6 +9,7 @@ import json
 import logging
 import time
 import os
+import concurrent.futures
 from typing import Dict, List, Any, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
@@ -33,7 +34,8 @@ class EvaluationService:
     def __init__(
         self,
         region: str = None,
-        config: Dict[str, Any] = None
+        config: Dict[str, Any] = None,
+        max_workers: int = 10
     ):
         """
         Initialize the evaluation service.
@@ -41,9 +43,11 @@ class EvaluationService:
         Args:
             region: AWS region
             config: Configuration dictionary containing evaluation settings
+            max_workers: Maximum number of concurrent workers for section evaluation
         """
         self.config = config or {}
         self.region = region or self.config.get("region") or os.environ.get("AWS_REGION")
+        self.max_workers = max_workers
         
         # Set default LLM evaluation settings
         self.llm_config = self.config.get("evaluation", {}).get("llm_method", {})
@@ -74,7 +78,7 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
 }
             """)
             
-        logger.info("Initialized evaluation service with LLM configuration")
+        logger.info("Initialized evaluation service with LLM configuration and max_workers=%d", self.max_workers)
     
     def _get_attributes_for_class(self, class_name: str) -> List[EvaluationAttribute]:
         """
@@ -226,6 +230,98 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
         
         return tn, fp, fn, tp, fp1, fp2, score, reason
     
+    def _evaluate_single_attribute(
+        self,
+        attr_name: str,
+        expected_value: Any,
+        actual_value: Any,
+        evaluation_method: EvaluationMethod,
+        evaluation_threshold: float,
+        document_class: str,
+        attr_description: str,
+        comparator_type: str = None,
+        is_unconfigured: bool = False
+    ) -> Tuple[AttributeEvaluationResult, Dict[str, int]]:
+        """
+        Evaluate a single attribute and return its result and metrics.
+        
+        Args:
+            attr_name: Attribute name
+            expected_value: Expected value
+            actual_value: Actual value
+            evaluation_method: Method for evaluation
+            evaluation_threshold: Threshold for fuzzy matching
+            document_class: Document class
+            attr_description: Attribute description
+            comparator_type: Comparator type for Hungarian method
+            is_unconfigured: Whether this attribute is unconfigured
+            
+        Returns:
+            Tuple of (attribute_result, metrics)
+        """
+        # Count classifications
+        logger.info(f"Comparing: {attr_name} using {evaluation_method} - from class {document_class}")
+        
+        attr_tn, attr_fp, attr_fn, attr_tp, attr_fp1, attr_fp2, score, reason = self._count_classifications(
+            attr_name=attr_name,
+            expected=expected_value,
+            actual=actual_value,
+            evaluation_method=evaluation_method,
+            threshold=evaluation_threshold,
+            document_class=document_class,
+            attr_description=attr_description,
+            comparator_type=comparator_type
+        )
+        
+        # Determine if this is a match
+        # Case where both values are empty - should always be a match
+        if ((expected_value is None or (isinstance(expected_value, str) and not expected_value.strip())) and
+            (actual_value is None or (isinstance(actual_value, str) and not actual_value.strip()))):
+            matched = True
+        # For other cases, we use the logic based on tp, fp, fn
+        elif attr_tp > 0:
+            matched = True
+        else:
+            matched = False
+        
+        # Add note about unconfigured attribute to reason if applicable
+        if is_unconfigured:
+            if reason:
+                reason = f"{reason} [Default method - attribute not specified in the configuration]"
+            else:
+                reason = "[Default method - attribute not specified in the configuration]"
+        
+        # Determine when to include the evaluation threshold
+        include_threshold = (
+            evaluation_method in [EvaluationMethod.FUZZY, EvaluationMethod.SEMANTIC] or
+            (evaluation_method == EvaluationMethod.HUNGARIAN and comparator_type == "FUZZY")
+        )
+        
+        # Create attribute result
+        attribute_result = AttributeEvaluationResult(
+            name=attr_name,
+            expected=expected_value,
+            actual=actual_value,
+            matched=matched,
+            score=score,
+            reason=reason,
+            evaluation_method=evaluation_method.value,
+            evaluation_threshold=evaluation_threshold if include_threshold else None,
+            comparator_type=comparator_type if evaluation_method == EvaluationMethod.HUNGARIAN else None
+        )
+        
+        # Create metrics dictionary
+        metrics = {
+            'tn': attr_tn,
+            'fp': attr_fp,
+            'fn': attr_fn,
+            'tp': attr_tp,
+            'fp1': attr_fp1,
+            'fp2': attr_fp2
+        }
+        
+        return attribute_result, metrics
+
     def evaluate_section(
         self, 
         section: Section,
@@ -249,67 +345,41 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
         
         # Evaluation counters
         tp = fp = fn = tn = fp1 = fp2 = 0
-        attribute_results = []
+        
+        # Track tasks for parallel and sequential evaluation
+        parallel_tasks = []  # For LLM evaluations (slow operations)
+        sequential_tasks = []  # For non-LLM evaluations (fast operations)
         
         # Create a set of attribute names already processed from configuration
         processed_attr_names = set()
         
-        # First evaluate attributes defined in configuration
+        # Prepare configured attributes evaluation tasks
         for attr_config in configured_attributes:
             attr_name = attr_config.name
             expected_value = expected_results.get(attr_name)
             actual_value = actual_results.get(attr_name)
             processed_attr_names.add(attr_name)
             
-            # Count classifications
-            logger.info(f"Comparing: {attr_name} using {attr_config.evaluation_method} - from class {class_name}, section {section.section_id}")
-            attr_tn, attr_fp, attr_fn, attr_tp, attr_fp1, attr_fp2, score, reason = self._count_classifications(
-                attr_name=attr_name,
-                expected=expected_value,
-                actual=actual_value,
-                evaluation_method=attr_config.evaluation_method,
-                threshold=attr_config.evaluation_threshold,
-                document_class=class_name,
-                attr_description=attr_config.description,
-                comparator_type=attr_config.comparator_type
-            )
+            # Create a task for this attribute
+            task = {
+                'attr_name': attr_name,
+                'expected_value': expected_value,
+                'actual_value': actual_value,
+                'evaluation_method': attr_config.evaluation_method,
+                'evaluation_threshold': attr_config.evaluation_threshold,
+                'document_class': class_name,
+                'attr_description': attr_config.description,
+                'comparator_type': attr_config.comparator_type,
+                'is_unconfigured': False
+            }
             
-            # Update counters
-            tn += attr_tn
-            fp += attr_fp
-            fn += attr_fn
-            tp += attr_tp
-            fp1 += attr_fp1
-            fp2 += attr_fp2
-            
-            # Determine if this is a match
-            # Case where both values are empty - should always be a match
-            if ((expected_value is None or (isinstance(expected_value, str) and not expected_value.strip())) and
-                (actual_value is None or (isinstance(actual_value, str) and not actual_value.strip()))):
-                matched = True
+            # Separate tasks based on evaluation method
+            if attr_config.evaluation_method in [EvaluationMethod.LLM, EvaluationMethod.SEMANTIC]:
+                # These methods are expensive (API calls), so parallelize them
+                parallel_tasks.append(task)
             else:
-                # Otherwise, use the TP count
-                matched = attr_tp > 0
-            
-            # Add evaluation method, threshold, and comparator type to the result
-            # Determine when to include the evaluation threshold
-            include_threshold = (
-                attr_config.evaluation_method in [EvaluationMethod.FUZZY, EvaluationMethod.SEMANTIC] or
-                (attr_config.evaluation_method == EvaluationMethod.HUNGARIAN and 
-                 attr_config.comparator_type == "FUZZY")
-            )
-            
-            attribute_results.append(AttributeEvaluationResult(
-                name=attr_name,
-                expected=expected_value,
-                actual=actual_value,
-                matched=matched,
-                score=score,
-                reason=reason,
-                evaluation_method=attr_config.evaluation_method.value,
-                evaluation_threshold=attr_config.evaluation_threshold if include_threshold else None,
-                comparator_type=attr_config.comparator_type if attr_config.evaluation_method == EvaluationMethod.HUNGARIAN else None
-            ))
+                # These methods are fast, so run them sequentially
+                sequential_tasks.append(task)
         
         # Now find attributes that exist in the data but not in configuration
         # Get all attribute names from both expected and actual results
@@ -318,7 +388,7 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
         # Filter out attributes already processed from configuration
         unconfigured_attr_names = all_attr_names - processed_attr_names
         
-        # For each unconfigured attribute, apply default evaluation
+        # Add tasks for unconfigured attributes
         for attr_name in unconfigured_attr_names:
             expected_value = expected_results.get(attr_name)
             actual_value = actual_results.get(attr_name)
@@ -328,62 +398,95 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             default_threshold = 0.8
             default_description = f"Attribute found in data but not in configuration"
             
-            logger.info(f"Comparing unconfigured attribute: {attr_name} using {default_method} - from class {class_name}, section {section.section_id}")
+            # Unconfigured attributes use LLM by default, so add to parallel tasks
+            parallel_tasks.append({
+                'attr_name': attr_name,
+                'expected_value': expected_value,
+                'actual_value': actual_value,
+                'evaluation_method': default_method,
+                'evaluation_threshold': default_threshold,
+                'document_class': class_name,
+                'attr_description': default_description,
+                'comparator_type': None,
+                'is_unconfigured': True
+            })
+        
+        attribute_results = []
+        
+        # First, process fast sequential tasks
+        for task in sequential_tasks:
+            try:
+                attribute_result, metrics = self._evaluate_single_attribute(
+                    task['attr_name'],
+                    task['expected_value'],
+                    task['actual_value'],
+                    task['evaluation_method'],
+                    task['evaluation_threshold'],
+                    task['document_class'],
+                    task['attr_description'],
+                    task['comparator_type'],
+                    task['is_unconfigured']
+                )
+                
+                # Add to attribute results
+                attribute_results.append(attribute_result)
+                
+                # Update overall metrics
+                tn += metrics['tn']
+                fp += metrics['fp']
+                fn += metrics['fn']
+                tp += metrics['tp']
+                fp1 += metrics['fp1']
+                fp2 += metrics['fp2']
+                
+            except Exception as e:
+                logger.error(f"Error evaluating attribute {task['attr_name']}: {str(e)}")
+        
+        # Then, process slow parallel tasks with ThreadPoolExecutor if there are any
+        if parallel_tasks:
+            # Only create threads for operations that benefit from parallelization
+            max_workers = min(len(parallel_tasks), self.max_workers)
             
-            attr_tn, attr_fp, attr_fn, attr_tp, attr_fp1, attr_fp2, score, reason = self._count_classifications(
-                attr_name=attr_name,
-                expected=expected_value,
-                actual=actual_value,
-                evaluation_method=default_method,
-                threshold=default_threshold,
-                document_class=class_name,
-                attr_description=default_description
-            )
-            
-            # Update counters
-            tn += attr_tn
-            fp += attr_fp
-            fn += attr_fn
-            tp += attr_tp
-            fp1 += attr_fp1
-            fp2 += attr_fp2
-            
-            # Determine if this is a match
-            # Cases:
-            # 1. Both values are missing - should be a match
-            if ((expected_value is None or (isinstance(expected_value, str) and not expected_value.strip())) and
-                (actual_value is None or (isinstance(actual_value, str) and not actual_value.strip()))):
-                matched = True
-            # 2. Expected exists but actual doesn't - should not be a match (false negative)
-            elif (expected_value is not None and 
-                  (actual_value is None or (isinstance(actual_value, str) and not actual_value.strip()))):
-                matched = False
-            # 3. Actual exists but expected doesn't - should not be a match (false positive)
-            elif (actual_value is not None and 
-                  (expected_value is None or (isinstance(expected_value, str) and not expected_value.strip()))):
-                matched = False
-            # 4. Both exist - use TP count from comparison
-            else:
-                matched = attr_tp > 0
-            
-            # Add note about unconfigured attribute to reason
-            if reason:
-                reason = f"{reason} [Default method - attribute not specified in the configuration]"
-            else:
-                reason = "[Default method - attribute not specified in the configuration]"
-            
-            # Add the result
-            attribute_results.append(AttributeEvaluationResult(
-                name=attr_name,
-                expected=expected_value,
-                actual=actual_value,
-                matched=matched,
-                score=score,
-                reason=reason,
-                evaluation_method=default_method.value,
-                evaluation_threshold=default_threshold if default_method in [EvaluationMethod.FUZZY, EvaluationMethod.SEMANTIC] else None,
-                comparator_type=None  # No comparator_type for default method
-            ))
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit tasks
+                future_to_attr = {
+                    executor.submit(
+                        self._evaluate_single_attribute,
+                        task['attr_name'],
+                        task['expected_value'],
+                        task['actual_value'],
+                        task['evaluation_method'],
+                        task['evaluation_threshold'],
+                        task['document_class'],
+                        task['attr_description'],
+                        task['comparator_type'],
+                        task['is_unconfigured']
+                    ): task['attr_name']
+                    for task in parallel_tasks
+                }
+                
+                # Collect results
+                for future in concurrent.futures.as_completed(future_to_attr):
+                    attr_name = future_to_attr[future]
+                    try:
+                        attribute_result, metrics = future.result()
+                        
+                        # Add to attribute results
+                        attribute_results.append(attribute_result)
+                        
+                        # Update overall metrics
+                        tn += metrics['tn']
+                        fp += metrics['fp']
+                        fn += metrics['fn']
+                        tp += metrics['tp']
+                        fp1 += metrics['fp1']
+                        fp2 += metrics['fp2']
+                        
+                    except Exception as e:
+                        logger.error(f"Error evaluating attribute {attr_name}: {str(e)}")
+        
+        # Sort attribute results by name for consistent output
+        attribute_results.sort(key=lambda x: x.name)
         
         # Calculate metrics
         metrics = calculate_metrics(tp=tp, fp=fp, fn=fn, tn=tn, fp1=fp1, fp2=fp2)
@@ -395,6 +498,82 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             metrics=metrics
         )
     
+    def _process_section(
+        self,
+        actual_section: Section,
+        expected_section: Section
+    ) -> Tuple[SectionEvaluationResult, Dict[str, int]]:
+        """
+        Process a single section for evaluation.
+        
+        Args:
+            actual_section: Section with actual extraction results
+            expected_section: Section with expected extraction results
+            
+        Returns:
+            Tuple of (section_result, metrics_count)
+        """
+        # Track section metrics
+        section_tp = section_fp = section_fn = section_tn = section_fp1 = section_fp2 = 0
+        
+        # Load extraction results
+        actual_uri = actual_section.extraction_result_uri
+        expected_uri = expected_section.extraction_result_uri
+        
+        if not actual_uri or not expected_uri:
+            logger.warning(f"Missing extraction URI for section: {actual_section.section_id}")
+            # Return empty result
+            return None, {}
+        
+        actual_results = self._load_extraction_results(actual_uri)
+        expected_results = self._load_extraction_results(expected_uri)
+        
+        # Evaluate section
+        section_result = self.evaluate_section(
+            section=actual_section,
+            expected_results=expected_results,
+            actual_results=actual_results
+        )
+        
+        # Count matches and mismatches in the attributes
+        for attr in section_result.attributes:
+            # Check if both are None/Empty - this should always be a match
+            is_expected_empty = attr.expected is None or (isinstance(attr.expected, str) and not attr.expected.strip())
+            is_actual_empty = attr.actual is None or (isinstance(attr.actual, str) and not attr.actual.strip())
+            
+            if is_expected_empty and is_actual_empty:
+                # Both values are None/Empty, this should be considered a match (TN)
+                section_tn += 1
+                # Make sure the matched flag is set correctly
+                attr.matched = True  # Force the matched flag to True if not already
+            elif attr.matched:
+                section_tp += 1
+            else:
+                # Handle different error cases
+                if is_expected_empty:
+                    # Expected None/Empty, got a value
+                    section_fp += 1
+                    section_fp1 += 1
+                elif is_actual_empty:
+                    # Expected a value, got None/Empty
+                    section_fn += 1
+                else:
+                    # Both have values but don't match
+                    section_fp += 1
+                    section_fp2 += 1
+        
+        # Return the section result and metrics
+        metrics = {
+            'tp': section_tp,
+            'fp': section_fp,
+            'fn': section_fn,
+            'tn': section_tn,
+            'fp1': section_fp1,
+            'fp2': section_fp2
+        }
+        
+        return section_result, metrics
+
     def evaluate_document(
         self, 
         actual_document: Document, 
@@ -415,12 +594,12 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
         try:
             # Start timing
             start_time = time.time()
-            section_results = []
             
             # Track overall metrics
             total_tp = total_fp = total_fn = total_tn = total_fp1 = total_fp2 = 0
             
-            # Process each section in the actual document
+            # Create a list of section pairs to evaluate
+            section_pairs = []
             for actual_section in actual_document.sections:
                 section_id = actual_section.section_id
                 
@@ -434,53 +613,45 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                     logger.warning(f"No matching section found for section_id: {section_id}")
                     continue
                 
-                # Load extraction results
-                actual_uri = actual_section.extraction_result_uri
-                expected_uri = expected_section.extraction_result_uri
+                section_pairs.append((actual_section, expected_section))
+            
+            section_results = []
+            
+            # Process sections in parallel using ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                # Submit all section evaluations to the executor
+                future_to_section = {
+                    executor.submit(self._process_section, actual_section, expected_section): 
+                    actual_section.section_id 
+                    for actual_section, expected_section in section_pairs
+                }
                 
-                if not actual_uri or not expected_uri:
-                    logger.warning(f"Missing extraction URI for section: {section_id}")
-                    continue
-                
-                actual_results = self._load_extraction_results(actual_uri)
-                expected_results = self._load_extraction_results(expected_uri)
-                
-                # Evaluate section
-                section_result = self.evaluate_section(
-                    section=actual_section,
-                    expected_results=expected_results,
-                    actual_results=actual_results
-                )
-                
-                # Collect raw counts from section for accurate overall metrics
-                # Count matches and mismatches in the attributes
-                for attr in section_result.attributes:
-                    # Check if both are None/Empty - this should always be a match
-                    is_expected_empty = attr.expected is None or (isinstance(attr.expected, str) and not attr.expected.strip())
-                    is_actual_empty = attr.actual is None or (isinstance(attr.actual, str) and not attr.actual.strip())
-                    
-                    if is_expected_empty and is_actual_empty:
-                        # Both values are None/Empty, this should be considered a match (TN)
-                        total_tn += 1
-                        # Make sure the matched flag is set correctly
-                        attr.matched = True  # Force the matched flag to True if not already
-                    elif attr.matched:
-                        total_tp += 1
-                    else:
-                        # Handle different error cases
-                        if is_expected_empty:
-                            # Expected None/Empty, got a value
-                            total_fp += 1
-                            total_fp1 += 1
-                        elif is_actual_empty:
-                            # Expected a value, got None/Empty
-                            total_fn += 1
-                        else:
-                            # Both have values but don't match
-                            total_fp += 1
-                            total_fp2 += 1
-                
-                section_results.append(section_result)
+                # Collect results as they complete
+                for future in concurrent.futures.as_completed(future_to_section):
+                    section_id = future_to_section[future]
+                    try:
+                        result, metrics = future.result()
+                        if result is None:
+                            logger.warning(f"Section {section_id} evaluation returned no result")
+                            continue
+                        
+                        # Add to section results
+                        section_results.append(result)
+                        
+                        # Update overall metrics
+                        total_tp += metrics['tp']
+                        total_fp += metrics['fp']
+                        total_fn += metrics['fn']
+                        total_tn += metrics['tn']
+                        total_fp1 += metrics['fp1']
+                        total_fp2 += metrics['fp2']
+                        
+                    except Exception as e:
+                        logger.error(f"Error evaluating section {section_id}: {str(e)}")
+                        actual_document.errors.append(f"Error evaluating section {section_id}: {str(e)}")
+            
+            # Sort section results by section_id for consistent output
+            section_results.sort(key=lambda x: x.section_id)
             
             # Calculate overall metrics
             overall_metrics = calculate_metrics(
@@ -531,7 +702,7 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                 actual_document.evaluation_report_uri = f"s3://{output_bucket}/{report_key}"
                 actual_document.status = Status.EVALUATED
                 
-                logger.info(f"Evaluation complete for document {actual_document.id}")
+                logger.info(f"Evaluation complete for document {actual_document.id} in {execution_time:.2f} seconds")
             
             # Attach evaluation result to document for immediate use
             actual_document.evaluation_result = evaluation_result
