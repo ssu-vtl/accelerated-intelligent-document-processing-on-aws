@@ -32,10 +32,20 @@ The GenAI Intelligent Document Processing (GenAIIDP) Accelerator demonstrates st
 - **Authorization**: Fine-grained access controls for different components and resources.
 - **Data Protection**: S3 bucket encryption, DynamoDB encryption, and secure transmission of data.
 - **Audit Capabilities**: CloudWatch logs capture detailed activity for auditing purposes.
-- **WAF Integration**: Optional Web Application Firewall protection for the web UI.
+- **WAF Integration**: Web Application Firewall protection for the AppSync GraphQL API.
 
 ### Recommendations
 
+- **CloudFront Security Enhancement**: 
+  - Create a custom domain with a custom ACM certificate for the CloudFront distribution
+  - Enforce TLS 1.2 or greater protocol in the CloudFront security policy
+  - Configure secure response headers (X-Content-Type-Options, X-Frame-Options, Content-Security-Policy)
+  - Restrict viewer access using signed URLs or cookies for sensitive content
+- **Additional WAF Protection**: 
+  - Deploy a WAF WebACL with GLOBAL scope in the us-east-1 region
+  - Associate this WAF with the CloudFront distribution to protect the UI
+  - Enable core rule sets (AWS Managed Rules) including protections against XSS and SQL injection
+  - Create custom rules for specific application threats
 - Consider implementing VPC endpoints for enhanced network isolation of sensitive services.
 - Add automated security scanning in the CI/CD pipeline.
 - Implement more granular data access controls based on document classification.

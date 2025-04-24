@@ -24,6 +24,7 @@
     "@testing-library/user-event": "^13.5.0",
     "aws-amplify": "^5.3.11",
     "axios": "^1.8.4",
+    "dompurify": "^3.2.5",
     "graphql": "^16.10.0",
     "graphql-tag": "^2.12.6",
     "js-yaml": "^4.1.0",
