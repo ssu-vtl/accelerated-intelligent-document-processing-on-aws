@@ -2478,17 +2478,12 @@ Resources:
             <p>When the CloudFormation stack is COMPLETE, use the link below to log in and set your permanent password.
             <p>     https://${CloudFrontDistribution.DomainName}/
             <p>
-            <p>If you have not previously done so, you must request access to the following Amazon Bedrock models (see https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html):
-            <p>  - Amazon: Titan Text Embeddings V2
-            <p>  - Amazon: Nova models
-            <p>  - Anthropic: Claude 3 and 3.x models
+            <p>If you have not previously done so, you must request access to the following Amazon Bedrock models (https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html): Amazon: Titan Text Embeddings V2, Amazon: Nova models, Anthropic: Claude 3 and 3.x models.
             <p>
             <p>Thanks,</p>
             <p>AWS GenAIIDP Team</p>
             <p>
-            <p>StackName: ${AWS::StackName}
-            <p>Version: <VERSION>
-            <p>BuildDateTime: <BUILD_DATE_TIME>
+            <p><em>Stack: ${AWS::StackName}, v<VERSION>, <BUILD_DATE_TIME></em>
       AutoVerifiedAttributes:
         - email
       EmailConfiguration:
