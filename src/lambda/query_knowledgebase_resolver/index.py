@@ -7,7 +7,8 @@ import logging
 
 # Configure logging
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG if os.environ.get("DEBUG_LOGGING") else logging.INFO)
+logger.setLevel(logging.getLevelName(os.environ.get("LOG_LEVEL", "INFO")))
+# Get LOG_LEVEL from environment variable with INFO as default
 
 print("Boto3 version: ", boto3.__version__)
 

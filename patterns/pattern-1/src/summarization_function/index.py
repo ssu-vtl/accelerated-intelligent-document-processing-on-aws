@@ -2,6 +2,7 @@
 Lambda function to summarize document content using the SummarizationService from idp_common.
 """
 import json
+import os
 import logging
 import time
 
@@ -13,7 +14,8 @@ from idp_common.models import Document
 CONFIG = get_config()
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+# Get LOG_LEVEL from environment variable with INFO as default
 
 def handler(event, context):
     """
