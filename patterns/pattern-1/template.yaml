@@ -27,6 +27,17 @@ Parameters:
   LogRetentionDays:
     Type: Number
   
+  LogLevel:
+    Type: String
+    Default: WARN
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - WARN
+      - ERROR
+      - CRITICAL
+    Description: Default logging level for all Lambda functions
+  
   ExecutionTimeThresholdMs:
     Type: Number
     Default: 30000
@@ -419,6 +430,7 @@ Resources:
           TRACKING_TABLE: !Ref TrackingTable
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
+          LOG_LEVEL: !Ref LogLevel
       LoggingConfig:
         LogGroup: !Ref InvokeBDAFunctionLogGroup
       Policies:
@@ -483,6 +495,7 @@ Resources:
       Environment:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
+          LOG_LEVEL: !Ref LogLevel
       LoggingConfig:
         LogGroup: !Ref ProcessResultsFunctionLogGroup
       Policies:
@@ -540,6 +553,7 @@ Resources:
           METRIC_NAMESPACE: !Ref StackName
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
           GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
+          LOG_LEVEL: !Ref LogLevel
       LoggingConfig:
         LogGroup: !Ref SummarizationFunctionLogGroup
       Policies:
@@ -612,6 +626,7 @@ Resources:
         Variables:
           TRACKING_TABLE: !Ref TrackingTable
           METRIC_NAMESPACE: !Ref StackName
+          LOG_LEVEL: !Ref LogLevel
       DeadLetterQueue:
        Type: SQS
        TargetArn: !GetAtt BDACompletionFunctionDLQ.Arn

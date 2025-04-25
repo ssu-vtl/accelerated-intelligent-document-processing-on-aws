@@ -4,6 +4,19 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v<VERSION>)
 
+Mappings:
+  LogLevelMap:
+    DEBUG:
+      FieldLogLevel: ALL
+    INFO:
+      FieldLogLevel: ALL
+    WARN:
+      FieldLogLevel: ERROR
+    ERROR:
+      FieldLogLevel: ERROR
+    CRITICAL:
+      FieldLogLevel: ERROR
+
 Parameters:
 
   # Authorization params
@@ -252,6 +265,17 @@ Parameters:
     Description: Maximum acceptable execution time in milliseconds before alerting (default 30000 = 30 seconds)
     MinValue: 1000
 
+  # Logging configuration
+  LogLevel:
+    Type: String
+    Default: WARN
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - WARN
+      - ERROR
+    Description: Default logging level for all logs
+
   LogRetentionDays:
     Type: Number
     Default: 30
@@ -446,6 +470,7 @@ Metadata:
           - DataRetentionInDays
           - ErrorThreshold
           - ExecutionTimeThresholdMs
+          - LogLevel
           - LogRetentionDays
           - CloudFrontPriceClass
           - CloudFrontAllowedGeos
@@ -504,6 +529,8 @@ Metadata:
         default: "Error Alert Threshold"
       ExecutionTimeThresholdMs:
         default: "Execution Time Threshold (ms)"
+      LogLevel:
+        default: "Logging Level"
       LogRetentionDays:
         default: "Log Retention Period (days)"
       CloudFrontPriceClass:
@@ -548,6 +575,9 @@ Resources:
             else:
               print(f"Request type is {event['RequestType']} - skipping")
             cfnresponse.send(event, context, status, {}, reason=reason)
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
       LoggingConfig:
         LogGroup:
           Ref: StacknameCheckFunctionLogGroup
@@ -584,6 +614,7 @@ Resources:
       Parameters:
         ProjectName: !Sub '${AWS::StackName}-BDA-Lending-Sample-Project'
         ProjectDescription: !Sub '${AWS::StackName}-BDA-Lending-Sample-Project'
+        LogLevel: !Ref LogLevel
 
   DOCUMENTBEDROCKKB:
     DependsOn:
@@ -598,6 +629,7 @@ Resources:
         pS3SyncScheduleExpression: "cron(0/30 * ? * * *)"  # default is to sync documents every 30 minutes
         pCustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         pChunkingStrategy: 'No chunking'
+        LogLevel: !Ref LogLevel
 
   ##########################################################################
   # Nested stack for selected pattern
@@ -619,6 +651,7 @@ Resources:
         TrackingTable: !Ref TrackingTable
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
+        LogLevel: !Ref LogLevel
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
         BedrockGuardrailId: !Ref BedrockGuardrailId
         BedrockGuardrailVersion: !Ref BedrockGuardrailVersion
@@ -644,6 +677,7 @@ Resources:
         OutputBucket: !Ref OutputBucket
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
+        LogLevel: !Ref LogLevel
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
         BedrockGuardrailId: !Ref BedrockGuardrailId
         BedrockGuardrailVersion: !Ref BedrockGuardrailVersion
@@ -671,6 +705,7 @@ Resources:
         OutputBucket: !Ref OutputBucket
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
+        LogLevel: !Ref LogLevel
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
         BedrockGuardrailId: !Ref BedrockGuardrailId
         BedrockGuardrailVersion: !Ref BedrockGuardrailVersion
@@ -1176,6 +1211,7 @@ Resources:
       CodeUri: src/lambda/initialize_counter
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           CONCURRENCY_TABLE: !Ref ConcurrencyTable
       Policies:
         - DynamoDBCrudPolicy:
@@ -1241,6 +1277,7 @@ Resources:
       CodeUri: src/lambda/update_configuration
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           CONFIGURATION_TABLE_NAME:
             Ref: ConfigurationTable
       LoggingConfig:
@@ -1447,6 +1484,7 @@ Resources:
         LogGroup: !Ref QueueSenderLogGroup
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           QUEUE_URL: !Ref DocumentQueue
           APPSYNC_API_URL: !GetAtt GraphQLApi.GraphQLUrl
           DATA_RETENTION_IN_DAYS: !Ref DataRetentionInDays
@@ -1510,6 +1548,7 @@ Resources:
         LogGroup: !Ref QueueProcessorLogGroup
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           STATE_MACHINE_ARN: !If
             - IsPattern3
             - !GetAtt PATTERN3STACK.Outputs.StateMachineArn
@@ -1619,6 +1658,7 @@ Resources:
         LogGroup: !Ref WorkflowTrackerLogGroup
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           CONCURRENCY_TABLE: !Ref ConcurrencyTable
           METRIC_NAMESPACE: !Ref AWS::StackName
           APPSYNC_API_URL: !GetAtt GraphQLApi.GraphQLUrl
@@ -1766,6 +1806,7 @@ Resources:
         LogGroup: !Ref EvaluationFunctionLogGroup
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           METRIC_NAMESPACE: !Ref AWS::StackName
           APPSYNC_API_URL: !GetAtt GraphQLApi.GraphQLUrl
           PROCESSING_OUTPUT_BUCKET: !Ref OutputBucket
@@ -2321,6 +2362,7 @@ Resources:
       MemorySize: 128
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           STACK_NAME: !Ref AWS::StackName
       Policies:
         - Version: "2012-10-17"
@@ -2374,6 +2416,7 @@ Resources:
         LogGroup: !Ref LookupFunctionLogGroup
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           TRACKING_TABLE: !Ref TrackingTable
       Policies:
         - DynamoDBReadPolicy:
@@ -2681,6 +2724,7 @@ Resources:
       Timeout: 10
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           ALLOWED_SIGNUP_EMAIL_DOMAINS: !Ref AllowedSignUpEmailDomain
       InlineCode: |
         import os
@@ -2739,7 +2783,7 @@ Resources:
       LogConfig:
         CloudWatchLogsRoleArn: !GetAtt AppSyncCwlRole.Arn
         ExcludeVerboseContent: false
-        FieldLogLevel: ALL
+        FieldLogLevel: !FindInMap [LogLevelMap, !Ref LogLevel, FieldLogLevel]
       # Disable introspection for security purposes
       IntrospectionConfig: DISABLED
 
@@ -2811,6 +2855,7 @@ Resources:
       MemorySize: 256
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           IPSET_NAME: !Sub ${AWS::StackName}-lambda-service-ips
       Policies:
         - Version: "2012-10-17"
@@ -2979,6 +3024,7 @@ Resources:
       Timeout: 60
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           TRACKING_TABLE_NAME: !Ref TrackingTable
       LoggingConfig:
         LogGroup: !Ref CreateDocumentResolverFunctionLogGroup
@@ -3312,6 +3358,7 @@ Resources:
         Timeout: 60
         Environment:
           Variables:
+            LOG_LEVEL: !Ref LogLevel
             CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
         LoggingConfig:
           LogGroup: !Ref ConfigurationResolverFunctionLogGroup
@@ -3387,6 +3434,7 @@ Resources:
       Timeout: 300
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           OUTPUT_BUCKET: !Ref OutputBucket
           EVALUATION_BASELINE_BUCKET: !If
             - ShouldCreateEvaluationBaselineBucket
@@ -3476,6 +3524,7 @@ Resources:
       Timeout: 60
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           TRACKING_TABLE_NAME: !Ref TrackingTable
           INPUT_BUCKET: !Ref InputBucket
           OUTPUT_BUCKET: !Ref OutputBucket
@@ -3548,6 +3597,7 @@ Resources:
       Timeout: 60
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           INPUT_BUCKET: !Ref InputBucket
       LoggingConfig:
         LogGroup: !Ref UploadResolverFunctionLogGroup
@@ -3624,6 +3674,7 @@ Resources:
       Timeout: 60
       Environment:
         Variables:
+          LOG_LEVEL: !Ref LogLevel
           KB_ID: !If
             - ShouldUseDocumentKnowledgeBase
             - !GetAtt DOCUMENTBEDROCKKB.Outputs.KnowledgeBaseID

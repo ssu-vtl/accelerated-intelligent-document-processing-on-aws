@@ -8,7 +8,8 @@ from botocore.exceptions import ClientError
 from botocore.config import Config
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+# Get LOG_LEVEL from environment variable with INFO as default
 
 # Fixed number of workers for I/O bound operations
 # For S3 operations, this is more effective than dynamically calculating based on CPU

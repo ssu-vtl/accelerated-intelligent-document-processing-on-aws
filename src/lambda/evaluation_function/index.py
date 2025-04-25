@@ -19,7 +19,8 @@ from idp_common.appsync import DocumentAppSyncService
 
 # Configure logging
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+# Get LOG_LEVEL from environment variable with INFO as default
 
 # Get bucket names from environment variables
 METRIC_NAMESPACE = os.environ.get('METRIC_NAMESPACE', 'GENAIDP')
