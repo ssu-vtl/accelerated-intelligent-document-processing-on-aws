@@ -29,9 +29,11 @@
   
 ### Changed
 - Refactored code for better maintainability
-- Updated UI components to support markdown viewing
+- Updated UI components to support markdown table viewing
 - Set default evaluation model to Claude 3 Haiku
-- Improved AppSync timeout handling for long-running operations
+- Improved AppSync timeout handling for long-running file copy operations
+- Added security headers to UI application per security requirements
+- Disabled GraphQL introspection for AppSync API to enhance security
 - Various bug fixes and improvements
 
 ## [0.2.19]

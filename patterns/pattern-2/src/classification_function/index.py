@@ -17,7 +17,8 @@ region = os.environ['AWS_REGION']
 MAX_WORKERS = int(os.environ.get('MAX_WORKERS', 20))
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+# Get LOG_LEVEL from environment variable with INFO as default
 
 
 def handler(event, context):

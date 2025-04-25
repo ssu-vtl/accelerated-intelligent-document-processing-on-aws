@@ -9,7 +9,8 @@ from botocore.exceptions import ClientError
 
 # Set up logging
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+# Get LOG_LEVEL from environment variable with INFO as default
 
 s3_client = boto3.client('s3')
 

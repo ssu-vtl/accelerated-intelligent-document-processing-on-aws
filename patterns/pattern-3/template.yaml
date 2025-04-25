@@ -21,6 +21,17 @@ Parameters:
   LogRetentionDays:
     Type: Number
   
+  LogLevel:
+    Type: String
+    Default: WARN
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - WARN
+      - ERROR
+      - CRITICAL
+    Description: Default logging level for all Lambda functions
+  
   ExecutionTimeThresholdMs:
     Type: Number
     Default: 30000
@@ -797,6 +808,7 @@ Resources:
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
+          LOG_LEVEL: !Ref LogLevel
       LoggingConfig:
         LogGroup: !Ref OCRFunctionLogGroup
       Policies:
@@ -862,6 +874,7 @@ Resources:
           SAGEMAKER_ENDPOINT_NAME: !GetAtt SAGEMAKERCLASSIFIERSTACK.Outputs.EndpointName
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
           GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
+          LOG_LEVEL: !Ref LogLevel
       LoggingConfig:
         LogGroup: !Ref ClassificationFunctionLogGroup
       Policies:
@@ -927,6 +940,7 @@ Resources:
           METRIC_NAMESPACE: !Ref StackName
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
           GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
+          LOG_LEVEL: !Ref LogLevel
       LoggingConfig:
         LogGroup: !Ref ExtractionFunctionLogGroup
       Policies:
@@ -992,6 +1006,7 @@ Resources:
       Environment:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
+          LOG_LEVEL: !Ref LogLevel
       LoggingConfig:
         LogGroup: !Ref ProcessResultsFunctionLogGroup
       Policies:
@@ -1047,6 +1062,7 @@ Resources:
           METRIC_NAMESPACE: !Ref StackName
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
           GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
+          LOG_LEVEL: !Ref LogLevel
       LoggingConfig:
         LogGroup: !Ref SummarizationFunctionLogGroup
       Policies:
