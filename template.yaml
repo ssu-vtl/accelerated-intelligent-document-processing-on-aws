@@ -2740,6 +2740,8 @@ Resources:
         CloudWatchLogsRoleArn: !GetAtt AppSyncCwlRole.Arn
         ExcludeVerboseContent: false
         FieldLogLevel: ALL
+      # Disable introspection for security purposes
+      IntrospectionConfig: DISABLED
 
   GraphQLApiLogGroup:
     Type: AWS::Logs::LogGroup
