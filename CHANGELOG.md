@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [0.2.20]
 ### Added
 - Added document summarization functionality
   - New summarization service with default model set to Claude 3 Haiku
@@ -34,6 +36,7 @@
 - Improved AppSync timeout handling for long-running file copy operations
 - Added security headers to UI application per security requirements
 - Disabled GraphQL introspection for AppSync API to enhance security
+- Added LogLevel parameter to main stack (default WARN level)
 - Various bug fixes and improvements
 
 ## [0.2.19]
