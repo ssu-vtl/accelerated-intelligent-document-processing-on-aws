@@ -262,7 +262,6 @@ class SummarizationService:
         output_bucket = document.output_bucket
         output_prefix = document.input_key
         output_key = f"{output_prefix}/sections/{section.section_id}/summary.json"
-        output_md_key = f"{output_prefix}/sections/{section.section_id}/summary.md"
         output_uri = f"s3://{output_bucket}/{output_key}"
         
         # Check if the section has required pages
@@ -317,22 +316,12 @@ class SummarizationService:
                 execution_time=execution_time
             )
             
-            # Store results in S3
-            # Store JSON result
+            # Store results in S3 - only JSON format
             s3.write_content(
                 content=summary.content,
                 bucket=output_bucket,
                 key=output_key,
                 content_type="application/json"
-            )
-            
-            # Generate and store markdown report
-            markdown_report = summarization_result.to_markdown()
-            s3.write_content(
-                content=markdown_report,
-                bucket=output_bucket,
-                key=output_md_key,
-                content_type="text/markdown"
             )
             
             # Update section with summary URI
@@ -341,7 +330,6 @@ class SummarizationService:
                 section.attributes = {}
             
             section.attributes['summary_uri'] = output_uri
-            section.attributes['summary_md_uri'] = f"s3://{output_bucket}/{output_md_key}"
             
             # Update document metering
             if "metering" in summary.metadata:
@@ -390,7 +378,6 @@ class SummarizationService:
             start_time = time.time()
             
             # Process each section separately
-            section_summaries = []
             combined_content = {}
             combined_metadata = {"section_summaries": {}}
             
@@ -404,7 +391,6 @@ class SummarizationService:
                 if section.attributes and 'summary_uri' in section.attributes:
                     # Get the section summary from S3
                     summary_uri = section.attributes['summary_uri']
-                    summary_md_uri = section.attributes.get('summary_md_uri')
                     
                     # Load the summary content
                     try:
@@ -417,14 +403,8 @@ class SummarizationService:
                         # Store section summary reference in metadata
                         combined_metadata["section_summaries"][section_key] = {
                             "section_id": section.section_id,
-                            "summary_uri": summary_uri,
-                            "summary_md_uri": summary_md_uri
+                            "summary_uri": summary_uri
                         }
-                        
-                        # Add section summary to list for markdown concatenation
-                        if summary_md_uri:
-                            section_md = s3.get_text_content(summary_md_uri)
-                            section_summaries.append(f"# Section: {section_key}\n\n{section_md}\n\n")
                         
                     except Exception as e:
                         logger.warning(f"Failed to load section summary from {summary_uri}: {e}")
@@ -462,32 +442,8 @@ class SummarizationService:
                     content_type="application/json"
                 )
                 
-                # Generate and store the combined markdown report
-                if section_summaries:
-                    combined_markdown = "\n".join([
-                        f"# Document Summary: {document.id}",
-                        "",
-                        "This summary combines results from all document sections.",
-                        "",
-                        "## Section Summaries",
-                        "",
-                        *section_summaries,
-                        f"Total execution time: {execution_time:.2f} seconds"
-                    ])
-                else:
-                    # Fallback to standard markdown if no section summaries
-                    combined_markdown = summarization_result.to_markdown()
-                
-                report_key = f"{document.input_key}/summary/summary.md"
-                s3.write_content(
-                    content=combined_markdown,
-                    bucket=output_bucket,
-                    key=report_key,
-                    content_type="text/markdown"
-                )
-                
                 # Update document and summarization result with summary URI
-                document.summary_report_uri = f"s3://{output_bucket}/{report_key}"
+                document.summary_report_uri = f"s3://{output_bucket}/{json_key}"
                 summarization_result.output_uri = document.summary_report_uri
             
             # Update document status
@@ -559,21 +515,8 @@ class SummarizationService:
             
             # Store results if requested
             if store_results:
-                # Generate markdown report
-                markdown_report = summarization_result.to_markdown()
-                
-                # Store report in S3
+                # Store only the JSON summary
                 output_bucket = document.output_bucket
-                report_key = f"{document.input_key}/summary/summary.md"
-                
-                s3.write_content(
-                    content=markdown_report,
-                    bucket=output_bucket,
-                    key=report_key,
-                    content_type="text/markdown"
-                )
-                
-                # Also store the JSON summary
                 json_key = f"{document.input_key}/summary/summary.json"
                 s3.write_content(
                     content=summary.to_dict(),
@@ -583,7 +526,7 @@ class SummarizationService:
                 )
                 
                 # Update document and summarization result with summary URI
-                document.summary_report_uri = f"s3://{output_bucket}/{report_key}"
+                document.summary_report_uri = f"s3://{output_bucket}/{json_key}"
                 summarization_result.output_uri = document.summary_report_uri
             
             # Update document metering
