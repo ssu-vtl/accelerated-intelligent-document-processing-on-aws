@@ -9,7 +9,8 @@ from idp_common.models import Document, Status
 from idp_common.appsync import DocumentAppSyncService
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+# Get LOG_LEVEL from environment variable with INFO as default
 
 sfn = boto3.client('stepfunctions')
 dynamodb = boto3.resource('dynamodb')

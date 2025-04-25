@@ -9,7 +9,8 @@ from botocore.exceptions import ClientError
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+# Get LOG_LEVEL from environment variable with INFO as default
 
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
 

@@ -15,7 +15,8 @@ from idp_common.models import Document, Status
 CONFIG = get_config()
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+# Get LOG_LEVEL from environment variable with INFO as default
 
 # Initialize settings
 region = os.environ['AWS_REGION']
