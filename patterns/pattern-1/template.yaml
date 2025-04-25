@@ -254,27 +254,37 @@ Resources:
         summarization:
           model: !Ref SummarizationModel
           temperature: 0.0
-          top_k: 0.5
+          top_k: 250
           system_prompt: |
-            You are a document summarization expert who can analyze and summarize documents from various domains including medical, financial, legal, and general business documents. Your task is to create a summary that captures the key information, main points, and important details from the document. Your output must be in valid JSON format. 
-            Summarization Style: Balanced\nCreate a balanced summary that provides a moderate level of detail. Include the main points and key supporting information, while maintaining the document's overall structure. Aim for a comprehensive yet concise summary.
+            You are a document summarization expert who can analyze and summarize documents from various domains including medical, financial, legal, and general business documents. Your task is to create a summary that captures the key information, main points, and important details from the document. Your output must be in valid JSON format. \nSummarization Style: Balanced\\nCreate a balanced summary that provides a moderate level of detail. Include the main points and key supporting information, while maintaining the document's overall structure. Aim for a comprehensive yet concise summary.\n Your output MUST be in valid JSON format with markdown content. You MUST strictly adhere to the output format specified in the instructions.
           task_prompt: |
             Analyze the provided document and create a comprehensive summary.
+
             <document>
             {DOCUMENT_TEXT}
             </document>
-            
+
+            CRITICAL INSTRUCTION: You MUST return your response as valid JSON with the EXACT structure shown at the end of these instructions. Do not include any explanations, notes, or text outside of the JSON structure.
+
             Create a summary that captures the essential information from the document. Your summary should:
             1. Extract key information, main points, and important details
             2. Maintain the original document's organizational structure where appropriate
-            3. Preserve important facts, figures, dates, and entities\n4. Reduce the length while retaining all critical information
-            5. The detailed summary should be approximately 1000 words in length
-            
-            Return your response as valid JSON with the following structure:
+            3. Preserve important facts, figures, dates, and entities
+            4. Reduce the length while retaining all critical information
+            5. Use markdown formatting for better readability (headings, lists, emphasis, etc.)
+            6. Cite all relevant facts from the source document using the format [Cite-X, Page-Y] where X is a sequential citation number and Y is the page number
+            7. For each citation, include a hover-enabled reference using HTML span tags with title attributes that contain the exact text snippet from which the fact is derived
+              Example: <span title="Original text from document: The company reported \$10M in revenue" class="citation">[Cite-1, Page-3]</span>
+
+            Output Format:
+
+            You MUST return ONLY valid JSON with the following structure and nothing else. 
+            Do not include any text, explanations, or notes outside of this JSON structure. 
+            The JSON must be properly formatted and parseable.
+            Here's the exact format:
             ```json
             {
-              "brief_summary": "A 1-2 sentence overview of what this document is about",
-              "detailed_summary": "A comprehensive summary following the summarization style"
+              "summary": "A comprehensive summary in markdown format with citations and hover functionality"
             }
             ```
         pricing:
