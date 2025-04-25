@@ -200,11 +200,22 @@ class SummarizationService:
                 summary_json = self._extract_json(summary_text)
                 summary_data = json.loads(summary_json)
                 
-                # Create summary with whatever fields were returned
-                return DocumentSummary(
-                    content=summary_data,
-                    metadata={"metering": metering}
-                )
+                # If the summary is in the expected format with a "summary" field containing markdown
+                if "summary" in summary_data:
+                    # The summary field contains the markdown content
+                    markdown_summary = summary_data["summary"]
+                    
+                    # Create summary with the parsed data
+                    return DocumentSummary(
+                        content=summary_data,
+                        metadata={"metering": metering}
+                    )
+                else:
+                    # Create summary with whatever fields were returned
+                    return DocumentSummary(
+                        content=summary_data,
+                        metadata={"metering": metering}
+                    )
                 
             except Exception as e:
                 logger.warning(f"Failed to parse JSON from response: {e}")
@@ -264,6 +275,7 @@ class SummarizationService:
         output_key = f"{output_prefix}/sections/{section.section_id}/summary.json"
         output_md_key = f"{output_prefix}/sections/{section.section_id}/summary.md"
         output_uri = f"s3://{output_bucket}/{output_key}"
+        output_md_uri = f"s3://{output_bucket}/{output_md_key}"
         
         # Check if the section has required pages
         if not section.page_ids:
@@ -341,7 +353,7 @@ class SummarizationService:
                 section.attributes = {}
             
             section.attributes['summary_uri'] = output_uri
-            section.attributes['summary_md_uri'] = f"s3://{output_bucket}/{output_md_key}"
+            section.attributes['summary_md_uri'] = output_md_uri
             
             # Update document metering
             if "metering" in summary.metadata:
@@ -360,6 +372,11 @@ class SummarizationService:
         """
         Summarize a document and update the Document object with the summary.
         
+        This method processes each section separately using process_document_section
+        and then combines the results into a single document summary.
+        
+        If no sections are defined, falls back to summarizing the entire document at once.
+        
         Args:
             document: Document object to summarize
             store_results: Whether to store results in S3 (default: True)
@@ -375,6 +392,156 @@ class SummarizationService:
                 error_message="Document has no pages to summarize"
             )
         
+        # If no sections are defined, fall back to summarizing the entire document at once
+        if not document.sections:
+            logger.info("No sections defined, summarizing entire document at once")
+            return self._process_document_as_whole(document, store_results)
+        
+        try:
+            # Start timing
+            start_time = time.time()
+            
+            # Process each section separately
+            combined_content = {}
+            combined_metadata = {"section_summaries": {}}
+            section_markdown_parts = []
+            
+            for section in document.sections:
+                logger.info(f"Processing section {section.section_id} with classification {section.classification}")
+                
+                # Process the section
+                updated_document = self.process_document_section(document, section.section_id)
+                
+                # Check if section was successfully summarized
+                if section.attributes and 'summary_uri' in section.attributes:
+                    # Get the section summary from S3
+                    summary_uri = section.attributes['summary_uri']
+                    summary_md_uri = section.attributes.get('summary_md_uri')
+                    
+                    # Load the summary content
+                    try:
+                        summary_content = s3.get_json_content(summary_uri)
+                        
+                        # Add to combined content under the section classification
+                        section_key = section.classification or f"section_{section.section_id}"
+                        combined_content[section_key] = summary_content
+                        
+                        # Store section summary reference in metadata
+                        combined_metadata["section_summaries"][section_key] = {
+                            "section_id": section.section_id,
+                            "summary_uri": summary_uri,
+                            "summary_md_uri": summary_md_uri
+                        }
+                        
+                        # Get markdown content for combined markdown report
+                        if summary_md_uri:
+                            try:
+                                md_content = s3.get_text_content(summary_md_uri)
+                                section_title = section.classification or f"Section {section.section_id}"
+                                section_markdown = f"## {section_title}\n\n{md_content}\n\n"
+                                section_markdown_parts.append(section_markdown)
+                            except Exception as e:
+                                logger.warning(f"Failed to load markdown summary from {summary_md_uri}: {e}")
+                        
+                    except Exception as e:
+                        logger.warning(f"Failed to load section summary from {summary_uri}: {e}")
+                        document.errors.append(f"Failed to load section summary: {str(e)}")
+            
+            # Calculate execution time
+            execution_time = time.time() - start_time
+            
+            # Create a combined summary from all section summaries
+            summary = DocumentSummary(
+                content=combined_content,
+                metadata=combined_metadata
+            )
+            
+            # Create summarization result object
+            summarization_result = DocumentSummarizationResult(
+                document_id=document.id,
+                summary=summary,
+                execution_time=execution_time
+            )
+            
+            # Attach summarization result to document for immediate use
+            document.summarization_result = summarization_result
+            
+            # Store results if requested
+            if store_results:
+                output_bucket = document.output_bucket
+                
+                # Store the combined JSON summary
+                json_key = f"{document.input_key}/summary/summary.json"
+                s3.write_content(
+                    content=summary.to_dict(),
+                    bucket=output_bucket,
+                    key=json_key,
+                    content_type="application/json"
+                )
+                
+                # Create and store the combined markdown summary
+                md_key = f"{document.input_key}/summary/summary.md"
+                
+                # Create a complete markdown document that combines all section summaries
+                if section_markdown_parts:
+                    # Create header for the document
+                    doc_header = f"# Document Summary: {document.id}\n\n"
+                    
+                    # Combine all section markdown parts
+                    combined_markdown = doc_header + "\n".join(section_markdown_parts)
+                    
+                    # Add execution time at the end
+                    combined_markdown += f"\n\nExecution time: {execution_time:.2f} seconds"
+                    
+                    # Write the combined markdown
+                    s3.write_content(
+                        content=combined_markdown,
+                        bucket=output_bucket,
+                        key=md_key,
+                        content_type="text/markdown"
+                    )
+                else:
+                    # If no section markdown parts, generate a markdown report from the combined summary
+                    markdown_report = summarization_result.to_markdown()
+                    s3.write_content(
+                        content=markdown_report,
+                        bucket=output_bucket,
+                        key=md_key,
+                        content_type="text/markdown"
+                    )
+                
+                # Update document and summarization result with summary URIs
+                document.summary_report_uri = f"s3://{output_bucket}/{md_key}"
+                summarization_result.output_uri = f"s3://{output_bucket}/{json_key}"
+            
+            # Update document status
+            document = self._update_document_status(document)
+            
+            if store_results:
+                logger.info(f"Document summarized successfully. Summary report stored at: {document.summary_report_uri}")
+            else:
+                logger.info(f"Document summarized successfully. No summary report stored.")
+            
+        except Exception as e:
+            error_msg = f"Error summarizing document: {str(e)}"
+            logger.error(error_msg)
+            document = self._update_document_status(document, success=False, error_message=error_msg)
+        
+        return document
+        
+    def _process_document_as_whole(self, document: Document, store_results: bool = True) -> Document:
+        """
+        Summarize a document as a whole (without sections).
+        
+        This method implements the original behavior of summarizing the entire document at once.
+        
+        Args:
+            document: Document object to summarize
+            store_results: Whether to store results in S3
+            
+        Returns:
+            Document: Updated Document object with summary
+        """
         try:
             # Start timing
             start_time = time.time()
@@ -416,23 +583,30 @@ class SummarizationService:
             
             # Store results if requested
             if store_results:
-                # Generate markdown report
-                markdown_report = summarization_result.to_markdown()
-                
-                # Store report in S3
                 output_bucket = document.output_bucket
-                report_key = f"{document.input_key}/summary/summary.md"
                 
+                # Store the JSON summary
+                json_key = f"{document.input_key}/summary/summary.json"
+                s3.write_content(
+                    content=summary.to_dict(),
+                    bucket=output_bucket,
+                    key=json_key,
+                    content_type="application/json"
+                )
+                
+                # Generate and store markdown report
+                md_key = f"{document.input_key}/summary/summary.md"
+                markdown_report = summarization_result.to_markdown()
                 s3.write_content(
                     content=markdown_report,
                     bucket=output_bucket,
-                    key=report_key,
+                    key=md_key,
                     content_type="text/markdown"
                 )
                 
-                # Update document and summarization result with summary report URI
-                document.summary_report_uri = f"s3://{output_bucket}/{report_key}"
-                summarization_result.output_uri = document.summary_report_uri
+                # Update document and summarization result with summary URIs
+                document.summary_report_uri = f"s3://{output_bucket}/{md_key}"
+                summarization_result.output_uri = f"s3://{output_bucket}/{json_key}"
             
             # Update document metering
             if "metering" in summary.metadata:
