@@ -31,6 +31,14 @@ Parameters:
       - ERROR
       - CRITICAL
     Description: Default logging level for all Lambda functions
+    
+  AppSyncApiUrl:
+    Type: String
+    Description: The AppSync API URL for status updates
+    
+  AppSyncApiArn:
+    Type: String
+    Description: The AppSync API ARN for IAM permissions
   
   ExecutionTimeThresholdMs:
     Type: Number
@@ -941,6 +949,7 @@ Resources:
           MAX_WORKERS: 20
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
           LOG_LEVEL: !Ref LogLevel
+          APPSYNC_API_URL: !Ref AppSyncApiUrl
       LoggingConfig:
         LogGroup: !Ref OCRFunctionLogGroup
       Policies:
@@ -969,6 +978,12 @@ Resources:
               - textract:DetectDocumentText
               - textract:AnalyzeDocument
             Resource: '*'
+          # AppSync permissions for updating document status
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource: 
+              - !Sub "${AppSyncApiArn}/types/Mutation/*"
 
   
   OCRFunctionLogGroup:
@@ -1005,6 +1020,7 @@ Resources:
           MAX_WORKERS: 20
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
           LOG_LEVEL: !Ref LogLevel
+          APPSYNC_API_URL: !Ref AppSyncApiUrl
           # Guardrails break classification
           # GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
       LoggingConfig:
@@ -1029,6 +1045,12 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
+          # AppSync permissions for updating document status
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource: 
+              - !Sub "${AppSyncApiArn}/types/Mutation/*"
           - Effect: Allow
             Action: bedrock:InvokeModel
             Resource: 
@@ -1075,6 +1097,7 @@ Resources:
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
           GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
           LOG_LEVEL: !Ref LogLevel
+          APPSYNC_API_URL: !Ref AppSyncApiUrl
       LoggingConfig:
         LogGroup: !Ref ExtractionFunctionLogGroup
       Policies:
@@ -1097,6 +1120,12 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
+          # AppSync permissions for updating document status
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource: 
+              - !Sub "${AppSyncApiArn}/types/Mutation/*"
           - Effect: Allow
             Action: bedrock:InvokeModel
             Resource: 
@@ -1141,6 +1170,7 @@ Resources:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
           LOG_LEVEL: !Ref LogLevel
+          APPSYNC_API_URL: !Ref AppSyncApiUrl
       LoggingConfig:
         LogGroup: !Ref ProcessResultsFunctionLogGroup
       Policies:
@@ -1161,6 +1191,12 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
+          # AppSync permissions for updating document status
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource: 
+              - !Sub "${AppSyncApiArn}/types/Mutation/*"
 
   ProcessResultsFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -1196,6 +1232,7 @@ Resources:
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
           GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
           LOG_LEVEL: !Ref LogLevel
+          APPSYNC_API_URL: !Ref AppSyncApiUrl
       LoggingConfig:
         LogGroup: !Ref SummarizationFunctionLogGroup
       Policies:
@@ -1218,6 +1255,12 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
+          # AppSync permissions for updating document status
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource: 
+              - !Sub "${AppSyncApiArn}/types/Mutation/*"
           - Effect: Allow
             Action: bedrock:InvokeModel
             Resource: 

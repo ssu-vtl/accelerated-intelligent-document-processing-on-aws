@@ -29,10 +29,7 @@ def handler(event, context):
     
     # Extract document from the OCR result
     document = Document.from_dict(event["OCRResult"]["document"])
-    
-    if document.status != Status.OCR_COMPLETED:
-        raise ValueError(f"Document is not in OCR_COMPLETED stage, current status: {document.status}")
-    
+       
     if not document.pages:
         raise ValueError("Document has no pages to classify")
     

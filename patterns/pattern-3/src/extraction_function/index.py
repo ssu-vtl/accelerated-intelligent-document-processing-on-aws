@@ -65,9 +65,6 @@ def handler(event, context):
         logger.error(error_message)
         raise Exception(error_message)
     
-    # Set the status to EXTRACTED
-    section_document.status = Status.EXTRACTED
-    
     # Return section extraction result with the document
     # The state machine will later combine all section results
     response = {
