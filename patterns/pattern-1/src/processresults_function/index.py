@@ -12,6 +12,8 @@ from idp_common.s3 import get_s3_client, write_content
 from idp_common.utils import build_s3_uri
 from idp_common import metrics
 from idp_common.models import Document, Page, Section, Status
+from idp_common.appsync.service import DocumentAppSyncService
+
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
@@ -366,27 +368,32 @@ def handler(event, context):
     """
     logger.info(f"Processing event: {json.dumps(event)}")
     
-    # Extract required information
-    output_bucket = event['output_bucket']
-    object_key = event['BDAResponse']['job_detail']['input_s3_object']['name']
-    input_bucket = event['BDAResponse']['job_detail']['input_s3_object']['s3_bucket']
-    bda_result_bucket = event['BDAResponse']['job_detail']['output_s3_location']['s3_bucket']
-    bda_result_prefix = event['BDAResponse']['job_detail']['output_s3_location']['name']
+    try:
+        # Extract required information
+        output_bucket = event['output_bucket']
+        object_key = event['BDAResponse']['job_detail']['input_s3_object']['name']
+        input_bucket = event['BDAResponse']['job_detail']['input_s3_object']['s3_bucket']
+        bda_result_bucket = event['BDAResponse']['job_detail']['output_s3_location']['s3_bucket']
+        bda_result_prefix = event['BDAResponse']['job_detail']['output_s3_location']['name']
+        
+        logger.info(f"Input bucket: {input_bucket}, prefix: {object_key}")
+        logger.info(f"BDA Result bucket: {bda_result_bucket}, prefix: {bda_result_prefix}")
+        logger.info(f"Output bucket: {output_bucket}, base path: {object_key}")
     
-    logger.info(f"Input bucket: {input_bucket}, prefix: {object_key}")
-    logger.info(f"BDA Result bucket: {bda_result_bucket}, prefix: {bda_result_prefix}")
-    logger.info(f"Output bucket: {output_bucket}, base path: {object_key}")
-
-    # Create a new Document object
-    document = Document(
-        id=object_key,
-        input_bucket=input_bucket,
-        input_key=object_key,
-        output_bucket=output_bucket,
-        status=Status.COMPLETED,
-        completion_time=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        workflow_execution_arn=event.get("execution_arn")
-    )
+        # Create a new Document object
+        document = Document(
+            id=object_key,
+            input_bucket=input_bucket,
+            input_key=object_key,
+            output_bucket=output_bucket,
+            status=Status.POSTPROCESSING,
+            workflow_execution_arn=event.get("execution_arn")
+        )
+    
+        # Update document status
+        appsync_service = DocumentAppSyncService()
+        logger.info(f"Updating document status to {document.status}")
+        appsync_service.update_document(document)
 
     # Copy BDA output to output bucket
     # custom_output (sections)
@@ -452,3 +459,19 @@ def handler(event, context):
     
     logger.info(f"Response: {json.dumps(response, default=str)}")
     return response
+    
+    except Exception as e:
+        logger.error(f"Error in process results function: {str(e)}", exc_info=True)
+        
+        # Update document status to FAILED if we have a document object
+        try:
+            if 'document' in locals() and document:
+                document.status = Status.FAILED
+                document.status_reason = str(e)
+                appsync_service = DocumentAppSyncService()
+                logger.info(f"Updating document status to {document.status} due to error")
+                appsync_service.update_document(document)
+        except Exception as status_error:
+            logger.error(f"Failed to update document status: {str(status_error)}", exc_info=True)
+            
+        raise e

@@ -64,6 +64,8 @@ def handler(event, context):
     if document.status == Status.FAILED:
         error_message = f"Classification failed for document {document.id}"
         logger.error(error_message)
+        # Update document status in AppSync before raising exception
+        appsync_service.update_document(document)
         raise Exception(error_message)
     
     t1 = time.time()

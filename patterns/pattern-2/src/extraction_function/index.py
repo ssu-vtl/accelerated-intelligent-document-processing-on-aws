@@ -74,7 +74,9 @@ def handler(event, context):
         # Update status in AppSync before raising exception
         full_document.status = Status.FAILED
         full_document.errors.append(error_message)
-            
+        appsync_service.update_document(full_document)
+        raise Exception(error_message)
+    
     # Return section extraction result with the document
     # The state machine will later combine all section results
     response = {
