@@ -662,6 +662,8 @@ Resources:
         SummarizationModel: !Ref Pattern1SummarizationModel
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
         ConfigurationTable: !Ref ConfigurationTable
+        AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
+        AppSyncApiArn: !GetAtt GraphQLApi.Arn
         EvaluationLLMModelId: !Ref EvaluationLLMModelId
 
   PATTERN2STACK:
@@ -716,6 +718,8 @@ Resources:
         ExtractionModel: !Ref Pattern3ExtractionModel
         SummarizationModel: !Ref Pattern3SummarizationModel
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
+        AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
+        AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationTable: !Ref ConfigurationTable
         EvaluationLLMModelId: !Ref EvaluationLLMModelId
 

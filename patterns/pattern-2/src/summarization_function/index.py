@@ -44,16 +44,9 @@ def handler(event, context):
         
         # Update document status to SUMMARIZING
         document.status = Status.SUMMARIZING
-        
-        # Update status in AppSync
-        appsync_service = None
-        try:
-            appsync_service = DocumentAppSyncService()
-            logger.info(f"Updating document status to {document.status} in AppSync")
-            appsync_service.update_document(document)
-        except Exception as e:
-            logger.warning(f"Failed to update document status in AppSync: {str(e)}")
-            logger.warning("Continuing processing despite AppSync update failure")
+        appsync_service = DocumentAppSyncService()
+        logger.info(f"Updating document status to {document.status}")
+        appsync_service.update_document(document)
         
         # Create the summarization service with provided config
         summarization_service = summarization.SummarizationService(
@@ -67,15 +60,6 @@ def handler(event, context):
         if processed_document.status == Status.FAILED:
             error_message = f"Summarization failed for document {processed_document.id}"
             logger.error(error_message)
-            # Update failure status in AppSync
-            try:
-                # Create a new service instance if we don't have one
-                if not appsync_service:
-                    appsync_service = DocumentAppSyncService()
-                logger.info(f"Updating failure status in AppSync")
-                appsync_service.update_document(processed_document)
-            except Exception as e:
-                logger.warning(f"Failed to update failure status in AppSync: {str(e)}")
             raise Exception(error_message)
         
         # Log the result
@@ -91,4 +75,16 @@ def handler(event, context):
         
     except Exception as e:
         logger.error(f"Error in summarization function: {str(e)}", exc_info=True)
+        
+        # Update document status to FAILED if we have a document object
+        try:
+            if 'document' in locals() and document:
+                document.status = Status.FAILED
+                document.status_reason = str(e)
+                appsync_service = DocumentAppSyncService()
+                logger.info(f"Updating document status to {document.status} due to error")
+                appsync_service.update_document(document)
+        except Exception as status_error:
+            logger.error(f"Failed to update document status: {str(status_error)}", exc_info=True)
+            
         raise e
