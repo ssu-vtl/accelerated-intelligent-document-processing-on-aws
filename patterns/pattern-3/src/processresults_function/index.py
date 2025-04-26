@@ -28,7 +28,7 @@ def handler(event, context):
     extraction_results = event.get("ExtractionResults", [])
     
     # Update document status
-    document.status = Status.PROCESSED
+    document.status = Status.COMPLETED
     document.completion_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
     
     # Clear sections list to rebuild from extraction results

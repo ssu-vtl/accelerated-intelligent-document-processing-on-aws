@@ -667,6 +667,7 @@ Resources:
   PATTERN2STACK:
     DependsOn:
       - IsStacknameLengthOK
+      - GraphQLApi
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern2
     Properties:
@@ -688,6 +689,8 @@ Resources:
         CustomExtractionModelARN: !Ref Pattern2CustomExtractionModelARN
         SummarizationModel: !Ref Pattern2SummarizationModel
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
+        AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
+        AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationTable: !Ref ConfigurationTable
         EvaluationLLMModelId: !Ref EvaluationLLMModelId
 

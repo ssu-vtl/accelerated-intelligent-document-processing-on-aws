@@ -383,7 +383,7 @@ def handler(event, context):
         input_bucket=input_bucket,
         input_key=object_key,
         output_bucket=output_bucket,
-        status=Status.PROCESSED,
+        status=Status.COMPLETED,
         completion_time=datetime.datetime.now(datetime.timezone.utc).isoformat(),
         workflow_execution_arn=event.get("execution_arn")
     )
