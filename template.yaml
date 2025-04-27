@@ -662,11 +662,14 @@ Resources:
         SummarizationModel: !Ref Pattern1SummarizationModel
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
         ConfigurationTable: !Ref ConfigurationTable
+        AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
+        AppSyncApiArn: !GetAtt GraphQLApi.Arn
         EvaluationLLMModelId: !Ref EvaluationLLMModelId
 
   PATTERN2STACK:
     DependsOn:
       - IsStacknameLengthOK
+      - GraphQLApi
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern2
     Properties:
@@ -688,6 +691,8 @@ Resources:
         CustomExtractionModelARN: !Ref Pattern2CustomExtractionModelARN
         SummarizationModel: !Ref Pattern2SummarizationModel
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
+        AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
+        AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationTable: !Ref ConfigurationTable
         EvaluationLLMModelId: !Ref EvaluationLLMModelId
 
@@ -713,6 +718,8 @@ Resources:
         ExtractionModel: !Ref Pattern3ExtractionModel
         SummarizationModel: !Ref Pattern3SummarizationModel
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
+        AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
+        AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationTable: !Ref ConfigurationTable
         EvaluationLLMModelId: !Ref EvaluationLLMModelId
 
@@ -1594,7 +1601,11 @@ Resources:
           Properties:
             Queue: !GetAtt DocumentQueue.Arn
             BatchSize: 50 # Process up to 50 messages at once
-            MaximumBatchingWindowInSeconds: 1 # Wait max 1 second to fill batch
+            # Per https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html
+            # If you're using a batch window and your SQS queue contains very low traffic, 
+            # Lambda might wait for up to 20 seconds before invoking your function. 
+            # This is true even if you set a batch window lower than 20 seconds.
+            MaximumBatchingWindowInSeconds: 1  # Minimize delay (see above caveat)
             FunctionResponseTypes:
               - ReportBatchItemFailures
 
