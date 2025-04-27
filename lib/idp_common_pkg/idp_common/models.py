@@ -14,7 +14,7 @@ from typing import Dict, List, Any, Optional
 class Status(Enum):
     """Document processing status."""
     QUEUED = "QUEUED"           # Initial state when document is added to queue
-    STARTED = "STARTED"         # Step function workflow has started
+    RUNNING = "RUNNING"         # Step function workflow has started
     OCR = "OCR"                 # OCR processing
     CLASSIFYING = "CLASSIFYING" # Document classification
     EXTRACTING = "EXTRACTING"   # Information extraction 
