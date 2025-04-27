@@ -30,7 +30,8 @@ const DocumentDetails = () => {
     logger.debug('Error decoding objectKey, using as is', e);
   }
 
-  const { documents, getDocumentDetailsFromIds, setToolsOpen, deleteDocuments } = useDocumentsContext();
+  const { documents, getDocumentDetailsFromIds, setToolsOpen, deleteDocuments, reprocessDocuments } =
+    useDocumentsContext();
   const { settings } = useSettingsContext();
 
   const [document, setDocument] = useState(null);
@@ -94,6 +95,13 @@ const DocumentDetails = () => {
     setIsDeleteModalVisible(true);
   };
 
+  // Function to reprocess document
+  const handleReprocessClick = async (docObjectKey) => {
+    logger.debug('Reprocessing document', docObjectKey);
+    const result = await reprocessDocuments([docObjectKey]);
+    logger.debug('Reprocess result', result);
+  };
+
   return (
     <>
       {document && (
@@ -102,6 +110,7 @@ const DocumentDetails = () => {
           setToolsOpen={setToolsOpen}
           getDocumentDetailsFromIds={getDocumentDetailsFromIds}
           onDelete={handleDeleteClick}
+          onReprocess={handleReprocessClick}
         />
       )}
 

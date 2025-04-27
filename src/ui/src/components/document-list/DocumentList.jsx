@@ -45,6 +45,7 @@ const DocumentList = () => {
     periodsToLoad,
     getDocumentDetailsFromIds,
     deleteDocuments,
+    reprocessDocuments,
   } = useDocumentsContext();
 
   const [preferences, setPreferences] = useLocalStorage('documents-list-preferences', DEFAULT_PREFERENCES);
@@ -93,6 +94,17 @@ const DocumentList = () => {
     actions.setSelectedItems([]);
   };
 
+  const handleReprocess = async () => {
+    const objectKeys = collectionProps.selectedItems.map((item) => item.objectKey);
+    logger.debug('Reprocessing documents', objectKeys);
+
+    const result = await reprocessDocuments(objectKeys);
+    logger.debug('Reprocess result', result);
+
+    // Clear selection after reprocessing
+    actions.setSelectedItems([]);
+  };
+
   /* eslint-disable react/jsx-props-no-spreading */
   return (
     <>
@@ -111,6 +123,7 @@ const DocumentList = () => {
             setPeriodsToLoad={setPeriodsToLoad}
             getDocumentDetailsFromIds={getDocumentDetailsFromIds}
             downloadToExcel={() => exportToExcel(documentList, 'Document-List')}
+            onReprocess={handleReprocess}
             onDelete={() => setIsDeleteModalVisible(true)}
             // eslint-disable-next-line max-len, prettier/prettier
           />
