@@ -3655,7 +3655,6 @@ Resources:
       DataSourceName: !GetAtt ReprocessDocumentDataSource.Name
       TypeName: Mutation
       FieldName: reprocessDocument
-      FieldName: deleteDocument
 
   UploadResolverFunction:
     Type: AWS::Serverless::Function
