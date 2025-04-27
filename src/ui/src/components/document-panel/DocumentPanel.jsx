@@ -328,7 +328,7 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, o
             actions={
               <SpaceBetween direction="horizontal" size="xs">
                 {onReprocess && (
-                  <Button iconName="arrow-right" variant="normal" onClick={() => onReprocess(item.objectKey)}>
+                  <Button iconName="arrow-right" variant="normal" onClick={onReprocess}>
                     Reprocess
                   </Button>
                 )}

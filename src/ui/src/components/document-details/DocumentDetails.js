@@ -9,6 +9,7 @@ import useSettingsContext from '../../contexts/settings';
 
 import mapDocumentsAttributes from '../common/map-document-attributes';
 import DeleteDocumentModal from '../common/DeleteDocumentModal';
+import ReprocessDocumentModal from '../common/ReprocessDocumentModal';
 import { DOCUMENTS_PATH } from '../../routes/constants';
 
 import '@awsui/global-styles/index.css';
@@ -36,6 +37,7 @@ const DocumentDetails = () => {
 
   const [document, setDocument] = useState(null);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [isReprocessModalVisible, setIsReprocessModalVisible] = useState(false);
 
   const sendInitDocumentRequests = async () => {
     const response = await getDocumentDetailsFromIds([objectKey]);
@@ -95,11 +97,18 @@ const DocumentDetails = () => {
     setIsDeleteModalVisible(true);
   };
 
-  // Function to reprocess document
-  const handleReprocessClick = async (docObjectKey) => {
-    logger.debug('Reprocessing document', docObjectKey);
-    const result = await reprocessDocuments([docObjectKey]);
+  // Function to show reprocess modal
+  const handleReprocessClick = () => {
+    setIsReprocessModalVisible(true);
+  };
+
+  // Function to handle reprocess confirmation
+  const handleReprocessConfirm = async () => {
+    logger.debug('Reprocessing document', objectKey);
+    const result = await reprocessDocuments([objectKey]);
     logger.debug('Reprocess result', result);
+    // Close the modal
+    setIsReprocessModalVisible(false);
   };
 
   return (
@@ -118,6 +127,13 @@ const DocumentDetails = () => {
         visible={isDeleteModalVisible}
         onDismiss={() => setIsDeleteModalVisible(false)}
         onConfirm={handleDeleteConfirm}
+        selectedItems={document ? [document] : []}
+      />
+
+      <ReprocessDocumentModal
+        visible={isReprocessModalVisible}
+        onDismiss={() => setIsReprocessModalVisible(false)}
+        onConfirm={handleReprocessConfirm}
         selectedItems={document ? [document] : []}
       />
     </>
