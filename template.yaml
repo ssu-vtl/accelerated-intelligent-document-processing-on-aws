@@ -1601,7 +1601,11 @@ Resources:
           Properties:
             Queue: !GetAtt DocumentQueue.Arn
             BatchSize: 50 # Process up to 50 messages at once
-            MaximumBatchingWindowInSeconds: 1 # Wait max 1 second to fill batch
+            # Per https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html
+            # If you're using a batch window and your SQS queue contains very low traffic, 
+            # Lambda might wait for up to 20 seconds before invoking your function. 
+            # This is true even if you set a batch window lower than 20 seconds.
+            MaximumBatchingWindowInSeconds: 1  # Minimize delay (see above caveat)
             FunctionResponseTypes:
               - ReportBatchItemFailures
 
