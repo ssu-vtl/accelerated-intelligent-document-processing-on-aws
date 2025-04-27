@@ -7,6 +7,9 @@
 - Fixed multi-page standard output BDA processing in Pattern 1
   - Refactored ProcessResults function to correctly handle multi-page result.json files
 - Default OCR configuration now includes LAYOUT, TABLES, SIGNATURE, and markdown generation now supports tables (via textractor[pandas])
+- Added document reprocessing capability to the UI
+  - Implemented reprocess button with confirmation dialog
+  - Added backend API for document reprocessing
 
 ## [0.2.20]
 ### Added
