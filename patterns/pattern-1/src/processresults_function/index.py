@@ -458,19 +458,3 @@ def handler(event, context):
     
     logger.info(f"Response: {json.dumps(response, default=str)}")
     return response
-    
-    except Exception as e:
-        logger.error(f"Error in process results function: {str(e)}", exc_info=True)
-        
-        # Update document status to FAILED if we have a document object
-        try:
-            if 'document' in locals() and document:
-                document.status = Status.FAILED
-                document.status_reason = str(e)
-                appsync_service = DocumentAppSyncService()
-                logger.info(f"Updating document status to {document.status} due to error")
-                appsync_service.update_document(document)
-        except Exception as status_error:
-            logger.error(f"Failed to update document status: {str(status_error)}", exc_info=True)
-            
-        raise e

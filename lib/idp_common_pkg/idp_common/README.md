@@ -118,7 +118,7 @@ The document processing status is represented by the `Status` enum:
 class Status(Enum):
     """Document processing status."""
     QUEUED = "QUEUED"           # Initial state when document is added to queue
-    STARTED = "STARTED"         # Step function workflow has started
+    RUNNING = "RUNNING"         # Step function workflow has started
     OCR = "OCR"                 # OCR processing
     CLASSIFYING = "CLASSIFYING" # Document classification
     EXTRACTING = "EXTRACTING"   # Information extraction 
@@ -204,7 +204,7 @@ document = Document(
     input_bucket="input-bucket",
     input_key="invoices/invoice-123.pdf",
     output_bucket="output-bucket",
-    status=Status.STARTED
+    status=Status.RUNNING
 )
 
 # Add pages
