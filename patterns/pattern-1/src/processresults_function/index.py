@@ -368,32 +368,31 @@ def handler(event, context):
     """
     logger.info(f"Processing event: {json.dumps(event)}")
     
-    try:
-        # Extract required information
-        output_bucket = event['output_bucket']
-        object_key = event['BDAResponse']['job_detail']['input_s3_object']['name']
-        input_bucket = event['BDAResponse']['job_detail']['input_s3_object']['s3_bucket']
-        bda_result_bucket = event['BDAResponse']['job_detail']['output_s3_location']['s3_bucket']
-        bda_result_prefix = event['BDAResponse']['job_detail']['output_s3_location']['name']
-        
-        logger.info(f"Input bucket: {input_bucket}, prefix: {object_key}")
-        logger.info(f"BDA Result bucket: {bda_result_bucket}, prefix: {bda_result_prefix}")
-        logger.info(f"Output bucket: {output_bucket}, base path: {object_key}")
+    # Extract required information
+    output_bucket = event['output_bucket']
+    object_key = event['BDAResponse']['job_detail']['input_s3_object']['name']
+    input_bucket = event['BDAResponse']['job_detail']['input_s3_object']['s3_bucket']
+    bda_result_bucket = event['BDAResponse']['job_detail']['output_s3_location']['s3_bucket']
+    bda_result_prefix = event['BDAResponse']['job_detail']['output_s3_location']['name']
     
-        # Create a new Document object
-        document = Document(
-            id=object_key,
-            input_bucket=input_bucket,
-            input_key=object_key,
-            output_bucket=output_bucket,
-            status=Status.POSTPROCESSING,
-            workflow_execution_arn=event.get("execution_arn")
-        )
-    
-        # Update document status
-        appsync_service = DocumentAppSyncService()
-        logger.info(f"Updating document status to {document.status}")
-        appsync_service.update_document(document)
+    logger.info(f"Input bucket: {input_bucket}, prefix: {object_key}")
+    logger.info(f"BDA Result bucket: {bda_result_bucket}, prefix: {bda_result_prefix}")
+    logger.info(f"Output bucket: {output_bucket}, base path: {object_key}")
+
+    # Create a new Document object
+    document = Document(
+        id=object_key,
+        input_bucket=input_bucket,
+        input_key=object_key,
+        output_bucket=output_bucket,
+        status=Status.POSTPROCESSING,
+        workflow_execution_arn=event.get("execution_arn")
+    )
+
+    # Update document status
+    appsync_service = DocumentAppSyncService()
+    logger.info(f"Updating document status to {document.status}")
+    appsync_service.update_document(document)
 
     # Copy BDA output to output bucket
     # custom_output (sections)
