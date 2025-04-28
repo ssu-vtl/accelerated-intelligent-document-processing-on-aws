@@ -72,8 +72,3 @@ zip:
 		-x "**/.env" \
 		-x "*.docker/*" \
 		-x "*.aws-sam/*"
-
-submodule:
-	# https://gitlab.aws.dev/genaiic-reusable-assets/engagement-artifacts/GenAIDP
-	# git config --global url."https://….".insteadOf "git@ssh…"
-	git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.aws.dev/genaiic-reusable-assets/engagement-artifacts/GenAIDP".insteadOf "git@ssh.gitlab.aws.dev:genaiic-reusable-assets/engagement-artifacts/GenAIDP.git"
