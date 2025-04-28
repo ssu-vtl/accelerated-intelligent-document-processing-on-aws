@@ -1005,14 +1005,3 @@ Increase maximum concurrency to maximize throughput for time sensitive workloads
   
 `compare_json_files.py [-h] [--output-dir OUTPUT_DIR] [--debug] bucket folder1 folder2:` _Handy tool to compare JSON files in different folders. Use it to assess, for example, the effects of using different models or prompts for extraction. Includes an AI summary of the key differences in the outputs._ 
 
-## Git Submodule
-> This repository contains a Git submodule in the `lib/GenAIDP` location. 
-More information on Git submodules can be found [HERE](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
-To initialize and update the submodule, use the following commands when cloning the repository:
-``` bash
-git submodule init
-git submodule update
-```
-### Gitlab CI/CD Runners
-> To clone a submodule in a Gitlab CI/CD runner, it's required to allow permissions from the parent repository (this repository) to the child repository ([GenAIDP](https://gitlab.aws.dev/genaiic-reusable-assets/engagement-artifacts/GenAIDP/-/settings/ci_cd#js-token-access))
-Details on thie mechanism can be found [HERE](https://docs.gitlab.com/ci/jobs/ci_job_token/#use-a-job-token).
