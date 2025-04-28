@@ -5,7 +5,7 @@ import { API, Logger } from 'aws-amplify';
 import { Editor } from '@monaco-editor/react';
 import getFileContents from '../../graphql/queries/getFileContents';
 import uploadDocument from '../../graphql/queries/uploadDocument';
-import MarkdownView from './MarkdownView';
+import MarkdownViewer from './MarkdownViewer';
 
 const logger = new Logger('MarkdownJsonViewer');
 
@@ -61,8 +61,12 @@ const TextEditorView = ({ fileContent, onChange, isReadOnly, fileType }) => {
       <div style={{ height: EDITOR_DEFAULT_HEIGHT, position: 'relative', overflow: 'hidden', width: '100%' }}>
         <Editor
           height="100%"
-          defaultLanguage={fileType}
-          value={fileContent}
+          defaultLanguage={fileType === 'json' ? 'json' : fileType}
+          value={
+            fileType === 'json' && typeof fileContent === 'string'
+              ? JSON.stringify(JSON.parse(fileContent), null, 2)
+              : fileContent
+          }
           onChange={onChange}
           onMount={handleEditorDidMount}
           options={{
@@ -78,6 +82,8 @@ const TextEditorView = ({ fileContent, onChange, isReadOnly, fileType }) => {
               vertical: 'visible',
               horizontal: 'visible',
             },
+            formatOnPaste: true,
+            formatOnType: true,
           }}
           theme="vs-light"
           loading={<Box padding="s">Loading editor...</Box>}
@@ -147,7 +153,8 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
       </SpaceBetween>
 
       {viewMode === 'markdown' ? (
-        <MarkdownView
+        <MarkdownViewer
+          simple
           content={
             typeof fileContent === 'string'
               ? (() => {
@@ -168,7 +175,7 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
           fileContent={typeof fileContent === 'string' ? fileContent : JSON.stringify(jsonData, null, 2)}
           onChange={handleTextEditorChange}
           isReadOnly={isReadOnly}
-          fileType={fileType}
+          fileType="json"
         />
       )}
     </Box>
@@ -194,9 +201,16 @@ const MarkdownJsonViewer = ({ fileUri, fileType = 'text', buttonText = 'View Fil
         variables: { s3Uri: fileUri },
       });
 
-      const fetchedContent = response.data.getFileContents;
+      // Handle the updated response structure
+      const result = response.data.getFileContents;
+      const fetchedContent = result.content;
+      logger.debug('Received content type:', result.contentType);
+      logger.debug('Binary content?', result.isBinary);
+      if (result.isBinary === true) {
+        setError('This file contains binary content that cannot be viewed in the Markdown viewer.');
+        return;
+      }
       logger.debug('Received content:', `${fetchedContent.substring(0, 100)}...`);
-
       setFileContent(fetchedContent);
     } catch (err) {
       logger.error('Error fetching content:', err);

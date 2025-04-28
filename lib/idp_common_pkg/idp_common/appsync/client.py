@@ -1,3 +1,7 @@
+"""
+AppSync client for executing GraphQL queries and mutations.
+"""
+
 import boto3
 import json
 import os
@@ -7,7 +11,7 @@ from botocore.awsrequest import AWSRequest
 import requests
 from typing import Dict, Any, Optional
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 class AppSyncError(Exception):
     """Custom exception for AppSync errors"""
@@ -16,13 +20,41 @@ class AppSyncError(Exception):
         self.errors = errors or []
 
 class AppSyncClient:
-    def __init__(self):
+    """
+    Client for executing GraphQL operations against AWS AppSync.
+    
+    This client handles authentication, request signing, and error handling
+    for AWS AppSync GraphQL API calls.
+    """
+    def __init__(self, api_url: Optional[str] = None, region: Optional[str] = None):
+        """
+        Initialize the AppSync client.
+        
+        Args:
+            api_url: Optional AppSync API URL. If not provided, will be read from APPSYNC_API_URL env var.
+            region: Optional AWS region. If not provided, will be read from AWS_REGION env var.
+        """
         self.session = boto3.Session()
         self.credentials = self.session.get_credentials()
-        self.api_url = os.environ['APPSYNC_API_URL']
-        self.region = os.environ['AWS_REGION']
+        self.api_url = api_url or os.environ.get('APPSYNC_API_URL')
+        self.region = region or os.environ.get('AWS_REGION')
+        
+        if not self.api_url:
+            raise ValueError("AppSync API URL must be provided or set in APPSYNC_API_URL environment variable")
+        
+        if not self.region:
+            raise ValueError("AWS region must be provided or set in AWS_REGION environment variable")
 
     def _sign_request(self, request: AWSRequest) -> Dict[str, str]:
+        """
+        Sign a request with SigV4 authentication.
+        
+        Args:
+            request: The AWS request to sign
+            
+        Returns:
+            Dictionary of signed headers
+        """
         auth = SigV4Auth(self.credentials, 'appsync', self.region)
         auth.add_auth(request)
         return dict(request.headers)
@@ -95,44 +127,3 @@ class AppSyncClient:
         except requests.RequestException as e:
             logger.error(f"HTTP request to AppSync failed: {str(e)}")
             raise
-
-# GraphQL Mutations
-CREATE_DOCUMENT = """
-mutation CreateDocument($input: CreateDocumentInput!) {
-    createDocument(input: $input) {
-        ObjectKey
-    }
-}
-"""
-
-UPDATE_DOCUMENT = """
-mutation UpdateDocument($input: UpdateDocumentInput!) {
-    updateDocument(input: $input) {
-        ObjectKey
-        ObjectStatus
-        InitialEventTime
-        QueuedTime
-        WorkflowStartTime
-        CompletionTime
-        WorkflowExecutionArn
-        WorkflowStatus
-        PageCount
-        Sections {
-            Id
-            PageIds
-            Class
-            OutputJSONUri
-        }
-        Pages {
-            Id
-            Class
-            ImageUri
-            TextUri
-        }
-        Metering
-        EvaluationReportUri
-        EvaluationStatus
-        ExpiresAfter
-    }
-}
-"""

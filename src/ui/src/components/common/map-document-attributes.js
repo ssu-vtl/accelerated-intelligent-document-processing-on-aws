@@ -20,6 +20,7 @@ const mapDocumentsAttributes = (documents) => {
       Metering: meteringJson,
       EvaluationReportUri: evaluationReportUri,
       EvaluationStatus: evaluationStatus,
+      SummaryReportUri: summaryReportUri,
       ListPK: listPK,
       ListSK: listSK,
     } = item;
@@ -60,6 +61,7 @@ const mapDocumentsAttributes = (documents) => {
       metering,
       evaluationReportUri,
       evaluationStatus,
+      summaryReportUri,
       listPK,
       listSK,
     };

@@ -9,6 +9,7 @@ import ast
 import json
 import logging
 import math
+from abc import ABC, abstractmethod
 from typing import Any, Tuple, List, Union, Optional
 from munkres import Munkres, make_cost_matrix
 
@@ -16,6 +17,66 @@ from idp_common.evaluation.models import EvaluationMethod
 from idp_common import bedrock
 
 logger = logging.getLogger(__name__)
+
+
+class Comparator(ABC):
+    """Base class for value comparators."""
+    
+    @abstractmethod
+    def compare(self, value1: Any, value2: Any) -> float:
+        """
+        Compare two values and return a similarity score between 0.0 and 1.0.
+        
+        Args:
+            value1: First value to compare
+            value2: Second value to compare
+            
+        Returns:
+            float: Similarity score between 0.0 (no match) and 1.0 (perfect match)
+        """
+        pass
+
+
+class ExactComparator(Comparator):
+    """Exact string match comparator."""
+    
+    def compare(self, value1: Any, value2: Any) -> float:
+        """Compare values for exact string match after normalization."""
+        value1_norm = strip_punctuation_space(str(value1))
+        value2_norm = strip_punctuation_space(str(value2))
+        return 1.0 if value1_norm == value2_norm else 0.0
+
+
+class NumericComparator(Comparator):
+    """Numeric exact match comparator."""
+    
+    def compare(self, value1: Any, value2: Any) -> float:
+        """Compare values for exact numeric match."""
+        try:
+            num1 = normalize_numeric(value1)
+            num2 = normalize_numeric(value2)
+            return 1.0 if num1 == num2 else 0.0
+        except ValueError:
+            # Fall back to string comparison if numeric conversion fails
+            return ExactComparator().compare(value1, value2)
+
+
+class FuzzyComparator(Comparator):
+    """Fuzzy string match comparator."""
+    
+    def __init__(self, threshold: float = 0.8):
+        """
+        Initialize the fuzzy comparator.
+        
+        Args:
+            threshold: Minimum similarity score to consider a match (0.0 to 1.0)
+        """
+        self.threshold = threshold
+    
+    def compare(self, value1: Any, value2: Any) -> float:
+        """Compare values using fuzzy string matching."""
+        score = fuzz_score(str(value1), str(value2))
+        return score
 
 
 def strip_punctuation_space(text: str) -> str:
@@ -148,49 +209,52 @@ def convert_to_list(value: Any) -> List[str]:
     return [str(value)]
 
 
-def compare_hungarian(expected: Any, actual: Any) -> Tuple[int, int]:
+def compare_hungarian(
+    expected: Any, 
+    actual: Any, 
+    comparator: Optional[Comparator] = None,
+    threshold: float = 0.8
+) -> Tuple[int, int, float]:
     """
     Compare lists using Hungarian algorithm for maximum bipartite matching.
     
     Args:
         expected: Expected list or value
         actual: Actual list or value
+        comparator: Comparator to use for individual item comparison
+        threshold: Minimum similarity threshold for considering a match
         
     Returns:
-        Tuple of (true_positives, false_positives)
+        Tuple of (true_positives, false_positives, average_score)
     """
+    # Default to exact comparator if none provided
+    if comparator is None:
+        comparator = ExactComparator()
+    
     expected_list = convert_to_list(expected)
     actual_list = convert_to_list(actual)
     
-    # If comparing simple values (not lists), use exact matching
+    # Handle simple case with single values
     if len(expected_list) == 1 and len(actual_list) == 1:
-        expected_str = strip_punctuation_space(expected_list[0])
-        actual_str = strip_punctuation_space(actual_list[0])
-        return (1, 0) if expected_str == actual_str else (0, 1)
+        score = comparator.compare(expected_list[0], actual_list[0])
+        matched = score >= threshold
+        return (1, 0, score) if matched else (0, 1, score)
     
     # Empty lists edge case
     if not expected_list and not actual_list:
-        return 0, 0
+        return 0, 0, 1.0
     if not expected_list:
-        return 0, len(actual_list)
+        return 0, len(actual_list), 0.0
     if not actual_list:
-        return 0, 0
+        return 0, 0, 0.0
     
-    # Create cost matrix for Hungarian algorithm
+    # Create similarity matrix for Hungarian algorithm
     matrix = [[0 for _ in range(len(actual_list))] for _ in range(len(expected_list))]
     
-    # Fill matrix with comparison scores
+    # Fill matrix with comparison scores from the provided comparator
     for i, exp_val in enumerate(expected_list):
         for j, act_val in enumerate(actual_list):
-            # Try numeric comparison first, fall back to string comparison
-            try:
-                exp_num = normalize_numeric(exp_val)
-                act_num = normalize_numeric(act_val)
-                matrix[i][j] = 1.0 if exp_num == act_num else 0.0
-            except ValueError:
-                exp_str = strip_punctuation_space(exp_val)
-                act_str = strip_punctuation_space(act_val)
-                matrix[i][j] = 1.0 if exp_str == act_str else 0.0
+            matrix[i][j] = comparator.compare(exp_val, act_val)
     
     # Convert to cost matrix (Hungarian algorithm minimizes cost)
     cost_matrix = make_cost_matrix(matrix, lambda x: 1-x)
@@ -199,11 +263,14 @@ def compare_hungarian(expected: Any, actual: Any) -> Tuple[int, int]:
     m = Munkres()
     indexes = m.compute(cost_matrix)
     
-    # Count matches
-    true_positives = sum(1 for i, j in indexes if matrix[i][j] > 0)
+    # Count matches and calculate average score
+    matches = [(i, j, matrix[i][j]) for i, j in indexes]
+    true_positives = sum(1 for _, _, score in matches if score >= threshold)
     false_positives = len(actual_list) - true_positives
     
-    return true_positives, false_positives
+    avg_score = sum(score for _, _, score in matches) / len(matches) if matches else 0.0
+    
+    return true_positives, false_positives, avg_score
 
 
 def fuzz_score(s1: str, s2: str) -> float:
@@ -377,7 +444,8 @@ def compare_values(
     document_class: str = None,
     attr_name: str = None,
     attr_description: str = None,
-    llm_config: dict = None
+    llm_config: dict = None,
+    comparator_type: str = None  # New parameter for specifying comparator
 ) -> Tuple[bool, float, Optional[str]]:
     """
     Compare values using the specified method.
@@ -386,11 +454,12 @@ def compare_values(
         expected: Expected value
         actual: Actual value
         method: Comparison method to use
-        threshold: Threshold for fuzzy/BERT methods
+        threshold: Threshold for fuzzy/semantic methods
         document_class: Document class name (for LLM evaluation)
         attr_name: Attribute name (for LLM evaluation)
         attr_description: Attribute description (for LLM evaluation)
         llm_config: Configuration for LLM invocation
+        comparator_type: Type of comparator to use (for Hungarian methods)
         
     Returns:
         Tuple of (matched, score, reason)
@@ -415,14 +484,34 @@ def compare_values(
     elif method == EvaluationMethod.FUZZY:
         matched, score = compare_fuzzy(expected, actual, threshold)
     
-    elif method == EvaluationMethod.HUNGARIAN:
-        tp, fp = compare_hungarian(expected, actual)
+    # Handle all Hungarian methods
+    elif method in [EvaluationMethod.HUNGARIAN]:
+        
+        # Select the appropriate comparator based on method or comparator_type
+        if comparator_type == "EXACT":
+            comparator = ExactComparator()
+        elif comparator_type == "FUZZY":
+            comparator = FuzzyComparator(threshold)
+        elif comparator_type == "NUMERIC":
+            comparator = NumericComparator()
+        else:
+            # Default to exact comparator
+            comparator = ExactComparator()
+        
+        # Call the enhanced compare_hungarian function
+        tp, fp, avg_score = compare_hungarian(
+            expected=expected, 
+            actual=actual, 
+            comparator=comparator, 
+            threshold=threshold
+        )
+        
         # Convert Hungarian output to match/score format
         if tp + fp == 0:
             matched, score = True, 1.0  # Both lists empty
         else:
             matched = tp > 0 and fp == 0
-            score = tp / (tp + fp) if tp + fp > 0 else 0.0
+            score = avg_score
     
     elif method == EvaluationMethod.SEMANTIC:
         # Use embedding-based semantic comparison with configurable threshold
@@ -658,5 +747,4 @@ Respond ONLY with the JSON and nothing else.  Here's the exact format:
     except Exception as e:
         error_msg=f"Error in LLM evaluation for {attr_name}: {str(e)}"
         logger.error(error_msg)
-        logger.error(f"Raw response was: {result_text}")
         return False, 0.0, error_msg

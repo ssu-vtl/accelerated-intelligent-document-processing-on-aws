@@ -31,6 +31,7 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
   - [Running the UI Locally](#running-the-ui-locally)
   - [Configuration Options](#configuration-options)
   - [Security Considerations](#security-considerations)
+    - [Web Application Firewall (WAF)](#web-application-firewall-waf)
   - [Monitoring and Troubleshooting](#monitoring-and-troubleshooting)
 - [Document Knowledge Base Query](#document-knowledge-base-query)
   - [How It Works](#how-it-works)
@@ -59,6 +60,10 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
 - [Document Status Lookup](#document-status-lookup)
   - [Using the Lookup Script](#using-the-lookup-script)
   - [Response Format](#response-format)
+- [Bedrock Guardrail Integration](#bedrock-guardrail-integration)
+  - [How Guardrails Work](#how-guardrails-work)
+  - [Configuring Guardrails](#configuring-guardrails)
+  - [Best Practices](#best-practices-1)
 - [Concurrency and Throttling Management](#concurrency-and-throttling-management)
   - [Throttling and Retry (Bedrock and/or SageMaker)](#throttling-and-retry-bedrock-andor-sagemaker)
   - [Step Functions Retry Configuration](#step-functions-retry-configuration)
@@ -476,6 +481,24 @@ The web UI implementation includes several security features:
 - CloudFront distribution uses secure configuration
 - S3 buckets are configured with appropriate security policies
 - API access is controlled through IAM and Cognito
+- Web Application Firewall (WAF) protection for AppSync API
+
+#### Web Application Firewall (WAF)
+
+The solution includes AWS WAF integration to protect your AppSync API:
+
+- **IP-based access control**: Restrict API access to specific IP ranges
+- **Default behavior**: By default (`0.0.0.0/0`), WAF is disabled and all IPs are allowed
+- **Configuration**: Use the `WAFAllowedIPv4Ranges` parameter to specify allowed IP ranges
+  - Example: `"192.168.1.0/24,10.0.0.0/16"` (comma-separated list of CIDR blocks)
+- **Security benefit**: When properly configured, WAF blocks all traffic except from your trusted IP ranges and AWS Lambda service IP ranges
+- **Lambda service access**: The solution automatically maintains a WAF IPSet with current AWS Lambda service IP ranges to ensure Lambda functions can always access the AppSync API even when IP restrictions are enabled
+
+When configuring the WAF:
+- IP ranges must be in valid CIDR notation (e.g., `192.168.1.0/24`)
+- Multiple ranges should be comma-separated
+- The WAF is only enabled when the parameter is set to something other than the default `0.0.0.0/0`
+- Lambda functions within your account will automatically have access to the AppSync API regardless of IP restrictions
 
 ### Monitoring and Troubleshooting
 
@@ -662,6 +685,10 @@ The Web UI includes a dedicated Configuration page that allows you to view and m
      - Model selection
      - Temperature and other sampling parameters
      - System and task prompts
+   - **Summarization**: Settings for section summarization, including:
+     - Model selection
+     - Temperature and other sampling parameters
+     - System and task prompts
    - **Pricing**: Cost estimation settings for different services
 
 The configuration changes are stored in DynamoDB and applied to all new document processing jobs without requiring stack redeployment. This allows for rapid experimentation with different prompt strategies, document class definitions, and model parameters.
@@ -674,6 +701,9 @@ LogRetentionDays=30                                 # CloudWatch log retention
 ErrorThreshold=1                                    # Errors before alerting
 ExecutionTimeThresholdMs=30000                      # Duration threshold in millisecs
 IDPPattern='Pattern1'                               # Choose processing pattern to deploy
+BedrockGuardrailId=''                               # Optional: ID of existing Bedrock Guardrail
+BedrockGuardrailVersion=''                          # Optional: Version of existing Bedrock Guardrail
+WAFAllowedIPv4Ranges='0.0.0.0/0'                    # IP restrictions for API access (default allows all)
 
 # Pattern 1 Parameters (when selected) 
 Pattern1BDAProjectArn=''           # Bedrock Data Automation (BDA) project ARN
@@ -840,6 +870,51 @@ All include average, p90, and maximum values
 }
 ```
 
+## Bedrock Guardrail Integration
+
+The solution includes native support for Amazon Bedrock Guardrails to help enforce content safety, security, and policy compliance across all Bedrock model interactions.
+
+### How Guardrails Work
+
+Bedrock Guardrails are applied to:
+- All model invocations through the IDP Common library (except pattern-2 classification)
+- Knowledge Base queries through the Knowledge Base resolver
+- Any other direct Bedrock API calls in the solution
+
+When enabled, guardrails can:
+- Filter harmful content from model outputs
+- Block sensitive information in prompts or responses
+- Apply topic filtering based on your organization's policies
+- Prevent model misuse
+- Provide tracing information for audit and compliance
+- Mask Personally Identifiable Information (PII) in output documents and summaries
+
+### Configuring Guardrails
+
+1. **Prerequisites**:
+   - You must create a Bedrock Guardrail in your AWS account **before** deploying or updating the stack
+   - Note the Guardrail ID and Version you want to use
+
+2. **Deployment Parameters**:
+   - `BedrockGuardrailId`: Enter the ID (not name) of your existing Bedrock Guardrail
+   - `BedrockGuardrailVersion`: Enter the version of your Guardrail (e.g., "Draft" or a specific version)
+
+3. **Implementation**:
+   - The guardrail configuration is passed to all Lambda functions that interact with Bedrock
+   - The environment variable `GUARDRAIL_ID_AND_VERSION` contains the ID and version in format `id:version`
+   - When both values are provided, guardrails are automatically applied to all model invocations
+
+4. **Monitoring**:
+   - Debug logs show when guardrails are being applied
+   - Guardrail trace information is available in responses when enabled
+
+### Best Practices
+
+- Test your guardrail configuration thoroughly before deployment
+- Use tracing to audit guardrail behavior during testing
+- Consider creating different guardrails for different environments (dev/test/prod)
+- Regularly update guardrails as your compliance requirements evolve
+
 ## Concurrency and Throttling Management
 
 ### Throttling and Retry (Bedrock and/or SageMaker)
@@ -938,4 +1013,6 @@ To initialize and update the submodule, use the following commands when cloning 
 git submodule init
 git submodule update
 ```
-
+### Gitlab CI/CD Runners
+> To clone a submodule in a Gitlab CI/CD runner, it's required to allow permissions from the parent repository (this repository) to the child repository ([GenAIDP](https://gitlab.aws.dev/genaiic-reusable-assets/engagement-artifacts/GenAIDP/-/settings/ci_cd#js-token-access))
+Details on thie mechanism can be found [HERE](https://docs.gitlab.com/ci/jobs/ci_job_token/#use-a-job-token).

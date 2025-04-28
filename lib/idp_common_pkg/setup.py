@@ -21,7 +21,7 @@ extras_require = {
     "ocr": [
         "Pillow>=11.1.0",
         "PyMuPDF>=1.25.5",
-        "amazon-textract-textractor>=1.9.1",
+        "amazon-textract-textractor[pandas]>=1.9.2",
     ],
     
     # Classification module dependencies
@@ -33,12 +33,18 @@ extras_require = {
     "extraction": [
         "Pillow>=11.1.0",  # For image handling
     ],
+
+    # Appsync module dependencies
+    "appsync": [
+        "requests>=2.32.3",
+    ],
     
     # Full package with all dependencies
     "all": [
         "Pillow>=11.1.0",
         "PyMuPDF>=1.25.5",
-        "amazon-textract-textractor>=1.9.1",
+        "amazon-textract-textractor[pandas]>=1.9.2",
+        "requests>=2.32.3",
     ],
 }
 

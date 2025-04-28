@@ -14,12 +14,14 @@ This package contains common utilities and services for the GenAI IDP Accelerato
 - **Classification**: Document classification using LLMs and SageMaker/UDOP ([README](idp_common/classification/README.md))
 - **Extraction**: Field extraction from documents using LLMs ([README](idp_common/extraction/README.md))
 - **Evaluation**: Compare extraction results against ground truth for accuracy measurement ([README](idp_common/evaluation/README.md))
+- **AppSync**: Integration with AWS AppSync for document storage ([README](idp_common/appsync/README.md))
 
 ### AWS Service Clients
 
 - Bedrock client with retry logic
 - S3 client operations
 - CloudWatch metrics
+- AppSync client for GraphQL operations
 
 ### Configuration
 
@@ -39,12 +41,12 @@ This package contains common utilities and services for the GenAI IDP Accelerato
 
 ## Unified Document-based Architecture
 
-All core services (OCR, Classification, and Extraction) have been refactored to use a unified Document model approach:
+All core services (OCR, Classification, Extraction, and AppSync) use a unified Document model approach:
 
 ```python
 from idp_common import get_config
 from idp_common.models import Document
-from idp_common import ocr, classification, extraction
+from idp_common import ocr, classification, extraction, appsync
 
 # Initialize document
 document = Document(
@@ -74,6 +76,10 @@ document = extraction_service.process_document_section(
     document=document, 
     section_id=document.sections[0].section_id
 )
+
+# Store document in AppSync
+appsync_service = appsync.DocumentAppSyncService()
+updated_document = appsync_service.update_document(document)
 
 # Access the extraction results URI
 result_uri = document.sections[0].extraction_result_uri
@@ -130,6 +136,15 @@ Evaluate extraction results against ground truth:
 - Integration with the Document model for seamless evaluation
 - Results and reports stored in S3 with URIs tracked in the Document
 
+### AppSync Service (`appsync`)
+
+Manages document storage and retrieval through AWS AppSync GraphQL API:
+- Document-based storage with `create_document()` and `update_document()` methods
+- Seamless conversion between Document objects and GraphQL schema
+- Handles SigV4 authentication for AppSync requests
+- Provides error handling for GraphQL operations
+- Manages document TTL (time-to-live) for automatic expiration
+
 ## Basic Usage
 
 ```python
@@ -144,7 +159,8 @@ from idp_common import (
     ocr,           # OCR service and models
     classification, # Classification service and models
     extraction,    # Extraction service and models
-    evaluation     # Evaluation service and models
+    evaluation,    # Evaluation service and models
+    appsync        # AppSync integration
 )
 from idp_common.models import Document, Status
 
@@ -183,6 +199,10 @@ document = evaluation_service.evaluate_document(document, expected_document)
 report_uri = document.evaluation_report_uri
 # The evaluation result is also available directly
 evaluation_result = document.evaluation_result
+
+# Store document in AppSync
+appsync_service = appsync.DocumentAppSyncService()
+updated_document = appsync_service.update_document(document)
 
 # Publish a metric
 metrics.put_metric("MetricName", 1)
@@ -236,6 +256,9 @@ pip install "idp_common[extraction]"
 
 # Install with evaluation support
 pip install "idp_common[evaluation]"
+
+# Install with AppSync support
+pip install "idp_common[appsync]"
 
 # Install with image processing support
 pip install "idp_common[image]"
