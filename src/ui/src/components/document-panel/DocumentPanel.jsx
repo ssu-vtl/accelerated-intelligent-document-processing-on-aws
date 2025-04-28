@@ -302,12 +302,21 @@ const DocumentAttributes = ({ item }) => {
             <div>{item.evaluationStatus || 'N/A'}</div>
           </div>
         </SpaceBetween>
+
+        <SpaceBetween size="xs">
+          <div>
+            <Box margin={{ bottom: 'xxxs' }} color="text-label">
+              <strong>Summary</strong>
+            </Box>
+            <div>{item.summaryReportUri ? 'Available' : 'N/A'}</div>
+          </div>
+        </SpaceBetween>
       </ColumnLayout>
     </Container>
   );
 };
 
-export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, onDelete }) => {
+export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, onDelete, onReprocess }) => {
   logger.debug('DocumentPanel item', item);
 
   return (
@@ -317,11 +326,18 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, o
           <Header
             variant="h2"
             actions={
-              onDelete && (
-                <Button iconName="remove" variant="normal" onClick={onDelete}>
-                  Delete
-                </Button>
-              )
+              <SpaceBetween direction="horizontal" size="xs">
+                {onReprocess && (
+                  <Button iconName="arrow-right" variant="normal" onClick={onReprocess}>
+                    Reprocess
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button iconName="remove" variant="normal" onClick={onDelete}>
+                    Delete
+                  </Button>
+                )}
+              </SpaceBetween>
             }
           >
             Document Details
@@ -342,7 +358,11 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, o
           )}
         </SpaceBetween>
       </Container>
-      <DocumentViewers objectKey={item.objectKey} evaluationReportUri={item.evaluationReportUri} />
+      <DocumentViewers
+        objectKey={item.objectKey}
+        evaluationReportUri={item.evaluationReportUri}
+        summaryReportUri={item.summaryReportUri}
+      />
       <SectionsPanel sections={item.sections} />
       <PagesPanel pages={item.pages} />
     </SpaceBetween>

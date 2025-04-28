@@ -1,5 +1,53 @@
 # Changelog
 
+## [Unreleased]
+
+
+## [0.2.20]
+### Added
+- Added document summarization functionality
+  - New summarization service with default model set to Claude 3 Haiku
+  - New summarization function added to all patterns
+  - Added end-to-end document summarization notebook example
+- Integration of AppSync helper package into idp_common_pkg
+- Enhanced the Hungarian evaluation method with configurable comparators
+  - Added support for EXACT, FUZZY, and NUMERIC comparators for Hungarian method
+  - Implemented a flexible comparator pattern similar to GenAIDP
+  - Added dynamic UI form fields based on evaluation method selection
+- Added Bedrock Guardrail integration
+  - New parameters BedrockGuardrailId and BedrockGuardrailVersion for optional guardrail configuration
+  - Support for applying guardrails in Bedrock model invocations (except classification)
+  - Added guardrail functionality to Knowledge Base queries
+  - Enhanced security and content safety for model interactions
+- Improved performance with parallelized operations
+  - Enhanced EvaluationService with multi-threaded processing for faster evaluation
+    - Parallel processing of document sections using ThreadPoolExecutor
+    - Intelligent attribute evaluation parallelization with LLM-specific optimizations
+    - Dynamic batch sizing based on workload for optimal resource utilization
+  - Reimplemented Copy to Baseline functionality with asynchronous processing
+    - Asynchronous Lambda invocation pattern for processing large document collections
+    - EvaluationStatus-based progress tracking and UI integration
+    - Batch-based S3 object copying for improved efficiency
+    - File operation batching with optimal batch size calculation
+- Fine-grained document status tracking for UI real-time progress updates
+  - Added status transitions (QUEUED → STARTED → RUNNING → COMPLETE) for all patterns
+- Fixed multi-page standard output BDA processing in Pattern 1
+  - Refactored ProcessResults function to correctly handle multi-page result.json files
+- Default OCR configuration now includes LAYOUT, TABLES, SIGNATURE, and markdown generation now supports tables (via textractor[pandas])
+- Added document reprocessing capability to the UI
+  - Implemented reprocess button with confirmation dialog
+  - Added backend API for document reprocessing
+  
+### Changed
+- Refactored code for better maintainability
+- Updated UI components to support markdown table viewing
+- Set default evaluation model to Claude 3 Haiku
+- Improved AppSync timeout handling for long-running file copy operations
+- Added security headers to UI application per security requirements
+- Disabled GraphQL introspection for AppSync API to enhance security
+- Added LogLevel parameter to main stack (default WARN level)
+- Various bug fixes and improvements
+
 ## [0.2.19]
 - Added enhanced EvaluationService with smart attribute discovery and evaluation
   - Automatically discovers and evaluates attributes not defined in configuration

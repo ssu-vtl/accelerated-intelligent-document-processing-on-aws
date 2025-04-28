@@ -2,7 +2,57 @@
 
 This module provides utility functions for interacting with Amazon Bedrock's LLM services.
 
+## Guardrail Support
+
+This module includes built-in support for Amazon Bedrock Guardrails, which help enforce content safety, security, and policy compliance across all Bedrock model interactions.
+
+### Configuring Guardrails
+
+Guardrails are configured via environment variables:
+
+- `GUARDRAIL_ID_AND_VERSION`: Contains the Guardrail ID and Version in format `id:version`
+
+When properly configured, the `get_guardrail_config()` function will automatically include guardrail parameters in Bedrock API calls.
+
+### How Guardrail Integration Works
+
+1. The `invoke_model` function checks if `GUARDRAIL_ID_AND_VERSION` is set
+2. If configured, guardrail parameters are parsed from the environment variable
+3. Appropriate guardrail parameters are added to Bedrock API calls:
+   - For `converse` API: Uses `guardrailIdentifier`, `guardrailVersion`, and `trace`
+4. Debug logs show when guardrails are being applied
+
+### Example with Guardrails
+
+```python
+import os
+import bedrock
+
+# Set the environment variable (typically configured in Lambda environment)
+os.environ["GUARDRAIL_ID_AND_VERSION"] = "your-guardrail-id:Draft"
+
+# Call invoke_model normally - guardrails are applied automatically
+response = bedrock.invoke_model(
+    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+    system_prompt="You are a helpful assistant.",
+    content=[{"text": "Tell me about security best practices."}],
+    temperature=0.0
+)
+```
+
 ## Key Functions
+
+### get_guardrail_config
+
+```python
+def get_guardrail_config() -> Optional[Dict[str, str]]
+```
+
+Gets guardrail configuration from environment if available.
+
+**Returns:**
+- Optional guardrail configuration dict with identifier, version and trace settings
+- Returns None if GUARDRAIL_ID_AND_VERSION environment variable is not set
 
 ### invoke_model
 
