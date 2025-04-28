@@ -14,6 +14,7 @@ This package contains common utilities and services for the GenAI IDP Accelerato
 - **Classification**: Document classification using LLMs and SageMaker/UDOP ([README](idp_common/classification/README.md))
 - **Extraction**: Field extraction from documents using LLMs ([README](idp_common/extraction/README.md))
 - **Evaluation**: Compare extraction results against ground truth for accuracy measurement ([README](idp_common/evaluation/README.md))
+- **Summarization**: Generate summaries for each section in a document ([README](idp_common/summarization/README.md))
 - **AppSync**: Integration with AWS AppSync for document storage ([README](idp_common/appsync/README.md))
 
 ### AWS Service Clients
