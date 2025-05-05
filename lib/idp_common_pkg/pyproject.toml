@@ -25,6 +25,13 @@ classifiers = [
 # Core utilities only - minimal dependencies
 core = []
 
+# Development only dependencies
+dev = [
+    "python-dotenv (>=1.1.0,<2.0.0)",
+    "ipykernel (>=6.29.5,<7.0.0)",
+    "jupyter (>=1.1.1,<2.0.0)",
+]
+
 # Image handling dependencies
 image = [
     "Pillow>=11.1.0",
