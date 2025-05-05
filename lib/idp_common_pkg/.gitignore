@@ -1,0 +1,2 @@
+# Let's exclude the poetry.lock file in case anyone uses Poetry to add dependencies to pyproject.toml
+poetry.lock
