@@ -54,7 +54,19 @@ integration_test:
   script:
     - aws --version
     - aws sts get-caller-identity --no-cli-pager
+    - make test-cicd -C lib/idp_common_pkg
     - cd ./scripts/sdlc/idp-cli
     - poetry install
     - make put
     - make wait
+  
+  artifacts:
+    paths:
+      - lib/idp_common_pkg/test-reports/coverage.xml
+      - lib/idp_common_pkg/test-reports/test-results.xml
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: lib/idp_common_pkg/test-reports/coverage.xml
+      junit: lib/idp_common_pkg/test-reports/test-results.xml
+    expire_in: 1 week
