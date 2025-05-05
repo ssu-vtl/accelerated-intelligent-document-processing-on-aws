@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"python.analysis.extraPaths": [
+			"lib/idp_common_pkg"
+		]
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-toolsai.jupyter",
+			"ms-python.python"
+		]
+	}
+}
