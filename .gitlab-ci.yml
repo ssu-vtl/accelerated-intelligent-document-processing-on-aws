@@ -39,13 +39,7 @@ integration_test:
     - python --version
     - apt-get update -y
     - apt-get install zip unzip curl make -y
-    
-    # Git submodules
-    # TODO: Uncomment these when gitlab ci runner repo auth is resolved
-    - make submodule -C scripts/sdlc/idp-cli CI_JOB_TOKEN=$CI_JOB_TOKEN
-    - git submodule init
-    - git submodule update
-    
+       
     # Install Poetry
     - curl -sSL https://install.python-poetry.org | python3 -
     - export PATH="/root/.local/bin:$PATH"

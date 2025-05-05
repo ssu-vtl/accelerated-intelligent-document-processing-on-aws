@@ -275,7 +275,25 @@ The new pattern will automatically inherit all the core infrastructure and monit
 
 ## Build, Publish, Deploy, Test
 
-### Dependencies
+If you’re a developer, and you want to build, deploy, or publish the solution from code, go straight to [Option 2: Build deployment assets from source code](#option-2-build-deployment-assets-from-source-code), otherwise use Option 1 below.
+
+
+### Option 1: Deploy a new stack with 1-click launch (using pre-built assets)
+
+To deploy the GenAI-IDP solution in your own AWS account, follow these steps (if you do not have an AWS account, please see [How do I create and activate a new Amazon Web Services account?](https://aws.amazon.com/premiumsupport/knowledge-center/create-and-activate-aws-account/)):
+
+1. Log into the [AWS console](https://console.aws.amazon.com/).
+   _Note: If you are logged in as an IAM user, ensure your account has administrator permissions to create and manage the necessary resources and components for this application._
+2. Choose the **Launch Stack** button below for your desired AWS region to open the AWS CloudFormation console and create a new stack:
+
+| Region name           | Region code | Launch                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| US West (Oregon)      | us-west-2   | [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.us-west-2.amazonaws.com/bobs-artifacts-us-west-2/genaiidp-preview-latest/idp-main.yaml&stackName=IDP) |
+
+
+### Option 2: Build deployment assets from source code
+
+#### Dependencies
 
 You need to have the following packages installed on your computer:
 
@@ -289,7 +307,7 @@ Copy the repo to your computer. Either:
 - use the git command to clone the repo, if you have access
 - OR, download and expand the ZIP file for the repo, or use the ZIP file that has been shared with you.
 
-### Build and Publish the solution
+#### Build and Publish the solution
 
 To build and publish your own template, to your own S3 bucket, so that others can easily deploy a stack from your templates, in your preferred region, here's how.
 
@@ -1005,14 +1023,3 @@ Increase maximum concurrency to maximize throughput for time sensitive workloads
   
 `compare_json_files.py [-h] [--output-dir OUTPUT_DIR] [--debug] bucket folder1 folder2:` _Handy tool to compare JSON files in different folders. Use it to assess, for example, the effects of using different models or prompts for extraction. Includes an AI summary of the key differences in the outputs._ 
 
-## Git Submodule
-> This repository contains a Git submodule in the `lib/GenAIDP` location. 
-More information on Git submodules can be found [HERE](https://git-scm.com/book/en/v2/Git-Tools-Submodules).
-To initialize and update the submodule, use the following commands when cloning the repository:
-``` bash
-git submodule init
-git submodule update
-```
-### Gitlab CI/CD Runners
-> To clone a submodule in a Gitlab CI/CD runner, it's required to allow permissions from the parent repository (this repository) to the child repository ([GenAIDP](https://gitlab.aws.dev/genaiic-reusable-assets/engagement-artifacts/GenAIDP/-/settings/ci_cd#js-token-access))
-Details on thie mechanism can be found [HERE](https://docs.gitlab.com/ci/jobs/ci_job_token/#use-a-job-token).
