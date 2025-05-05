@@ -293,3 +293,76 @@ Key benefits:
 - Simplified data flow in serverless functions
 - Better resource usage with the focused document pattern
 - Improved maintainability with standardized interfaces
+
+## Testing
+
+This package includes a comprehensive test suite using pytest. To run the tests:
+
+```bash
+# Install the package with test dependencies
+pip install -e ".[test]"
+
+# Run all tests
+pytest
+
+# Run tests for a specific module
+pytest tests/unit/test_models.py
+```
+
+### Test Structure
+
+- **Unit Tests**: Located in `tests/unit/`, these test individual components in isolation
+- **Integration Tests**: Located in `tests/integration/`, these test how components work together
+- **Fixtures**: Common test fixtures are defined in `tests/conftest.py`
+
+### Test Configuration
+
+The test configuration is defined in `pytest.ini`:
+
+- Coverage reporting is enabled by default
+- Tests are organized by markers (`unit`, `integration`, `slow`)
+- HTML and XML coverage reports are generated
+
+### Adding New Tests
+
+When adding new functionality to the package, please also add corresponding tests:
+
+1. For new modules, create a new test file in `tests/unit/`
+2. Use the appropriate fixtures from `conftest.py`
+3. Use mocking for external dependencies
+4. Add integration tests for interactions between components
+## Testing
+
+This package includes a simple test suite using pytest. To run the tests:
+
+```bash
+# Install the package with test dependencies
+pip install -e ".[test]"
+
+# Run all tests
+pytest
+
+# Run with coverage report in terminal only
+pytest --cov=idp_common --cov-report=term-missing
+
+# Run tests and generate JUnit XML report and coverage XML report
+pytest
+
+# Specify custom output locations
+pytest --junitxml=custom-test-results.xml --cov=idp_common --cov-report=xml:custom-coverage.xml
+
+# Run tests in parallel (faster for large test suites)
+pytest -xvs
+```
+
+By default, running pytest will:
+- Run all tests in the `tests` directory
+- Generate a test results report in JUnit XML format at `test-results.xml`
+- Generate a coverage report in XML format at `coverage.xml`
+- Display a coverage summary in the terminal
+
+These reports can be used for CI/CD integration and code quality monitoring.
+
+### Adding More Tests
+
+When adding new functionality to the package, please add corresponding tests in the `tests/unit/` directory.
