@@ -9,7 +9,7 @@ description = "Common utilities for GenAI IDP Accelerator patterns"
 authors = [
     {name = "AWS", email = "noreply@amazon.com"}
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9,<3.13"
 dependencies = [
     "boto3>=1.37.29",  # Core dependency for AWS services
 ]
