@@ -13,3 +13,4 @@ dist/
 *.egg-info/
 build/
 __pycache__
+.ruff_cache
