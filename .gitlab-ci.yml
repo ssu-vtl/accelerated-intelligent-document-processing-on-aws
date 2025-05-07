@@ -24,8 +24,10 @@ developer_tests:
     - python --version
     - apt-get update -y
     - apt-get install make -y
+    - pip install ruff
 
   script:
+    - make lint-cicd
     - make test-cicd -C lib/idp_common_pkg
   
   artifacts:

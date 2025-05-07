@@ -1025,3 +1025,28 @@ Increase maximum concurrency to maximize throughput for time sensitive workloads
   
 `compare_json_files.py [-h] [--output-dir OUTPUT_DIR] [--debug] bucket folder1 folder2:` _Handy tool to compare JSON files in different folders. Use it to assess, for example, the effects of using different models or prompts for extraction. Includes an AI summary of the key differences in the outputs._ 
 
+## Code Quality and Formatting
+
+This project uses [Ruff](https://github.com/astral-sh/ruff) for Python code linting and formatting. Ruff is a fast Python linter and formatter written in Rust.
+
+### Setup and Usage
+
+1. Install Ruff: `pip install ruff`
+2. Run linting and formatting: `make lint`
+3. Run linting checks only (for CI/CD): `make lint-cicd`
+
+### Configuration
+
+The project uses a `ruff.toml` file that explicitly lists the default settings for clarity and future reference. The configuration starts with the defaults provided by the tool, with some project-specific customizations. See the Ruff defaults [HERE](https://docs.astral.sh/ruff/configuration/).
+
+> **Note:** To incrementally improve code quality across the repository, certain directories are initially excluded from formatting in the `ruff.toml` file. Directories will be enabled for formatting one by one in separate PRs to ensure proper testing and validation of each component.
+
+### VSCode Integration
+
+When using the provided `.code-workspace` file to open the project, files will be automatically linted and formatted on save. This requires the Ruff VSCode extension, which is included in the recommended extensions for the workspace.
+
+To install the extension:
+1. Open VSCode
+2. Go to Extensions (Ctrl+Shift+X / Cmd+Shift+X)
+3. Search for "Ruff"
+4. Install the extension by Astral Software
