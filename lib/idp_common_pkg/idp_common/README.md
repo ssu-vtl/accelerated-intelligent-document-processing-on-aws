@@ -32,6 +32,10 @@ Services for extracting text and structure from documents using AWS Textract.
 
 Services for generating document summaries using LLMs.
 
+### BDA
+
+Services for interacting with Amazon Bedrock Data Automation (BDA) for document processing and information extraction.
+
 ### AppSync
 
 Services for storing and retrieving documents through AWS AppSync GraphQL API, with seamless conversion between Document objects and AppSync schema.
@@ -347,6 +351,33 @@ extraction_service = ExtractionService(
 
 # Process a section
 document = extraction_service.process_document_section(document, section_id="1")
+```
+
+### BdaService
+
+Processes documents using Amazon Bedrock Data Automation (BDA):
+
+```python
+from idp_common.bda.bda_service import BdaService
+
+# Initialize the service with output location
+bda_service = BdaService(
+    output_s3_uri="s3://output-bucket/output-path",
+    dataAutomationProjectArn="arn:aws:bedrock:region:account:data-automation-project/project-id"
+)
+
+# Process a document with BDA
+result = bda_service.invoke_data_automation(
+    input_s3_uri="s3://input-bucket/input-path/document.pdf",
+    blueprintArn="arn:aws:bedrock:region:account:blueprint/blueprint-id"
+)
+
+# Access the BDA results
+if result['status'] == 'success':
+    # Use BdaInvocation to parse the results
+    from idp_common.bda.bda_invocation import BdaInvocation
+    bda_invocation = BdaInvocation.from_s3(s3_url=result["output_location"])
+    custom_output = bda_invocation.get_custom_output()
 ```
 
 ### EvaluationService

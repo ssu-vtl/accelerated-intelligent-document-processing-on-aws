@@ -8,7 +8,8 @@ from typing import Dict, Any
 from botocore.exceptions import ClientError
 from idp_common import metrics, utils
 from idp_common.models import Document
-
+from idp_common.bda.bda_service import BdaService
+from idp_common.utils.s3util import S3Util
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
@@ -24,37 +25,16 @@ bda_client = boto3.client('bedrock-data-automation-runtime')
 dynamodb = boto3.resource('dynamodb')
 tracking_table = dynamodb.Table(os.environ['TRACKING_TABLE'])
 
-
-def build_s3_uri(bucket: str, key: str) -> str:
-    return utils.build_s3_uri(bucket, key)
-
-def build_payload(input_s3_uri: str, output_s3_uri: str, data_project_arn: str) -> Dict[str, Any]:
-    region = os.environ.get('AWS_REGION', 'us-east-1')
-    account_id = boto3.client('sts').get_caller_identity().get('Account')
-    
-    return {
-        "inputConfiguration": {
-            "s3Uri": input_s3_uri
-        },
-        "outputConfiguration": {
-            "s3Uri": output_s3_uri
-        },
-        "dataAutomationConfiguration": {
-            "dataAutomationProjectArn": data_project_arn,
-            "stage": "LIVE",
-        },
-        "dataAutomationProfileArn": f"arn:aws:bedrock:{region}:{account_id}:data-automation-profile/us.data-automation-v1",
-        "notificationConfiguration": {
-            "eventBridgeConfiguration": {
-                "eventBridgeEnabled": True
-            }
-        }
-    }
-
-def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
+# def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
+def invoke_data_automation(data_project_arn: str, input_s3_uri: str, output_s3_uri: str) -> Dict[str, Any]:
     retry_count = 0
     last_exception = None
     request_start_time = time.time()
+
+    bda_service = BdaService(
+        dataAutomationProjectArn=data_project_arn,
+        output_s3_uri=output_s3_uri
+    )
 
     metrics.put_metric('BDARequestsTotal', 1)
 
@@ -63,7 +43,7 @@ def invoke_data_automation(payload: Dict[str, Any]) -> Dict[str, Any]:
             logger.info(f"BDA API request attempt {retry_count + 1}/{MAX_RETRIES}")
             
             attempt_start_time = time.time()
-            response = bda_client.invoke_data_automation_async(**payload)
+            response = bda_service.invoke_data_automation_async(input_s3_uri=input_s3_uri)
             duration = time.time() - attempt_start_time
             
             logger.info(f"BDA API request successful after {retry_count + 1} attempts. "
@@ -155,10 +135,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         track_task_token(object_key, task_token)
 
-        input_s3_uri = build_s3_uri(input_bucket, object_key)
-        output_s3_uri = build_s3_uri(working_bucket, f"{object_key}/bda_responses")
-        payload = build_payload(input_s3_uri, output_s3_uri, data_project_arn)
-        bda_response = invoke_data_automation(payload)
+        input_s3_uri = S3Util.bucket_key_to_s3_uri(input_bucket, object_key)
+        output_s3_uri = S3Util.bucket_key_to_s3_uri(working_bucket, f"{object_key}/bda_responses")
+        bda_response = invoke_data_automation(data_project_arn=data_project_arn, 
+                                              input_s3_uri=input_s3_uri, 
+                                              output_s3_uri=output_s3_uri)
 
         response = {
             "metadata": {
