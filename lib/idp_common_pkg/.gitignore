@@ -30,6 +30,7 @@ coverage_html/
 nosetests.xml
 coverage/
 test-results.xml
+test-reports/
 
 # Virtual environments
 venv/

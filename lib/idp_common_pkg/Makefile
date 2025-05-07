@@ -1,14 +1,18 @@
 .PHONY: test test-cicd clean
 
-test:
-	pytest
+test: test-unit
 
-test-cicd:
+test-unit:
+	pytest -m "unit"
+
+test-integration:
+	pytest -m "integration"
+
+test-cicd: test-unit-cicd
+
+test-unit-cicd:
 	pip install -e ".[test]"
-	pytest
-	mkdir -p test-reports
-	cp coverage.xml test-reports/
-	cp test-results.xml test-reports/
+	pytest -m "unit" --cov=idp_common --cov-report=xml:test-reports/coverage.xml --cov-report=term --junitxml=test-reports/test-results.xml tests/
 
 clean:
 	rm -rf .pytest_cache
