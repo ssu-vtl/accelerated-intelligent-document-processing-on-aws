@@ -1,6 +1,111 @@
-# Bedrock Utilities
+# Bedrock Integration
 
-This module provides utility functions for interacting with Amazon Bedrock's LLM services.
+The GenAIIC IDP Accelerator includes a robust client for Amazon Bedrock that provides resilient model invocation with built-in retry handling, metrics collection, and helpful utilities. This integration supports all document processing patterns that utilize Bedrock models.
+
+## Using the Bedrock Client
+
+### Simple Function Approach
+
+For quick, straightforward use cases, you can use the function-style interface:
+
+```python
+from idp_common.bedrock import invoke_model
+
+# Basic model invocation
+response = invoke_model(
+    model_id="anthropic.claude-3-haiku-20240307-v1:0",
+    system_prompt="You are a helpful assistant.",
+    content=[{"text": "What are the main features of AWS Bedrock?"}],
+    temperature=0.0,
+    top_k=250
+)
+
+# Process the response
+output_text = response["response"]["output"]["message"]["content"][0]["text"]
+print(output_text)
+```
+
+### Class-Based Interface
+
+For more control and advanced features, use the BedrockClient class directly:
+
+```python
+from idp_common.bedrock.client import BedrockClient
+
+# Create a custom client
+client = BedrockClient(
+    region="us-east-1",
+    max_retries=5,
+    initial_backoff=1.5,
+    max_backoff=300,
+    metrics_enabled=True
+)
+
+# Invoke a model
+response = client.invoke_model(
+    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+    system_prompt="You are a helpful assistant.",
+    content=[{"text": "How does document processing work?"}],
+    temperature=0.0
+)
+
+# Extract text using the helper method
+output_text = client.extract_text_from_response(response)
+print(output_text)
+```
+
+## Working with Embeddings
+
+Generate text embeddings for semantic search or document comparison:
+
+```python
+from idp_common.bedrock.client import BedrockClient
+
+client = BedrockClient()
+embedding = client.generate_embedding(
+    text="This document contains information about loan applications.",
+    model_id="amazon.titan-embed-text-v1"
+)
+
+# Use embedding for vector search, clustering, etc.
+```
+
+## Helper Methods
+
+The BedrockClient provides useful utilities for common tasks:
+
+### Prompt Formatting
+
+```python
+from idp_common.bedrock.client import BedrockClient
+
+client = BedrockClient()
+
+template = """
+Please analyze this {DOCUMENT_TYPE}:
+
+<document>
+{CONTENT}
+</document>
+
+Extract the following fields: {FIELDS}
+"""
+
+substitutions = {
+    "DOCUMENT_TYPE": "invoice",
+    "CONTENT": "Invoice #12345\nDate: 2023-05-15\nAmount: $1,250.00",
+    "FIELDS": "invoice_number, date, amount"
+}
+
+formatted_prompt = client.format_prompt(template, substitutions)
+```
+
+### Response Text Extraction
+
+```python
+# Extract text from a complex response structure
+text = client.extract_text_from_response(response)
+```
 
 ## Guardrail Support
 
@@ -26,13 +131,13 @@ When properly configured, the `get_guardrail_config()` function will automatical
 
 ```python
 import os
-import bedrock
+from idp_common.bedrock import invoke_model
 
 # Set the environment variable (typically configured in Lambda environment)
 os.environ["GUARDRAIL_ID_AND_VERSION"] = "your-guardrail-id:Draft"
 
 # Call invoke_model normally - guardrails are applied automatically
-response = bedrock.invoke_model(
+response = invoke_model(
     model_id="anthropic.claude-3-sonnet-20240229-v1:0",
     system_prompt="You are a helpful assistant.",
     content=[{"text": "Tell me about security best practices."}],
@@ -40,123 +145,23 @@ response = bedrock.invoke_model(
 )
 ```
 
-## Key Functions
+## Resilience Features
 
-### get_guardrail_config
+The BedrockClient automatically handles common failure scenarios:
 
-```python
-def get_guardrail_config() -> Optional[Dict[str, str]]
-```
+- Exponential backoff with jitter for rate limits and transient errors
+- Intelligent classification of retryable vs. non-retryable errors
+- Detailed logging with appropriate content sanitization
+- Metrics collection for request counts, latencies, and token usage
 
-Gets guardrail configuration from environment if available.
+## Configuration Options
 
-**Returns:**
-- Optional guardrail configuration dict with identifier, version and trace settings
-- Returns None if GUARDRAIL_ID_AND_VERSION environment variable is not set
+When creating a BedrockClient instance, you can customize:
 
-### invoke_model
+- `region`: AWS region for Bedrock (default: AWS_REGION env var or us-west-2)
+- `max_retries`: Maximum retry attempts for throttled requests (default: 8)
+- `initial_backoff`: Starting backoff time in seconds (default: 2)
+- `max_backoff`: Maximum backoff time in seconds (default: 300)
+- `metrics_enabled`: Whether to publish CloudWatch metrics (default: True)
 
-```python
-def invoke_model(
-    model_id: str, 
-    system_prompt: Union[str, List[Dict[str, str]]], 
-    content: List[Dict[str, Any]], 
-    temperature: Union[float, str] = 0.0, 
-    top_k: Optional[Union[float, str]] = None, 
-    max_retries: int = MAX_RETRIES
-) -> Dict[str, Any]
-```
-
-Invokes a Bedrock model with built-in retry logic for throttling and service exceptions.
-
-**Parameters:**
-- `model_id`: The Bedrock model ID (e.g., 'anthropic.claude-3-sonnet-20240229-v1:0')
-- `system_prompt`: The system prompt as string or list of content objects
-- `content`: The content for the user message (can include text and images)
-- `temperature`: Model temperature parameter (float or string convertible to float)
-- `top_k`: Optional top_k parameter for Anthropic models
-- `max_retries`: Maximum number of retry attempts
-
-**Returns:**
-- Dictionary with the response and metering data
-
-### extract_text_from_response
-
-```python
-def extract_text_from_response(response: Dict[str, Any]) -> str
-```
-
-Extracts the text content from a Bedrock response.
-
-**Parameters:**
-- `response`: Bedrock response object
-
-**Returns:**
-- Extracted text content as a string
-
-### format_prompt
-
-```python
-def format_prompt(prompt_template: str, substitutions: Dict[str, str], required_placeholders: List[str] = None) -> str
-```
-
-Prepares a prompt from a template by safely replacing placeholders with values.
-
-**Parameters:**
-- `prompt_template`: The prompt template with placeholders in {PLACEHOLDER} format
-- `substitutions`: Dictionary of placeholder values
-- `required_placeholders`: Optional list of placeholder names that must be present in the template
-
-**Returns:**
-- String with placeholders replaced by values
-
-**Raises:**
-- ValueError: If a required placeholder is missing from the template
-
-## Examples
-
-### Invoking a Bedrock Model
-
-```python
-import bedrock
-
-response = bedrock.invoke_model(
-    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
-    system_prompt="You are a helpful assistant with expertise in document analysis.",
-    content=[{"text": "Extract the key information from this invoice."}],
-    temperature=0.0
-)
-
-# Extract the model's response text
-result_text = bedrock.extract_text_from_response(response)
-```
-
-### Using the Prompt Template Formatter
-
-```python
-import bedrock
-
-# Define a prompt template with placeholders
-template = """
-Extract the following information from this {DOCUMENT_TYPE} document:
-
-Fields to extract:
-{FIELDS_LIST}
-
-Document content:
-{DOCUMENT_TEXT}
-"""
-
-# Define substitution values
-substitutions = {
-    "DOCUMENT_TYPE": "invoice",
-    "FIELDS_LIST": "- Invoice Number\n- Date\n- Total Amount",
-    "DOCUMENT_TEXT": "INVOICE #1234\nDate: 2023-05-15\nTotal: $1,250.00"
-}
-
-# Define required placeholders
-required = ["DOCUMENT_TYPE", "FIELDS_LIST", "DOCUMENT_TEXT"]
-
-# Format the prompt
-formatted_prompt = bedrock.format_prompt(template, substitutions, required)
-```
+This integration provides the foundation for reliable, scalable document processing with Amazon Bedrock models throughout the accelerator.
