@@ -150,9 +150,9 @@ Resources:
             build:
               commands:
                 - export IDP_CFN_PREFIX=$(make cfn-prefix) || { echo "CFN prefix generation failed"; exit 1; }
-                - make install -e IDP_CFN_PREFIX=$IDP_CFN_PREFIX || echo "Install step failed but continuing"
-                - make smoketest -e IDP_CFN_PREFIX=$IDP_CFN_PREFIX || echo "Smoke tests failed but continuing"
-                - make uninstall -e IDP_CFN_PREFIX=$IDP_CFN_PREFIX || echo "Uninstall step failed but continuing"
+                - make install -e IDP_CFN_PREFIX=$IDP_CFN_PREFIX
+                - make smoketest -e IDP_CFN_PREFIX=$IDP_CFN_PREFIX
+                - make uninstall -e IDP_CFN_PREFIX=$IDP_CFN_PREFIX
 
   DeploymentPipeline:
     Type: 'AWS::CodePipeline::Pipeline'
