@@ -7,4 +7,4 @@ Provides a service for calling Bedrock Data Automation.
 from idp_common.bda.bda_invocation import BdaInvocation
 from idp_common.bda.bda_service import BdaService
 
-__all__ = ['BdaInvocation', 'BdaService']
+__all__ = ["BdaInvocation", "BdaService"]
