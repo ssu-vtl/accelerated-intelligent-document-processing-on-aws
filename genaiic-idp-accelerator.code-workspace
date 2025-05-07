@@ -7,12 +7,18 @@
 	"settings": {
 		"python.analysis.extraPaths": [
 			"lib/idp_common_pkg"
-		]
+		],
+		"notebook.formatOnSave.enabled": true,
+		"[python]": {
+			"editor.formatOnSave": true,
+			"editor.defaultFormatter": "charliermarsh.ruff"
+		}
 	},
 	"extensions": {
 		"recommendations": [
 			"ms-toolsai.jupyter",
-			"ms-python.python"
+			"ms-python.python",
+			"charliermarsh.ruff",
 		]
 	}
 }
