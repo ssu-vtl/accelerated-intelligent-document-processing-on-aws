@@ -2,9 +2,7 @@
 extend-exclude = [
     "lib/appsync_helper_pkg",
     "lib/get_config_pkg",
-    "lib/idp_common_pkg",
     "lib/idp_common_pkg/idp_common/appsync",
-    "lib/idp_common_pkg/idp_common/bda",
     "lib/idp_common_pkg/idp_common/bedrock",
     "lib/idp_common_pkg/idp_common/classification",
     "lib/idp_common_pkg/idp_common/config",
