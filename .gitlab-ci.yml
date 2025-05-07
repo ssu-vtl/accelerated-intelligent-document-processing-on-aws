@@ -12,10 +12,35 @@ image: public.ecr.aws/docker/library/python:3.13-bookworm
 #     - .cache/pip
 
 stages:
-  - integration_test
+  - developer_tests
+  - integration_tests
 
-integration_test:
-  stage: integration_test
+developer_tests:
+  stage: developer_tests
+  rules:
+    - when: always  # Run on all branches
+  
+  before_script:
+    - python --version
+    - apt-get update -y
+    - apt-get install make -y
+
+  script:
+    - make test-cicd -C lib/idp_common_pkg
+  
+  artifacts:
+    paths:
+      - lib/idp_common_pkg/test-reports/coverage.xml
+      - lib/idp_common_pkg/test-reports/test-results.xml
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: lib/idp_common_pkg/test-reports/coverage.xml
+      junit: lib/idp_common_pkg/test-reports/test-results.xml
+    expire_in: 1 week
+
+integration_tests:
+  stage: integration_tests
   variables:
     # In order to run tests in another account, add a AWS_CREDS_TARGET_ROLE variable to the Gitlab pipeline variables.
     AWS_CREDS_TARGET_ROLE: ${AWS_CREDS_TARGET_ROLE:-"arn:aws:iam::715841340161:role/idp-sdlc-GitLab"}
@@ -34,6 +59,7 @@ integration_test:
       when: manual
     - if: $CI_COMMIT_BRANCH =~ /^release\/.*/
       when: manual
+    - when: manual  # This will make it available on all other branches
 
   before_script:
     - python --version
@@ -45,7 +71,6 @@ integration_test:
     - export PATH="/root/.local/bin:$PATH"
     - poetry --version
 
-    
     # Install AWS CLI
     - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
     - unzip awscliv2.zip
@@ -54,19 +79,8 @@ integration_test:
   script:
     - aws --version
     - aws sts get-caller-identity --no-cli-pager
-    - make test-cicd -C lib/idp_common_pkg
     - cd ./scripts/sdlc/idp-cli
     - poetry install
     - make put
     - make wait
   
-  artifacts:
-    paths:
-      - lib/idp_common_pkg/test-reports/coverage.xml
-      - lib/idp_common_pkg/test-reports/test-results.xml
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: lib/idp_common_pkg/test-reports/coverage.xml
-      junit: lib/idp_common_pkg/test-reports/test-results.xml
-    expire_in: 1 week
