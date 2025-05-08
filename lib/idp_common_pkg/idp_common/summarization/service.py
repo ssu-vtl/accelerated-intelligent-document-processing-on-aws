@@ -338,8 +338,8 @@ class SummarizationService:
                 content_type="application/json"
             )
             
-            # Generate and store markdown report
-            markdown_report = summarization_result.to_markdown()
+            # Generate and store markdown report using our custom markdown generator
+            markdown_report = self._generate_markdown(summary.content)
             s3.write_content(
                 content=markdown_report,
                 bucket=output_bucket,
@@ -422,13 +422,14 @@ class SummarizationService:
                     try:
                         summary_content = s3.get_json_content(summary_uri)
                         
-                        # Add to combined content under the section classification
-                        section_key = section.classification or f"section_{section.section_id}"
+                        # Add to combined content under a unique key that includes section ID
+                        section_key = f"{section.classification}_{section.section_id}" if section.classification else f"section_{section.section_id}"
                         combined_content[section_key] = summary_content
                         
                         # Store section summary reference in metadata
                         combined_metadata["section_summaries"][section_key] = {
                             "section_id": section.section_id,
+                            "classification": section.classification,
                             "summary_uri": summary_uri,
                             "summary_md_uri": summary_md_uri
                         }
@@ -436,9 +437,12 @@ class SummarizationService:
                         # Get markdown content for combined markdown report
                         if summary_md_uri:
                             try:
-                                md_content = s3.get_text_content(summary_md_uri)
+                                # Load the summary content from S3
+                                summary_content = s3.get_json_content(summary_uri)
+                                
+                                # Generate clean markdown directly from the summary content
                                 section_title = section.classification or f"Section {section.section_id}"
-                                section_markdown = f"## {section_title}\n\n{md_content}\n\n"
+                                section_markdown = f"## {section_title}\n\n{self._generate_markdown(summary_content)}\n\n"
                                 section_markdown_parts.append(section_markdown)
                             except Exception as e:
                                 logger.warning(f"Failed to load markdown summary from {summary_md_uri}: {e}")
@@ -484,8 +488,8 @@ class SummarizationService:
                 
                 # Create a complete markdown document that combines all section summaries
                 if section_markdown_parts:
-                    # Create header for the document
-                    doc_header = f"# Document Summary: {document.id}\n\n"
+                    # Create header for the document without including document ID
+                    doc_header = "# Document Summary\n\n"
                     
                     # Combine all section markdown parts
                     combined_markdown = doc_header + "\n".join(section_markdown_parts)
@@ -501,8 +505,8 @@ class SummarizationService:
                         content_type="text/markdown"
                     )
                 else:
-                    # If no section markdown parts, generate a markdown report from the combined summary
-                    markdown_report = summarization_result.to_markdown()
+                    # If no section markdown parts, generate a markdown report directly from the summary content
+                    markdown_report = self._generate_markdown(summary.content)
                     s3.write_content(
                         content=markdown_report,
                         bucket=output_bucket,
@@ -596,7 +600,8 @@ class SummarizationService:
                 
                 # Generate and store markdown report
                 md_key = f"{document.input_key}/summary/summary.md"
-                markdown_report = summarization_result.to_markdown()
+                # Generate markdown directly from the summary content
+                markdown_report = self._generate_markdown(summary.content)
                 s3.write_content(
                     content=markdown_report,
                     bucket=output_bucket,
@@ -626,6 +631,61 @@ class SummarizationService:
             document = self._update_document_status(document, success=False, error_message=error_msg)
         
         return document
+    
+    def _generate_markdown(self, summary_content: Dict[str, Any]) -> str:
+        """
+        Generate clean markdown from summary content.
+        
+        Args:
+            summary_content: Summary content dictionary
+            
+        Returns:
+            Properly formatted markdown representation
+        """
+        # Special case: If there's a top-level "summary" field with a string value, use it directly
+        if "summary" in summary_content and isinstance(summary_content["summary"], str):
+            return summary_content["summary"]
+        
+        markdown_parts = []
+        seen_headers = set()
+        
+        # Process the content based on its structure
+        for key, value in summary_content.items():
+            # Skip metadata
+            if key == "metadata":
+                continue
+                
+            # Handle string values directly
+            if isinstance(value, str) and value.strip():
+                section_header = f"## {key}"
+                if section_header not in seen_headers:
+                    markdown_parts.append(section_header)
+                    seen_headers.add(section_header)
+                markdown_parts.append(value)
+                continue
+                
+            # Handle dictionary values
+            if isinstance(value, dict):
+                # Add section header
+                section_header = f"## {key}"
+                if section_header not in seen_headers:
+                    markdown_parts.append(section_header)
+                    seen_headers.add(section_header)
+                
+                # Add content
+                if "summary" in value and isinstance(value["summary"], str):
+                    markdown_parts.append(value["summary"])
+                else:
+                    # Format other fields
+                    for field_key, field_value in value.items():
+                        if isinstance(field_value, str) and field_value.strip():
+                            field_header = f"### {field_key}"
+                            if field_header not in seen_headers:
+                                markdown_parts.append(field_header)
+                                seen_headers.add(field_header)
+                            markdown_parts.append(field_value)
+        
+        return "\n\n".join(markdown_parts)
     
     def _update_document_status(self, document: Document, success: bool = True, error_message: Optional[str] = None) -> Document:
         """
