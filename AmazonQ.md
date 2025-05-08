@@ -50,6 +50,15 @@ DO NOT create or modify an AmazonQ.md file unless I explicitly tell you to do so
       """Provides a sample document for testing."""
       return Document(id="test-doc", input_key="test.pdf")
   ```
+### Developing Tests
+* Unit and integration tests use the PyTest framework.
+* Tests should be sensible and the minimum necessary to verify critical logic.
+* Where possible, try to make tests easy to maintain.
+* After generating unit tests, the AI agent should verify unit tests by running them all.
+* To run all unit tests, the AI agent can execute the `make test -C lib/idp_common_pkg` command and observe that all tests pass.
+* If all tests don't pass, then fix the test(s) that are failing.
+* Tests should not throw warnings, if warnings are found, fix these.
+* Integration tests should not be run by the AI agent during development.
 
 ### CI/CD Integration
 
