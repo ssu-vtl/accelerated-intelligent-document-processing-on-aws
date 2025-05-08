@@ -11,6 +11,18 @@ DO NOT create or modify an AmazonQ.md file unless I explicitly tell you to do so
 * Use `dedent()` where possible for formatting multiline strings.
 * If Pydantic is used, be sure to use version 2.
 
+### Format & Lint
+* The project uses the [Ruff](https://docs.astral.sh/ruff/) Python formatter and linter.
+  - `E4`: pycodestyle errors related to imports
+  - `E7`: pycodestyle errors related to statement structure
+  - `E9`: pycodestyle errors related to runtime errors
+  - `F`: All Pyflakes error codes (detects various Python errors like undefined names)
+  - `extend-select = ["I"]`: This adds the isort (`I`) rule set to the selected rules
+* After generating code, the AI Agent should execute `make lint` to fix format and lint issues in the code.
+* If errors cannot be fixed by the `make lint`, the AI agent should attempt to correct them in code.
+* If they can't be corrected in code, then the AI agent should exclude the 
+* Do not modify the ruff.toml unless specifically asked to do so.
+
 ## Pytest Best Practices
 
 ### Test Organization
@@ -50,6 +62,7 @@ DO NOT create or modify an AmazonQ.md file unless I explicitly tell you to do so
       """Provides a sample document for testing."""
       return Document(id="test-doc", input_key="test.pdf")
   ```
+
 ### Developing Tests
 * Unit and integration tests use the PyTest framework.
 * Tests should be sensible and the minimum necessary to verify critical logic.
@@ -66,3 +79,14 @@ DO NOT create or modify an AmazonQ.md file unless I explicitly tell you to do so
 * Unit tests run on all branches in the `develop_tests` stage
 * Integration tests run on develop branch automatically and on feature branches manually
 * Both test results and coverage reports are collected as artifacts
+
+# Coding Guidelines
+- Split files into smaller, focused units when appropriate:
+  - Aim to keep code files under 350 lines. If a file exceeds 350 lines, split it into multiple files based on functionality.
+- Add comments to clarify non-obvious logic. **Ensure all comments are written in English.**
+- Provide corresponding unit tests for all new features.
+- After implementation, verify changes by running:
+  ```bash
+  make lint  # Ensure code style compliance
+  make test -C lib/idp_common_pkg  # Verify all tests pass
+  ```
