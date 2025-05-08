@@ -1,0 +1,506 @@
+classification:
+  temperature: '0'
+  model: us.amazon.nova-pro-v1:0
+  system_prompt: >-
+    You are a document classification expert who can analyze and classify
+    multiple documents and their page boundaries within a document package from
+    various domains. Your task is to determine the document type based on its
+    content and structure, using the provided document type definitions. Your
+    output must be valid JSON according to the requested format.
+  classificationMethod: textbasedHolisticClassification
+  top_k: '200'
+  task_prompt: >-
+    The <document-text> XML tags contains the text separated into pages from the
+    document package. Each page will begin with a <page-number> XML tag
+    indicating the one based page ordinal of the page text to follow.
+
+    <document-text>
+
+    {DOCUMENT_TEXT}
+
+    </document-text>
+
+
+    The <document-types> XML tags contain a markdown table of known doc types
+    for detection.
+
+    <document-types>
+
+    {CLASS_NAMES_AND_DESCRIPTIONS}
+
+    </document-types>
+
+
+    <guidance>
+
+    Guidance for terminology found in the instructions.
+        * ordinal_start_page: The one based beginning page of a document segment within the document package.
+        * ordinal_end_page: The one based ending page of a document segment within the document package.
+        * document_type: The document type code detected for a document segment.
+        * Distinct documents of the same type may be adjacent to each other in the packet. Be sure to separate them into different document segments and don't combine them.
+    </guidance>
+
+
+    <document-splitting-guidance>
+
+    When deciding whether pages belong to the same document segment:
+
+    - Content continuity: Pages with continuing paragraphs, numbered sections,
+    or ongoing narratives likely belong to the same document.
+
+    - Visual/formatting consistency: Similar layouts, headers, footers, and
+    styling suggest pages belong together.
+
+    - Logical completion: A document typically has a beginning, middle, and end
+    structure.
+
+    - Document boundaries: Look for clear indicators of a new document such as
+    new title pages, cover sheets, or significantly different subject matter.
+
+    - Content similarity: Pages discussing the same topic or subject likely
+    belong to the same document.
+
+
+    Pages should be grouped together when they represent a coherent, continuous
+    document, even if they span multiple pages. Split documents only when there
+    is clear evidence that a new, distinct document begins.
+
+    </document-splitting-guidance>
+
+
+    CRITICAL: You must ONLY use document types explicitly listed in the
+    <document-types> section. Do not create, invent, or use any document type
+    not found in this list. If a document doesn't clearly match any listed type,
+    assign it to the most similar listed type or "other" if that option is
+    provided.
+
+
+    Follow these steps when classifying documents within the document package:
+
+    1. Examine the document package as a whole, and identify page ranges that
+    are likely to belong to one of the <document-types>.
+
+    2. Match each page range with an identified document type from the provided
+    list ONLY.
+
+    3. Identify documents of the same type, that are not the same document but
+    are adjacent to each other in the packet.
+
+    4. Separate unique documents of the same type adjacent to each other in the
+    packet into distinct document segments. Important: Do not combine distinct
+    documents of the same type into a single document segment.
+
+    5. For each identified document type, note the ordinal_start_page and
+    ordinal_end_page.
+
+    6. Compile the classified documents into a list with their respective
+    ordinal_start_page and ordinal_end_page.
+
+    7. Before finalizing, verify that each document type in your response
+    exactly matches one from the <document-types> list.
+
+
+    Return your response as valid JSON according to this format:
+
+    ```json
+
+    {
+        "segments": [
+                          {
+                            "ordinal_start_page": 1,
+                            "ordinal_end_page": 2,
+                            "type": "the first type of document detected"
+                          },
+                          {
+                            "ordinal_start_page": 3,
+                            "ordinal_end_page": 4,
+                            "type": "the second type of document detected"
+                          }
+                        ]
+    }
+
+    ```
+notes: Default settings
+classes:
+  - name: letter
+    description: A formal written message that is typically sent from one person to another
+    attributes:
+      - name: sender_name
+        description: >-
+          The name of the person or entity who wrote or sent the letter. Look
+          for text following or near terms like 'from', 'sender', 'authored by',
+          'written by', or at the end of the letter before a signature.
+      - name: sender_address
+        description: >-
+          The physical address of the sender, typically appearing at the top of
+          the letter. May be labeled as 'address', 'location', or 'from
+          address'.
+  - name: form
+    description: A document with blank spaces for filling in information
+    attributes:
+      - name: form_type
+        description: >-
+          The category or purpose of the form, such as 'application',
+          'registration', 'request', etc. May be identified by 'form name',
+          'document type', or 'form category'.
+      - name: form_id
+        description: >-
+          The unique identifier for the form, typically a number or alphanumeric
+          code. Often labeled as 'form number', 'id', or 'reference number'.
+  - name: invoice
+    description: A commercial document issued by a seller to a buyer relating to a sale
+    attributes:
+      - name: invoice_number
+        description: >-
+          The unique identifier for the invoice. Look for 'invoice no', 'invoice
+          #', or 'bill number', typically near the top of the document.
+      - name: invoice_date
+        description: >-
+          The date when the invoice was issued. May be labeled as 'date',
+          'invoice date', or 'billing date'.
+  - name: resume
+    description: A document summarizing a person's background, skills, and qualifications
+    attributes:
+      - name: full_name
+        description: >-
+          The complete name of the job applicant, typically appearing
+          prominently at the top of the resume. May be simply labeled as 'name'
+          or 'applicant name'.
+      - name: contact_info
+        description: >-
+          The phone number, email, and address of the applicant. Look for a
+          section with 'contact', 'phone', 'email', or 'address', usually near
+          the top of the resume.
+  - name: scientific_publication
+    description: A formally published document presenting scientific research findings
+    attributes:
+      - name: title
+        description: >-
+          The name of the scientific paper, typically appearing prominently at
+          the beginning. May be labeled as 'title', 'paper title', or 'article
+          title'.
+      - name: authors
+        description: >-
+          The researchers who conducted the study and wrote the paper. Look for
+          names after 'authors', 'contributors', or 'researchers', usually
+          following the title.
+  - name: memo
+    description: >-
+      A brief written message used for internal communication within an
+      organization
+    attributes:
+      - name: memo_date
+        description: >-
+          The date when the memo was written. Look for 'date' or 'memo date',
+          typically near the top of the document.
+      - name: from
+        description: >-
+          The person or department that wrote the memo. May be labeled as
+          'from', 'sender', or 'author'.
+  - name: advertisement
+    description: A public notice promoting a product, service, or event
+    attributes:
+      - name: product_name
+        description: >-
+          The name of the item or service being advertised. Look for prominently
+          displayed text that could be a 'product', 'item', or 'service' name.
+      - name: brand
+        description: >-
+          The company or manufacturer of the product. May be indicated by a logo
+          or text labeled as 'brand', 'company', or 'manufacturer'.
+  - name: email
+    description: >-
+      An electronic message sent from one person to another over a computer
+      network
+    attributes:
+      - name: from_address
+        description: >-
+          The email address of the sender. Look for text following 'from',
+          'sender', or 'sent by', typically at the beginning of the email
+          header.
+      - name: to_address
+        description: >-
+          The email address of the primary recipient. May be labeled as 'to',
+          'recipient', or 'sent to'.
+  - name: questionnaire
+    description: >-
+      A set of written questions designed to collect information from
+      respondents
+    attributes:
+      - name: form_title
+        description: >-
+          The name or title of the questionnaire. Look for prominently displayed
+          text at the beginning that could be a 'title', 'survey name', or
+          'questionnaire name'.
+      - name: respondent_info
+        description: >-
+          Information about the person completing the questionnaire. May include
+          fields labeled 'respondent', 'participant', or 'name'.
+  - name: specification
+    description: A detailed description of technical requirements or characteristics
+    attributes:
+      - name: product_name
+        description: >-
+          The name of the item being specified. Look for text labeled as
+          'product', 'item', or 'model', typically appearing prominently at the
+          beginning.
+      - name: version
+        description: >-
+          The iteration or release number. May be indicated by 'version',
+          'revision', or 'release', often followed by a number or code.
+  - name: generic
+    description: A general document type that doesn't fit into other specific categories
+    attributes:
+      - name: document_type
+        description: >-
+          The classification or category of the document. Look for terms like
+          'type', 'category', or 'class' that indicate what kind of document
+          this is.
+      - name: document_date
+        description: >-
+          The date when the document was created. May be labeled as 'date',
+          'created on', or 'issued on'.
+extraction:
+  temperature: '0'
+  model: us.amazon.nova-pro-v1:0
+  system_prompt: >
+    You are a document assistant. Respond only with JSON. Never make up data,
+    only provide data found in the document being provided.
+  top_k: '200'
+  task_prompt: >
+    <background>
+
+    You are an expert in business document analysis and information extraction. 
+
+    You can understand and extract key information from business documents
+    classified as type 
+
+    {DOCUMENT_CLASS}.
+
+    </background>
+
+    <document_ocr_data>
+
+    {DOCUMENT_TEXT}
+
+    </document_ocr_data>
+
+    <task>
+
+    Your task is to take the unstructured text provided and convert it into a
+    well-organized table format using JSON. Identify the main entities,
+    attributes, or categories mentioned in the attributes list below and use
+    them as keys in the JSON object. 
+
+    Then, extract the relevant information from the text and populate the
+    corresponding values in the JSON object. 
+
+    Guidelines:
+
+    Ensure that the data is accurately represented and properly formatted within
+    the JSON structure
+
+    Include double quotes around all keys and values
+
+    Do not make up data - only extract information explicitly found in the
+    document
+
+    Do not use /n for new lines, use a space instead
+
+    If a field is not found or if unsure, return null
+
+    All dates should be in MM/DD/YYYY format
+
+    Do not perform calculations or summations unless totals are explicitly given
+
+    If an alias is not found in the document, return null
+
+    Here are the attributes you should extract:
+
+    <attributes>
+
+    {ATTRIBUTE_NAMES_AND_DESCRIPTIONS}
+
+    </attributes>
+
+    </task>
+pricing:
+  - name: textract/detect_document_text
+    units:
+      - name: pages
+        price: '0.0015'
+  - name: textract/analyze_document-Layout
+    units:
+      - name: pages
+        price: '0.004'
+  - name: textract/analyze_document-Signatures
+    units:
+      - name: pages
+        price: '0.0035'
+  - name: textract/analyze_document-Forms
+    units:
+      - name: pages
+        price: '0.05'
+  - name: textract/analyze_document-Tables
+    units:
+      - name: pages
+        price: '0.015'
+  - name: textract/analyze_document-Tables+Forms
+    units:
+      - name: pages
+        price: '0.065'
+  - name: bedrock/us.amazon.nova-lite-v1:0
+    units:
+      - name: inputTokens
+        price: '6.0E-8'
+      - name: outputTokens
+        price: '2.4E-7'
+  - name: bedrock/us.amazon.nova-pro-v1:0
+    units:
+      - name: inputTokens
+        price: '8.0E-7'
+      - name: outputTokens
+        price: '3.2E-6'
+  - name: bedrock/us.anthropic.claude-3-haiku-20240307-v1:0
+    units:
+      - name: inputTokens
+        price: '2.5E-7'
+      - name: outputTokens
+        price: '1.25E-6'
+  - name: bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0
+    units:
+      - name: inputTokens
+        price: '8.0E-7'
+      - name: outputTokens
+        price: '4.0E-6'
+      - name: cacheReadInputTokens
+        price: '8.0E-8'
+      - name: cacheWriteInputTokens
+        price: '1.0E-6'
+  - name: bedrock/us.anthropic.claude-3-5-sonnet-20241022-v2:0
+    units:
+      - name: inputTokens
+        price: '3.0E-6'
+      - name: outputTokens
+        price: '1.5E-5'
+      - name: cacheReadInputTokens
+        price: '3.0E-7'
+      - name: cacheWriteInputTokens
+        price: '3.75E-6'
+  - name: bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0
+    units:
+      - name: inputTokens
+        price: '3.0E-6'
+      - name: outputTokens
+        price: '1.5E-5'
+      - name: cacheReadInputTokens
+        price: '3.0E-7'
+      - name: cacheWriteInputTokens
+        price: '3.75E-6'
+evaluation:
+  llm_method:
+    temperature: '0.0'
+    model: us.anthropic.claude-3-haiku-20240307-v1:0
+    system_prompt: >
+      You are an evaluator that helps determine if the predicted and expected
+      values match for document attribute extraction. You will consider the
+      context and meaning rather than just exact string matching.
+    top_k: '250'
+    task_prompt: >
+      I need to evaluate attribute extraction for a document of class:
+      {DOCUMENT_CLASS}.
+
+
+      For the attribute named "{ATTRIBUTE_NAME}" described as
+      "{ATTRIBUTE_DESCRIPTION}":
+
+      - Expected value: {EXPECTED_VALUE}
+
+      - Actual value: {ACTUAL_VALUE}
+
+
+      Do these values match in meaning, taking into account formatting
+      differences, word order, abbreviations, and semantic equivalence?
+
+      Provide your assessment as a JSON with three fields:
+
+      - "match": boolean (true if they match, false if not)
+
+      - "score": number between 0 and 1 representing the confidence/similarity
+      score
+
+      - "reason": brief explanation of your decision
+
+
+      Respond ONLY with the JSON and nothing else. Here's the exact format:
+
+      {
+        "match": true or false,
+        "score": 0.0 to 1.0,
+        "reason": "Your explanation here"
+      }
+summarization:
+  temperature: 0
+  model: us.amazon.nova-pro-v1:0
+  system_prompt: >-
+    You are a document summarization expert who can analyze and summarize
+    documents from various domains including medical, financial, legal, and
+    general business documents. Your task is to create a summary that captures
+    the key information, main points, and important details from the document.
+    Your output must be in valid JSON format. 
+
+    Summarization Style: Balanced\nCreate a balanced summary that provides a
+    moderate level of detail. Include the main points and key supporting
+    information, while maintaining the document's overall structure. Aim for a
+    comprehensive yet concise summary.
+     Your output MUST be in valid JSON format with markdown content. You MUST strictly adhere to the output format specified in the instructions.
+  top_k: 5
+  task_prompt: >
+    Analyze the provided document and create a comprehensive summary.
+
+    <document>
+    {DOCUMENT_TEXT}
+    </document>
+
+    Create a comprehensive summary that captures the essential information from the document following these requirements:
+
+    1. Extract all key information, main points, and important details
+    2. Include all important facts, figures, dates, and entities
+    3. Summary should not contain only sparse information.
+    4. Use clear markdown formatting (headings, lists, emphasis) for readability
+    5. Add page citations using the format [Page-X] after each fact or statement
+    6. Summary should not have any generalized section titles, such as "Summary" or "Document Summary" or "Summary of Document Page-X", etc.
+    7. IMPORTANT: Each citation must be a hoverable span tag with the exact source text:
+      - Format: <span title='EXACT TEXT FROM DOCUMENT' class='citation'>[Page-X]</span>
+      - When including span tags with citations in your JSON:
+          - Properly escape all quotes within the title attribute using backslashes: \"
+          - Example: <span title=\"This is the exact text\" class=\"citation\">[Page-1]</span>
+          - NOT: <span title='This is the exact text' class='citation'>[Page-1]</span>
+      - The title attribute must contain the unaltered, verbatim text from which the fact was derived
+      - Include enough surrounding context in the hover text to provide comprehensive reference
+      - Do not abbreviate or modify the source text in the hover
+      - For any backslashes in the document text:
+        - Double escape them in the JSON: \\\\
+        - Example: "The document states \\\\"Commitment to our Children\\\\""
+        - NOT: "The document states \"Commitment to our Children\""
+      -For newlines within the JSON string:
+        - Use the escaped newline character: \\n
+        - Example: "First line\\nSecond line"
+        - NOT: "First line
+                Second line"
+
+    CRITICAL OUTPUT INSTRUCTION: Your FINAL response MUST be VALID JSON with this EXACT structure and nothing else:
+    ```json
+    {
+      "summary": "The markdown-formatted summary goes here"
+    }
+    ```
+
+    Test your JSON before finalizing:
+      - Ensure all quotes, backslashes, and special characters are properly escaped
+      - Verify the entire response is valid JSON that can be parsed by standard JSON parsers
+
+    Your final output must be a single, valid JSON object with no syntax errors.
+ocr:
+  features:
+    - name: LAYOUT
