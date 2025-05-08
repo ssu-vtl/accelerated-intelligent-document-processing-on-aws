@@ -10,9 +10,9 @@ from idp_common.appsync.mutations import CREATE_DOCUMENT, UPDATE_DOCUMENT
 from idp_common.appsync.service import DocumentAppSyncService
 
 __all__ = [
-    'AppSyncClient', 
-    'AppSyncError',
-    'CREATE_DOCUMENT',
-    'UPDATE_DOCUMENT',
-    'DocumentAppSyncService'
+    "AppSyncClient",
+    "AppSyncError",
+    "CREATE_DOCUMENT",
+    "UPDATE_DOCUMENT",
+    "DocumentAppSyncService",
 ]

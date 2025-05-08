@@ -4,13 +4,14 @@ Models for document extraction using LLMs.
 This module provides data models for extraction results.
 """
 
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
 class ExtractedAttribute:
     """A single extracted attribute from a document"""
+
     name: str
     value: Any
     confidence: float = 1.0
@@ -19,6 +20,7 @@ class ExtractedAttribute:
 @dataclass
 class ExtractionResult:
     """Result of extraction for a document section"""
+
     section_id: str
     document_class: str
     attributes: List[ExtractedAttribute]
@@ -31,6 +33,7 @@ class ExtractionResult:
 @dataclass
 class PageInfo:
     """Information about a page used in extraction"""
+
     page_id: str
     text_uri: Optional[str] = None
     image_uri: Optional[str] = None
