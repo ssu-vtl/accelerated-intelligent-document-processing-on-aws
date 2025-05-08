@@ -10,6 +10,7 @@ import logging
 import os
 import time
 import boto3
+import concurrent.futures
 from typing import List, Dict, Any, Optional, Union, Tuple
 
 from idp_common import bedrock, s3, utils
@@ -90,15 +91,30 @@ class SummarizationService:
         return config
 
     def _extract_json(self, text: str) -> str:
-        """Extract JSON string from text."""
-        # Check for code block format
+        """
+        Extract JSON string from text with improved multi-line handling.
+        
+        This enhanced version handles JSON with literal newlines and provides
+        multiple fallback strategies for robust JSON extraction.
+        """
+        if not text:
+            logger.warning("Empty text provided to _extract_json")
+            return text
+            
+        # Strategy 1: Check for code block format
         if "```json" in text:
             start_idx = text.find("```json") + len("```json")
             end_idx = text.find("```", start_idx)
             if end_idx > start_idx:
-                return text[start_idx:end_idx].strip()
+                json_str = text[start_idx:end_idx].strip()
+                try:
+                    # Test if it's valid JSON
+                    json.loads(json_str)
+                    return json_str
+                except json.JSONDecodeError:
+                    logger.debug("Found code block but content is not valid JSON, trying other strategies")
         
-        # Check for simple JSON
+        # Strategy 2: Extract JSON between braces and try direct parsing
         if "{" in text and "}" in text:
             start_idx = text.find("{")
             # Find matching closing brace
@@ -109,9 +125,55 @@ class SummarizationService:
                 elif text[i] == "}":
                     open_braces -= 1
                     if open_braces == 0:
-                        return text[start_idx:i+1].strip()
+                        json_str = text[start_idx:i+1].strip()
+                        try:
+                            # Test if it's valid JSON as-is
+                            json.loads(json_str)
+                            return json_str
+                        except json.JSONDecodeError:
+                            # If direct parsing fails, continue to next strategy
+                            logger.debug("Found JSON-like content but direct parsing failed, trying normalization")
+                            break
         
-        # If we can't find JSON, return the text as-is
+        # Strategy 3: Try to extract JSON using more aggressive methods
+        try:
+            # Find the outermost braces
+            if "{" in text and "}" in text:
+                start_idx = text.find("{")
+                end_idx = text.rfind("}")  # Use rfind to get the last closing brace
+                if end_idx > start_idx:
+                    json_str = text[start_idx:end_idx+1]
+                    
+                    # Try parsing as-is first
+                    try:
+                        json.loads(json_str)
+                        return json_str
+                    except json.JSONDecodeError:
+                        pass
+                    
+                    # Try normalizing the JSON string
+                    try:
+                        # Method 1: Handle literal newlines by replacing with spaces
+                        normalized_json = ' '.join(line.strip() for line in json_str.splitlines())
+                        json.loads(normalized_json)
+                        return normalized_json
+                    except json.JSONDecodeError:
+                        pass
+                        
+                    # Method 2: Try a more aggressive approach with regex
+                    import re
+                    try:
+                        # Remove extra whitespace but preserve structure
+                        normalized_json = re.sub(r'\s+', ' ', json_str)
+                        json.loads(normalized_json)
+                        return normalized_json
+                    except json.JSONDecodeError:
+                        logger.debug("All normalization attempts failed")
+        except Exception as e:
+            logger.warning(f"Error during JSON extraction: {str(e)}")
+        
+        # If all strategies fail, return the original text
+        logger.warning("Could not extract valid JSON, returning original text")
         return text
 
     def _invoke_bedrock_model(
@@ -222,7 +284,7 @@ class SummarizationService:
                 # Fallback to using the raw text as a single content field
                 error_content = {
                     "error": "Summary parsing failed",
-                    "content": summary_text[:1000] + ("..." if len(summary_text) > 1000 else "")
+                    "content": summary_text
                 }
                 
                 return DocumentSummary(
@@ -372,7 +434,7 @@ class SummarizationService:
         """
         Summarize a document and update the Document object with the summary.
         
-        This method processes each section separately using process_document_section
+        This method processes each section in parallel using ThreadPoolExecutor with 20 workers
         and then combines the results into a single document summary.
         
         If no sections are defined, falls back to summarizing the entire document at once.
@@ -401,55 +463,95 @@ class SummarizationService:
             # Start timing
             start_time = time.time()
             
-            # Process each section separately
+            # Initialize data structures for results
             combined_content = {}
             combined_metadata = {"section_summaries": {}}
             section_markdown_parts = []
             
-            for section in document.sections:
-                logger.info(f"Processing section {section.section_id} with classification {section.classification}")
+            # Create a thread pool with 20 workers for parallel processing
+            max_workers = 20
+            logger.info(f"Processing document sections in parallel with {max_workers} workers")
+            
+            # Create a copy of the document for thread safety
+            # Each thread will work on its own copy and return the processed section
+            document_copy = document
+            
+            # Process sections in parallel using ThreadPoolExecutor
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Create a dictionary to track futures
+                future_to_section = {}
                 
-                # Process the section
-                updated_document = self.process_document_section(document, section.section_id)
+                # Submit all section processing tasks to the executor
+                for section in document.sections:
+                    logger.info(f"Submitting section {section.section_id} with classification {section.classification} for processing")
+                    future = executor.submit(self.process_document_section, document_copy, section.section_id)
+                    future_to_section[future] = section
                 
-                # Check if section was successfully summarized
-                if section.attributes and 'summary_uri' in section.attributes:
-                    # Get the section summary from S3
-                    summary_uri = section.attributes['summary_uri']
-                    summary_md_uri = section.attributes.get('summary_md_uri')
-                    
-                    # Load the summary content
+                # Process results as they complete
+                for future in concurrent.futures.as_completed(future_to_section):
+                    section = future_to_section[future]
                     try:
-                        summary_content = s3.get_json_content(summary_uri)
+                        # Get the result (updated document with processed section)
+                        updated_document = future.result()
                         
-                        # Add to combined content under a unique key that includes section ID
-                        section_key = f"{section.classification}_{section.section_id}" if section.classification else f"section_{section.section_id}"
-                        combined_content[section_key] = summary_content
+                        # Find the processed section in the updated document
+                        processed_section = None
+                        for s in updated_document.sections:
+                            if s.section_id == section.section_id:
+                                processed_section = s
+                                break
                         
-                        # Store section summary reference in metadata
-                        combined_metadata["section_summaries"][section_key] = {
-                            "section_id": section.section_id,
-                            "classification": section.classification,
-                            "summary_uri": summary_uri,
-                            "summary_md_uri": summary_md_uri
-                        }
-                        
-                        # Get markdown content for combined markdown report
-                        if summary_md_uri:
+                        if processed_section and processed_section.attributes and 'summary_uri' in processed_section.attributes:
+                            # Get the section summary from S3
+                            summary_uri = processed_section.attributes['summary_uri']
+                            summary_md_uri = processed_section.attributes.get('summary_md_uri')
+                            
+                            # Update the original document's section with the processed section's attributes
+                            for s in document.sections:
+                                if s.section_id == section.section_id:
+                                    s.attributes = processed_section.attributes
+                                    break
+                            
+                            # Merge any errors from the processed document
+                            for error in updated_document.errors:
+                                if error not in document.errors:
+                                    document.errors.append(error)
+                            
+                            # Merge metering data
+                            document.metering = utils.merge_metering_data(document.metering, updated_document.metering)
+                            
+                            # Load the summary content
                             try:
-                                # Load the summary content from S3
                                 summary_content = s3.get_json_content(summary_uri)
                                 
-                                # Generate clean markdown directly from the summary content
-                                section_title = section.classification or f"Section {section.section_id}"
-                                section_markdown = f"## {section_title}\n\n{self._generate_markdown(summary_content)}\n\n"
-                                section_markdown_parts.append(section_markdown)
+                                # Add to combined content under a unique key that includes section ID
+                                section_key = f"{section.classification}_{section.section_id}" if section.classification else f"section_{section.section_id}"
+                                combined_content[section_key] = summary_content
+                                
+                                # Store section summary reference in metadata
+                                combined_metadata["section_summaries"][section_key] = {
+                                    "section_id": section.section_id,
+                                    "classification": section.classification,
+                                    "summary_uri": summary_uri,
+                                    "summary_md_uri": summary_md_uri
+                                }
+                                
+                                # Get markdown content for combined markdown report
+                                if summary_md_uri:
+                                    try:
+                                        # Generate clean markdown directly from the summary content
+                                        section_title = section.classification or f"Section {section.section_id}"
+                                        section_markdown = f"## {section_title}\n\n{self._generate_markdown(summary_content)}\n\n"
+                                        section_markdown_parts.append(section_markdown)
+                                    except Exception as e:
+                                        logger.warning(f"Failed to generate markdown for section {section.section_id}: {e}")
                             except Exception as e:
-                                logger.warning(f"Failed to load markdown summary from {summary_md_uri}: {e}")
-                        
+                                logger.warning(f"Failed to load section summary from {summary_uri}: {e}")
+                                document.errors.append(f"Failed to load section summary: {str(e)}")
                     except Exception as e:
-                        logger.warning(f"Failed to load section summary from {summary_uri}: {e}")
-                        document.errors.append(f"Failed to load section summary: {str(e)}")
+                        error_msg = f"Error processing section {section.section_id}: {str(e)}"
+                        logger.error(error_msg)
+                        document.errors.append(error_msg)
             
             # Calculate execution time
             execution_time = time.time() - start_time
@@ -652,7 +754,7 @@ class SummarizationService:
         # Process the content based on its structure
         for key, value in summary_content.items():
             # Skip metadata
-            if key == "metadata":
+            if key == "metadata" or key == "error":
                 continue
                 
             # Handle string values directly
