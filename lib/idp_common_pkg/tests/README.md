@@ -2,6 +2,56 @@
 
 This directory contains tests for the `idp_common` package, organized into unit tests and integration tests.
 
+## Testing Requirements for Developers
+
+**Important:** All new features must include appropriate unit tests. This is a mandatory requirement for code contributions.
+
+### Why Tests Are Required
+- Ensures code quality and reliability
+- Prevents regressions when making changes
+- Serves as documentation for how components should work
+- Enables safe refactoring and optimization
+- Validates that features meet requirements
+
+### Using AI Coding Agents for Test Generation
+
+You can use AI Coding Agents like Amazon Q to help generate tests for your code:
+
+1. **Reference the AmazonQ.md file**: Ensure the AI agent has access to the `AmazonQ.md` file in the project root, which contains specific guidelines for test creation in this project.
+
+2. **Test Generation Best Practices**:
+   - Provide the AI with the code you want to test
+   - Specify whether you need unit or integration tests
+   - Ask the AI to follow the project's test structure and conventions
+   - Review and validate the generated tests before committing
+
+3. **Example Prompt for Amazon Q**:
+   ```
+   Generate unit tests for this file: relate/path/to/your/file.py.
+   ```
+
+4. **Always Verify AI-Generated Tests**: While AI can help create test scaffolding, always review and verify that:
+   - Tests actually validate the expected behavior
+   - Edge cases are properly covered
+   - Tests follow project conventions
+   - Tests are properly marked with the correct decorators
+
+### CI/CD Integration
+- Tests run automatically when pull requests are created
+- PRs with failing tests will be blocked from merging
+- Test coverage is tracked and reported in the CI pipeline
+- Both unit and integration tests are executed in the CI environment
+
+### Before Creating a Pull Request
+1. Write appropriate unit tests for your new code (manually or with AI assistance)
+2. Run tests locally to verify they pass:
+   ```bash
+   cd lib/idp_common_pkg
+   make test
+   ```
+3. Fix any failing tests before submitting your PR
+4. Ensure your code meets the coverage requirements
+
 ## Test Structure
 
 - `unit/`: Contains unit tests that don't require external services
