@@ -157,6 +157,7 @@ class InstallService():
                 '--s3-prefix', s3_prefix,
                 '--capabilities', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND',
                 '--parameter-overrides',
+                "DocumentKnowledgeBase=DISABLED",
                 f"IDPPattern={idp_pattern}",
                 f"AdminEmail={admin_email}",
                 '--stack-name', self.stack_name
