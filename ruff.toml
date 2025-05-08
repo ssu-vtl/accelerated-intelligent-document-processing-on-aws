@@ -19,7 +19,6 @@ extend-exclude = [
     "patterns",
     "src",
     "scripts",
-    "tests"
 ]
 
 # Exclude a variety of commonly ignored directories.
