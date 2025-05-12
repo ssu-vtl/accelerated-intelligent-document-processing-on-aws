@@ -167,7 +167,11 @@ class ClassificationService:
         config = {
             "model_id": self.bedrock_model,
             "temperature": float(classification_config.get("temperature", 0)),
-            "top_k": float(classification_config.get("top_k", 0.5)),
+            "top_k": float(classification_config.get("top_k", 5)),
+            "top_p": float(classification_config.get("top_p", 0.1)),
+            "max_tokens": int(classification_config.get("max_tokens", 4096))
+            if classification_config.get("max_tokens")
+            else None,
         }
 
         # Validate system prompt
@@ -559,6 +563,8 @@ class ClassificationService:
             content=content,
             temperature=config["temperature"],
             top_k=config["top_k"],
+            top_p=config["top_p"],
+            max_tokens=config["max_tokens"],
         )
 
     def _create_unclassified_result(
