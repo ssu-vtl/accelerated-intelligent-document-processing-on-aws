@@ -65,6 +65,8 @@ class BedrockClient:
         content: List[Dict[str, Any]],
         temperature: Union[float, str] = 0.0,
         top_k: Optional[Union[float, str]] = None,
+        top_p: Optional[Union[float, str]] = None,
+        max_tokens: Optional[Union[int, str]] = None,
         max_retries: Optional[int] = None
     ) -> Dict[str, Any]:
         """
@@ -77,7 +79,9 @@ class BedrockClient:
             system_prompt: The system prompt as string or list of content objects
             content: The content for the user message (can include text and images)
             temperature: The temperature parameter for model inference (float or string)
-            top_k: Optional top_k parameter for Anthropic models (float or string)
+            top_k: Optional top_k parameter (float or string)
+            top_p: Optional top_p parameter (float or string)
+            max_tokens: Optional max_tokens parameter (int or string)
             max_retries: Optional override for the instance's max_retries setting
             
         Returns:
@@ -92,6 +96,8 @@ class BedrockClient:
             content=content,
             temperature=temperature,
             top_k=top_k,
+            top_p=top_p,
+            max_tokens=max_tokens,
             max_retries=effective_max_retries
         )
     
@@ -101,7 +107,9 @@ class BedrockClient:
         system_prompt: Union[str, List[Dict[str, str]]],
         content: List[Dict[str, Any]],
         temperature: Union[float, str] = 0.0,
-        top_k: Optional[Union[float, str]] = None,
+        top_k: Optional[Union[float, str]] = 5,
+        top_p: Optional[Union[float, str]] = 0.1,
+        max_tokens: Optional[Union[int, str]] = None,
         max_retries: Optional[int] = None
     ) -> Dict[str, Any]:
         """
@@ -112,7 +120,9 @@ class BedrockClient:
             system_prompt: The system prompt as string or list of content objects
             content: The content for the user message (can include text and images)
             temperature: The temperature parameter for model inference (float or string)
-            top_k: Optional top_k parameter for Anthropic models (float or string)
+            top_k: Optional top_k parameter (float or string)
+            top_p: Optional top_p parameter (float or string)
+            max_tokens: Optional max_tokens parameter (int or string)
             max_retries: Optional override for the instance's max_retries setting
             
         Returns:
@@ -145,22 +155,73 @@ class BedrockClient:
                 logger.warning(f"Failed to convert temperature value '{temperature}' to float. Using default 0.0")
                 temperature = 0.0
         
+        # Initialize inference config with temperature
         inference_config = {"temperature": temperature}
         
+        # Handle top_p parameter
+        if top_p is not None:
+            # Convert top_p to float if it's a string
+            if isinstance(top_p, str):
+                try:
+                    top_p = float(top_p)
+                except ValueError:
+                    logger.warning(f"Failed to convert top_p value '{top_p}' to float. Not using top_p.")
+                    top_p = None
+            
+            inference_config["topP"] = top_p
+        
+        # Handle max_tokens parameter
+        if max_tokens is not None:
+            # Convert max_tokens to int if it's a string
+            if isinstance(max_tokens, str):
+                try:
+                    max_tokens = int(max_tokens)
+                except ValueError:
+                    logger.warning(f"Failed to convert max_tokens value '{max_tokens}' to int. Not using max_tokens.")
+                    max_tokens = None
+            
+            # Add to inferenceConfig as maxTokens for Nova models
+            if max_tokens is not None and "amazon" in model_id.lower():
+                inference_config["maxTokens"] = max_tokens
+        
         # Add additional model fields if needed
-        additional_model_fields = None
-        if "anthropic" in model_id.lower() and top_k is not None:
+        additional_model_fields = {}
+        
+        # Handle top_k parameter
+        if top_k is not None:
             # Convert top_k to float if it's a string
             if isinstance(top_k, str):
                 try:
                     top_k = float(top_k)
                 except ValueError:
                     logger.warning(f"Failed to convert top_k value '{top_k}' to float. Not using top_k.")
-                    # Skip adding top_k if conversion fails
-                else:
-                    additional_model_fields = {"top_k": top_k}
-            else:
-                additional_model_fields = {"top_k": top_k}
+                    top_k = None
+        
+        # Handle model-specific parameters
+        if "anthropic" in model_id.lower():
+            # Add parameters to additionalModelRequestFields for Claude (snake_case)
+            if top_k is not None:
+                additional_model_fields["top_k"] = top_k
+            
+            # if top_p is not None:
+            #     additional_model_fields["top_p"] = top_p
+            
+            if max_tokens is not None:
+                additional_model_fields["max_tokens"] = max_tokens
+        
+        # Handle Nova-specific parameters
+        elif "amazon" in model_id.lower():
+            # For Nova models, topK should be in additionalModelRequestFields.inferenceConfig
+            if top_k is not None:
+                if additional_model_fields is None:
+                    additional_model_fields = {}
+                if "inferenceConfig" not in additional_model_fields:
+                    additional_model_fields["inferenceConfig"] = {}
+                additional_model_fields["inferenceConfig"]["topK"] = int(top_k)
+        
+        # If no additional model fields were added, set to None
+        if not additional_model_fields:
+            additional_model_fields = None
         
         # Get guardrail configuration if available
         guardrail_config = self.get_guardrail_config()
@@ -671,3 +732,21 @@ default_client = BedrockClient()
 
 # Export the default client as invoke_model for backward compatibility
 invoke_model = default_client
+
+# Add docstring to the exported function for better IDE support
+invoke_model.__doc__ = """
+Invoke a Bedrock model with retry logic.
+
+Args:
+    model_id: The Bedrock model ID (e.g., 'anthropic.claude-3-sonnet-20240229-v1:0')
+    system_prompt: The system prompt as string or list of content objects
+    content: The content for the user message (can include text and images)
+    temperature: The temperature parameter for model inference (float or string)
+    top_k: Optional top_k parameter (float or string)
+    top_p: Optional top_p parameter (float or string)
+    max_tokens: Optional max_tokens parameter (int or string)
+    max_retries: Optional override for the instance's max_retries setting
+    
+Returns:
+    Bedrock response object with metering information
+"""
