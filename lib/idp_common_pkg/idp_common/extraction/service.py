@@ -175,7 +175,13 @@ class ExtractionService:
             extraction_config = self.config.get("extraction", {})
             model_id = self.config.get("model_id") or extraction_config.get("model")
             temperature = float(extraction_config.get("temperature", 0))
-            top_k = float(extraction_config.get("top_k", 0.5))
+            top_k = float(extraction_config.get("top_k", 5))
+            top_p = float(extraction_config.get("top_p", 0.1))
+            max_tokens = (
+                int(extraction_config.get("max_tokens", 4096))
+                if extraction_config.get("max_tokens")
+                else None
+            )
             system_prompt = extraction_config.get("system_prompt", "")
 
             # Get attributes for this document class
@@ -256,6 +262,8 @@ class ExtractionService:
                 content=content,
                 temperature=temperature,
                 top_k=top_k,
+                top_p=top_p,
+                max_tokens=max_tokens,
             )
 
             total_duration = time.time() - request_start_time

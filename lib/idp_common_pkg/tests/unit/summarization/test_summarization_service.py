@@ -252,6 +252,8 @@ class TestSummarizationService:
             "system_prompt": "Test system prompt",
             "temperature": 0.0,
             "top_k": 250,
+            "top_p": 0.1,
+            "max_tokens": 5000,
         }
 
         result = service._invoke_bedrock_model(content, config)
@@ -263,6 +265,8 @@ class TestSummarizationService:
             content=content,
             temperature=config["temperature"],
             top_k=config["top_k"],
+            top_p=config["top_p"],
+            max_tokens=config["max_tokens"],
         )
 
         # Verify result
