@@ -1,6 +1,8 @@
 classification:
-  temperature: '0'
+  temperature: 0.0
   model: us.amazon.nova-pro-v1:0
+  top_p: 0.1
+  max_tokens: 4096
   system_prompt: >-
     You are a document classification expert who can analyze and classify
     multiple documents and their page boundaries within a document package from
@@ -8,7 +10,7 @@ classification:
     content and structure, using the provided document type definitions. Your
     output must be valid JSON according to the requested format.
   classificationMethod: textbasedHolisticClassification
-  top_k: '200'
+  top_k: 5
   task_prompt: >-
     The <document-text> XML tags contains the text separated into pages from the
     document package. Each page will begin with a <page-number> XML tag
@@ -261,12 +263,14 @@ classes:
           The date when the document was created. May be labeled as 'date',
           'created on', or 'issued on'.
 extraction:
-  temperature: '0'
+  temperature: 0.0
   model: us.amazon.nova-pro-v1:0
+  top_p: 0.1
+  max_tokens: 4096
   system_prompt: >
     You are a document assistant. Respond only with JSON. Never make up data,
     only provide data found in the document being provided.
-  top_k: '200'
+  top_k: 5
   task_prompt: >
     <background>
 
@@ -405,7 +409,7 @@ evaluation:
       You are an evaluator that helps determine if the predicted and expected
       values match for document attribute extraction. You will consider the
       context and meaning rather than just exact string matching.
-    top_k: '250'
+    top_k: 50
     task_prompt: >
       I need to evaluate attribute extraction for a document of class:
       {DOCUMENT_CLASS}.
@@ -440,8 +444,10 @@ evaluation:
         "reason": "Your explanation here"
       }
 summarization:
-  temperature: 0
+  temperature: 0.0
   model: us.amazon.nova-pro-v1:0
+  top_p: 0.1
+  max_tokens: 4096
   system_prompt: >-
     You are a document summarization expert who can analyze and summarize
     documents from various domains including medical, financial, legal, and
