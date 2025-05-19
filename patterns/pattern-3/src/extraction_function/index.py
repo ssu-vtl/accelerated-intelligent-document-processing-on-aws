@@ -16,7 +16,6 @@ OCR_TEXT_ONLY = os.environ.get('OCR_TEXT_ONLY', 'false').lower() == 'true'
 logger = logging.getLogger()
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 logger.setLevel(LOG_LEVEL)
-logging.getLogger('idp_common.extraction.service').setLevel(LOG_LEVEL)
 
 
 def handler(event, context):

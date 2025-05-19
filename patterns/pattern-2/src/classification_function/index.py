@@ -20,7 +20,6 @@ MAX_WORKERS = int(os.environ.get('MAX_WORKERS', 20))
 logger = logging.getLogger()
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 logger.setLevel(LOG_LEVEL)
-logging.getLogger('idp_common.classification.service').setLevel(LOG_LEVEL)
 
 
 def handler(event, context):
