@@ -18,7 +18,6 @@ CONFIG = get_config()
 logger = logging.getLogger()
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 logger.setLevel(LOG_LEVEL)
-logging.getLogger('idp_common.ocr.service').setLevel(LOG_LEVEL)
 
 # Initialize settings
 region = os.environ['AWS_REGION']
