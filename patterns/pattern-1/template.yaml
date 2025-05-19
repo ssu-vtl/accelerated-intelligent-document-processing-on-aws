@@ -190,16 +190,24 @@ Resources:
                     type: number
                     description: Sampling Top K
                     order: 3
+                  top_p:
+                    type: number
+                    description: Sampling Top P
+                    order: 4
+                  max_tokens:
+                    type: number
+                    description: Max tokens
+                    order: 5
                   system_prompt:
                     type: string
                     format: textarea
                     description: System prompt for LLM evaluation
-                    order: 4
+                    order: 6
                   task_prompt:
                     type: string
                     format: textarea
                     description: Task prompt for LLM evaluation - supports parameters {DOCUMENT_CLASS}, {ATTRIBUTE_NAME}, {ATTRIBUTE_DESCRIPTION}, {EXPECTED_VALUE} and {ACTUAL_VALUE}
-                    order: 5
+                    order: 7
           summarization:
             order: 4
             type: object
@@ -217,16 +225,24 @@ Resources:
                 type: number
                 description: Sampling Top K
                 order: 3
+              top_p:
+                type: number
+                description: Sampling Top P
+                order: 4
+              max_tokens:
+                type: number
+                description: Max tokens
+                order: 5
               system_prompt:
                 type: string
                 format: textarea
                 description: System prompt
-                order: 4
+                order: 6
               task_prompt:
                 type: string
                 format: textarea
                 description: Task prompt - supports parameter {DOCUMENT_TEXT}
-                order: 5
+                order: 7
           pricing:
             order: 5
             type: array
@@ -272,7 +288,9 @@ Resources:
           llm_method:
             model: !Ref EvaluationLLMModelId
             temperature: 0.0
-            top_k: 250
+            top_k: 5
+            top_p: 0.1
+            max_tokens: 4096
             system_prompt: |
               You are an evaluator that helps determine if the predicted and expected values match for document attribute extraction. You will consider the context and meaning rather than just exact string matching.
             task_prompt: |
@@ -298,6 +316,8 @@ Resources:
           model: !Ref SummarizationModel
           temperature: 0.0
           top_k: 5
+          top_p: 0.1
+          max_tokens: 4096
           system_prompt: |
             You are a document summarization expert who can analyze and summarize documents from various domains including medical, financial, legal, and general business documents. Your task is to create a summary that captures the key information, main points, and important details from the document. Your output must be in valid JSON format. \nSummarization Style: Balanced\\nCreate a balanced summary that provides a moderate level of detail. Include the main points and key supporting information, while maintaining the document's overall structure. Aim for a comprehensive yet concise summary.\n Your output MUST be in valid JSON format with markdown content. You MUST strictly adhere to the output format specified in the instructions.
           task_prompt: |
