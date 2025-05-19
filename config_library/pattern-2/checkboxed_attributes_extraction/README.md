@@ -10,15 +10,13 @@ This directory contains a specialized configuration for information extraction f
 
 **Level**: 1 - Basic Testing
 
-- **Testing Evidence**: This configuration has been tested on a limited set of documents, including a few sample documents from a customer engagement (not shared due to security policies), and page 7 of ["samples/rvl_cdip_package.pdf"](../../../samples/rvl_cdip_package.pdf). The latter is a questionnaire with a tabular-like layout of the sections. Each section has multiple choice questions with checkboxes.
+- **Testing Evidence**: This configuration has been tested on a limited set of documents, including page 7 of ["samples/rvl_cdip_package.pdf"](../../../samples/rvl_cdip_package.pdf) which is a questionnaire with multiple choice questions. Overall, the configuration has shown significant improvement in extraction accuracy for checkboxed attributes compared to the default configuration.
 
   - **Results on rvl_cdip_package.pdf**: Initially, using the default JSON configuration, "TABLES" and "LAYOUT" for OCR and Nova Pro (default hyperparameters) for extraction, the solution struggled to correctly identify selected options for checkbox attributes. After optimizing the attribute descriptions and extract task prompt, while maintaining all other settings, we achieved 100% extraction accuracy.
 
-  - For customer-provided samples, we further optimized the configuration to the specific use case. Depending on the complexity of the document, such as complex table layout, ambiguous tick marks spanning multiple checkboxes, we applied additional techniques on top of the baseline zero-shot prompt shared here to achieve the desired level of extraction accuracies. The techniques included advanced Textract features, advanced LLM selection for extraction, and few-shot examples with text/images.
-
 - **Known Limitations**: 
   - May require further testing on a wider variety of document types and checkbox formats
-  - Performance may vary depending on the quality of the document scan and checkbox visibility
+  - Performance may vary depending on the quality of the document scan, checkbox visibility, hand marked vs digitally marked checkboxes
 
 ## Overview
 
@@ -36,11 +34,7 @@ These descriptions explicitly mention that the attribute is a "Checkbox selectio
 
 ### 2. Document-Agnostic Guidelines
 
-The checkbox extraction guidelines have been kept generic enough to work across different document types, while the attribute descriptions provide document-specific context. This balance allows the configuration to be adaptable to various checkbox formats while still providing enough context for accurate extraction. The newly added extraction-task guidelines include:
-
-- following visual cues to identify selected options,
-
-- ways to disambiguate overlapping tick marks.
+The checkbox extraction guidelines have been kept generic enough to work across different document types, while the attribute descriptions provide document-specific context. This balance allows the configuration to be adaptable to various checkbox formats while still providing enough context for accurate extraction. The newly added extraction-task guidelines include following visual cues to identify selected options, ways to disambiguate overlapping tick marks.
 
 ## Customization Guidance
 
@@ -54,11 +48,11 @@ The configuration provided here offers a generic baseline prompt for checkboxed 
 
 3. For even higher extraction accuracy, consider using:
 
-  - more advanced Textract features like "FORMS" or a combination of "TABLES" and "FORMS",
+  - more advanced Textract features such as "FORMS", or a combination of "TABLES" and "FORMS",
 
   - more sophisticated LLMs. 
   
-Note that while these can potentially improve accuracy, they will also increase costs.
+  Note that while these can potentially improve accuracy, they will also increase costs.
 
 ## Sample Documents
 
@@ -66,4 +60,5 @@ We recommend testing this configuration on page 7 of ["samples/rvl_cdip_package.
 
 ## Contributors
 Priyashree Roy (@priyalex)
+
 Nivedha Balakrishnan (@nivibkr)
