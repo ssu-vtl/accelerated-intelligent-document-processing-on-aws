@@ -17,7 +17,6 @@ CONFIG = get_config()
 logger = logging.getLogger()
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 logger.setLevel(LOG_LEVEL)
-logging.getLogger('idp_common.summarization.service').setLevel(LOG_LEVEL)
 
 def handler(event, context):
     """
