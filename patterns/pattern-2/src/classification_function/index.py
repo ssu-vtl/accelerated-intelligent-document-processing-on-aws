@@ -18,8 +18,9 @@ region = os.environ['AWS_REGION']
 MAX_WORKERS = int(os.environ.get('MAX_WORKERS', 20))
 
 logger = logging.getLogger()
-logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
-# Get LOG_LEVEL from environment variable with INFO as default
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+logger.setLevel(LOG_LEVEL)
+logging.getLogger('idp_common.classification.service').setLevel(LOG_LEVEL)
 
 
 def handler(event, context):
