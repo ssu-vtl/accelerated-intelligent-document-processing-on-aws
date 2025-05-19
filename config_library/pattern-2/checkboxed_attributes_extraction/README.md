@@ -10,11 +10,11 @@ This directory contains a specialized configuration for information extraction f
 
 **Level**: 1 - Basic Testing
 
-- **Testing Evidence**: This configuration has been tested on a limited set of documents, including a few sample documents from a customer engagement, and page 7 of ["samples/rvl_cdip_package.pdf"](../../samples/rvl_cdip_package.pdf). The latter is a questionnaire with a tabular-like layout of the sections. Each section has multiple choice questions with checkboxes.
+- **Testing Evidence**: This configuration has been tested on a limited set of documents, including a few sample documents from a customer engagement (not shared due to security policies), and page 7 of ["samples/rvl_cdip_package.pdf"](../../../samples/rvl_cdip_package.pdf). The latter is a questionnaire with a tabular-like layout of the sections. Each section has multiple choice questions with checkboxes.
 
-**Results on rvl_cdip_package.pdf**: Initially, using the default JSON configuration, "TABLES" and "LAYOUT" for OCR and Nova Pro (default hyperparameters) for extraction, the solution struggled to correctly identify selected options for checkbox attributes. After optimizing the attribute descriptions and extract task prompt, while maintaining all other settings, we achieved 100% extraction accuracy.
+  - **Results on rvl_cdip_package.pdf**: Initially, using the default JSON configuration, "TABLES" and "LAYOUT" for OCR and Nova Pro (default hyperparameters) for extraction, the solution struggled to correctly identify selected options for checkbox attributes. After optimizing the attribute descriptions and extract task prompt, while maintaining all other settings, we achieved 100% extraction accuracy.
 
-For customer-provided samples (not shared due to security policies), we further optimized the configuration to the specific use case. By combining advanced Textract features, advanced LLM selection for extraction, and few-shot examples with text/images, we attained the desired extraction accuracies.
+  - For customer-provided samples, we further optimized the configuration to the specific use case. Depending on the complexity of the document, such as complex table layout, ambiguous tick marks spanning multiple checkboxes, we applied additional techniques on top of the baseline zero-shot prompt shared here to achieve the desired level of extraction accuracies. The techniques included advanced Textract features, advanced LLM selection for extraction, and few-shot examples with text/images.
 
 - **Known Limitations**: 
   - May require further testing on a wider variety of document types and checkbox formats
@@ -22,7 +22,7 @@ For customer-provided samples (not shared due to security policies), we further 
 
 ## Overview
 
-The Checkboxed Attributes Extraction configuration is designed to accurately extract information from documents containing checkbox-based attributes, such as satisfaction surveys, questionnaires, and forms with multiple-choice selections. This configuration addresses the challenge of correctly identifying which checkboxes are selected in a document. This solution provides zero-shot optimized guidelines, and attribute descriptions for accurate checkbox detection and data extraction.
+The Checkboxed Attributes Extraction configuration is designed to accurately extract information from documents containing checkbox-based attributes, such as satisfaction surveys, questionnaires, and forms with multiple-choice selections. This configuration addresses the challenge of correctly identifying which checkboxes are selected in a document. This solution provides zero-shot optimized task guidelines for checkboxes that is document-agnostic, and attribute descriptions for accurate checkbox detection and data extraction.
 
 ## Key Differences from Default Configuration
 
