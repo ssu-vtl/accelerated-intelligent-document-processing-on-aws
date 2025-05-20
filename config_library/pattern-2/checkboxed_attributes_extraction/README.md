@@ -40,7 +40,7 @@ These descriptions explicitly mention that the attribute is a "Checkbox selectio
 
 ### 2. Document-Agnostic Guidelines
 
-The checkbox extraction guidelines have been kept generic enough to work across different document types, while the attribute descriptions provide document-specific context. This balance allows the configuration to be adaptable to various checkbox formats while still providing enough context for accurate extraction. The newly added extraction-task guidelines include following visual cues to identify selected options, ways to disambiguate overlapping tick marks.
+The checkbox extraction guidelines have been kept generic enough to work across different document types, while the attribute descriptions provide document-specific context. This balance allows the configuration to be adaptable to various checkbox formats while still providing enough context for accurate extraction. The newly added extraction-task guidelines include following visual cues to identify selected options and ways to disambiguate overlapping tick marks.
 
 ## Customization Guidance
 
@@ -48,15 +48,15 @@ The checkbox extraction guidelines have been kept generic enough to work across 
 
   - Maintain the "Checkbox selection" indicator in the descriptions to help the model identify these as checkbox attributes
 
-2. (Optional) If zero-shot prompting with the supplied guidelines for checkboxes doesn't yield the desired extraction accuracy, incorporate few-shot examples of text or images with corresponding ground truth in the extraction task prompt. Be mindful of input token limits when adding few-shot examples.
+2. (Optional) If zero-shot prompting with the supplied guidelines for checkboxes doesn't yield the desired extraction accuracy, incorporate few-shot examples of text or images with the corresponding expected output JSON in the extraction task prompt. Be mindful of input token limits when adding few-shot examples.
 
 3. (Optional) For even higher extraction accuracy, consider using:
 
-  - more advanced Textract features such as "FORMS", or a combination of "TABLES" and "FORMS",
+  - more advanced Textract features such as "FORMS" or a combination of "TABLES" and "FORMS",
 
   - more sophisticated LLMs. 
   
-  **Note** that while these can potentially improve accuracy, they will also increase costs.
+    **Note** that while these can potentially improve accuracy, they will also increase costs.
 
 ## Sample Documents
 
