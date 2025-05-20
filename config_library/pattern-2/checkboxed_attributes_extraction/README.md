@@ -26,7 +26,7 @@ This directory contains a specialized configuration for information extraction o
 
 ## Overview
 
-The Checkboxed Attributes Extraction configuration is designed to accurately extract information from documents containing checkbox-based attributes, such as satisfaction surveys, questionnaires, and forms with multiple-choice selections. This configuration addresses the challenge of correctly identifying which checkboxes are selected in a document. This solution provides zero-shot optimized task guidelines for checkboxes that is document-agnostic, and attribute descriptions for accurate checkbox detection and data extraction.
+The Checkboxed Attributes Extraction configuration is designed to accurately extract information from documents containing checkbox-based attributes, such as satisfaction surveys, questionnaires, and forms with multiple-choice selections. This configuration addresses the challenge of correctly identifying which checkboxes are selected in a document. This solution provides zero-shot optimized task guidelines for checkboxes that are document-agnostic, and attribute descriptions for accurate checkbox detection and data extraction.
 
 ## Key Differences from Default Configuration
 
@@ -52,9 +52,9 @@ The checkbox extraction guidelines have been kept generic enough to work across 
 
 3. (Optional) For even higher extraction accuracy, consider using:
 
-  - more advanced Textract features such as "FORMS" or a combination of "TABLES" and "FORMS",
+  - More advanced Textract features such as "FORMS" or a combination of "TABLES" and "FORMS"
 
-  - more sophisticated LLMs. 
+  - More sophisticated LLMs
   
     **Note** that while these can potentially improve accuracy, they will also increase costs.
 
