@@ -363,7 +363,7 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, o
         evaluationReportUri={item.evaluationReportUri}
         summaryReportUri={item.summaryReportUri}
       />
-      <SectionsPanel sections={item.sections} />
+      <SectionsPanel sections={item.sections} pages={item.pages} documentItem={item} />
       <PagesPanel pages={item.pages} />
     </SpaceBetween>
   );

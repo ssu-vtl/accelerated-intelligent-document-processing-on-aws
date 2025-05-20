@@ -7,12 +7,17 @@ import FileViewer from '../document-viewer/JSONViewer';
 const IdCell = ({ item }) => <span>{item.Id}</span>;
 const ClassCell = ({ item }) => <span>{item.Class}</span>;
 const PageIdsCell = ({ item }) => <span>{item.PageIds.join(', ')}</span>;
-const ActionsCell = ({ item }) => (
-  <FileViewer fileUri={item.OutputJSONUri} fileType="json" buttonText="View/Edit Data" />
+const ActionsCell = ({ item, pages, documentItem }) => (
+  <FileViewer
+    fileUri={item.OutputJSONUri}
+    fileType="json"
+    buttonText="View/Edit Data"
+    sectionData={{ ...item, pages, documentItem }}
+  />
 );
 
 // Column definitions
-const COLUMN_DEFINITIONS = [
+const createColumnDefinitions = (pages, documentItem) => [
   {
     id: 'id',
     header: 'Section ID',
@@ -42,19 +47,16 @@ const COLUMN_DEFINITIONS = [
   {
     id: 'actions',
     header: 'Actions',
-    cell: (item) => <ActionsCell item={item} />,
+    cell: (item) => <ActionsCell item={item} pages={pages} documentItem={documentItem} />,
     minWidth: 400,
     width: 400,
     isResizable: true,
   },
 ];
 
-const SectionsPanel = ({ sections }) => {
+const SectionsPanel = ({ sections, pages, documentItem }) => {
   // Create column definitions
-  const columnDefinitions = COLUMN_DEFINITIONS.map((column) => ({
-    ...column,
-    cell: (item) => column.cell(item),
-  }));
+  const columnDefinitions = createColumnDefinitions(pages, documentItem);
 
   return (
     <SpaceBetween size="l">
