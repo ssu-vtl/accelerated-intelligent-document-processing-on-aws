@@ -46,21 +46,21 @@ The checkbox extraction guidelines have been kept generic enough to work across 
 
 1. (Required) Modify the attribute descriptions in the config.json file to match the specific checkbox formats and options.
 
-  - Maintain the "Checkbox selection" indicator in the descriptions to help the model identify these as checkbox attributes
+    - Maintain the "Checkbox selection" indicator in the descriptions to help the model identify these as checkbox attributes
 
 2. (Optional) If zero-shot prompting with the supplied guidelines for checkboxes doesn't yield the desired extraction accuracy, incorporate few-shot examples of text or images with the corresponding expected output JSON in the extraction task prompt. Be mindful of input token limits when adding few-shot examples.
 
 3. (Optional) For even higher extraction accuracy, consider using:
 
-  - More advanced Textract features such as "FORMS" or a combination of "TABLES" and "FORMS"
+    - More advanced Textract features such as "FORMS" or a combination of "TABLES" and "FORMS"
 
-  - More sophisticated LLMs
-  
+    - More sophisticated LLMs
+    
     **Note** that while these can potentially improve accuracy, they will also increase costs.
 
 ## Sample Documents
 
-The configuration has been tested on page 7 of ["samples/rvl_cdip_package.pdf"](../../../samples/rvl_cdip_package.pdf). The results are shared above under the "Validation Level" section.
+The configuration has been tested on page 7 of ["samples/rvl_cdip_package.pdf"](../../../samples/rvl_cdip_package.pdf). The results are shared above in the **"Validation Level"** section.
 
 *This config was also tested on a limited set of customer samples (not shareable due to security policies).*
 
