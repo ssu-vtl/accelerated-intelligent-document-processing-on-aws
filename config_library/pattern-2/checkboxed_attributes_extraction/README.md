@@ -20,6 +20,7 @@ This directory contains a specialized configuration for information extraction f
 
   <p align="center"><small>Fig 1: Checkbox extraction results comparison showing improved accuracy with optimized configuration vs default settings. Both configurations used "TABLES" and "LAYOUT" for OCR and Nova Pro (default hyperparameters) for extraction.</small></p>
 
+- **Known Limitations**
   - May require further testing on a wider variety of document types and checkbox formats
   - Performance may vary depending on the quality of the document scan, checkbox visibility, hand marked vs digitally marked checkboxes
 
