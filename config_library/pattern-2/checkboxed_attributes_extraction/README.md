@@ -16,7 +16,7 @@ This directory contains a specialized configuration for information extraction f
 
 [Input document with checkboxes (Page 7 of rvl_cdip_package.pdf)](images/rvl_cdip_pack_pg_7.png)
 
-<div style="display: flex; justify-content: space-between;">
+<!-- <div style="display: flex; justify-content: space-between;">
   <figure>
     <img src="images/kie_checkbox_pre.png" alt="Before prompt optimization" width="400">
     <figcaption>Before</figcaption>
@@ -25,7 +25,22 @@ This directory contains a specialized configuration for information extraction f
     <img src="images/kie_checkbox_post.png" alt="After prompt optimization" width="400">
     <figcaption>After</figcaption>
   </figure>
+</div> -->
+
+<div style="display: flex; justify-content: space-between; gap: 20px;">
+
+  <figure style="text-align: center; flex: 1;">
+    <figcaption style="font-weight: bold; text-align: center; margin-bottom: 8px;">Before</figcaption>
+    <img src="images/kie_checkbox_pre.png" alt="Before prompt optimization" style="width: 100%; max-width: 400px;">
+  </figure>
+
+  <figure style="text-align: center; flex: 1;">
+    <figcaption style="font-weight: bold; text-align: center; margin-bottom: 8px;">After</figcaption>
+    <img src="images/kie_checkbox_post.png" alt="After prompt optimization" style="width: 100%; max-width: 400px;">
+  </figure>
+
 </div>
+
 
 - **Known Limitations**: 
   - May require further testing on a wider variety of document types and checkbox formats
