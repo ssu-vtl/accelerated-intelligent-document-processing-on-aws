@@ -60,7 +60,9 @@ The checkbox extraction guidelines have been kept generic enough to work across 
 
 ## Sample Documents
 
-We recommend testing this configuration on page 7 of ["samples/rvl_cdip_package.pdf"](../../samples/rvl_cdip_package.pdf). This document features a questionnaire with a tabular-like layout of sections, each containing multiple-choice questions with checkboxes. The prompt-optimized configuration, together with "TABLES" and "LAYOUT" for OCR and Nova Pro (default hyperparameters) for extraction, achieved 100% extraction accuracy for checkbox attributes. This marks a significant improvement over the default configuration, which struggled to correctly identify selected options.
+The configuration has been tested on page 7 of ["samples/rvl_cdip_package.pdf"](../../../samples/rvl_cdip_package.pdf). The results are shared above under the "Validation Level" section.
+
+*This config was also tested on a limited set of customer samples (not shareable due to security policies).*
 
 ## Contributors
 Priyashree Roy (@priyalex)
