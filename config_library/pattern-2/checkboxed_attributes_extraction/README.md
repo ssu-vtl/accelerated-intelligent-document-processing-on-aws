@@ -16,14 +16,13 @@ This directory contains a specialized configuration for information extraction f
 
 [Input document with checkboxes (Page 7 of rvl_cdip_package.pdf)](images/rvl_cdip_pack_pg_7.png)
 
-
 <div style="display: flex; justify-content: space-between;">
   <figure>
-    <img src="images/kie_checkbox_pre.png" alt="Before prompt optimization">
+    <img src="images/kie_checkbox_pre.png" alt="Before prompt optimization" width="400">
     <figcaption>Before</figcaption>
   </figure>
   <figure>
-    <img src="images/kie_checkbox_post.png" alt="After prompt optimization">
+    <img src="images/kie_checkbox_post.png" alt="After prompt optimization" width="400">
     <figcaption>After</figcaption>
   </figure>
 </div>
