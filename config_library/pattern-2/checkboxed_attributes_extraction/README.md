@@ -18,14 +18,18 @@ This directory contains a specialized configuration for information extraction f
 
 <div style="display: flex; justify-content: space-between;">
   <figure>
-    <img src="images/kie_checkbox_pre.png" alt="Before prompt optimization" width="200">
+    <img src="images/kie_checkbox_pre.png" alt="Before prompt optimization" width="800">
     <figcaption>Before</figcaption>
   </figure>
   <figure>
-    <img src="images/kie_checkbox_post.png" alt="After prompt optimization" width="200">
+    <img src="images/kie_checkbox_post.png" alt="After prompt optimization" width="800">
     <figcaption>After</figcaption>
   </figure>
 </div>
+
+| **Before** | **After** |
+|:----------:|:---------:|
+| ![Before prompt optimization](images/kie_checkbox_pre.png) | ![After prompt optimization](images/kie_checkbox_post.png) |
 
 
 - **Known Limitations**: 
