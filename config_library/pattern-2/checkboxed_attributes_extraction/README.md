@@ -14,12 +14,20 @@ This directory contains a specialized configuration for information extraction f
 
   - **Results on rvl_cdip_package.pdf**: Initially, using the default JSON configuration, "TABLES" and "LAYOUT" for OCR and Nova Pro (default hyperparameters) for extraction, the solution struggled to correctly identify selected options for checkbox attributes. After optimizing the attribute descriptions and extract task prompt, while maintaining all other settings, we achieved 100% extraction accuracy, as is evident from the images shown below.
 
-  ![Original Document With Checkboxes (Page 7 of rvl_cdip_package.pdf](images/rvl_cdip_package_pg_7.pdf)
+  ```markdown
+![Original Document With Checkboxes (Page 7 of rvl_cdip_package.pdf)](images/rvl_cdip_pack_pg_7.png)
 
-  ![Extraction Output Before Prompt Optimization](images/kie_checkbox_pre.png)
-
-  ![Extraction Output After Prompt Optimization for Checkboxes](images/kie_checkbox_post.png)
-
+<div style="display: flex; justify-content: space-between;">
+  <figure>
+    <img src="images/kie_checkbox_pre.png" alt="Before prompt optimization">
+    <figcaption>Before</figcaption>
+  </figure>
+  <figure>
+    <img src="images/kie_checkbox_post.png" alt="After prompt optimization">
+    <figcaption>After</figcaption>
+  </figure>
+</div>
+```
 - **Known Limitations**: 
   - May require further testing on a wider variety of document types and checkbox formats
   - Performance may vary depending on the quality of the document scan, checkbox visibility, hand marked vs digitally marked checkboxes
