@@ -12,7 +12,13 @@ This directory contains a specialized configuration for information extraction f
 
 - **Testing Evidence**: This configuration has been tested on a limited set of documents, including page 7 of ["samples/rvl_cdip_package.pdf"](../../../samples/rvl_cdip_package.pdf) which is a questionnaire with multiple choice questions. Overall, the configuration has shown significant improvement in extraction accuracy for checkboxed attributes compared to the default configuration.
 
-  - **Results on rvl_cdip_package.pdf**: Initially, using the default JSON configuration, "TABLES" and "LAYOUT" for OCR and Nova Pro (default hyperparameters) for extraction, the solution struggled to correctly identify selected options for checkbox attributes. After optimizing the attribute descriptions and extract task prompt, while maintaining all other settings, we achieved 100% extraction accuracy.
+  - **Results on rvl_cdip_package.pdf**: Initially, using the default JSON configuration, "TABLES" and "LAYOUT" for OCR and Nova Pro (default hyperparameters) for extraction, the solution struggled to correctly identify selected options for checkbox attributes. After optimizing the attribute descriptions and extract task prompt, while maintaining all other settings, we achieved 100% extraction accuracy, as is evident from the images shown below.
+
+  ![Original Document With Checkboxes (Page 7 of rvl_cdip_package.pdf](images/rvl_cdip_package_pg_7.pdf)
+
+  ![Extraction Output Before Prompt Optimization](images/kie_checkbox_pre.png)
+
+  ![Extraction Output After Prompt Optimization for Checkboxes](images/kie_checkbox_post.png)
 
 - **Known Limitations**: 
   - May require further testing on a wider variety of document types and checkbox formats
@@ -38,21 +44,19 @@ The checkbox extraction guidelines have been kept generic enough to work across 
 
 ## Customization Guidance
 
-The configuration provided here offers a generic baseline prompt for checkboxed attributes. While this has shown promising results on a limited set of sample documents, one may need to further customize this configuration for their specific checkbox documents:
-
-1. Modify the attribute descriptions in the config.json file to match the specific checkbox formats and options.
+1. (Required) Modify the attribute descriptions in the config.json file to match the specific checkbox formats and options.
 
   - Maintain the "Checkbox selection" indicator in the descriptions to help the model identify these as checkbox attributes
 
-2. If zero-shot prompting doesn't yield the desired extraction accuracy, incorporate few-shot examples of text or images with corresponding ground truth in the extraction task prompt. Be mindful of input token limits when adding few-shot examples.
+2. (Optional) If zero-shot prompting with the supplied guidelines for checkboxes doesn't yield the desired extraction accuracy, incorporate few-shot examples of text or images with corresponding ground truth in the extraction task prompt. Be mindful of input token limits when adding few-shot examples.
 
-3. For even higher extraction accuracy, consider using:
+3. (Optional) For even higher extraction accuracy, consider using:
 
   - more advanced Textract features such as "FORMS", or a combination of "TABLES" and "FORMS",
 
   - more sophisticated LLMs. 
   
-  Note that while these can potentially improve accuracy, they will also increase costs.
+  **Note** that while these can potentially improve accuracy, they will also increase costs.
 
 ## Sample Documents
 
