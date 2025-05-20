@@ -14,17 +14,12 @@ This directory contains a specialized configuration for information extraction f
 
   - **Results on rvl_cdip_package.pdf**: Initially, using the default JSON configuration, "TABLES" and "LAYOUT" for OCR and Nova Pro (default hyperparameters) for extraction, the solution struggled to correctly identify selected options for checkbox attributes. After optimizing the attribute descriptions and extract task prompt, while maintaining all other settings, we achieved 100% extraction accuracy, as is evident from the images shown below.
 
-**Input Document
-[Input document with checkboxes (Page 7 of rvl_cdip_package.png)](images/rvl_cdip_pack_pg_7.png)
-Figure 1: Sample page from rvl_cdip_package.pdf showing a questionnaire with checkbox-based attributes used for testing the extraction configuration.
-
-
 | **Extraction With Default Configuration** | **Extraction With The New Configuration** |
 |:----------:|:---------:|
 | ![Before](images/kie_checkbox_pre.png) | ![After](images/kie_checkbox_post.png) |
 
-Figure 2: Comparison of checkbox attribute extraction results between default and optimized configurations. The left image shows extraction results using default configuration, while the right image demonstrates improved accuracy with the new checkbox-optimized configuration. Both configurations used "TABLES" and "LAYOUT" for OCR and Nova Pro (default hyperparameters) for extraction.
- 
+<p align="center">Figure 2: Comparison of checkbox attribute extraction results between default and optimized configurations. The input document was a questionaire provided on page 7 of ["samples/rvl_cdip_package.pdf"](../../../samples/rvl_cdip_package.pdf). The left image shows extraction results using default configuration, while the right image demonstrates improved accuracy with the new checkbox-optimized configuration. Both configurations used "TABLES" and "LAYOUT" for OCR and Nova Pro (default hyperparameters) for extraction.</p>
+
 - **Known Limitations**: 
   - May require further testing on a wider variety of document types and checkbox formats
   - Performance may vary depending on the quality of the document scan, checkbox visibility, hand marked vs digitally marked checkboxes
