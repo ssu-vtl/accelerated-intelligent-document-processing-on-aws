@@ -15,6 +15,7 @@ import { API, Logger } from 'aws-amplify';
 import { Editor } from '@monaco-editor/react';
 import getFileContents from '../../graphql/queries/getFileContents';
 import uploadDocument from '../../graphql/queries/uploadDocument';
+import VisualEditor from './VisualEditor';
 
 const logger = new Logger('FileEditor');
 
@@ -299,7 +300,7 @@ const TextEditorView = ({ fileContent, onChange, isReadOnly, fileType }) => {
   );
 };
 
-const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = 'text' }) => {
+const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = 'text', sectionData }) => {
   const [isValid, setIsValid] = useState(true);
   const [jsonData, setJsonData] = useState(null);
   const [viewMode, setViewMode] = useState(fileType === 'markdown' ? 'markdown' : 'form');
@@ -374,6 +375,7 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
             options={[
               { id: 'form', text: 'Form View' },
               { id: 'text', text: 'Text View' },
+              { id: 'visual', text: 'Visual Edit' },
             ]}
           />
 
@@ -388,6 +390,16 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
       {isValid && fileType === 'json' ? (
         viewMode === 'form' ? (
           <FormEditorView jsonData={jsonData} onChange={handleFormChange} isReadOnly={isReadOnly} />
+        ) : viewMode === 'visual' ? (
+          <VisualEditor
+            jsonData={jsonData}
+            onChange={handleFormChange}
+            isReadOnly={isReadOnly}
+            sectionData={{
+              ...sectionData,
+              documentItem: sectionData?.documentItem || sectionData?.item,
+            }}
+          />
         ) : (
           <TextEditorView
             fileContent={typeof fileContent === 'string' ? fileContent : JSON.stringify(jsonData, null, 2)}
@@ -408,7 +420,7 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
   );
 };
 
-const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) => {
+const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File', sectionData }) => {
   const [fileContent, setFileContent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -589,6 +601,7 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) =>
               onChange={handleContentChange}
               isReadOnly={!isEditing}
               fileType={fileType}
+              sectionData={sectionData}
             />
           </div>
         </SpaceBetween>
