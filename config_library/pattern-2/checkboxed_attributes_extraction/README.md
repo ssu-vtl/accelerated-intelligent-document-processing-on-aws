@@ -31,12 +31,12 @@ This directory contains a specialized configuration for information extraction f
 
   <figure style="text-align: center; flex: 1;">
     <figcaption style="font-weight: bold; text-align: center; margin-bottom: 8px;">Before</figcaption>
-    <img src="images/kie_checkbox_pre.png" alt="Before prompt optimization" style="width: 50%; max-width: 400px;">
+    <img src="images/kie_checkbox_pre.png" alt="Before prompt optimization" style="width: 50%; max-width: 200px;">
   </figure>
 
   <figure style="text-align: center; flex: 1;">
     <figcaption style="font-weight: bold; text-align: center; margin-bottom: 8px;">After</figcaption>
-    <img src="images/kie_checkbox_post.png" alt="After prompt optimization" style="width: 50%; max-width: 400px;">
+    <img src="images/kie_checkbox_post.png" alt="After prompt optimization" style="width: 50%; max-width: 200px;">
   </figure>
 
 </div>
