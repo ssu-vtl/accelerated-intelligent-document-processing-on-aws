@@ -55,6 +55,8 @@ The checkbox extraction guidelines have been kept generic enough to work across 
     - More advanced Textract features such as "FORMS" or a combination of "TABLES" and "FORMS"
 
     - More sophisticated LLMs
+
+    - Occasionally, high detailed descriptions (which includes instructions) in addition to the task instructions can mislead the LLM in selecting checkboxes. If this is the case, try a more generalized entity description while maintaing the "checkbox selection" indicator. 
     
     **Note** that while these can potentially improve accuracy, they will also increase costs.
 
