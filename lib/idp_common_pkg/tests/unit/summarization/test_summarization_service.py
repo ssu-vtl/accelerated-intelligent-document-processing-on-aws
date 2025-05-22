@@ -358,7 +358,9 @@ class TestSummarizationService:
         mock_merge_metering.return_value = {"input_tokens": 100, "output_tokens": 50}
 
         # Process section
-        result = service.process_document_section(sample_document, "1")
+        result, section_metering = service.process_document_section(
+            sample_document, "1"
+        )
 
         # Verify get_text_content was called for each page
         assert mock_get_text_content.call_count == 2
@@ -379,9 +381,8 @@ class TestSummarizationService:
         assert "summary_uri" in section.attributes
         assert "summary_md_uri" in section.attributes
 
-        # Verify document metering was updated
-        assert result.metering["input_tokens"] == 100
-        assert result.metering["output_tokens"] == 50
+        # Verify section metering data was returned
+        assert section_metering == {"input_tokens": 100, "output_tokens": 50}
 
     @patch("idp_common.s3.get_text_content")
     def test_process_document_section_no_pages(
@@ -394,7 +395,9 @@ class TestSummarizationService:
                 section.page_ids = []
 
         # Process section
-        result = service.process_document_section(sample_document, "1")
+        result, section_metering = service.process_document_section(
+            sample_document, "1"
+        )
 
         # Verify get_text_content was not called
         mock_get_text_content.assert_not_called()
@@ -402,19 +405,27 @@ class TestSummarizationService:
         # Verify error was added
         assert "Section 1 has no page IDs" in result.errors
 
+        # Verify empty metering data was returned for error case
+        assert section_metering == {}
+
     @patch("idp_common.s3.get_text_content")
     def test_process_document_section_invalid_section(
         self, mock_get_text_content, service, sample_document
     ):
         """Test processing an invalid document section."""
         # Process non-existent section
-        result = service.process_document_section(sample_document, "999")
+        result, section_metering = service.process_document_section(
+            sample_document, "999"
+        )
 
         # Verify get_text_content was not called
         mock_get_text_content.assert_not_called()
 
         # Verify error was added
         assert "Section 999 not found in document" in result.errors
+
+        # Verify empty metering data was returned for error case
+        assert section_metering == {}
 
     @patch("concurrent.futures.ThreadPoolExecutor")
     @patch("idp_common.s3.get_json_content")
@@ -436,18 +447,20 @@ class TestSummarizationService:
         future1 = MagicMock()
         future2 = MagicMock()
 
-        # Configure the futures to return updated documents
+        # Configure the futures to return (document, metering) tuples
         doc1 = sample_document
         doc1.sections[0].attributes = {
             "summary_uri": "s3://output-bucket/test-document.pdf/sections/1/summary.json"
         }
-        future1.result.return_value = doc1
+        section1_metering = {"input_tokens": 100, "output_tokens": 50}
+        future1.result.return_value = (doc1, section1_metering)
 
         doc2 = sample_document
         doc2.sections[1].attributes = {
             "summary_uri": "s3://output-bucket/test-document.pdf/sections/2/summary.json"
         }
-        future2.result.return_value = doc2
+        section2_metering = {"input_tokens": 150, "output_tokens": 75}
+        future2.result.return_value = (doc2, section2_metering)
 
         # Configure the executor to return the futures
         mock_executor_instance.submit.side_effect = [future1, future2]
