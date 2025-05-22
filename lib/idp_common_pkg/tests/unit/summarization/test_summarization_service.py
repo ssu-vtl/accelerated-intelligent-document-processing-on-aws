@@ -127,7 +127,7 @@ class TestSummarizationService:
 
         assert config["model_id"] == "anthropic.claude-3-sonnet-20240229-v1:0"
         assert config["temperature"] == 0.0
-        assert config["top_k"] == 250.0
+        assert config["top_k"] == 5.0
         assert "You are a helpful assistant" in config["system_prompt"]
         assert "Please summarize" in config["task_prompt"]
 
