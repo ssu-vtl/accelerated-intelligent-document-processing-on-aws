@@ -88,7 +88,7 @@ class TestEvaluationService:
                 "llm_method": {
                     "model": "anthropic.claude-3-sonnet-20240229-v1:0",
                     "temperature": 0.0,
-                    "top_k": 250,
+                    "top_k": 5,
                     "system_prompt": "You are an evaluator that helps determine if values match.",
                     "task_prompt": "Compare {EXPECTED_VALUE} and {ACTUAL_VALUE} for {ATTRIBUTE_NAME}.",
                 }
@@ -142,7 +142,7 @@ class TestEvaluationService:
         assert service.max_workers == 5
         assert service.default_model == "anthropic.claude-3-sonnet-20240229-v1:0"
         assert service.default_temperature == 0.0
-        assert service.default_top_k == 250
+        assert service.default_top_k == 5
         assert "You are an evaluator" in service.default_system_prompt
         assert "Compare" in service.default_task_prompt
 
