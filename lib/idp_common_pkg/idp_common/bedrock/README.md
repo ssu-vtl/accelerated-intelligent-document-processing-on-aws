@@ -70,6 +70,82 @@ embedding = client.generate_embedding(
 # Use embedding for vector search, clustering, etc.
 ```
 
+## Prompt Caching with CachePoint
+
+Prompt caching is a powerful feature in Amazon Bedrock that significantly reduces response latency for workloads with repetitive contexts. The Bedrock client provides built-in support for this via the `<<CACHEPOINT>>` tag.
+
+### Using CachePoint in Your Prompts
+
+To implement prompt caching, insert the `<<CACHEPOINT>>` tag in your text content to indicate where caching boundaries should occur:
+
+```python
+from idp_common.bedrock.client import BedrockClient
+
+client = BedrockClient()
+
+# Content with cachepoint tags
+content = [
+    {
+        "text": """This is static context that doesn't change between requests. 
+        It could include model instructions, few shot examples, etc.
+        <<CACHEPOINT>>
+        This is dynamic content that changes with each request.
+        """
+    }
+]
+
+response = client.invoke_model(
+    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+    system_prompt="You are a helpful assistant.",
+    content=content,
+    temperature=0.0
+)
+```
+
+### How CachePoint Works
+
+When the `invoke_model` method processes your content:
+
+1. It detects any text elements containing the `<<CACHEPOINT>>` tag
+2. The text is split at each tag location
+3. The client inserts a `{"cachePoint": {"type": "default"}}` element between the split text parts
+4. The resulting message structure enables Bedrock to cache the preceding content
+
+### Multiple CachePoints and Mixed Content
+
+You can use multiple cachepoints in a single prompt and combine them with other content types:
+
+```python
+content = [
+    {"text": "Static instructions for document processing<<CACHEPOINT>>"},
+    {"image": {"url": "s3://bucket/document.png"}},
+    {"text": "Static analysis guidelines<<CACHEPOINT>>Dynamic query about the document"}
+]
+```
+
+### Benefits of Prompt Caching
+
+- **Faster Response Times**: Avoid reprocessing the same context repeatedly
+- **Reduced TTFT**: Time-To-First-Token is significantly lower for subsequent requests
+- **Cost Efficiency**: Potentially lower token usage by avoiding redundant processing
+
+> **NOTE**: To effectively use Prompt Caching, there is a [minimum number of tokens](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-caching.html#prompt-caching-models) for the cache.
+
+### Debugging CachePoint Processing
+
+The Bedrock client includes detailed debug logging for cachepoint processing:
+
+```python
+import logging
+logging.getLogger('idp_common.bedrock.client').setLevel(logging.DEBUG)
+
+# Now invoke_model calls will log detailed cachepoint processing information
+# including word counts and split points in the content
+```
+
+### Example CachePoint Processing
+See notebook [Bedrock Client Prompt Cache Testing Notebook](../../../../notebooks/bedrock_client_cachepoint_test.ipynb)
+
 ## Helper Methods
 
 The BedrockClient provides useful utilities for common tasks:
