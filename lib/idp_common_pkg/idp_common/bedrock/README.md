@@ -17,7 +17,7 @@ response = invoke_model(
     system_prompt="You are a helpful assistant.",
     content=[{"text": "What are the main features of AWS Bedrock?"}],
     temperature=0.0,
-    top_k=250
+    top_k=5
 )
 
 # Process the response

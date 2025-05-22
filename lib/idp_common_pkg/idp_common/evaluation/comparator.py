@@ -614,7 +614,7 @@ def compare_llm(
         config = llm_config or {}
         model = config.get("model", "us.anthropic.claude-3-sonnet-20240229-v1:0")
         temperature = config.get("temperature", 0.0)
-        top_k = config.get("top_k", 250)
+        top_k = config.get("top_k", 5)
 
         # Get system and task prompts from config or use defaults
         system_prompt = config.get(
