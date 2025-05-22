@@ -151,7 +151,7 @@ class TestClassificationService:
 
         assert config["model_id"] == "anthropic.claude-3-sonnet-20240229-v1:0"
         assert config["temperature"] == 0.0
-        assert config["top_k"] == 0.5
+        assert config["top_k"] == 5.0
         assert config["system_prompt"] == "You are a document classification assistant."
         assert "Classify the following document text" in config["task_prompt"]
 
