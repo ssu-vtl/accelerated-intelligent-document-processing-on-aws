@@ -6,11 +6,12 @@ This module provides a service for summarizing documents using various backends:
 """
 
 import concurrent.futures
+import copy
 import json
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from idp_common import bedrock, s3, utils
 from idp_common.models import Document, Status
@@ -308,7 +309,7 @@ class SummarizationService:
             logger.error(f"Error summarizing text: {str(e)}")
             return self._create_error_summary(str(e))
 
-    def process_document_section(self, document: Document, section_id: str) -> Document:
+    def process_document_section(self, document: Document, section_id: str) -> Tuple[Document, Dict[str, Any]]:
         """
         Summarize a specific section of a document and update the Document object with the summary.
 
@@ -317,17 +318,17 @@ class SummarizationService:
             section_id: ID of the section to summarize
 
         Returns:
-            Document: Updated Document object with section summary
+            Tuple[Document, Dict[str, Any]]: Updated Document object with section summary and section-specific metering data
         """
         # Validate input document
         if not document:
             logger.error("No document provided")
-            return document
+            return document, {}
 
         if not document.sections:
             logger.error("Document has no sections to process")
             document.errors.append("Document has no sections to process")
-            return document
+            return document, {}
 
         # Find the section with the given ID
         section = None
@@ -340,7 +341,7 @@ class SummarizationService:
             error_msg = f"Section {section_id} not found in document"
             logger.error(error_msg)
             document.errors.append(error_msg)
-            return document
+            return document, {}
 
         # Extract information about the section
         class_label = section.classification
@@ -356,7 +357,7 @@ class SummarizationService:
             error_msg = f"Section {section_id} has no page IDs"
             logger.error(error_msg)
             document.errors.append(error_msg)
-            return document
+            return document, {}
 
         # Sort pages by page number
         sorted_page_ids = sorted(section.page_ids, key=int)
@@ -387,11 +388,12 @@ class SummarizationService:
 
             if not all_text:
                 logger.warning(f"No text content found in section {section_id}")
-                return self._update_document_status(
+                document = self._update_document_status(
                     document,
                     success=False,
                     error_message=f"No text content found in section {section_id}",
                 )
+                return document, {}
 
             # Generate summary
             summary = self.process_text(all_text)
@@ -432,11 +434,10 @@ class SummarizationService:
             section.attributes["summary_uri"] = output_uri
             section.attributes["summary_md_uri"] = output_md_uri
 
-            # Update document metering
+            # Extract metering data to return separately
+            section_metering = {}
             if "metering" in summary.metadata:
-                document.metering = utils.merge_metering_data(
-                    document.metering, summary.metadata["metering"]
-                )
+                section_metering = summary.metadata["metering"]
 
             logger.info(
                 f"Section {section_id} summarized successfully. Summary stored at: {output_uri}"
@@ -446,8 +447,9 @@ class SummarizationService:
             error_msg = f"Error summarizing section {section_id}: {str(e)}"
             logger.error(error_msg)
             document.errors.append(error_msg)
+            return document, {}
 
-        return document
+        return document, section_metering
 
     def process_document(
         self, document: Document, store_results: bool = True
@@ -495,10 +497,9 @@ class SummarizationService:
                 f"Processing document sections in parallel with {max_workers} workers"
             )
 
-            # Create a copy of the document for thread safety
-            # Each thread will work on its own copy and return the processed section
-            document_copy = document
-
+            # Initialize a dictionary to collect all section-specific metering data
+            all_section_metering = {}
+            
             # Process sections in parallel using ThreadPoolExecutor
             with concurrent.futures.ThreadPoolExecutor(
                 max_workers=max_workers
@@ -511,8 +512,13 @@ class SummarizationService:
                     logger.info(
                         f"Submitting section {section.section_id} with classification {section.classification} for processing"
                     )
+                    # Create a deep copy of the document for thread safety, excluding metering data
+                    thread_document = copy.deepcopy(document)
+                    # Reset metering data in the copy to avoid double-counting
+                    thread_document.metering = {}
+                    
                     future = executor.submit(
-                        self.process_document_section, document_copy, section.section_id
+                        self.process_document_section, thread_document, section.section_id
                     )
                     future_to_section[future] = section
 
@@ -520,8 +526,13 @@ class SummarizationService:
                 for future in concurrent.futures.as_completed(future_to_section):
                     section = future_to_section[future]
                     try:
-                        # Get the result (updated document with processed section)
-                        updated_document = future.result()
+                        # Get the result (updated document with processed section and section-specific metering)
+                        updated_document, section_metering = future.result()
+
+                        # Store section-specific metering data
+                        if section_metering:
+                            section_key = f"section_{section.section_id}"
+                            all_section_metering[section_key] = section_metering
 
                         # Find the processed section in the updated document
                         processed_section = None
@@ -551,11 +562,6 @@ class SummarizationService:
                             for error in updated_document.errors:
                                 if error not in document.errors:
                                     document.errors.append(error)
-
-                            # Merge metering data
-                            document.metering = utils.merge_metering_data(
-                                document.metering, updated_document.metering
-                            )
 
                             # Load the summary content
                             try:
@@ -607,6 +613,12 @@ class SummarizationService:
 
             # Calculate execution time
             execution_time = time.time() - start_time
+            
+            # Merge all section-specific metering data into the document's metering data
+            for section_metering in all_section_metering.values():
+                document.metering = utils.merge_metering_data(
+                    document.metering, section_metering
+                )
 
             # Create a combined summary from all section summaries
             summary = DocumentSummary(
