@@ -53,7 +53,7 @@ class TestExtractionService:
             "extraction": {
                 "model": "anthropic.claude-3-sonnet-20240229-v1:0",
                 "temperature": 0.0,
-                "top_k": 0.5,
+                "top_k": 5,
                 "system_prompt": "You are a document extraction assistant.",
                 "task_prompt": dedent("""
                     Extract the following fields from this {DOCUMENT_CLASS} document:

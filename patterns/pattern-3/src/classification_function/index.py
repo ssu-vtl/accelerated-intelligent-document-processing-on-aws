@@ -18,8 +18,8 @@ region = os.environ['AWS_REGION']
 MAX_WORKERS = int(os.environ.get('MAX_WORKERS', 20))
 
 logger = logging.getLogger()
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
-logger.setLevel(LOG_LEVEL)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_LOG_LEVEL", "INFO"))
 
 
 def handler(event, context):

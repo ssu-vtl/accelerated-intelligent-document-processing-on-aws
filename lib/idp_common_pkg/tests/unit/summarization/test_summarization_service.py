@@ -42,7 +42,7 @@ class TestSummarizationService:
             "summarization": {
                 "model": "anthropic.claude-3-sonnet-20240229-v1:0",
                 "temperature": 0.0,
-                "top_k": 250,
+                "top_k": 5,
                 "system_prompt": "You are a helpful assistant that summarizes documents.",
                 "task_prompt": "Please summarize the following document: {DOCUMENT_TEXT}",
             }
@@ -127,7 +127,7 @@ class TestSummarizationService:
 
         assert config["model_id"] == "anthropic.claude-3-sonnet-20240229-v1:0"
         assert config["temperature"] == 0.0
-        assert config["top_k"] == 250.0
+        assert config["top_k"] == 5
         assert "You are a helpful assistant" in config["system_prompt"]
         assert "Please summarize" in config["task_prompt"]
 
@@ -251,7 +251,7 @@ class TestSummarizationService:
             "model_id": "test-model",
             "system_prompt": "Test system prompt",
             "temperature": 0.0,
-            "top_k": 250,
+            "top_k": 5,
             "top_p": 0.1,
             "max_tokens": 5000,
         }
