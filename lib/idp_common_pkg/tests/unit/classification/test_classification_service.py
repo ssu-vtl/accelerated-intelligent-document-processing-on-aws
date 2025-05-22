@@ -41,7 +41,7 @@ class TestClassificationService:
             "classification": {
                 "model": "anthropic.claude-3-sonnet-20240229-v1:0",
                 "temperature": 0.0,
-                "top_k": 0.5,
+                "top_k": 5,
                 "system_prompt": "You are a document classification assistant.",
                 "task_prompt": dedent("""
                     Classify the following document text into one of the available classes:
@@ -151,7 +151,7 @@ class TestClassificationService:
 
         assert config["model_id"] == "anthropic.claude-3-sonnet-20240229-v1:0"
         assert config["temperature"] == 0.0
-        assert config["top_k"] == 0.5
+        assert config["top_k"] == 5.0
         assert config["system_prompt"] == "You are a document classification assistant."
         assert "Classify the following document text" in config["task_prompt"]
 

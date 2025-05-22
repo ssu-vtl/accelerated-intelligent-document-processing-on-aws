@@ -14,8 +14,8 @@ CONFIG = get_config()
 OCR_TEXT_ONLY = os.environ.get('OCR_TEXT_ONLY', 'false').lower() == 'true'
 
 logger = logging.getLogger()
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
-logger.setLevel(LOG_LEVEL)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_LOG_LEVEL", "INFO"))
 
 
 def handler(event, context):
