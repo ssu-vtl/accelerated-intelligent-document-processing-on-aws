@@ -13,6 +13,7 @@ from idp_common.utils.s3util import S3Util
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_LOG_LEVEL", "INFO"))
 # Get LOG_LEVEL from environment variable with INFO as default
 
 # Retry configuration
