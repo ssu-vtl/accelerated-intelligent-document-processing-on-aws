@@ -23,6 +23,14 @@ DEFAULT_INITIAL_BACKOFF = 2  # seconds
 DEFAULT_MAX_BACKOFF = 300    # 5 minutes
 
 
+# Models that support cachePoint functionality
+CACHEPOINT_SUPPORTED_MODELS = [
+    "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+    "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    "us.amazon.nova-lite-v1:0",
+    "us.amazon.nova-pro-v1:0"
+]
+
 class BedrockClient:
     """Client for interacting with Amazon Bedrock models."""
     
@@ -196,9 +204,30 @@ class BedrockClient:
         else:
             formatted_system_prompt = system_prompt
         
-        # Process content for cachePoint tags
-        processed_content = self._preprocess_content_for_cachepoint(content)
+        # Check for cachePoint tags in content
+        has_cachepoint_tags = any("text" in item and isinstance(item["text"], str) and "<<CACHEPOINT>>" in item["text"] for item in content)
         
+        if has_cachepoint_tags:
+            if model_id in CACHEPOINT_SUPPORTED_MODELS:
+                # Process content for cachePoint tags with supported model
+                processed_content = self._preprocess_content_for_cachepoint(content)
+                logger.info(f"Applied cachePoint processing for supported model: {model_id}")
+            else:
+                # For unsupported models, just remove the <<CACHEPOINT>> tags but keep content intact
+                processed_content = []
+                for item in content:
+                    if "text" in item and isinstance(item["text"], str) and "<<CACHEPOINT>>" in item["text"]:
+                        # Remove the cachepoint tags but keep the text
+                        clean_text = item["text"].replace("<<CACHEPOINT>>", "")
+                        processed_content.append({"text": clean_text})
+                        logger.warning(f"Removed <<CACHEPOINT>> tags for unsupported model: {model_id}. CachePoint is only supported for: {', '.join(CACHEPOINT_SUPPORTED_MODELS)}")
+                    else:
+                        # Pass through unchanged
+                        processed_content.append(item)
+        else:
+            # No cachepoint tags, use content as is
+            processed_content = content
+            
         # Build message
         message = {
             "role": "user",
