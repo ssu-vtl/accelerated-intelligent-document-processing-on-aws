@@ -74,6 +74,17 @@ embedding = client.generate_embedding(
 
 Prompt caching is a powerful feature in Amazon Bedrock that significantly reduces response latency for workloads with repetitive contexts. The Bedrock client provides built-in support for this via the `<<CACHEPOINT>>` tag.
 
+### Supported Models
+
+CachePoint functionality is only available for specific Bedrock model IDs:
+
+- `us.anthropic.claude-3-5-haiku-20241022-v1:0`
+- `us.anthropic.claude-3-7-sonnet-20250219-v1:0`
+- `us.amazon.nova-lite-v1:0`
+- `us.amazon.nova-pro-v1:0`
+
+When using unsupported models, the client will automatically remove `<<CACHEPOINT>>` tags from the content while preserving all text, and log a warning.
+
 ### Using CachePoint in Your Prompts
 
 To implement prompt caching, insert the `<<CACHEPOINT>>` tag in your text content to indicate where caching boundaries should occur:
