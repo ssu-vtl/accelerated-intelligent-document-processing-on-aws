@@ -85,7 +85,7 @@ The extraction service uses the following configuration structure:
     "extraction": {
         "model": "anthropic.claude-3-sonnet-20240229-v1:0",
         "temperature": 0.0,
-        "top_k": 0.5,
+        "top_k": 5,
         "system_prompt": "You are an expert at extracting information from documents...",
         "task_prompt": "Extract the following fields from this {DOCUMENT_CLASS} document: {ATTRIBUTE_NAMES_AND_DESCRIPTIONS}\n\nDocument text:\n{DOCUMENT_TEXT}"
     },

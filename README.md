@@ -50,8 +50,14 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
   - [Stack Parameters](#stack-parameters)
   - [Request Service Quota Limits for high volume processing](#request-service-quota-limits-for-high-volume-processing)
   - [Cost Estimation](#cost-estimation)
+- [Customizing Classification](#customizing-classification)
+  - [Classification Methods](#classification-methods)
+  - [Classification Prompts](#classification-prompts)
+  - [Using CachePoint for Classification](#using-cachepoint-for-classification)
+  - [Document Classes](#document-classes)
 - [Customizing Extraction](#customizing-extraction)
   - [Extraction Prompts](#extraction-prompts)
+  - [Using CachePoint for Extraction](#using-cachepoint-for-extraction)
   - [Extraction Attributes](#extraction-attributes)
 - [Monitoring and Logging](#monitoring-and-logging)
   - [CloudWatch Dashboard](#cloudwatch-dashboard)
@@ -761,7 +767,97 @@ The solution includes an integrated cost estimation feature that automatically t
 Cost estimates are derived from the pricing configuration in the system settings. You can customize pricing by updating the configuration with your own unit costs for each service and API. The configuration follows a simple structure where each service has a list of units (like "characters", "tokens", or "pages") with associated prices. The UI displays "None" for any service or unit that doesn't have a defined price in the configuration.
 
 
-## Customizing Extraction
+## Customizing Classification (Pattern-2 only)
+
+You can customize the classification capabilities of the solution to better identify document types and improve accuracy for your specific document collection. The configuration approach depends on which pattern you're using:
+
+> **Note for Pattern 1 (BDA)**: For Pattern 1, classification is configured within the Bedrock Data Automation (BDA) project. 
+> **Note for Pattern 3 (UDOP)**: For Pattern 3, classification is configured in the pretrained UDOP model. 
+
+### Classification Methods
+
+For pattern-2, the solution supports two main classification methods:
+
+1. **Page-Level Classification** (default in Pattern 2):
+   - Classifies each page individually
+   - Uses multimodal capabilities to analyze both text and visual layout
+   - Better for visually distinct documents with strong formatting cues
+   - Automatically handles multi-document packets by detecting page boundaries
+
+2. **Holistic Classification** (optional in Pattern 2):
+   - Analyzes the entire document as a cohesive unit
+   - Uses text-based classification looking at document content
+   - Better for documents where content rather than layout is the primary distinguishing factor
+   - Can be more efficient for simpler document collections
+
+### Classification Prompts
+
+The classification prompts control how the AI model identifies document types (Pattern 2 and Pattern 3 only):
+
+1. **System Prompt**:
+   - Sets the overall behavior and context for the classification model
+   - Defines the role and constraints for the model
+   - Provides general instructions for output formatting
+
+2. **Task Prompt**:
+   - Contains specific instructions for the classification task
+   - Includes placeholders for dynamic content:
+     - `{DOCUMENT_CLASSES_WITH_DESCRIPTIONS}`: Available document classes with their descriptions
+     - `{DOCUMENT_TEXT}`: The OCR text from the document (for text-based classification), or array of page texts (for holistic classification)
+   - Can be customized to handle specific document formats or special cases
+
+### Using CachePoint for Classification
+
+For long classification prompts with static content, you can improve performance and reduce latency using CachePoint tags:
+
+```
+This is static prompt content that rarely changes, such as detailed
+instructions for classification, rules for boundary detection, etc.
+<<CACHEPOINT>>
+Here's the dynamic content: {DOCUMENT_CLASSES_WITH_DESCRIPTIONS}
+Please classify the following document: {DOCUMENT_TEXT}
+```
+
+Benefits of using CachePoint in classification prompts:
+- Significantly reduces latency for repeated classifications
+- Lowers token usage by avoiding reprocessing static content
+- Improves throughput by caching commonly used prompt portions
+
+To customize the classification prompts:
+1. Navigate to the Configuration page in the Web UI
+2. Expand the "Classification" section
+3. Click "Edit" and modify the prompts as needed
+4. Click "Save" to apply your changes
+
+### Document Classes
+
+Document classes define what types of documents the system should identify:
+
+1. **Class Definitions**:
+   - Each document type has a name and description
+   - Descriptions should include distinguishing characteristics of the document type
+   - Provide examples or visual cues that help identify the document
+
+2. **Classification Behavior**:
+   - The model uses class descriptions to match documents to the appropriate type
+   - More detailed and accurate descriptions improve classification results
+   - For similar document types, highlight key differentiating features
+
+To customize document classes:
+1. Navigate to the Configuration page in the Web UI
+2. Expand the "Classes" section
+3. Click "Edit" to:
+   - Add new document classes
+   - Modify existing class descriptions
+   - Remove unused document types
+4. Click "Save" to apply your changes
+
+Testing classification changes:
+1. Process sample documents through the workflow
+2. Check the classification results in the Document Details page
+3. Iterate on your class definitions for better results
+
+## Customizing Extraction (Pattern-2 and Pattern-3)
 
 You can customize the extraction capabilities of the solution to better handle specific document types and extract the information that matters most to your use case. The configuration approach depends on which pattern you're using:
 
@@ -783,6 +879,25 @@ The extraction prompts control how the AI model interprets and extracts informat
      - `{ATTRIBUTE_NAMES_AND_DESCRIPTIONS}`: The attributes to extract
      - `{DOCUMENT_TEXT}`: The OCR text from the document
    - Can be customized to handle specific document formats or special cases
+
+### Using CachePoint for Extraction
+
+For extraction prompts with large static content, you can improve performance using CachePoint tags:
+
+```
+This is static prompt content that defines extraction rules, formatting guidelines,
+and general instructions that don't change between documents.
+<<CACHEPOINT>>
+Document class: {DOCUMENT_CLASS}
+Attributes to extract: {ATTRIBUTE_NAMES_AND_DESCRIPTIONS}
+Document content: {DOCUMENT_TEXT}
+```
+
+Benefits of using CachePoint in extraction prompts:
+- Reduces response time for field extraction
+- Lowers token costs by avoiding reprocessing static content
+- Particularly effective for documents of the same class with similar extraction rules
+- Improves user experience with faster processing times
 
 To customize the extraction prompts:
 1. Navigate to the Configuration page in the Web UI
