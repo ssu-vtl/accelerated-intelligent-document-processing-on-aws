@@ -823,6 +823,15 @@ Benefits of using CachePoint in classification prompts:
 - Lowers token usage by avoiding reprocessing static content
 - Improves throughput by caching commonly used prompt portions
 
+CachePoint functionality is only available for specific Bedrock model IDs:
+
+- `us.anthropic.claude-3-5-haiku-20241022-v1:0`
+- `us.anthropic.claude-3-7-sonnet-20250219-v1:0`
+- `us.amazon.nova-lite-v1:0`
+- `us.amazon.nova-pro-v1:0`
+
+When using unsupported models, the client will automatically remove `<<CACHEPOINT>>` tags from the content while preserving all text, and log a warning.
+
 To customize the classification prompts:
 1. Navigate to the Configuration page in the Web UI
 2. Expand the "Classification" section
@@ -898,6 +907,15 @@ Benefits of using CachePoint in extraction prompts:
 - Lowers token costs by avoiding reprocessing static content
 - Particularly effective for documents of the same class with similar extraction rules
 - Improves user experience with faster processing times
+
+CachePoint functionality is only available for specific Bedrock model IDs:
+
+- `us.anthropic.claude-3-5-haiku-20241022-v1:0`
+- `us.anthropic.claude-3-7-sonnet-20250219-v1:0`
+- `us.amazon.nova-lite-v1:0`
+- `us.amazon.nova-pro-v1:0`
+
+When using unsupported models, the client will automatically remove `<<CACHEPOINT>>` tags from the content while preserving all text, and log a warning.
 
 To customize the extraction prompts:
 1. Navigate to the Configuration page in the Web UI
