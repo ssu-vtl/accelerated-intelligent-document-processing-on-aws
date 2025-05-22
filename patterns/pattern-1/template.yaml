@@ -365,12 +365,20 @@ Resources:
                 price: 0.00000006
               - name: outputTokens
                 price: 0.00000024
+              - name: cacheReadInputTokens
+                price: 0.000000015
+              - name: cacheWriteInputTokens
+                price: 0
           - name: bedrock/us.amazon.nova-pro-v1:0
             units:
               - name: inputTokens
                 price: 0.0000008
               - name: outputTokens
                 price: 0.0000032
+              - name: cacheReadInputTokens
+                price: 0.0000002
+              - name: cacheWriteInputTokens
+                price: 0
           - name: bedrock/us.amazon.nova-premier-v1:0
             units:
               - name: inputTokens
