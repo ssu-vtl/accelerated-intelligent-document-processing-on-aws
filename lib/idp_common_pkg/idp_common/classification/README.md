@@ -152,7 +152,7 @@ The classification service uses the following configuration structure:
   "classification": {
     "model": "anthropic.claude-3-sonnet-20240229-v1:0", // Specific model for classification (used if top-level model_id not specified)
     "temperature": 0,
-    "top_k": 0.5,
+    "top_k": 5,
     "system_prompt": "You are a document classification expert...",
     "task_prompt": "Classify the following document into one of these types: {CLASS_NAMES_AND_DESCRIPTIONS}...\n\nDocument text:\n{DOCUMENT_TEXT}"
   }

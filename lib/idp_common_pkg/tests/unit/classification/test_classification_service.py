@@ -41,7 +41,7 @@ class TestClassificationService:
             "classification": {
                 "model": "anthropic.claude-3-sonnet-20240229-v1:0",
                 "temperature": 0.0,
-                "top_k": 0.5,
+                "top_k": 5,
                 "system_prompt": "You are a document classification assistant.",
                 "task_prompt": dedent("""
                     Classify the following document text into one of the available classes:

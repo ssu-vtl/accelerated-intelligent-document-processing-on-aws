@@ -12,17 +12,6 @@ classification:
   classificationMethod: textbasedHolisticClassification
   top_k: 5
   task_prompt: >-
-    The <document-text> XML tags contains the text separated into pages from the
-    document package. Each page will begin with a <page-number> XML tag
-    indicating the one based page ordinal of the page text to follow.
-
-    <document-text>
-
-    {DOCUMENT_TEXT}
-
-    </document-text>
-
-
     The <document-types> XML tags contain a markdown table of known doc types
     for detection.
 
@@ -120,6 +109,18 @@ classification:
                           }
                         ]
     }
+
+    The <document-text> XML tags contains the text separated into pages from the
+    document package. Each page will begin with a <page-number> XML tag
+    indicating the one based page ordinal of the page text to follow.
+
+    <<CACHEPOINT>>
+    
+    <document-text>
+
+    {DOCUMENT_TEXT}
+
+    </document-text>
 
     ```
 notes: Default settings
@@ -276,18 +277,7 @@ extraction:
 
     You are an expert in business document analysis and information extraction. 
 
-    You can understand and extract key information from business documents
-    classified as type 
-
-    {DOCUMENT_CLASS}.
-
-    </background>
-
-    <document_ocr_data>
-
-    {DOCUMENT_TEXT}
-
-    </document_ocr_data>
+    You can understand and extract key information from business documents. 
 
     <task>
 
@@ -328,6 +318,18 @@ extraction:
     </attributes>
 
     </task>
+
+    <<CACHEPOINT>> 
+    
+    </background>
+
+    The document tpe is {DOCUMENT_CLASS}. Here is the document content:
+    <document_ocr_data>
+
+    {DOCUMENT_TEXT}
+
+    </document_ocr_data>
+
 pricing:
   - name: textract/detect_document_text
     units:
@@ -464,49 +466,33 @@ summarization:
   task_prompt: >
     Analyze the provided document and create a comprehensive summary.
 
-    <document>
-    {DOCUMENT_TEXT}
-    </document>
+    CRITICAL INSTRUCTION: You MUST return your response as valid JSON with the EXACT structure shown at the end of these instructions. Do not include any explanations, notes, or text outside of the JSON structure.
 
-    Create a comprehensive summary that captures the essential information from the document following these requirements:
+    Create a summary that captures the essential information from the document. Your summary should:
+    1. Extract key information, main points, and important details
+    2. Maintain the original document's organizational structure where appropriate
+    3. Preserve important facts, figures, dates, and entities
+    4. Reduce the length while retaining all critical information
+    5. Use markdown formatting for better readability (headings, lists, emphasis, etc.)
+    6. Cite all relevant facts from the source document using the format [Cite-X, Page-Y] where X is a sequential citation number and Y is the page number
+    7. For each citation, include a hover-enabled reference using HTML span tags with title attributes that contain the exact text snippet from which the fact is derived
+      Example: <span title=\"Original text from document: The company reported $10M in revenue\" class=\"citation\">[Cite-1, Page-3]</span>
 
-    1. Extract all key information, main points, and important details
-    2. Include all important facts, figures, dates, and entities
-    3. Summary should not contain only sparse information.
-    4. Use clear markdown formatting (headings, lists, emphasis) for readability
-    5. Add page citations using the format [Page-X] after each fact or statement
-    6. Summary should not have any generalized section titles, such as "Summary" or "Document Summary" or "Summary of Document Page-X", etc.
-    7. IMPORTANT: Each citation must be a hoverable span tag with the exact source text:
-      - Format: <span title='EXACT TEXT FROM DOCUMENT' class='citation'>[Page-X]</span>
-      - When including span tags with citations in your JSON:
-          - Properly escape all quotes within the title attribute using backslashes: \"
-          - Example: <span title=\"This is the exact text\" class=\"citation\">[Page-1]</span>
-          - NOT: <span title='This is the exact text' class='citation'>[Page-1]</span>
-      - The title attribute must contain the unaltered, verbatim text from which the fact was derived
-      - Include enough surrounding context in the hover text to provide comprehensive reference
-      - Do not abbreviate or modify the source text in the hover
-      - For any backslashes in the document text:
-        - Double escape them in the JSON: \\\\
-        - Example: "The document states \\\\"Commitment to our Children\\\\""
-        - NOT: "The document states \"Commitment to our Children\""
-      -For newlines within the JSON string:
-        - Use the escaped newline character: \\n
-        - Example: "First line\\nSecond line"
-        - NOT: "First line
-                Second line"
-
-    CRITICAL OUTPUT INSTRUCTION: Your FINAL response MUST be VALID JSON with this EXACT structure and nothing else:
+    Output Format:
+    You MUST return ONLY valid JSON with the following structure and nothing else:
     ```json
     {
-      "summary": "The markdown-formatted summary goes here"
+      \"summary\": \"A comprehensive summary in markdown format with citations and hover functionality\"
     }
     ```
 
-    Test your JSON before finalizing:
-      - Ensure all quotes, backslashes, and special characters are properly escaped
-      - Verify the entire response is valid JSON that can be parsed by standard JSON parsers
+    Do not include any text, explanations, or notes outside of this JSON structure. The JSON must be properly formatted and parseable.
 
-    Your final output must be a single, valid JSON object with no syntax errors.
+    <<CACHEPOINT>>
+
+    <document>
+    {DOCUMENT_TEXT}
+    </document>
 ocr:
   features:
     - name: LAYOUT
