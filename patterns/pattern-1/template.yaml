@@ -50,21 +50,19 @@ Parameters:
     Default: ''
     Description: Bedrock Data Automation (BDA) project ARN
 
-  SummarizationModel:
+  IsSummarizationEnabled:
     Type: String
-    Default: 'DISABLED'
-    Description: Model to use for document summarization, or DISABLED to skip summarization
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable or disable document summarization functionality
 
   UpdateConfigurationFunctionArn:
     Type: String
 
   ConfigurationTable:
     Type: String
-    
-  EvaluationLLMModelId:
-    Type: String
-    Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
-    Description: Model to use for LLM-based Evaluation
     
   BedrockGuardrailId:
     Type: String
@@ -90,7 +88,7 @@ Parameters:
 
 
 Conditions:
-  IsSummarizationEnabled: !Not [!Equals [!Ref SummarizationModel, "DISABLED"]]
+  IsSummarizationEnabled: !Equals [!Ref IsSummarizationEnabled, "true"]
   HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
 
 Resources:

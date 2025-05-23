@@ -47,20 +47,6 @@ Parameters:
     Type: Number
     Default: 30000
 
-  ClassificationModel:
-    Type: String
-    Default: 'us.amazon.nova-pro-v1:0'
-
-  ClassificationMethod:
-    Type: String
-    Default: 'multimodalPageLevelClassification'
-    AllowedValues:
-      - 'multimodalPageLevelClassification'
-      - 'textbasedHolisticClassification'
-
-  ExtractionModel:
-    Type: String
-    Default: 'us.amazon.nova-pro-v1:0'
 
   CustomClassificationModelARN:
     Type: String
@@ -76,15 +62,13 @@ Parameters:
   ConfigurationTable:
     Type: String
     
-  EvaluationLLMModelId:
+  IsSummarizationEnabled:
     Type: String
-    Default: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
-    Description: Model to use for LLM-based Evaluation
-    
-  SummarizationModel:
-    Type: String
-    Default: 'DISABLED'
-    Description: Model to use for document summarization, or DISABLED to skip summarization
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable or disable document summarization functionality
     
   BedrockGuardrailId:
     Type: String
@@ -101,8 +85,7 @@ Parameters:
     Description: "S3 URI (s3://bucket/path/config.json) to import default configuration from S3"
 
 Conditions:
-  IsMultimodalPageLevelClassification: !Equals [!Ref ClassificationMethod, 'multimodalPageLevelClassification']
-  IsSummarizationEnabled: !Not [!Equals [!Ref SummarizationModel, "DISABLED"]]
+  IsSummarizationEnabled: !Equals [!Ref IsSummarizationEnabled, "true"]
   HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
 
 
@@ -233,7 +216,6 @@ Resources:
                 type: string
                 description: "Classification methodology to use"
                 enum: ["multimodalPageLevelClassification", "textbasedHolisticClassification"]
-                default: !Ref ClassificationMethod
                 order: 2
               temperature:
                 type: number
