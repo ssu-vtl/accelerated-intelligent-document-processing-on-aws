@@ -309,7 +309,9 @@ class SummarizationService:
             logger.error(f"Error summarizing text: {str(e)}")
             return self._create_error_summary(str(e))
 
-    def process_document_section(self, document: Document, section_id: str) -> Tuple[Document, Dict[str, Any]]:
+    def process_document_section(
+        self, document: Document, section_id: str
+    ) -> Tuple[Document, Dict[str, Any]]:
         """
         Summarize a specific section of a document and update the Document object with the summary.
 
@@ -499,7 +501,7 @@ class SummarizationService:
 
             # Initialize a dictionary to collect all section-specific metering data
             all_section_metering = {}
-            
+
             # Process sections in parallel using ThreadPoolExecutor
             with concurrent.futures.ThreadPoolExecutor(
                 max_workers=max_workers
@@ -516,9 +518,11 @@ class SummarizationService:
                     thread_document = copy.deepcopy(document)
                     # Reset metering data in the copy to avoid double-counting
                     thread_document.metering = {}
-                    
+
                     future = executor.submit(
-                        self.process_document_section, thread_document, section.section_id
+                        self.process_document_section,
+                        thread_document,
+                        section.section_id,
                     )
                     future_to_section[future] = section
 
@@ -613,7 +617,7 @@ class SummarizationService:
 
             # Calculate execution time
             execution_time = time.time() - start_time
-            
+
             # Merge all section-specific metering data into the document's metering data
             for section_metering in all_section_metering.values():
                 document.metering = utils.merge_metering_data(
