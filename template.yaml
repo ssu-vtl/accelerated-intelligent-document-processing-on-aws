@@ -648,6 +648,7 @@ Resources:
       Parameters:
         StackName: !Ref AWS::StackName
         InputBucket: !Ref InputBucket
+        ConfigurationBucket: !Ref ConfigurationBucket
         WorkingBucket: !Ref WorkingBucket
         OutputBucket: !Ref OutputBucket
         TrackingTable: !Ref TrackingTable
@@ -679,6 +680,7 @@ Resources:
       Parameters:
         StackName: !Ref AWS::StackName
         InputBucket: !Ref InputBucket
+        ConfigurationBucket: !Ref ConfigurationBucket
         OutputBucket: !Ref OutputBucket
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
@@ -709,6 +711,7 @@ Resources:
       Parameters:
         StackName: !Ref AWS::StackName
         InputBucket: !Ref InputBucket
+        ConfigurationBucket: !Ref ConfigurationBucket
         OutputBucket: !Ref OutputBucket
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
@@ -928,6 +931,73 @@ Resources:
             Resource: 
               - !Sub "${InputBucket.Arn}/*"
               - !Sub "${InputBucket.Arn}"
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
+
+  ConfigurationBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: RetainExceptOnCreate
+    Properties:
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "Content-Type"
+              - "x-amz-content-sha256"
+              - "x-amz-date"
+              - "Authorization"
+              - "x-amz-security-token"
+            AllowedMethods:
+              - PUT
+              - POST
+            AllowedOrigins:
+              - !Sub "https://${CloudFrontDistribution.DomainName}"
+              # For local development only
+              - "http://localhost:3000"
+            ExposedHeaders:
+              - "ETag"
+              - "x-amz-server-side-encryption"
+            MaxAge: 3000
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref CustomerManagedEncryptionKey
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LoggingBucket
+        LogFilePrefix: input-bucket-logs/
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteAfterNDays
+            Status: Enabled
+            ExpirationInDays: !Ref DataRetentionInDays
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+  
+  ConfigurationBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ConfigurationBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnforceSSLOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: 
+              - !Sub "${ConfigurationBucket.Arn}/*"
+              - !Sub "${ConfigurationBucket.Arn}"
             Condition:
               Bool:
                 'aws:SecureTransport': false
@@ -1375,7 +1445,9 @@ Resources:
         StackName: !Sub "${AWS::StackName}"
         Version: <VERSION>
         BuildDateTime: <BUILD_DATE_TIME>
+        IDPPattern: !Ref IDPPattern
         InputBucket: !Ref InputBucket
+        ConfigurationBucket: !Ref ConfigurationBucket
         OutputBucket: !Ref OutputBucket
         EvaluationBaselineBucket: !Ref EvaluationBaselineBucket
         ShouldUseDocumentKnowledgeBase: !If
@@ -2652,6 +2724,8 @@ Resources:
                   - !Sub "arn:aws:s3:::${OutputBucket}/*"
                   - !Sub "arn:aws:s3:::${InputBucket}"
                   - !Sub "arn:aws:s3:::${InputBucket}/*"
+                  - !Sub "arn:aws:s3:::${ConfigurationBucket}"
+                  - !Sub "arn:aws:s3:::${ConfigurationBucket}/*"
               - Effect: Allow
                 Action:
                   - kms:Encrypt
@@ -3316,6 +3390,8 @@ Resources:
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
         - S3ReadPolicy:
+            BucketName: !Ref ConfigurationBucket
+        - S3ReadPolicy:
             BucketName: !Ref OutputBucket
         - Statement:
             - Effect: Allow
@@ -3690,6 +3766,8 @@ Resources:
       Policies:      
         - S3WritePolicy:
             BucketName: !Ref InputBucket
+        - S3WritePolicy:
+            BucketName: !Ref ConfigurationBucket
         - S3WritePolicy:
             BucketName: !Ref OutputBucket
         - S3WritePolicy:
@@ -4203,6 +4281,12 @@ Outputs:
           - ShouldCreateEvaluationBaselineBucket
           - !Ref EvaluationBaselineBucket
           - !Ref EvaluationBaselineBucketName
+  S3ConfigurationBucketName:
+    Description: Configuration S3 bucket name
+    Value: !Ref ConfigurationBucket
+  S3ConfigurationBucketConsoleURL:
+    Description: Configuration S3 bucket console URL
+    Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${ConfigurationBucket}
   StateMachineArn:
     Description: Step Functions State machine ARN
     Value: !If

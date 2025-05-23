@@ -12,6 +12,9 @@ Parameters:
   InputBucket:
     Type: String
 
+  ConfigurationBucket:
+    Type: String
+
   OutputBucket:
     Type: String
 
