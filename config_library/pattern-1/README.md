@@ -24,4 +24,4 @@ See the main [README.md](../README.md) for more detailed instructions on creatin
 
 ## Available Configurations
 
-Currently, there are no configurations available for Pattern 1. Contributions are welcome!
+Currently, only the default configuration is available for Pattern 1. Contributions are welcome!
