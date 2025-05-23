@@ -58,75 +58,34 @@ Parameters:
     AllowedPattern: "^(|^arn:aws:bedrock:[a-z0-9-]+:.+:data-automation-project/.+)$"
     Description: For Pattern3, provide a Bedrock Data Automation (BDA) project ARN, or leave blank to create a sample project for processing the sample lending package.
 
-  Pattern1SummarizationModel:
+
+  Pattern1Configuration:
     Type: String
-    Default: "us.amazon.nova-premier-v1:0"
+    Default: "default"
     AllowedValues:
-      - "DISABLED"
-      - "us.amazon.nova-premier-v1:0"
-      - "us.anthropic.claude-3-haiku-20240307-v1:0"
-      - "us.anthropic.claude-3-5-haiku-20241022-v1:0"
-      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
-      - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-    Description: Model to use for document summarization, or DISABLED to skip summarization. Model access MUST be enabled in Amazon Bedrock.
+      - "default"
+    Description: Select the configuration preset for Pattern 1. Each configuration contains pre-tuned settings for specific document processing scenarios.
 
   # Pattern 2 Parameters
 
-  Pattern2ClassificationModel:
+  Pattern2Configuration:
     Type: String
-    Default: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+    Default: "default"
     AllowedValues:
-      - "us.amazon.nova-lite-v1:0"
-      - "us.amazon.nova-pro-v1:0"
-      - "us.amazon.nova-premier-v1:0"
-      - "us.anthropic.claude-3-haiku-20240307-v1:0"
-      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
-      - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-      - "Custom Fine Tuned Classification Model - NOT YET SUPPORTED"
-    Description: Model to use for Classification. Model access MUST be enabled in Amazon Bedrock.
-
-  Pattern2ClassificationMethod:
-    Type: String
-    Default: "multimodalPageLevelClassification"
-    AllowedValues:
-      - "multimodalPageLevelClassification"
-      - "textbasedHolisticClassification"
-    Description: Method to use for Classification.
-
-  Pattern2ExtractionModel:
-    Type: String
-    Default: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-    AllowedValues:
-      - "us.amazon.nova-lite-v1:0"
-      - "us.amazon.nova-pro-v1:0"
-      - "us.amazon.nova-premier-v1:0"
-      - "us.anthropic.claude-3-haiku-20240307-v1:0"
-      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
-      - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-      - "Custom Fine Tuned Extraction Model - NOT YET SUPPORTED"
-    Description: Model to use for Extraction. Model access MUST be enabled in Amazon Bedrock.
-
-  Pattern2SummarizationModel:
-    Type: String
-    Default: "us.amazon.nova-premier-v1:0"
-    AllowedValues:
-      - "DISABLED"
-      - "us.amazon.nova-premier-v1:0"
-      - "us.anthropic.claude-3-haiku-20240307-v1:0"
-      - "us.anthropic.claude-3-5-haiku-20241022-v1:0"
-      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
-      - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-    Description: Model to use for document summarization, or DISABLED to skip summarization. Model access MUST be enabled in Amazon Bedrock.
+      - "default"
+      - "checkboxed_attributes_extraction"
+      - "medical_records_summarization"
+    Description: Select the configuration preset for Pattern 2. Each configuration contains pre-tuned settings for specific document processing scenarios.
 
   Pattern2CustomClassificationModelARN:
     Type: String
     Default: ""
-    Description: For 'Custom Fine Tuned Classification Model', specify Model ARN
+    Description: (NOT YET SUPPORTED) Specify Custom Fine Tuned Classification Model ARN. Leave blank to use pretrained model specified in the selected configuration.
 
   Pattern2CustomExtractionModelARN:
     Type: String
     Default: ""
-    Description: For 'Custom Fine Tuned Extraction Model', specify Model ARN
+    Description: (NOT YET SUPPORTED) Specify Custom Fine Tuned Extraction Model ARN. Leave blank to use pretrained model specified in the selected configuration.
 
   # Pattern 3 Parameters
 
@@ -136,40 +95,14 @@ Parameters:
     AllowedPattern: "^(|s3://.*)$"
     Description: For Pattern1, provide S3 path to the UDOP model.tar.gz file (e.g., s3://bucket-name/path/to/model.tar.gz)
 
-  Pattern3ExtractionModel:
+  Pattern3Configuration:
     Type: String
-    Default: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+    Default: "default"
     AllowedValues:
-      - "us.amazon.nova-lite-v1:0"
-      - "us.amazon.nova-pro-v1:0"
-      - "us.amazon.nova-premier-v1:0"
-      - "us.anthropic.claude-3-haiku-20240307-v1:0"
-      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
-      - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-    Description: Model to use for Extraction. Model access MUST be enabled in Amazon Bedrock.
+      - "default"
+    Description: Select the configuration preset for Pattern 3. Each configuration contains pre-tuned settings for specific document processing scenarios.
 
-  Pattern3SummarizationModel:
-    Type: String
-    Default: "us.amazon.nova-premier-v1:0"
-    AllowedValues:
-      - "DISABLED"
-      - "us.amazon.nova-premier-v1:0"
-      - "us.anthropic.claude-3-haiku-20240307-v1:0"
-      - "us.anthropic.claude-3-5-haiku-20241022-v1:0"
-      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
-      - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-    Description: Model to use for document summarization, or DISABLED to skip summarization. Model access MUST be enabled in Amazon Bedrock.
-
-  # Optional - Post processing Lambda hook
-  PostProcessingLambdaHookFunctionArn:
-    Default: ""
-    Type: String
-    AllowedPattern: "^(|arn:aws:lambda:.*)$"
-    Description: >
-      (Optional) The specified Lambda function is invoked by EventBridge after the document processing workflow is processed.
-      This function can implement custom logic to initiate downstream processing on the output of the processing pattern.
-
-  # Evaluation Configuration
+  # Evaluation
   EvaluationBaselineBucketName:
     Type: String
     Default: ""
@@ -191,19 +124,14 @@ Parameters:
       Set to true during test cycles to evaluate and compare accuracy for different patterns and prompts for each document.
       If false, evaluation is not automatically attempted for each processed document. Set to false when deployed in production.
 
-  EvaluationLLMModelId:
+  # Summarization 
+  IsSummarizationEnabled:
     Type: String
-    Default: "us.anthropic.claude-3-haiku-20240307-v1:0"
+    Default: true
     AllowedValues:
-      - "us.amazon.nova-lite-v1:0"
-      - "us.amazon.nova-pro-v1:0"
-      - "us.amazon.nova-premier-v1:0"
-      - "us.anthropic.claude-3-haiku-20240307-v1:0"
-      - "us.anthropic.claude-3-5-haiku-20241022-v1:0"
-      - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
-      - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-    Description: Model to use for LLM-based Evaluation. Model access MUST be enabled in Amazon Bedrock.
-
+      - true
+      - false
+    Description: Enable or disable document summarization functionality across all patterns.
 
   # Optional Knowledge Base Configuration
   DocumentKnowledgeBase:
@@ -226,6 +154,15 @@ Parameters:
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
     Description: Model to use for optional Document Knowledge Base. Model access MUST be enabled in Amazon Bedrock.
+
+  # Optional - Post processing Lambda hook
+  PostProcessingLambdaHookFunctionArn:
+    Default: ""
+    Type: String
+    AllowedPattern: "^(|arn:aws:lambda:.*)$"
+    Description: >
+      (Optional) The specified Lambda function is invoked by EventBridge after the document processing workflow is processed.
+      This function can implement custom logic to initiate downstream processing on the output of the processing pattern.
 
   # Optional Bedrock Guardrail Configuration
   BedrockGuardrailId:
@@ -270,7 +207,7 @@ Parameters:
   # Logging configuration
   LogLevel:
     Type: String
-    Default: WARN
+    Default: INFO
     AllowedValues:
       - DEBUG
       - INFO
@@ -353,30 +290,7 @@ Rules:
       - Assert: !Not [!Equals [!Ref Pattern3UDOPModelArtifactPath, ""]]
         AssertDescription: UDOP Model Artifact Path is required when IDPPattern is 'Pattern1'
 
-  # Pattern 2 rules
-
-  Pattern2ClassificationModelArn:
-    RuleCondition:
-      !Equals [
-        !Ref Pattern2ClassificationModel,
-        "Custom Fine Tuned Classification Model",
-      ]
-    Assertions:
-      - Assert: !Not [!Equals [!Ref Pattern2CustomClassificationModelARN, ""]]
-        AssertDescription:
-          Pattern2CustomClassificationModelARN is required when 'Custom Fine Tuned Classification Model'
-          is selected.
-
-  Pattern2ExtractionModelArn:
-    RuleCondition:
-      !Equals [
-        !Ref Pattern2ExtractionModel,
-        "Custom Fine Tuned Extraction Model",
-      ]
-    Assertions:
-      - Assert: !Not [!Equals [!Ref Pattern2CustomExtractionModelARN, ""]]
-        AssertDescription: Pattern2CustomExtractionModelARN is required when 'Custom Fine Tuned Classification Model'
-          is selected.
+  # Pattern 2 rules - Custom model validation now handled in pattern templates
 
 Conditions:
   IsPattern1:
@@ -428,40 +342,39 @@ Metadata:
       - Label:
           default: "Pattern 1 Configuration"
         Parameters:
+          - Pattern1Configuration
           - Pattern1BDAProjectArn
-          - Pattern1SummarizationModel
       - Label:
           default: "Pattern 2 Configuration"
         Parameters:
-          - Pattern2ClassificationModel
-          - Pattern2ClassificationMethod
-          - Pattern2ExtractionModel
-          - Pattern2SummarizationModel
+          - Pattern2Configuration
           - Pattern2CustomClassificationModelARN
           - Pattern2CustomExtractionModelARN
       - Label:
           default: "Pattern 3 Configuration"
         Parameters:
+          - Pattern3Configuration
           - Pattern3UDOPModelArtifactPath
-          - Pattern3ExtractionModel
-          - Pattern3SummarizationModel
       - Label:
-          default: "Post Processing Configuration"
+          default: "Summarization"
         Parameters:
-          - PostProcessingLambdaHookFunctionArn
+          - IsSummarizationEnabled
       - Label:
-          default: "Evaluation Configuration"
+          default: "Evaluation"
         Parameters:
           - EvaluationBaselineBucketName
           - EvaluationAutoEnabled
-          - EvaluationLLMModelId
       - Label:
-          default: "Document Knowledge Base Configuration"
+          default: "Document Knowledge Base"
         Parameters:
           - DocumentKnowledgeBase
           - KnowledgeBaseModelId
       - Label:
-          default: "Bedrock Guardrail Configuration"
+          default: "Post Processing"
+        Parameters:
+          - PostProcessingLambdaHookFunctionArn
+      - Label:
+          default: "Bedrock Guardrails"
         Parameters:
           - BedrockGuardrailId
           - BedrockGuardrailVersion
@@ -487,34 +400,26 @@ Metadata:
         default: "Document Processing Pattern"
       Pattern1BDAProjectArn:
         default: "Pattern1 - Packet or Media processing with Bedrock Data Automation (BDA) Project ARN"
-      Pattern1SummarizationModel:
-        default: "Pattern1 - Summarization Model"
-      Pattern2ClassificationModel:
-        default: "Pattern2 - Classification Model"
-      Pattern2ClassificationMethod:
-        default: "Pattern2 - Classification Method"
-      Pattern2ExtractionModel:
-        default: "Pattern2 - Extraction Model"
-      Pattern2SummarizationModel:
-        default: "Pattern2 - Summarization Model"
       Pattern2CustomClassificationModelARN:
         default: "Pattern2 - Custom Classification Model ARN"
       Pattern2CustomExtractionModelARN:
         default: "Pattern2 - Custom Extraction Model ARN"
+      Pattern1Configuration:
+        default: "Pattern1 - Configuration Preset"
+      Pattern2Configuration:
+        default: "Pattern2 - Configuration Preset"
       Pattern3UDOPModelArtifactPath:
         default: "Pattern3 - UDOP Model Artifact Path"
-      Pattern3ExtractionModel:
-        default: "Pattern3 - Extraction Model"
-      Pattern3SummarizationModel:
-        default: "Pattern3 - Summarization Model"
+      Pattern3Configuration:
+        default: "Pattern3 - Configuration Preset"
       PostProcessingLambdaHookFunctionArn:
         default: "Post Processing Lambda Hook Function ARN"
       EvaluationBaselineBucketName:
         default: "Evaluation Baseline Bucket Name"
       EvaluationAutoEnabled:
         default: "Evaluation Auto Enabled"
-      EvaluationLLMModelId:
-        default: "Evaluation LLM Model Id"
+      IsSummarizationEnabled:
+        default: "Summarization Enabled"
       DocumentKnowledgeBase:
         default: "Document Knowledge Base Configuration"
       KnowledgeBaseModelId:
@@ -648,6 +553,7 @@ Resources:
       Parameters:
         StackName: !Ref AWS::StackName
         InputBucket: !Ref InputBucket
+        ConfigurationBucket: !Ref ConfigurationBucket
         WorkingBucket: !Ref WorkingBucket
         OutputBucket: !Ref OutputBucket
         TrackingTable: !Ref TrackingTable
@@ -661,12 +567,12 @@ Resources:
           - ShouldCreateBDASampleProject
           - !GetAtt BDASAMPLEPROJECT.Outputs.ProjectArn
           - !Ref Pattern1BDAProjectArn
-        SummarizationModel: !Ref Pattern1SummarizationModel
+        IsSummarizationEnabled: !Ref IsSummarizationEnabled
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
         ConfigurationTable: !Ref ConfigurationTable
         AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
-        EvaluationLLMModelId: !Ref EvaluationLLMModelId
+        ConfigurationDefaultS3Uri: !Sub "<CONFIG_BASE_PATH_TOKEN>/pattern-1/${Pattern1Configuration}/config.json"
 
   PATTERN2STACK:
     DependsOn:
@@ -679,6 +585,7 @@ Resources:
       Parameters:
         StackName: !Ref AWS::StackName
         InputBucket: !Ref InputBucket
+        ConfigurationBucket: !Ref ConfigurationBucket
         OutputBucket: !Ref OutputBucket
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
@@ -686,17 +593,14 @@ Resources:
         ExecutionTimeThresholdMs: !Ref ExecutionTimeThresholdMs
         BedrockGuardrailId: !Ref BedrockGuardrailId
         BedrockGuardrailVersion: !Ref BedrockGuardrailVersion
-        ClassificationModel: !Ref Pattern2ClassificationModel
-        ClassificationMethod: !Ref Pattern2ClassificationMethod
-        ExtractionModel: !Ref Pattern2ExtractionModel
         CustomClassificationModelARN: !Ref Pattern2CustomClassificationModelARN
         CustomExtractionModelARN: !Ref Pattern2CustomExtractionModelARN
-        SummarizationModel: !Ref Pattern2SummarizationModel
+        IsSummarizationEnabled: !Ref IsSummarizationEnabled
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
         AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationTable: !Ref ConfigurationTable
-        EvaluationLLMModelId: !Ref EvaluationLLMModelId
+        ConfigurationDefaultS3Uri: !Sub "<CONFIG_BASE_PATH_TOKEN>/pattern-2/${Pattern2Configuration}/config.json"
 
   PATTERN3STACK:
     DependsOn:
@@ -709,6 +613,7 @@ Resources:
       Parameters:
         StackName: !Ref AWS::StackName
         InputBucket: !Ref InputBucket
+        ConfigurationBucket: !Ref ConfigurationBucket
         OutputBucket: !Ref OutputBucket
         CustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         LogRetentionDays: !Ref LogRetentionDays
@@ -717,13 +622,12 @@ Resources:
         BedrockGuardrailId: !Ref BedrockGuardrailId
         BedrockGuardrailVersion: !Ref BedrockGuardrailVersion
         UDOPModelArtifactPath: !Ref Pattern3UDOPModelArtifactPath
-        ExtractionModel: !Ref Pattern3ExtractionModel
-        SummarizationModel: !Ref Pattern3SummarizationModel
+        IsSummarizationEnabled: !Ref IsSummarizationEnabled
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
         AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationTable: !Ref ConfigurationTable
-        EvaluationLLMModelId: !Ref EvaluationLLMModelId
+        ConfigurationDefaultS3Uri: !Sub "<CONFIG_BASE_PATH_TOKEN>/pattern-3/${Pattern3Configuration}/config.json"
 
   ##########################################################################
   # Encryption key
@@ -928,6 +832,73 @@ Resources:
             Resource: 
               - !Sub "${InputBucket.Arn}/*"
               - !Sub "${InputBucket.Arn}"
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
+
+  ConfigurationBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: RetainExceptOnCreate
+    Properties:
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "Content-Type"
+              - "x-amz-content-sha256"
+              - "x-amz-date"
+              - "Authorization"
+              - "x-amz-security-token"
+            AllowedMethods:
+              - PUT
+              - POST
+            AllowedOrigins:
+              - !Sub "https://${CloudFrontDistribution.DomainName}"
+              # For local development only
+              - "http://localhost:3000"
+            ExposedHeaders:
+              - "ETag"
+              - "x-amz-server-side-encryption"
+            MaxAge: 3000
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref CustomerManagedEncryptionKey
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LoggingBucket
+        LogFilePrefix: input-bucket-logs/
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteAfterNDays
+            Status: Enabled
+            ExpirationInDays: !Ref DataRetentionInDays
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+  
+  ConfigurationBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ConfigurationBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnforceSSLOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: 
+              - !Sub "${ConfigurationBucket.Arn}/*"
+              - !Sub "${ConfigurationBucket.Arn}"
             Condition:
               Bool:
                 'aws:SecureTransport': false
@@ -1303,6 +1274,15 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+          - Effect: Allow
+            Action:
+              - "s3:GetObject"
+              - "s3:ListBucket"
+            Resource:
+              - !Sub "arn:aws:s3:::<ARTIFACT_BUCKET_TOKEN>"
+              - !Sub "arn:aws:s3:::<ARTIFACT_BUCKET_TOKEN>/<ARTIFACT_PREFIX_TOKEN>/*"
+              - !Sub "arn:aws:s3:::${ConfigurationBucket}"
+              - !Sub "arn:aws:s3:::${ConfigurationBucket}/*"
 
   UpdateConfigurationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -1375,7 +1355,9 @@ Resources:
         StackName: !Sub "${AWS::StackName}"
         Version: <VERSION>
         BuildDateTime: <BUILD_DATE_TIME>
+        IDPPattern: !Ref IDPPattern
         InputBucket: !Ref InputBucket
+        ConfigurationBucket: !Ref ConfigurationBucket
         OutputBucket: !Ref OutputBucket
         EvaluationBaselineBucket: !Ref EvaluationBaselineBucket
         ShouldUseDocumentKnowledgeBase: !If
@@ -2652,6 +2634,8 @@ Resources:
                   - !Sub "arn:aws:s3:::${OutputBucket}/*"
                   - !Sub "arn:aws:s3:::${InputBucket}"
                   - !Sub "arn:aws:s3:::${InputBucket}/*"
+                  - !Sub "arn:aws:s3:::${ConfigurationBucket}"
+                  - !Sub "arn:aws:s3:::${ConfigurationBucket}/*"
               - Effect: Allow
                 Action:
                   - kms:Encrypt
@@ -3316,6 +3300,8 @@ Resources:
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
         - S3ReadPolicy:
+            BucketName: !Ref ConfigurationBucket
+        - S3ReadPolicy:
             BucketName: !Ref OutputBucket
         - Statement:
             - Effect: Allow
@@ -3690,6 +3676,8 @@ Resources:
       Policies:      
         - S3WritePolicy:
             BucketName: !Ref InputBucket
+        - S3WritePolicy:
+            BucketName: !Ref ConfigurationBucket
         - S3WritePolicy:
             BucketName: !Ref OutputBucket
         - S3WritePolicy:
@@ -4203,6 +4191,12 @@ Outputs:
           - ShouldCreateEvaluationBaselineBucket
           - !Ref EvaluationBaselineBucket
           - !Ref EvaluationBaselineBucketName
+  S3ConfigurationBucketName:
+    Description: Configuration S3 bucket name
+    Value: !Ref ConfigurationBucket
+  S3ConfigurationBucketConsoleURL:
+    Description: Configuration S3 bucket console URL
+    Value: !Sub https://s3.console.aws.amazon.com/s3/buckets/${ConfigurationBucket}
   StateMachineArn:
     Description: Step Functions State machine ARN
     Value: !If

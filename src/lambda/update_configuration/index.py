@@ -3,7 +3,7 @@ import os
 import logging
 import boto3
 from botocore.exceptions import ClientError
-from typing import Dict, Any
+from typing import Dict, Any, Union
 import cfnresponse
 
 logger = logging.getLogger()
@@ -12,7 +12,50 @@ logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_
 # Get LOG_LEVEL from environment variable with INFO as default
 
 dynamodb = boto3.resource('dynamodb')
+s3_client = boto3.client('s3')
 table = dynamodb.Table(os.environ['CONFIGURATION_TABLE_NAME'])
+
+def fetch_content_from_s3(s3_uri: str) -> Union[Dict[str, Any], str]:
+    """
+    Fetches content from S3 URI and parses as JSON if possible
+    """
+    try:
+        # Parse S3 URI
+        if not s3_uri.startswith('s3://'):
+            raise ValueError(f"Invalid S3 URI: {s3_uri}")
+        
+        # Remove s3:// prefix and split bucket and key
+        s3_path = s3_uri[5:]
+        bucket, key = s3_path.split('/', 1)
+        
+        logger.info(f"Fetching content from S3: bucket={bucket}, key={key}")
+        
+        # Fetch object from S3
+        response = s3_client.get_object(Bucket=bucket, Key=key)
+        content = response['Body'].read().decode('utf-8')
+        
+        # Try to parse as JSON, return as string if it fails
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            logger.warning(f"Content from {s3_uri} is not valid JSON, returning as string")
+            return content
+            
+    except ClientError as e:
+        logger.error(f"Error fetching content from S3 {s3_uri}: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"Error processing S3 URI {s3_uri}: {str(e)}")
+        raise
+
+def resolve_content(content: Union[str, Dict[str, Any]]) -> Union[Dict[str, Any], str]:
+    """
+    Resolves content - if it's a string starting with s3://, fetch from S3
+    Otherwise return as-is
+    """
+    if isinstance(content, str) and content.startswith('s3://'):
+        return fetch_content_from_s3(content)
+    return content
 
 def update_configuration(configuration_type: str, data: Dict[str, Any]) -> None:
     """
@@ -70,15 +113,18 @@ def handler(event: Dict[str, Any], context: Any) -> None:
         if request_type in ['Create', 'Update']:
             # Update Schema configuration
             if 'Schema' in properties:
-                update_configuration('Schema', {'Schema': properties['Schema']})
+                resolved_schema = resolve_content(properties['Schema'])
+                update_configuration('Schema', {'Schema': resolved_schema})
             
             # Update Default configuration
             if 'Default' in properties:
-                update_configuration('Default', properties['Default'])
+                resolved_default = resolve_content(properties['Default'])
+                update_configuration('Default', resolved_default)
             
             # Update Custom configuration if provided and not empty
             if 'Custom' in properties and properties['Custom'].get('Info') != 'Custom inference settings':
-                update_configuration('Custom', properties['Custom'])
+                resolved_custom = resolve_content(properties['Custom'])
+                update_configuration('Custom', resolved_custom)
             
             cfnresponse.send(event, context, cfnresponse.SUCCESS, {
                 'Message': f'Successfully {request_type.lower()}d configurations'
