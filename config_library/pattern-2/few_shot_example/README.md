@@ -1,4 +1,4 @@
-# Default Configuration
+# Configuration example using few-shot multimodal prompts for classification and extraction
 
 This directory contains the default configuration for the GenAI IDP Accelerator. This configuration serves as the baseline for all document processing tasks and can be used as a starting point for creating custom configurations.
 
@@ -8,14 +8,14 @@ This directory contains the default configuration for the GenAI IDP Accelerator.
 
 ## Validation Level
 
-**Level**: 2 - Comprehensive Testing
+**Level**: Experimental - Minimal testing
 
-- **Testing Evidence**: This configuration has been tested with a diverse set of business documents across all supported document classes. It has shown consistent performance in classifying and extracting information from standard business documents.
-- **Known Limitations**: Performance may vary with highly specialized document types or documents with complex layouts not represented in the test set.
+- **Testing Evidence**: None
+- **Known Limitations**: 
 
 ## Overview
 
-The default configuration is designed to handle a variety of common business document types, including:
+The configuration is designed to handle a variety of common business document types, including:
 
 - Letters
 - Forms
@@ -52,7 +52,7 @@ The configuration defines 11 document classes, each with specific attributes to 
 ### Classification Settings
 
 - **Model**: Amazon Nova Pro
-- **Method**: Text-based holistic classification
+- **Method**: Multimodal page based classification
 - **Temperature**: 0 (deterministic outputs)
 - **Top-k**: 5
 
