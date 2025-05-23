@@ -141,6 +141,7 @@ Resources:
               required:
                 - name
                 - description
+                - examples
                 - attributes
               properties:
                 name:
@@ -149,6 +150,35 @@ Resources:
                 description:
                   type: string
                   description: Class description
+                examples:
+                  type: array
+                  description: Class few-shot examples
+                  listLabel: Few-shot examples
+                  itemLabel: Few-shot example
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - classPrompt
+                      - attributesPrompt
+                      - imagesPath
+                    properties:
+                      name:
+                        type: string
+                        description: Example name
+                        order: 0
+                      classPrompt:
+                        type: string
+                        description: Prompt snippet for classification
+                        order: 1
+                      attributesPrompt:
+                        type: string
+                        description: Prompt snippet for attribute value extraction
+                        order: 2
+                      imagePath:
+                        type: string
+                        description: (Optional) S3 path to a page image or to folder with multiple page images.
+                        order: 3
                 attributes:
                   type: array
                   listLabel: Attributes
