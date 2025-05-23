@@ -641,6 +641,11 @@ classification:
     Respond only with a JSON object containing the class label. For example:
     {{"class": "letter"}}
 
+    <few_shot_examples>
+
+    {FEW_SHOT_EXAMPLES}
+
+    </few_shot_examples>
 
     <<CACHEPOINT>>
 
@@ -706,6 +711,12 @@ extraction:
     {ATTRIBUTE_NAMES_AND_DESCRIPTIONS}
 
     </attributes>
+
+    <few_shot_examples>
+
+    {FEW_SHOT_EXAMPLES}
+
+    </few_shot_examples>
 
     </task>
 
