@@ -1,18 +1,12 @@
 {
   "classification": {
-    "top_p": "0.1",
-    "max_tokens": "4096",
-    "top_k": "5",
-    "task_prompt": "<task-description>\nYou are a document classification system. Your task is to analyze a document package containing multiple pages and identify distinct document segments, classifying each segment according to the predefined document types provided below.\n</task-description>\n\n<document-types>\n{CLASS_NAMES_AND_DESCRIPTIONS}\n</document-types>\n\n<terminology-definitions>\nKey terms used in this task:\n- ordinal_start_page: The one-based beginning page number of a document segment within the document package\n- ordinal_end_page: The one-based ending page number of a document segment within the document package\n- document_type: The document type code detected for a document segment\n- document segment: A continuous range of pages that form a single, complete document\n</terminology-definitions>\n\n<classification-instructions>\nFollow these steps to classify documents:\n1. Read through the entire document package to understand its contents\n2. Identify page ranges that form complete, distinct documents\n3. Match each document segment to ONE of the document types listed in <document-types>\n4. CRITICAL: Only use document types explicitly listed in the <document-types> section\n5. If a document doesn't clearly match any listed type, assign it to the most similar listed type\n6. Pay special attention to adjacent documents of the same type - they must be separated into distinct segments\n7. Record the ordinal_start_page and ordinal_end_page for each identified segment\n8. Provide appropriate reasons and facts for the predicted document type\n</classification-instructions>\n\n<document-boundary-rules>\nRules for determining document boundaries:\n- Content continuity: Pages with continuing paragraphs, numbered sections, or ongoing narratives belong to the same document\n- Visual consistency: Similar layouts, headers, footers, and styling indicate pages belong together\n- Logical structure: Documents typically have clear beginning, middle, and end sections\n- New document indicators: Title pages, cover sheets, or significantly different subject matter signal a new document\n- Topic coherence: Pages discussing the same subject should be grouped together\n- IMPORTANT: Distinct documents of the same type that are adjacent must be separated into different segments\n</document-boundary-rules>\n\n<output-format>\nReturn your classification as valid JSON following this exact structure:\n```json\n{\n    \"segments\": [\n        {\n            \"ordinal_start_page\": 1,\n            \"ordinal_end_page\": 3,\n            \"type\": \"document_type_from_list\",\n            \"reason\": \"facts and reasons to classify as the predicted type\",\n        },\n        {\n            \"ordinal_start_page\": 4,\n            \"ordinal_end_page\": 7,\n            \"type\": \"document_type_from_list\"\n            \"reason\": \"facts and reasons to classify as the predicted type\",\n        }\n    ]\n}\n```\n</output-format>\n\n<<CACHEPOINT>>\n\n<document-text>\n{DOCUMENT_TEXT}\n</document-text>\n\n<final-instructions>\nAnalyze the <document-text> provided above and:\n1. Apply the <classification-instructions> to identify distinct document segments\n2. Use the <document-boundary-rules> to determine where one document ends and another begins\n3. Classify each segment using ONLY the document types from the <document-types> list\n4. Ensure adjacent documents of the same type are separated into distinct segments\n5. Output your classification in the exact JSON format specified in <output-format>\n6. You can get this information from the previous message. Analyze the previous messages to get these instructions.\n\nRemember: You must ONLY use document types that appear in the <document-types> reference data. Do not invent or create new document types.\n</final-instructions>\n",
-    "temperature": "0.0",
-    "model": "us.amazon.nova-pro-v1:0",
-    "system_prompt": "You are a document classification expert who can analyze and classify multiple documents and their page boundaries within a document package from various domains. Your task is to determine the document type based on its content and structure, using the provided document type definitions. Your output must be valid JSON according to the requested format.\n",
-    "classificationMethod": "textbasedHolisticClassification"
+    "model": "Custom fine tuned UDOP model"
   },
+  "notes": "Default settings",
   "classes": [
     {
       "name": "letter",
-      "description": "A formal written correspondence with sender/recipient addresses, date, salutation, body, and closing signature",
+      "description": "A formal written message that is typically sent from one person to another",
       "attributes": [
         {
           "name": "sender_name",
@@ -58,7 +52,7 @@
     },
     {
       "name": "form",
-      "description": "A structured document with labeled fields, checkboxes, or blanks requiring user input and completion",
+      "description": "A document with blank spaces for filling in information",
       "attributes": [
         {
           "name": "form_type",
@@ -104,7 +98,7 @@
     },
     {
       "name": "invoice",
-      "description": "A billing document listing items/services, quantities, prices, payment terms, and transaction totals",
+      "description": "A commercial document issued by a seller to a buyer relating to a sale",
       "attributes": [
         {
           "name": "invoice_number",
@@ -170,7 +164,7 @@
     },
     {
       "name": "resume",
-      "description": "A professional summary showcasing work experience, education, skills, and achievements for job applications",
+      "description": "A document summarizing a person's background, skills, and qualifications",
       "attributes": [
         {
           "name": "full_name",
@@ -216,7 +210,7 @@
     },
     {
       "name": "scientific_publication",
-      "description": "A peer-reviewed academic document with abstract, methodology, results, citations, and research findings",
+      "description": "A formally published document presenting scientific research findings",
       "attributes": [
         {
           "name": "title",
@@ -274,7 +268,7 @@
     },
     {
       "name": "memo",
-      "description": "An internal business communication with TO/FROM/DATE/SUBJECT headers for organizational announcements or directives",
+      "description": "A brief written message used for internal communication within an organization",
       "attributes": [
         {
           "name": "memo_date",
@@ -320,7 +314,7 @@
     },
     {
       "name": "advertisement",
-      "description": "A promotional material featuring product images, marketing text, calls-to-action, and branding elements",
+      "description": "A public notice promoting a product, service, or event",
       "attributes": [
         {
           "name": "product_name",
@@ -366,7 +360,7 @@
     },
     {
       "name": "email",
-      "description": "A digital message with email headers (To/From/Subject), timestamps, and conversational threading",
+      "description": "An electronic message sent from one person to another over a computer network",
       "attributes": [
         {
           "name": "from_address",
@@ -412,7 +406,7 @@
     },
     {
       "name": "questionnaire",
-      "description": "A survey instrument containing numbered questions with multiple choice, rating scales, or open-ended responses",
+      "description": "A set of written questions designed to collect information from respondents",
       "attributes": [
         {
           "name": "form_title",
@@ -458,7 +452,7 @@
     },
     {
       "name": "specification",
-      "description": "A technical document detailing precise requirements, measurements, standards, and implementation criteria",
+      "description": "A detailed description of technical requirements or characteristics",
       "attributes": [
         {
           "name": "product_name",
@@ -504,7 +498,7 @@
     },
     {
       "name": "generic",
-      "description": "An unstructured document lacking distinctive formatting or purpose-specific elements of other categories",
+      "description": "A general document type that doesn't fit into other specific categories",
       "attributes": [
         {
           "name": "document_type",
@@ -549,14 +543,13 @@
       ]
     }
   ],
-  "notes": "Default settings",
   "extraction": {
     "top_p": "0.1",
     "max_tokens": "4096",
     "top_k": "5",
     "task_prompt": "<background>\nYou are an expert in business document analysis and information extraction. \nYou can understand and extract key information from business documents. \n<task>\nYour task is to take the unstructured text provided and convert it into a\nwell-organized table format using JSON. Identify the main entities,\nattributes, or categories mentioned in the attributes list below and use\nthem as keys in the JSON object. \nThen, extract the relevant information from the text and populate the\ncorresponding values in the JSON object. \nGuidelines:\nEnsure that the data is accurately represented and properly formatted within the JSON structure\nInclude double quotes around all keys and values\nDo not make up data - only extract information explicitly found in the document\nDo not use /n for new lines, use a space instead\nIf a field is not found or if unsure, return null\nAll dates should be in MM/DD/YYYY format\nDo not perform calculations or summations unless totals are explicitly given\nIf an alias is not found in the document, return null\nHere are the attributes you should extract:\n<attributes>\n{ATTRIBUTE_NAMES_AND_DESCRIPTIONS}\n</attributes>\n</task>\n</background>\n<<CACHEPOINT>>  \nThe document tpe is {DOCUMENT_CLASS}. Here is the document content:\n<document_ocr_data>\n{DOCUMENT_TEXT}\n</document_ocr_data>\n",
     "temperature": "0.0",
-    "model": "us.amazon.nova-pro-v1:0",
+    "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
     "system_prompt": "You are a document assistant. Respond only with JSON. Never make up data, only provide data found in the document being provided.\n"
   },
   "pricing": [
@@ -753,7 +746,7 @@
       "top_k": "5",
       "task_prompt": "I need to evaluate attribute extraction for a document of class: {DOCUMENT_CLASS}.\n\nFor the attribute named \"{ATTRIBUTE_NAME}\" described as \"{ATTRIBUTE_DESCRIPTION}\":\n- Expected value: {EXPECTED_VALUE}\n- Actual value: {ACTUAL_VALUE}\n\nDo these values match in meaning, taking into account formatting differences, word order, abbreviations, and semantic equivalence?\nProvide your assessment as a JSON with three fields:\n- \"match\": boolean (true if they match, false if not)\n- \"score\": number between 0 and 1 representing the confidence/similarity score\n- \"reason\": brief explanation of your decision\n\nRespond ONLY with the JSON and nothing else. Here's the exact format:\n{\n  \"match\": true or false,\n  \"score\": 0.0 to 1.0,\n  \"reason\": \"Your explanation here\"\n}\n",
       "temperature": "0.0",
-      "model": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "model": "us.amazon.nova-lite-v1:0",
       "system_prompt": "You are an evaluator that helps determine if the predicted and expected values match for document attribute extraction. You will consider the context and meaning rather than just exact string matching.\n"
     }
   },
@@ -773,9 +766,6 @@
       },
       {
         "name": "TABLES"
-      },
-      {
-        "name": "SIGNATURES"
       }
     ]
   }
