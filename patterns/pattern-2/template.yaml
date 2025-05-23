@@ -141,7 +141,6 @@ Resources:
               required:
                 - name
                 - description
-                - examples
                 - attributes
               properties:
                 name:
@@ -170,15 +169,15 @@ Resources:
                       classPrompt:
                         type: string
                         description: Prompt snippet for classification
-                        order: 1
+                        order: 2
                       attributesPrompt:
                         type: string
                         description: Prompt snippet for attribute value extraction
-                        order: 2
+                        order: 3
                       imagePath:
                         type: string
-                        description: (Optional) S3 path to a page image or to folder with multiple page images.
-                        order: 3
+                        description: (Optional) S3 prefix for page image or folder with multiple page images, in the ConfigurationBucket.
+                        order: 4
                 attributes:
                   type: array
                   listLabel: Attributes
@@ -547,6 +546,8 @@ Resources:
             BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
+        - S3ReadPolicy:
+            BucketName: !Ref ConfigurationBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref ConfigurationTable
         - Statement:
@@ -622,6 +623,8 @@ Resources:
             BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
+        - S3ReadPolicy:
+            BucketName: !Ref ConfigurationBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref ConfigurationTable
         - Statement:
