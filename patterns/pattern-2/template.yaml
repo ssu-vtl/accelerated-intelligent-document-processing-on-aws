@@ -96,10 +96,22 @@ Parameters:
     Default: ""
     Description: "If you provided a Bedrock Guardrail Id above, provide the corresponding Guardrail version here"
 
+  ConfigurationSchemaS3Uri:
+    Type: String
+    Default: ""
+    Description: "Optional S3 URI (s3://bucket/path/schema.json) to import schema configuration from S3 instead of using inline definition"
+
+  ConfigurationDefaultS3Uri:
+    Type: String
+    Default: ""
+    Description: "Optional S3 URI (s3://bucket/path/config.json) to import default configuration from S3 instead of using inline definition"
+
 Conditions:
   IsMultimodalPageLevelClassification: !Equals [!Ref ClassificationMethod, 'multimodalPageLevelClassification']
   IsSummarizationEnabled: !Not [!Equals [!Ref SummarizationModel, "DISABLED"]]
   HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
+  UseSchemaS3Uri: !Not [!Equals [!Ref ConfigurationSchemaS3Uri, ""]]
+  UseDefaultS3Uri: !Not [!Equals [!Ref ConfigurationDefaultS3Uri, ""]]
 
 
 Resources:
@@ -110,7 +122,10 @@ Resources:
     Type: AWS::CloudFormation::CustomResource
     Properties:
       ServiceToken: !Ref UpdateConfigurationFunctionArn
-      Schema:
+      Schema: !If 
+        - UseSchemaS3Uri
+        - !Ref ConfigurationSchemaS3Uri
+        -
         type: object
         required:
           - notes
@@ -417,7 +432,10 @@ Resources:
     Type: AWS::CloudFormation::CustomResource
     Properties:
       ServiceToken: !Ref UpdateConfigurationFunctionArn
-      Default:
+      Default: !If 
+        - UseDefaultS3Uri
+        - !Ref ConfigurationDefaultS3Uri
+        -
         notes: Default settings
         ocr:
           features:

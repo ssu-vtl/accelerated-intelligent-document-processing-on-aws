@@ -1373,6 +1373,15 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+          - Effect: Allow
+            Action:
+              - "s3:GetObject"
+              - "s3:ListBucket"
+            Resource:
+              - !Sub "arn:aws:s3:::<ARTIFACT_BUCKET_TOKEN>"
+              - !Sub "arn:aws:s3:::<ARTIFACT_BUCKET_TOKEN>/<ARTIFACT_PREFIX_TOKEN>/*"
+              - !Sub "arn:aws:s3:::${ConfigurationBucket}"
+              - !Sub "arn:aws:s3:::${ConfigurationBucket}/*"
 
   UpdateConfigurationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
