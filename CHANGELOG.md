@@ -16,6 +16,10 @@
   - New `ConfigurationDefaultS3Uri` parameter allows specifying custom S3 configuration sources
   - Enhanced configuration management with separation of infrastructure and business logic
 
+### Fixed
+- **Lambda Configuration Reload Issue**
+  - Fixed lambda functions loading configuration globally which prevented configuration updates from being picked up during warm starts
+
 ### Changed
 - **Simplified Model Configuration Architecture**
   - Removed individual model parameters from main template: `Pattern1SummarizationModel`, `Pattern2ClassificationModel`, `Pattern2ExtractionModel`, `Pattern2SummarizationModel`, `Pattern3ExtractionModel`, `Pattern3SummarizationModel`, `EvaluationLLMModelId`
