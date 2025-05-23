@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+### Added
+- **Bedrock Prompt Caching Support**
+  - Added support for `<<CACHEPOINT>>` delimiter in prompts to enable Bedrock prompt caching
+  - Prompts can now be split into static (cacheable) and dynamic sections for improved performance and cost optimization
+  - Available in classification, extraction, and summarization prompts across all patterns
+  - Automatic detection and processing of cache point delimiters in BedrockClient
+
+- **Configuration Library Support**
+  - Added `config_library/` directory with pre-built configuration templates for all patterns
+  - Configuration now loaded from S3 URIs instead of being defined inline in CloudFormation templates
+  - Support for multiple configuration presets per pattern (e.g., default, checkboxed_attributes_extraction, medical_records_summarization)
+  - New `ConfigurationDefaultS3Uri` parameter allows specifying custom S3 configuration sources
+  - Enhanced configuration management with separation of infrastructure and business logic
+
+### Changed
+- **Simplified Model Configuration Architecture**
+  - Removed individual model parameters from main template: `Pattern1SummarizationModel`, `Pattern2ClassificationModel`, `Pattern2ExtractionModel`, `Pattern2SummarizationModel`, `Pattern3ExtractionModel`, `Pattern3SummarizationModel`, `EvaluationLLMModelId`
+  - Model selection now handled through enum constraints in UpdateSchemaConfig sections within each pattern template
+  - Added centralized `IsSummarizationEnabled` parameter (true|false) to control summarization functionality across all patterns
+  - Updated all pattern templates to use new boolean parameter instead of checking if model is "DISABLED"
+  - Refactored IsSummarizationEnabled conditions in all pattern templates to use the new parameter
+  - Maintained backward compatibility while significantly reducing parameter complexity
+
 
 ## [0.2.20]
 ### Added
