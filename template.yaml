@@ -293,7 +293,7 @@ Parameters:
   # Logging configuration
   LogLevel:
     Type: String
-    Default: WARN
+    Default: INFO
     AllowedValues:
       - DEBUG
       - INFO
