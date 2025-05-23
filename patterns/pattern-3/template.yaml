@@ -475,6 +475,8 @@ Resources:
             BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
+        - S3ReadPolicy:
+            BucketName: !Ref ConfigurationBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref ConfigurationTable
         - Statement:
@@ -548,6 +550,8 @@ Resources:
             BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
+        - S3ReadPolicy:
+            BucketName: !Ref ConfigurationBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref ConfigurationTable
         - Statement:
