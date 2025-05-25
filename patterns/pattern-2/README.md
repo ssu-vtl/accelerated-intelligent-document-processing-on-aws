@@ -193,14 +193,19 @@ The pattern exports these outputs to the parent stack:
 
 ### Configuration
 
-Key configurable parameters:
-
-- `ClassificationModel`: Bedrock model ID for classification
+**Stack Deployment Parameters:**
 - `ClassificationMethod`: Classification methodology to use (options: 'multimodalPageLevelClassification' or 'textbasedHolisticClassification')
-- `ExtractionModel`: Bedrock model ID for extraction
+- `IsSummarizationEnabled`: Boolean to enable/disable summarization functionality (true|false)
+- `ConfigurationDefaultS3Uri`: Optional S3 URI to custom configuration (uses default configuration if not specified)
 - `MaxConcurrentWorkflows`: Workflow concurrency limit
 - `LogRetentionDays`: CloudWatch log retention period
 - `ExecutionTimeThresholdMs`: Latency threshold for alerts
+
+**Configuration Management:**
+- Model selection is now handled through configuration files rather than CloudFormation parameters
+- Configuration supports multiple presets per pattern (e.g., default, checkboxed_attributes_extraction, medical_records_summarization, few_shot_example)
+- Configuration can be updated through the Web UI without stack redeployment
+- Model choices are constrained through enum constraints in the configuration schema
 
 ## Customizing Classification
 
@@ -212,17 +217,7 @@ The pattern supports two different classification methods:
 
 You can select which method to use by setting the `ClassificationMethod` parameter when deploying the stack.
 
-The classification system uses RVL-CDIP dataset categories and can be customized through the configuration settings in the template.yaml file. The default prompts are defined in the template:
-
-```python
-# For multimodalPageLevelClassification
-SYSTEM_PROMPT = """You are a document classification system..."""
-CLASSIFYING_PROMPT = """Classify this document into exactly one of these categories..."""
-
-# For textbasedHolisticClassification
-SYSTEM_PROMPT = """You are a document classification expert who can analyze and classify multiple documents..."""
-CLASSIFYING_PROMPT = """The <document-text> XML tags contains the text separated into pages from the document package..."""
-```
+The classification system uses RVL-CDIP dataset categories and can be customized through the configuration files. Classification models and prompts are now managed through the configuration library rather than CloudFormation parameters.
 
 Available categories:
 - letter
@@ -328,7 +323,7 @@ task_prompt: |
 
 To use few shot examples in your deployment:
 
-1. **Use the example configuration**: Deploy with the `config_library/pattern-2/few_shot_example/config.yaml` configuration
+1. **Use the example configuration**: Deploy with `ConfigurationDefaultS3Uri` pointing to `config_library/pattern-2/few_shot_example/config.yaml`
 2. **Create custom examples**: Copy the example configuration and modify it with your own document examples
 3. **Provide example images**: Place example document images in the appropriate directory and reference them in the `imagePath` field
 
@@ -341,19 +336,24 @@ To use few shot examples in your deployment:
 
 ## Customizing Extraction
 
-The extraction system can be customized through the configuration settings in the template.yaml file:
+The extraction system can be customized through the configuration files rather than CloudFormation parameters:
 
 1. **Attribute Definitions**: 
-   - Define attributes per document class in the `classes` section
+   - Define attributes per document class in the `classes` section of the configuration
    - Specify descriptions for each attribute
    - Configure the format and structure
 
 2. **Extraction Prompts**:
-   - Customize system behavior through the `system_prompt`
+   - Customize system behavior through the `system_prompt` in configuration
    - Add domain expertise and guidance in the `task_prompt`
    - Modify output formatting requirements
 
-Example attribute definition from the template:
+3. **Model Selection**:
+   - Model selection is handled through enum constraints in the configuration
+   - Available models are defined in the configuration schema
+   - Changes can be made through the Web UI without redeployment
+
+Example attribute definition from the configuration:
 ```yaml
 classes:
   - name: invoice
@@ -384,32 +384,37 @@ sam local invoke ExtractionFunction --env-vars testing/env.json -e testing/Extra
 
 ## Best Practices
 
-1. **Throttling Management**:
+1. **Configuration Management**:
+   - Use the configuration library for different use cases (default, medical_records, few_shot_example)
+   - Test configuration changes thoroughly before production deployment
+   - Leverage the Web UI for configuration updates without redeployment
+
+2. **Throttling Management**:
    - Implement exponential backoff with jitter
    - Configure appropriate retry limits
    - Monitor throttling metrics
 
-2. **Error Handling**:
+3. **Error Handling**:
    - Comprehensive error logging
    - Graceful degradation
    - Clear error messages
 
-3. **Performance Optimization**:
+4. **Performance Optimization**:
    - Concurrent processing where appropriate
    - Image optimization
    - Resource pooling
 
-4. **Monitoring**:
+5. **Monitoring**:
    - Detailed CloudWatch metrics
    - Performance dashboards
    - Error tracking
 
-5. **Security**:
+6. **Security**:
    - KMS encryption
    - Least privilege IAM roles
    - Secure configuration management
 
-6. **Few Shot Examples**:
+7. **Few Shot Examples**:
    - Use high-quality, representative examples
    - Include examples for all document classes you expect to process
    - Regularly review and update examples based on real-world performance
