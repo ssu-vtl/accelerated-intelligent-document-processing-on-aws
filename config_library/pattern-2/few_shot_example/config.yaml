@@ -86,22 +86,7 @@ classes:
               "signature": "Bill",
               "cc": null,
               "reference_number": null
-        imagePath: config_library/pattern-2/few_shot_example/example-images/letter2.jpg
-      - classPrompt: This is an example of the class 'email'
-        name: Email1
-        attributesPrompt: |-
-          expected attributes are: 
-             "from_address": "Kelahan, Ben",
-              "to_address": "TI New York: 'TI Minnesota",
-              "cc_address": "Ashley Bratich (MSMAIL)",
-              "bcc_address": null,
-              "subject": "FW: Morning Team Notes 4/20",
-              "date_sent": "04/18/1998",
-              "attachments": null,
-              "priority": null,
-              "thread_id": null,
-              "message_id": null
-        imagePath: config_library/pattern-2/few_shot_example/example-images/email1.jpg
+        imagePath: config_library/pattern-2/few_shot_example/example-images/letter2.png
   - name: form
     description: >-
       A structured document with labeled fields, checkboxes, or blanks requiring
@@ -461,6 +446,22 @@ classes:
         description: >-
           A unique identifier for the specific email. Look for 'message id' or
           'email id', usually hidden in the email metadata.
+    examples:
+      - classPrompt: This is an example of the class 'email'
+        name: Email1
+        attributesPrompt: |-
+          expected attributes are: 
+             "from_address": "Kelahan, Ben",
+              "to_address": "TI New York: 'TI Minnesota",
+              "cc_address": "Ashley Bratich (MSMAIL)",
+              "bcc_address": null,
+              "subject": "FW: Morning Team Notes 4/20",
+              "date_sent": "04/18/1998",
+              "attachments": null,
+              "priority": null,
+              "thread_id": null,
+              "message_id": null
+        imagePath: config_library/pattern-2/few_shot_example/example-images/email1.jpg
   - name: questionnaire
     description: >-
       A survey instrument containing numbered questions with multiple choice,
