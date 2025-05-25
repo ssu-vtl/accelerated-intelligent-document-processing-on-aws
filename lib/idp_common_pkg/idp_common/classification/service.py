@@ -213,25 +213,25 @@ class ClassificationService:
         return format_prompt(prompt_template, substitutions, required_placeholders)
 
     def _build_content_with_few_shot_examples(
-        self, 
-        task_prompt_template: str, 
-        document_text: str, 
-        class_names_and_descriptions: str
+        self,
+        task_prompt_template: str,
+        document_text: str,
+        class_names_and_descriptions: str,
     ) -> List[Dict[str, Any]]:
         """
         Build content array with few-shot examples inserted at the FEW_SHOT_EXAMPLES placeholder.
-        
+
         Args:
             task_prompt_template: The task prompt template containing {FEW_SHOT_EXAMPLES}
             document_text: The document text content
             class_names_and_descriptions: Formatted class names and descriptions
-            
+
         Returns:
             List of content items with text and image content properly ordered
         """
         # Split the task prompt at the FEW_SHOT_EXAMPLES placeholder
         parts = task_prompt_template.split("{FEW_SHOT_EXAMPLES}")
-        
+
         if len(parts) != 2:
             # Fallback to regular prompt processing if placeholder not found or malformed
             task_prompt = self._prepare_prompt_from_template(
@@ -243,7 +243,7 @@ class ClassificationService:
                 required_placeholders=["DOCUMENT_TEXT", "CLASS_NAMES_AND_DESCRIPTIONS"],
             )
             return [{"text": task_prompt}]
-        
+
         # Replace other placeholders in the prompt parts
         before_examples = self._prepare_prompt_from_template(
             parts[0],
@@ -251,61 +251,61 @@ class ClassificationService:
                 "DOCUMENT_TEXT": document_text,
                 "CLASS_NAMES_AND_DESCRIPTIONS": class_names_and_descriptions,
             },
-            required_placeholders=[]  # Don't enforce required placeholders for partial templates
+            required_placeholders=[],  # Don't enforce required placeholders for partial templates
         )
-        
+
         after_examples = self._prepare_prompt_from_template(
             parts[1],
             {
                 "DOCUMENT_TEXT": document_text,
                 "CLASS_NAMES_AND_DESCRIPTIONS": class_names_and_descriptions,
             },
-            required_placeholders=[]  # Don't enforce required placeholders for partial templates
+            required_placeholders=[],  # Don't enforce required placeholders for partial templates
         )
-        
+
         # Build content array
         content = []
-        
+
         # Add the part before examples
         if before_examples.strip():
             content.append({"text": before_examples})
-        
+
         # Add few-shot examples from config
         examples_content = self._build_few_shot_examples_content()
         content.extend(examples_content)
-        
+
         # Add the part after examples
         if after_examples.strip():
             content.append({"text": after_examples})
-        
+
         return content
-    
+
     def _build_few_shot_examples_content(self) -> List[Dict[str, Any]]:
         """
         Build content items for few-shot examples from the configuration.
-        
+
         Returns:
             List of content items containing text and image content for examples
         """
         content = []
         classes = self.config.get("classes", [])
-        
+
         for class_obj in classes:
             examples = class_obj.get("examples", [])
             for example in examples:
                 class_prompt = example.get("classPrompt")
                 image_path = example.get("imagePath")
-                
+
                 if class_prompt:
                     content.append({"text": class_prompt})
-                
+
                 if image_path:
                     try:
                         # Load image content from the path
                         import os
-                        
+
                         from idp_common import image, s3
-                        
+
                         # Handle different path types
                         if image_path.startswith("s3://"):
                             # Direct S3 URI
@@ -325,25 +325,25 @@ class ClassificationService:
                                     # Use relative path from ROOT_DIR
                                     full_image_path = os.path.join(root_dir, image_path)
                                     full_image_path = os.path.normpath(full_image_path)
+                                    with open(full_image_path, "rb") as f:
+                                        image_content = f.read()
                                 else:
-                                    # Go up from lib/idp_common_pkg to project root to find config_library
-                                    # __file__ is at lib/idp_common_pkg/idp_common/classification/service.py
-                                    # Need to go up 4 levels to reach project root
-                                    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
-                                    full_image_path = os.path.join(project_root, image_path)
-                                    full_image_path = os.path.normpath(full_image_path)
-                                
-                                with open(full_image_path, "rb") as f:
-                                    image_content = f.read()
-                        
+                                    # throw an error if neither CONFIGURATION_BUCKET nor ROOT_DIR is not set
+                                    raise ValueError(
+                                        "No configuration bucket or ROOT_DIR set. Cannot read example image from local filesystem."
+                                    )
+
                         # Prepare image content for Bedrock
-                        image_attachment = image.prepare_bedrock_image_attachment(image_content)
+                        image_attachment = image.prepare_bedrock_image_attachment(
+                            image_content
+                        )
                         content.append(image_attachment)
-                        
+
                     except Exception as e:
-                        logger.warning(f"Failed to load example image from {image_path}: {e}")
-                        # Continue without this image
-        
+                        raise ValueError(
+                            f"Failed to load example image from {image_path}: {e}"
+                        )
+
         return content
 
     def classify_page_bedrock(
@@ -403,9 +403,7 @@ class ClassificationService:
         # Check if task prompt contains FEW_SHOT_EXAMPLES placeholder
         if "{FEW_SHOT_EXAMPLES}" in config["task_prompt"]:
             content = self._build_content_with_few_shot_examples(
-                config["task_prompt"],
-                text_content or "",
-                self._format_classes_list()
+                config["task_prompt"], text_content or "", self._format_classes_list()
             )
         else:
             # Use common function to prepare prompt with required placeholder validation
