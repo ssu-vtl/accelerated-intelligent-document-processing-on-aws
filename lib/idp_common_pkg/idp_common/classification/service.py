@@ -330,7 +330,7 @@ class ClassificationService:
                                 else:
                                     # throw an error if neither CONFIGURATION_BUCKET nor ROOT_DIR is not set
                                     raise ValueError(
-                                        "No configuration bucket or ROOT_DIR set. Cannot read example image from local filesystem."
+                                        "No CONFIGURATION_BUCKET or ROOT_DIR set. Cannot read example image from local filesystem."
                                     )
 
                         # Prepare image content for Bedrock

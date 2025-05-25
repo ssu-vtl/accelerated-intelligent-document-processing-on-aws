@@ -533,6 +533,7 @@ Resources:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
+          CONFIGURATION_BUCKET: !Ref ConfigurationBucket
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
           LOG_LEVEL: !Ref LogLevel
           APPSYNC_API_URL: !Ref AppSyncApiUrl
@@ -611,6 +612,7 @@ Resources:
       Environment:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
+          CONFIGURATION_BUCKET: !Ref ConfigurationBucket
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
           GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
           LOG_LEVEL: !Ref LogLevel

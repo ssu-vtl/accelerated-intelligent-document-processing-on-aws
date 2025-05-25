@@ -20,6 +20,7 @@ This pattern implements an intelligent document processing workflow that uses Am
   - [Template Outputs](#template-outputs)
   - [Configuration](#configuration)
 - [Customizing Classification](#customizing-classification)
+- [Few Shot Example Feature](#few-shot-example-feature)
 - [Customizing Extraction](#customizing-extraction)
 - [Testing](#testing)
 - [Best Practices](#best-practices)
@@ -98,6 +99,7 @@ Each step includes comprehensive retry logic for handling transient errors:
   - Concurrent page processing
   - Automatic image resizing and optimization
   - Robust error handling with exponential backoff
+  - **Few shot example support for improved accuracy**
 - **Input**: Output from OCR function
 - **Output**:
   ```json
@@ -120,6 +122,7 @@ Each step includes comprehensive retry logic for handling transient errors:
   - Configurable extraction attributes
   - Comprehensive error handling
   - Token usage tracking
+  - **Few shot example support for improved accuracy**
 - **Input**: Individual section from Classification output
 - **Output**:
   ```json
@@ -239,6 +242,103 @@ Available categories:
 - resume
 - memo
 
+## Few Shot Example Feature
+
+Pattern 2 supports few shot learning through example-based prompting to significantly improve classification and extraction accuracy. This feature allows you to provide concrete examples of documents with their expected classifications and attribute extractions.
+
+### Overview
+
+Few shot examples work by including reference documents with known classifications and expected attribute values in the prompts sent to the AI model. This helps the model understand the expected format and accuracy requirements for your specific use case.
+
+### Configuration
+
+Few shot examples are configured using the configuration files in the `config_library/pattern-2/` directory. The `few_shot_example` configuration demonstrates how to set up examples:
+
+```yaml
+classes:
+  - name: letter
+    description: "A formal written correspondence..."
+    attributes:
+      - name: sender_name
+        description: "The name of the person who wrote the letter..."
+    examples:
+      - classPrompt: "This is an example of the class 'letter'"
+        name: "Letter1"
+        attributesPrompt: |
+          expected attributes are:
+              "sender_name": "Will E. Clark",
+              "sender_address": "206 Maple Street P.O. Box 1056 Murray Kentucky 42071-1056",
+              "recipient_name": "The Honorable Wendell H. Ford"
+        imagePath: "config_library/pattern-2/few_shot_example/example-images/letter1.jpg"
+  - name: email
+    description: "A digital message with email headers..."
+    examples:
+      - classPrompt: "This is an example of the class 'email'"
+        name: "Email1"
+        attributesPrompt: |
+          expected attributes are: 
+             "from_address": "Kelahan, Ben",
+             "to_address": "TI New York: 'TI Minnesota",
+             "subject": "FW: Morning Team Notes 4/20"
+        imagePath: "config_library/pattern-2/few_shot_example/example-images/email1.jpg"
+```
+
+### Benefits
+
+Using few shot examples provides several advantages:
+
+1. **Improved Accuracy**: Models perform better when given concrete examples
+2. **Consistent Formatting**: Examples help ensure consistent output structure  
+3. **Domain Adaptation**: Examples help models understand domain-specific terminology
+4. **Reduced Hallucination**: Examples reduce the likelihood of made-up data
+5. **Better Edge Case Handling**: Examples can demonstrate how to handle unusual cases
+
+### Integration with Template Prompts
+
+The few shot examples are automatically integrated into the classification and extraction prompts using the `{FEW_SHOT_EXAMPLES}` placeholder:
+
+```python
+# In classification task_prompt
+task_prompt: |
+  Classify this document into exactly one of these categories:
+  {CLASS_NAMES_AND_DESCRIPTIONS}
+  
+  <few_shot_examples>
+  {FEW_SHOT_EXAMPLES}
+  </few_shot_examples>
+  
+  <document_ocr_data>
+  {DOCUMENT_TEXT}
+  </document_ocr_data>
+
+# In extraction task_prompt  
+task_prompt: |
+  Extract attributes from this document.
+  
+  <few_shot_examples>
+  {FEW_SHOT_EXAMPLES}
+  </few_shot_examples>
+  
+  <document_ocr_data>
+  {DOCUMENT_TEXT}
+  </document_ocr_data>
+```
+
+### Using Few Shot Examples
+
+To use few shot examples in your deployment:
+
+1. **Use the example configuration**: Deploy with the `config_library/pattern-2/few_shot_example/config.yaml` configuration
+2. **Create custom examples**: Copy the example configuration and modify it with your own document examples
+3. **Provide example images**: Place example document images in the appropriate directory and reference them in the `imagePath` field
+
+### Best Practices
+
+1. **Quality over Quantity**: Use 1-3 high-quality examples per document class
+2. **Representative Examples**: Choose examples that represent typical documents in your use case
+3. **Clear Attribution**: Ensure examples clearly show expected attribute extractions
+4. **Diverse Coverage**: Include examples that cover different variations and edge cases
+
 ## Customizing Extraction
 
 The extraction system can be customized through the configuration settings in the template.yaml file:
@@ -308,3 +408,9 @@ sam local invoke ExtractionFunction --env-vars testing/env.json -e testing/Extra
    - KMS encryption
    - Least privilege IAM roles
    - Secure configuration management
+
+6. **Few Shot Examples**:
+   - Use high-quality, representative examples
+   - Include examples for all document classes you expect to process
+   - Regularly review and update examples based on real-world performance
+   - Test configurations with examples before production deployment
