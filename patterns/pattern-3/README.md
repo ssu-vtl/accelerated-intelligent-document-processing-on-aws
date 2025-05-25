@@ -204,13 +204,20 @@ The pattern exports these outputs to the parent stack:
 
 ### Configuration
 
-Key configurable parameters:
-
+**Stack Deployment Parameters:**
 - `UDOPModelArtifactPath`: S3 path to UDOP model artifacts (see [Fine tuning a UDOP model](#fine-tuning-a-udop-model-for-classification))
-- `ExtractionModel`: Bedrock model ID for extraction (Claude)
+- `IsSummarizationEnabled`: Boolean to enable/disable summarization functionality (true|false)
+- `ConfigurationDefaultS3Uri`: Optional S3 URI to custom configuration (uses default configuration if not specified)
 - `MaxConcurrentWorkflows`: Workflow concurrency limit
 - `LogRetentionDays`: CloudWatch log retention period
 - `ExecutionTimeThresholdMs`: Latency threshold for alerts
+
+**Configuration Management:**
+- Model selection for extraction is now handled through configuration files rather than CloudFormation parameters
+- Configuration supports multiple presets per pattern (e.g., default, checkboxed_attributes_extraction, medical_records_summarization)
+- Configuration can be updated through the Web UI without stack redeployment
+- Extraction model choices are constrained through enum constraints in the configuration schema
+- UDOP classification model is still specified via CloudFormation parameter due to SageMaker endpoint requirements
 
 ## Customizing Extraction
 
@@ -218,7 +225,7 @@ The system uses a combination of prompt engineering and predefined attributes to
 
 ### Extraction Prompts
 
-The extraction prompts are defined in the template configuration. The structure is similar to the one shown below:
+The extraction prompts are now defined in the configuration files rather than CloudFormation template. The structure is similar to the one shown below:
 
 ```python
 DEFAULT_SYSTEM_PROMPT = "You are a document assistant. Respond only with JSON..."
@@ -230,16 +237,22 @@ You are an expert in business document analysis and information extraction. You 
 ```
 To modify the extraction behavior:
 
-1. Modify the configuration settings in the template.yaml file or through the UI configuration
+1. Modify the configuration settings through the Web UI or configuration files
 2. Edit the `system_prompt` to change the AI assistant's basic behavior
 3. Customize the `task_prompt` to:
    - Provide domain expertise for your document types
    - Add specific instructions for handling edge cases
    - Modify output formatting requirements
 
+### Model Selection
+
+- **Extraction model selection** is now handled through configuration files with enum constraints
+- Available models are defined in the configuration schema
+- Changes can be made through the Web UI without redeployment
+- **Classification model (UDOP)** is still specified via CloudFormation parameter due to SageMaker endpoint requirements
 
 ### Extraction Attributes
-Attributes to be extracted are defined in the template configuration's `classes` section. The structure is similar to the example below:
+Attributes to be extracted are defined in the configuration files' `classes` section. The structure is similar to the example below:
 
 Example attribute definition:
 ```yaml
@@ -265,11 +278,11 @@ classes:
 ```
 
 To customize attributes:
-1. Modify the `classes` section in the template configuration
+1. Modify the `classes` section in the configuration files or through the Web UI
 2. For each attribute, provide a clear name and detailed description
-3. The configuration can be updated through the UI after deployment
+3. Changes are applied immediately without requiring function redeployment
 
-Note: Changes to the configuration are applied immediately without requiring function redeployment.
+Note: Configuration changes through the Web UI take effect immediately for new document processing jobs.
 
 
 ## Testing
@@ -291,32 +304,37 @@ Note that for proper testing of the classification function, you'll need access 
 
 ## Best Practices
 
-1. **SageMaker Endpoint Management**:
+1. **Configuration Management**:
+   - Use the configuration library for different use cases (default, medical_records, etc.)
+   - Test configuration changes thoroughly before production deployment
+   - Leverage the Web UI for extraction configuration updates without redeployment
+
+2. **SageMaker Endpoint Management**:
    - Configure appropriate instance type based on model size and throughput requirements
    - Enable auto-scaling for cost optimization during varying loads
    - Monitor endpoint performance metrics for potential bottlenecks
 
-2. **Retry Handling**:
+3. **Retry Handling**:
    - All functions implement exponential backoff with jitter
    - Configure appropriate retry limits for different types of failures
    - Handle SageMaker endpoint throttling differently from transient failures
 
-3. **Performance Optimization**:
+4. **Performance Optimization**:
    - Pre-warm the SageMaker endpoint with sample requests during initialization
    - Configure appropriate memory for Lambda functions based on document size
    - Use efficient image preprocessing and data handling techniques
 
-4. **Monitoring**:
+5. **Monitoring**:
    - Set up CloudWatch alarms for critical metrics
    - Use detailed logging with correlation IDs for request tracking
    - Monitor token usage and cost metrics for GenAI components
 
-5. **Security**:
+6. **Security**:
    - Use KMS encryption for data at rest and in transit
    - Implement least privilege IAM roles for all components
    - Protect SageMaker endpoints with appropriate security groups
 
-6. **Error Handling**:
+7. **Error Handling**:
    - Implement graceful degradation strategies
    - Provide clear error messages with actionable information
    - Track error rates by category for targeted improvements
