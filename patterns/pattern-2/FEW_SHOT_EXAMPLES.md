@@ -72,6 +72,48 @@ Each example includes four key components:
 - **`attributesPrompt`**: The expected attribute extraction results in exact JSON format (used for extraction). Can include sample OCR text output to demonstrate the text from which attributes should be extracted.
 - **`imagePath`**: Path to example document image(s) - supports single files, local directories, or S3 prefixes (optional but recommended for better visual understanding)
 
+### Example Processing Rules
+
+**Important**: Examples are only processed if they contain the required prompt field for the specific task:
+
+- **For Classification**: Examples are only included if they have a non-empty `classPrompt` field
+  - Examples with only `attributesPrompt` or `imagePath` (but no `classPrompt`) are automatically skipped
+  - Images from `imagePath` are still included if the example has a valid `classPrompt`
+
+- **For Extraction**: Examples are only included if they have a non-empty `attributesPrompt` field
+  - Examples with only `classPrompt` or `imagePath` (but no `attributesPrompt`) are automatically skipped
+  - Images from `imagePath` are still included if the example has a valid `attributesPrompt`
+
+This ensures that examples are only used when they have the appropriate content for their respective tasks, maintaining consistency and preventing irrelevant examples from being included in the prompts.
+
+**Example Configurations**:
+
+```yaml
+# Valid for both classification and extraction
+- classPrompt: "This is an example of the class 'invoice'"
+  attributesPrompt: |
+    expected attributes are:
+        "invoice_number": "INV-001"
+  imagePath: "invoice1.jpg"
+
+# Valid only for classification (skipped during extraction)
+- classPrompt: "This is an example of the class 'invoice'"
+  # No attributesPrompt - will be skipped during extraction
+  imagePath: "invoice2.jpg"
+
+# Valid only for extraction (skipped during classification)
+- attributesPrompt: |
+    expected attributes are:
+        "invoice_number": "INV-002"
+  # No classPrompt - will be skipped during classification
+  imagePath: "invoice3.jpg"
+
+# Invalid for both (will be skipped entirely)
+- name: "InvalidExample"
+  # No classPrompt or attributesPrompt - will be skipped for both tasks
+  imagePath: "invoice4.jpg"
+```
+
 #### Enhanced Image Path Support
 
 The `imagePath` field now supports multiple formats for maximum flexibility:
@@ -167,6 +209,7 @@ When classifying documents:
 - **Purpose**: Help the model distinguish between different document types
 - **Content**: Uses `classPrompt` field from examples (with optional images)
 - **Benefit**: Model sees visual and/or textual examples of each class to make better classification decisions
+- **Filtering**: Only examples with non-empty `classPrompt` fields are included
 
 ### Extraction Process
 
@@ -175,6 +218,7 @@ When extracting attributes from documents:
 - **Purpose**: Show the expected attribute extraction format and values
 - **Content**: Uses `attributesPrompt` field from examples (with optional images)
 - **Benefit**: Model sees concrete examples of what the extraction output should look like
+- **Filtering**: Only examples with non-empty `attributesPrompt` fields are included
 
 | Aspect | Classification | Extraction |
 |--------|---------------|------------|
@@ -183,6 +227,7 @@ When extracting attributes from documents:
 | **Purpose** | Distinguish document types | Show extraction format |
 | **Content** | Document type descriptions + optional OCR text | Expected JSON attribute values + optional OCR text |
 | **Images** | Optional but recommended | Optional but recommended |
+| **Filtering** | Requires non-empty `classPrompt` | Requires non-empty `attributesPrompt` |
 
 ## Setting Up Few-Shot Examples
 
@@ -398,7 +443,23 @@ task_prompt: |
    - For images: Ensure text is legible and images are high quality
    - Include typical variations within each document type
 
-2. **Provide Complete Attribute Sets**
+2. **Include Required Prompt Fields**
+   ```yaml
+   # Good - includes both classPrompt and attributesPrompt for full functionality
+   - classPrompt: "This is an example of the class 'invoice'"
+     attributesPrompt: |
+       expected attributes are:
+           "invoice_number": "INV-001",
+           "total_amount": "$1,250.00"
+     imagePath: "invoice1.jpg"
+   
+   # Limited - only works for classification (extraction will skip this example)
+   - classPrompt: "This is an example of the class 'invoice'"
+     # Missing attributesPrompt - skipped during extraction
+     imagePath: "invoice2.jpg"
+   ```
+
+3. **Provide Complete Attribute Sets**
    ```yaml
    # Good - shows all attributes with realistic values
    attributesPrompt: |
@@ -418,7 +479,7 @@ task_prompt: |
          # Missing other important attributes
    ```
 
-3. **Handle Null Values Explicitly**
+4. **Handle Null Values Explicitly**
    ```yaml
    attributesPrompt: |
      expected attributes are:
@@ -428,12 +489,12 @@ task_prompt: |
          "tax_amount": "$125.00"
    ```
 
-4. **Maintain Consistent Formatting**
+5. **Maintain Consistent Formatting**
    - Use consistent JSON structure across all examples
    - Follow the same date formats, currency formats, etc.
    - Ensure field names match your attribute definitions exactly
 
-5. **Organize Multiple Images Effectively**
+6. **Organize Multiple Images Effectively**
    When using directories or S3 prefixes with multiple images:
 
    ```yaml
@@ -556,7 +617,14 @@ Monitor these metrics to ensure optimal cache usage:
 **Examples Not Loading**
 - Verify `{FEW_SHOT_EXAMPLES}` placeholder exists in task prompts
 - Check that examples are defined for the document classes being processed
+- Ensure examples have the required prompt fields (`classPrompt` for classification, `attributesPrompt` for extraction)
 - For image examples: Ensure image paths are correct and files exist
+
+**Examples Being Skipped**
+- Verify that examples have non-empty `classPrompt` field for classification tasks
+- Verify that examples have non-empty `attributesPrompt` field for extraction tasks
+- Check that the prompt field contains actual content, not just whitespace
+- Review the example processing rules described in this documentation
 
 **Images Not Found (If Using Images)**
 - Set `ROOT_DIR` environment variable for local development

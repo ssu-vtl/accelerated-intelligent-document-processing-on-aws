@@ -294,11 +294,17 @@ class ClassificationService:
             examples = class_obj.get("examples", [])
             for example in examples:
                 class_prompt = example.get("classPrompt")
+
+                # Only process this example if it has a non-empty class_prompt
+                if not class_prompt or not class_prompt.strip():
+                    logger.info(
+                        f"Skipping example with empty classPrompt: {example.get('name')}"
+                    )
+                    continue
+
+                content.append({"text": class_prompt})
+
                 image_path = example.get("imagePath")
-
-                if class_prompt:
-                    content.append({"text": class_prompt})
-
                 if image_path:
                     try:
                         # Load image content from the path
