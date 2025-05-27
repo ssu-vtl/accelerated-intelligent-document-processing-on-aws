@@ -77,6 +77,191 @@ class ExtractionService:
             ]
         )
 
+    def _prepare_prompt_from_template(
+        self,
+        prompt_template: str,
+        substitutions: Dict[str, str],
+        required_placeholders: List[str] = None,
+    ) -> str:
+        """
+        Prepare prompt from template by replacing placeholders with values.
+
+        Args:
+            prompt_template: The prompt template with placeholders
+            substitutions: Dictionary of placeholder values
+            required_placeholders: List of placeholder names that must be present in the template
+
+        Returns:
+            String with placeholders replaced by values
+
+        Raises:
+            ValueError: If a required placeholder is missing from the template
+        """
+        from idp_common.bedrock import format_prompt
+
+        return format_prompt(prompt_template, substitutions, required_placeholders)
+
+    def _build_content_with_few_shot_examples(
+        self,
+        task_prompt_template: str,
+        document_text: str,
+        class_label: str,
+        attribute_descriptions: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Build content array with few-shot examples inserted at the FEW_SHOT_EXAMPLES placeholder.
+
+        Args:
+            task_prompt_template: The task prompt template containing {FEW_SHOT_EXAMPLES}
+            document_text: The document text content
+            class_label: The document class label
+            attribute_descriptions: Formatted attribute names and descriptions
+
+        Returns:
+            List of content items with text and image content properly ordered
+        """
+        # Split the task prompt at the FEW_SHOT_EXAMPLES placeholder
+        parts = task_prompt_template.split("{FEW_SHOT_EXAMPLES}")
+
+        if len(parts) != 2:
+            # Fallback to regular prompt processing if placeholder not found or malformed
+            task_prompt = self._prepare_prompt_from_template(
+                task_prompt_template,
+                {
+                    "DOCUMENT_TEXT": document_text,
+                    "DOCUMENT_CLASS": class_label,
+                    "ATTRIBUTE_NAMES_AND_DESCRIPTIONS": attribute_descriptions,
+                },
+                required_placeholders=[
+                    "DOCUMENT_TEXT",
+                    "DOCUMENT_CLASS",
+                    "ATTRIBUTE_NAMES_AND_DESCRIPTIONS",
+                ],
+            )
+            return [{"text": task_prompt}]
+
+        # Replace other placeholders in the prompt parts
+        before_examples = self._prepare_prompt_from_template(
+            parts[0],
+            {
+                "DOCUMENT_TEXT": document_text,
+                "DOCUMENT_CLASS": class_label,
+                "ATTRIBUTE_NAMES_AND_DESCRIPTIONS": attribute_descriptions,
+            },
+            required_placeholders=[],  # Don't enforce required placeholders for partial templates
+        )
+
+        after_examples = self._prepare_prompt_from_template(
+            parts[1],
+            {
+                "DOCUMENT_TEXT": document_text,
+                "DOCUMENT_CLASS": class_label,
+                "ATTRIBUTE_NAMES_AND_DESCRIPTIONS": attribute_descriptions,
+            },
+            required_placeholders=[],  # Don't enforce required placeholders for partial templates
+        )
+
+        # Build content array
+        content = []
+
+        # Add the part before examples
+        if before_examples.strip():
+            content.append({"text": before_examples})
+
+        # Add few-shot examples from config for this specific class
+        examples_content = self._build_few_shot_examples_content(class_label)
+        content.extend(examples_content)
+
+        # Add the part after examples
+        if after_examples.strip():
+            content.append({"text": after_examples})
+
+        return content
+
+    def _build_few_shot_examples_content(
+        self, class_label: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Build content items for few-shot examples from the configuration for a specific class.
+
+        Args:
+            class_label: The document class label to get examples for
+
+        Returns:
+            List of content items containing text and image content for examples
+        """
+        content = []
+        classes = self.config.get("classes", [])
+
+        # Find the specific class that matches the class_label
+        target_class = None
+        for class_obj in classes:
+            if class_obj.get("name", "").lower() == class_label.lower():
+                target_class = class_obj
+                break
+
+        if not target_class:
+            logger.warning(
+                f"No class found matching '{class_label}' for few-shot examples"
+            )
+            return content
+
+        # Get examples from the target class only
+        examples = target_class.get("examples", [])
+        for example in examples:
+            attributes_prompt = example.get("attributesPrompt")
+            image_path = example.get("imagePath")
+
+            if attributes_prompt:
+                content.append({"text": attributes_prompt})
+
+            if image_path:
+                try:
+                    # Load image content from the path
+                    import os
+
+                    from idp_common import image, s3
+
+                    # Handle different path types
+                    if image_path.startswith("s3://"):
+                        # Direct S3 URI
+                        image_content = s3.get_binary_content(image_path)
+                    else:
+                        # Check if CONFIGURATION_BUCKET environment variable is set
+                        config_bucket = os.environ.get("CONFIGURATION_BUCKET")
+                        if config_bucket:
+                            # Use environment bucket with imagePath as key
+                            s3_uri = f"s3://{config_bucket}/{image_path}"
+                            image_content = s3.get_binary_content(s3_uri)
+                        else:
+                            # Read from local filesystem
+                            # Use ROOT_DIR environment variable if set, otherwise calculate from service location
+                            root_dir = os.environ.get("ROOT_DIR")
+                            if root_dir:
+                                # Use relative path from ROOT_DIR
+                                full_image_path = os.path.join(root_dir, image_path)
+                                full_image_path = os.path.normpath(full_image_path)
+                                with open(full_image_path, "rb") as f:
+                                    image_content = f.read()
+                            else:
+                                # throw an error if neither CONFIGURATION_BUCKET nor ROOT_DIR is not set
+                                raise ValueError(
+                                    "No CONFIGURATION_BUCKET or ROOT_DIR set. Cannot read example image from local filesystem."
+                                )
+
+                    # Prepare image content for Bedrock
+                    image_attachment = image.prepare_bedrock_image_attachment(
+                        image_content
+                    )
+                    content.append(image_attachment)
+
+                except Exception as e:
+                    raise ValueError(
+                        f"Failed to load example image from {image_path}: {e}"
+                    )
+
+        return content
+
     def process_document_section(self, document: Document, section_id: str) -> Document:
         """
         Process a single section from a Document object.
@@ -203,41 +388,51 @@ class ExtractionService:
                 
                 Respond with a JSON object containing each field name and its extracted value.
                 """
+                content = [{"text": task_prompt}]
             else:
-                # Use the common format_prompt function from bedrock
-                from idp_common.bedrock import format_prompt
-
-                try:
-                    task_prompt = format_prompt(
+                # Check if task prompt contains FEW_SHOT_EXAMPLES placeholder
+                if "{FEW_SHOT_EXAMPLES}" in prompt_template:
+                    content = self._build_content_with_few_shot_examples(
                         prompt_template,
-                        {
-                            "DOCUMENT_TEXT": document_text,
-                            "DOCUMENT_CLASS": class_label,
-                            "ATTRIBUTE_NAMES_AND_DESCRIPTIONS": attribute_descriptions,
-                        },
-                        required_placeholders=[
-                            "DOCUMENT_TEXT",
-                            "DOCUMENT_CLASS",
-                            "ATTRIBUTE_NAMES_AND_DESCRIPTIONS",
-                        ],
+                        document_text,
+                        class_label,
+                        attribute_descriptions,
                     )
-                except ValueError as e:
-                    logger.warning(
-                        f"Error formatting prompt template: {str(e)}. Using default prompt."
-                    )
-                    # Fall back to default prompt if template validation fails
-                    task_prompt = f"""
-                    Extract the following fields from this {class_label} document:
-                    
-                    {attribute_descriptions}
-                    
-                    Document text:
-                    {document_text}
-                    
-                    Respond with a JSON object containing each field name and its extracted value.
-                    """
+                else:
+                    # Use the common format_prompt function from bedrock
+                    from idp_common.bedrock import format_prompt
 
-            content = [{"text": task_prompt}]
+                    try:
+                        task_prompt = format_prompt(
+                            prompt_template,
+                            {
+                                "DOCUMENT_TEXT": document_text,
+                                "DOCUMENT_CLASS": class_label,
+                                "ATTRIBUTE_NAMES_AND_DESCRIPTIONS": attribute_descriptions,
+                            },
+                            required_placeholders=[
+                                "DOCUMENT_TEXT",
+                                "DOCUMENT_CLASS",
+                                "ATTRIBUTE_NAMES_AND_DESCRIPTIONS",
+                            ],
+                        )
+                        content = [{"text": task_prompt}]
+                    except ValueError as e:
+                        logger.warning(
+                            f"Error formatting prompt template: {str(e)}. Using default prompt."
+                        )
+                        # Fall back to default prompt if template validation fails
+                        task_prompt = f"""
+                        Extract the following fields from this {class_label} document:
+                        
+                        {attribute_descriptions}
+                        
+                        Document text:
+                        {document_text}
+                        
+                        Respond with a JSON object containing each field name and its extracted value.
+                        """
+                        content = [{"text": task_prompt}]
 
             # Add image attachments to the content (limit to 20 images as per Bedrock constraints)
             if page_images:

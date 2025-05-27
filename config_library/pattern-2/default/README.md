@@ -54,7 +54,7 @@ The configuration defines 11 document classes, each with specific attributes to 
 - **Model**: Amazon Nova Pro
 - **Method**: Text-based holistic classification
 - **Temperature**: 0 (deterministic outputs)
-- **Top-k**: 200
+- **Top-k**: 5
 
 The classification component analyzes document content and structure to determine the document type and page boundaries within multi-page documents.
 
@@ -62,7 +62,7 @@ The classification component analyzes document content and structure to determin
 
 - **Model**: Amazon Nova Pro
 - **Temperature**: 0 (deterministic outputs)
-- **Top-k**: 200
+- **Top-k**: 5
 
 The extraction component identifies and extracts specific attributes from each document based on its classified type.
 
@@ -70,7 +70,7 @@ The extraction component identifies and extracts specific attributes from each d
 
 - **Model**: Amazon Nova Pro
 - **Temperature**: 0 (deterministic outputs)
-- **Top-k**: 200
+- **Top-k**: 5
 
 The summarization component creates concise summaries of documents with citations and hover functionality.
 

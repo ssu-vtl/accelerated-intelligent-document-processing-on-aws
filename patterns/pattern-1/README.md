@@ -12,7 +12,7 @@ This pattern implements an intelligent document processing workflow using Amazon
   - [State Machine Workflow](#state-machine-workflow)
 - [Deployment](#deployment)
   - [Prerequisites](#prerequisites)
-  - [Stack Parameters](#stack-parameters)
+  - [Configuration](#configuration)
 - [Monitoring and Metrics](#monitoring-and-metrics)
   - [CloudWatch Metrics](#cloudwatch-metrics)
   - [Dashboard Components](#dashboard-components)
@@ -60,10 +60,12 @@ InvokeDataAutomation (with waitForTaskToken)
 - Required AWS permissions for Bedrock, Lambda, Step Functions, and S3
 - S3 buckets created for input, working, and output storage
 
-### Stack Parameters
+### Configuration
 
-Required parameters:
+**Stack Deployment Parameters:**
 - `BDAProjectArn`: ARN of your Bedrock Data Automation project
+- `IsSummarizationEnabled`: Boolean to enable/disable summarization functionality (true|false)
+- `ConfigurationDefaultS3Uri`: Optional S3 URI to custom configuration (uses default configuration if not specified)
 - `InputBucket`: S3 bucket for input documents
 - `WorkingBucket`: S3 bucket for temporary BDA job output
 - `OutputBucket`: S3 bucket for final processed results
@@ -71,6 +73,15 @@ Required parameters:
 - `CustomerManagedEncryptionKeyArn`: KMS key ARN for encryption
 - `LogRetentionDays`: CloudWatch log retention period
 - `ExecutionTimeThresholdMs`: Latency threshold for alerts
+
+**Configuration Management:**
+- Configuration now supports multiple presets per pattern (e.g., default, checkboxed_attributes_extraction, medical_records_summarization)
+- Configuration can be updated through the Web UI without stack redeployment
+- Summarization functionality is controlled through the centralized `IsSummarizationEnabled` parameter rather than model-specific settings
+- BDA-specific configuration is handled within the Bedrock Data Automation project rather than the IDP stack configuration
+
+**Note on BDA Configuration:**
+Unlike Patterns 2 and 3, Pattern 1 delegates most document processing configuration to the Bedrock Data Automation (BDA) project itself. Classification and extraction behaviors are configured within the BDA project using BDA Blueprints rather than through the IDP configuration system.
 
 ## Monitoring and Metrics
 
@@ -175,13 +186,30 @@ payload = {
 - Updates execution status with job result information
 
 ## Best Practices
-1. Monitor BDA service quotas and adjust concurrency as needed
-2. Implement exponential backoff with jitter for API throttling
-3. Set up EventBridge rules to capture all job status events
-4. Include DLQ for EventBridge targets to capture unprocessed events
-5. Ensure token storage has appropriate TTL to avoid stale tokens
-6. Handle partial successes appropriately in the results processor
-7. Maintain comprehensive logging for troubleshooting
-8. Use CloudWatch dashboards to monitor performance metrics
-9. Enable detailed CloudWatch metrics for API requests and job executions
-10. Configure alerts for unusual throttling or error patterns
+1. **BDA Project Configuration**:
+   - Configure classification and extraction within the BDA project using BDA Blueprints
+   - Use BDA's built-in capabilities for document type detection and field extraction
+   - Test BDA configuration thoroughly before integrating with IDP stack
+
+2. **Configuration Management**:
+   - Use the configuration library for IDP-specific settings (summarization, evaluation, etc.)
+   - BDA-specific configuration should be managed within the BDA project
+   - Leverage the Web UI for IDP configuration updates without redeployment
+
+3. **Monitoring and Scaling**:
+   - Monitor BDA service quotas and adjust concurrency as needed
+   - Implement exponential backoff with jitter for API throttling
+   - Set up EventBridge rules to capture all job status events
+   - Include DLQ for EventBridge targets to capture unprocessed events
+
+4. **Error Handling**:
+   - Ensure token storage has appropriate TTL to avoid stale tokens
+   - Handle partial successes appropriately in the results processor
+   - Maintain comprehensive logging for troubleshooting
+   - Use CloudWatch dashboards to monitor performance metrics
+
+5. **Security and Reliability**:
+   - Enable detailed CloudWatch metrics for API requests and job executions
+   - Configure alerts for unusual throttling or error patterns
+   - Use appropriate IAM roles with least privilege principles
+   - Implement proper error handling for BDA job failures

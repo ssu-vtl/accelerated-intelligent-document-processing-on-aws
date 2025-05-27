@@ -295,8 +295,7 @@ function upload_config_library() {
     
     # Upload the entire config_library directory to S3, excluding README files
     aws s3 sync "$config_dir" "s3://${BUCKET}/${PREFIX_AND_VERSION}/config_library" \
-      --exclude "*.md" \
-      --exclude "README*" \
+      --exclude ".checksum" \
       --delete
     
     echo "Configuration library uploaded to s3://${BUCKET}/${PREFIX_AND_VERSION}/config_library"
@@ -381,6 +380,7 @@ function build_main_template() {
   
   local HASH=$(calculate_hash ".")
   local BUILD_DATE_TIME=$(date -u +"%Y-%m-%d %H:%M:%S")
+  local CONFIG_LIBRARY_HASH=$(calculate_hash "config_library")
   
   # Define configuration S3 base path
   local CONFIG_BASE_PATH="s3://${BUCKET}/${PREFIX_AND_VERSION}/config_library"
@@ -394,6 +394,7 @@ function build_main_template() {
   echo "   <WEBUI_ZIPFILE_TOKEN> with filename: $webui_zipfile"
   echo "   <HASH_TOKEN> with: $HASH"
   echo "   <CONFIG_BASE_PATH_TOKEN> with: $CONFIG_BASE_PATH"
+  echo "   <CONFIG_LIBRARY_HASH_TOKEN> with: $CONFIG_LIBRARY_HASH"
   
   # Use a more reliable approach for multiple sed replacements
   sed -e "s|<VERSION>|$VERSION|g" \
@@ -404,6 +405,7 @@ function build_main_template() {
       -e "s|<WEBUI_ZIPFILE_TOKEN>|$webui_zipfile|g" \
       -e "s|<HASH_TOKEN>|$HASH|g" \
       -e "s|<CONFIG_BASE_PATH_TOKEN>|$CONFIG_BASE_PATH|g" \
+      -e "s|<CONFIG_LIBRARY_HASH_TOKEN>|$CONFIG_LIBRARY_HASH|g" \
       .aws-sam/packaged.yaml > .aws-sam/${MAIN_TEMPLATE}
   
   # Upload and validate main template

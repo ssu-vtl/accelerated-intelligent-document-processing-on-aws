@@ -243,12 +243,190 @@ The SageMaker backend uses custom UDOP (Unified Document Processing) models:
 - Better performance for document-specific classification tasks
 - Requires a deployed SageMaker endpoint
 
+## Few Shot Example Feature
+
+The classification service supports few shot learning through example-based prompting. This feature allows you to provide concrete examples of documents with their expected classifications and attribute extractions, significantly improving model accuracy and consistency.
+
+### Overview
+
+Few shot examples work by including reference documents with known classifications and expected attribute values in the prompts sent to the AI model. This helps the model understand the expected format and accuracy requirements for your specific use case.
+
+### Configuration
+
+Few shot examples are configured in the document class definitions within your configuration file:
+
+```yaml
+classes:
+  - name: letter
+    description: "A formal written correspondence..."
+    attributes:
+      - name: sender_name
+        description: "The name of the person who wrote the letter..."
+      # ... other attributes
+    examples:
+      - classPrompt: "This is an example of the class 'letter'"
+        name: "Letter1"
+        attributesPrompt: |
+          expected attributes are:
+              "sender_name": "Will E. Clark",
+              "sender_address": "206 Maple Street P.O. Box 1056 Murray Kentucky 42071-1056",
+              "recipient_name": "The Honorable Wendell H. Ford",
+              # ... other expected attributes
+        imagePath: "config_library/pattern-2/few_shot_example/example-images/letter1.jpg"
+      - classPrompt: "This is an example of the class 'letter'" 
+        name: "Letter2"
+        attributesPrompt: |
+          expected attributes are:
+              "sender_name": "William H. W. Anderson",
+              # ... other expected attributes
+        imagePath: "config_library/pattern-2/few_shot_example/example-images/letter2.png"
+```
+
+### Configuration Parameters
+
+Each few shot example includes:
+
+- **classPrompt**: A description identifying this as an example of the document class
+- **name**: A unique identifier for the example (for reference and debugging)
+- **attributesPrompt**: The expected attribute extraction results in a structured format
+- **imagePath**: Path to the example document image file
+
+### Benefits
+
+Using few shot examples provides several advantages:
+
+1. **Improved Accuracy**: Models perform better when given concrete examples
+2. **Consistent Formatting**: Examples help ensure consistent output structure
+3. **Domain Adaptation**: Examples help models understand domain-specific terminology
+4. **Reduced Hallucination**: Examples reduce the likelihood of made-up data
+5. **Better Edge Case Handling**: Examples can demonstrate how to handle unusual cases
+
+### Best Practices
+
+When creating few shot examples:
+
+#### 1. Quality over Quantity
+- Use 1-3 high-quality examples per document class
+- Ensure examples are representative of real-world documents
+- Include diverse examples that cover different variations
+
+#### 2. Clear and Complete Examples
+```yaml
+# Good example - specific and complete
+attributesPrompt: |
+  expected attributes are:
+      "invoice_number": "INV-2024-001",
+      "invoice_date": "01/15/2024",
+      "vendor_name": "ACME Corp",
+      "total_amount": "$1,250.00"
+
+# Avoid incomplete examples
+attributesPrompt: |
+  expected attributes are:
+      "invoice_number": "INV-2024-001"
+      # Missing other important attributes
+```
+
+#### 3. Handle Null Values Appropriately
+```yaml
+attributesPrompt: |
+  expected attributes are:
+      "sender_name": "John Smith",
+      "cc": null,  # Explicitly show when fields are not present
+      "reference_number": null
+```
+
+#### 4. Use Realistic Examples
+- Choose examples that represent typical documents in your use case
+- Include examples with both common and edge case scenarios
+- Ensure image quality is good and text is clearly readable
+
+### Usage with Classification Service
+
+The few shot examples are automatically integrated when using the classification service:
+
+```python
+from idp_common import classification, get_config
+from idp_common.models import Document
+
+# Load configuration with few shot examples
+config = get_config()
+
+# Initialize service - few shot examples are automatically used
+service = classification.ClassificationService(
+    region="us-east-1", 
+    config=config
+)
+
+# Examples are automatically included in prompts during classification
+document = service.classify_document(document)
+```
+
+The service automatically:
+1. Loads few shot examples from the configuration
+2. Includes them in classification prompts using the `{FEW_SHOT_EXAMPLES}` placeholder
+3. Formats examples appropriately for both classification and extraction tasks
+
+### Example Configuration Structure
+
+Here's a complete example showing how few shot examples integrate with document class definitions:
+
+```yaml
+classes:
+  - name: email
+    description: "A digital message with email headers..."
+    attributes:
+      - name: from_address
+        description: "The email address of the sender..."
+      - name: to_address  
+        description: "The email address of the primary recipient..."
+      - name: subject
+        description: "The topic of the email..."
+      - name: date_sent
+        description: "The date and time when the email was sent..."
+    examples:
+      - classPrompt: "This is an example of the class 'email'"
+        name: "Email1"
+        attributesPrompt: |
+          expected attributes are: 
+             "from_address": "john.doe@company.com",
+             "to_address": "jane.smith@client.com", 
+             "subject": "FW: Meeting Notes 4/20",
+             "date_sent": "04/18/2024"
+        imagePath: "config_library/pattern-2/few_shot_example/example-images/email1.jpg"
+
+classification:
+  task_prompt: |
+    Classify this document into exactly one of these categories:
+    
+    {CLASS_NAMES_AND_DESCRIPTIONS}
+    
+    <few_shot_examples>
+    {FEW_SHOT_EXAMPLES}
+    </few_shot_examples>
+    
+    <document_ocr_data>
+    {DOCUMENT_TEXT}
+    </document_ocr_data>
+```
+
+### Troubleshooting
+
+Common issues and solutions:
+
+1. **Images Not Found**: Ensure image paths are correct and files exist
+2. **Inconsistent Results**: Review example quality and ensure they're representative
+3. **Poor Performance**: Consider adding more diverse examples or improving example quality
+4. **Format Errors**: Ensure attributesPrompt follows exact JSON-like format expected by your prompts
+
 ## Future Enhancements
 
 - ✅ Support for SageMaker UDOP models
 - ✅ Direct integration with Document data model
 - ✅ Improved error handling and retry mechanisms
+- ✅ Few shot example support for improved accuracy
 - 🔲 Better confidence score estimation
 - 🔲 More advanced document structure analysis
 - 🔲 Support for additional classification backends (custom models)
 - 🔲 Multi-model classification for improved accuracy
+- 🔲 Dynamic few shot example selection based on document similarity

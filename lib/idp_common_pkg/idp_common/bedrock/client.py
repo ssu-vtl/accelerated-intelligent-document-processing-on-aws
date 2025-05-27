@@ -372,11 +372,11 @@ class BedrockClient:
             
             # Log detailed request parameters
             logger.info(f"Bedrock request attempt {retry_count + 1}/{max_retries}:")
-            logger.debug(f"  - model: {converse_params['modelId']}")
-            logger.debug(f"  - inferenceConfig: {converse_params['inferenceConfig']}")
-            logger.debug(f"  - system: {converse_params['system']}")
-            logger.debug(f"  - messages: {sanitized_params['messages']}")
-            logger.debug(f"  - additionalModelRequestFields: {converse_params['additionalModelRequestFields']}")
+            logger.info(f"  - model: {converse_params['modelId']}")
+            logger.info(f"  - inferenceConfig: {converse_params['inferenceConfig']}")
+            logger.info(f"  - system: {converse_params['system']}")
+            logger.info(f"  - messages: {sanitized_params['messages']}")
+            logger.info(f"  - additionalModelRequestFields: {converse_params['additionalModelRequestFields']}")
             
             # Log guardrail usage if configured
             if "guardrailConfig" in converse_params:

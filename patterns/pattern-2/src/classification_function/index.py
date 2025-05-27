@@ -12,8 +12,7 @@ from idp_common import classification, metrics, get_config
 from idp_common.models import Document, Status
 from idp_common.appsync.service import DocumentAppSyncService
 
-# Configuration
-CONFIG = get_config()
+# Configuration will be loaded in handler function
 region = os.environ['AWS_REGION']
 MAX_WORKERS = int(os.environ.get('MAX_WORKERS', 20))
 
@@ -26,7 +25,9 @@ def handler(event, context):
     Lambda handler for document classification.
     """
     logger.info(f"Event: {json.dumps(event)}")
-    logger.info(f"Config: {json.dumps(CONFIG)}")
+    # Load configuration
+    config = get_config()
+    logger.info(f"Config: {json.dumps(config)}")
     
     # Extract document from the OCR result
     document = Document.from_dict(event["OCRResult"]["document"])
@@ -53,7 +54,7 @@ def handler(event, context):
     service = classification.ClassificationService(
         region=region,
         max_workers=MAX_WORKERS,
-        config=CONFIG
+        config=config
     )
     
     # Classify the document - the service will update the Document directly

@@ -27,8 +27,7 @@ logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_
 METRIC_NAMESPACE = os.environ.get('METRIC_NAMESPACE', 'GENAIDP')
 BASELINE_BUCKET = os.environ['BASELINE_BUCKET']
 
-# Configuration
-CONFIG = get_config()
+# Configuration will be loaded in handler function
 
 # Create AppSync service
 appsync_service = DocumentAppSyncService()
@@ -182,8 +181,9 @@ def handler(event, context):
                 {'document_key': actual_document.input_key}
             )
         
-        # Create evaluation service
-        evaluation_service = evaluation.EvaluationService(config=CONFIG)
+        # Load configuration and create evaluation service
+        config = get_config()
+        evaluation_service = evaluation.EvaluationService(config=config)
         
         # Run evaluation
         logger.info(f"Starting evaluation for document {actual_document.id}")
