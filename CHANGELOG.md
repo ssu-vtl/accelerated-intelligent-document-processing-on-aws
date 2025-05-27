@@ -3,13 +3,18 @@
 ## [Unreleased]
 
 ### Added
-- **Few Shot Example Support in Pattern-2**
+- **Enhanced Few Shot Example Support in Pattern-2**
   - Added comprehensive few shot learning capabilities to improve classification and extraction accuracy
   - Support for example-based prompting with concrete document examples and expected outputs
   - Configuration of few shot examples through document class definitions with `examples` field
   - Each example includes `name`, `classPrompt`, `attributesPrompt`, and `imagePath` parameters
+  - **Enhanced imagePath Support**: Now supports single files, local directories, or S3 prefixes with multiple images
+    - Automatic discovery of all image files with supported extensions (`.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.tiff`, `.tif`, `.webp`)
+    - Images sorted alphabetically in prompt by filename for consistent ordering
   - Automatic integration of examples into classification and extraction prompts via `{FEW_SHOT_EXAMPLES}` placeholder
-  - Demonstrated in `config_library/pattern-2/few_shot_example` configuration with letter and email examples
+  - Demonstrated in `config_library/pattern-2/few_shot_example` configuration with letter, email, and multi-page bank-statement examples
+  - Environment variable support for path resolution (`CONFIGURATION_BUCKET` and `ROOT_DIR`)
+  - Updated documentation in classification and extraction README files and Pattern-2 few-shot examples guide
 
 - **Bedrock Prompt Caching Support**
   - Added support for `<<CACHEPOINT>>` delimiter in prompts to enable Bedrock prompt caching

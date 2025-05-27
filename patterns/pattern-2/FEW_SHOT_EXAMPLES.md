@@ -70,7 +70,49 @@ Each example includes four key components:
 - **`classPrompt`**: A brief description identifying this as an example of the document class (used for classification). Can include sample OCR text output to show the model what text content looks like for this class.
 - **`name`**: A unique identifier for the example (for reference and debugging)
 - **`attributesPrompt`**: The expected attribute extraction results in exact JSON format (used for extraction). Can include sample OCR text output to demonstrate the text from which attributes should be extracted.
-- **`imagePath`**: Path to the example document image file (optional but recommended for better visual understanding)
+- **`imagePath`**: Path to example document image(s) - supports single files, local directories, or S3 prefixes (optional but recommended for better visual understanding)
+
+#### Enhanced Image Path Support
+
+The `imagePath` field now supports multiple formats for maximum flexibility:
+
+**Single Image File (Original functionality)**:
+```yaml
+imagePath: "config_library/pattern-2/few_shot_example/example-images/letter1.jpg"
+```
+
+**Local Directory with Multiple Images (New)**:
+```yaml
+imagePath: "config_library/pattern-2/few_shot_example/example-images/"
+```
+
+**S3 Prefix with Multiple Images (New)**:
+```yaml
+imagePath: "s3://my-config-bucket/few-shot-examples/letter/"
+```
+
+**Direct S3 Image URI**:
+```yaml
+imagePath: "s3://my-config-bucket/few-shot-examples/letter/example1.jpg"
+```
+
+When pointing to a directory or S3 prefix, the system automatically:
+- Discovers all image files with supported extensions (`.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.tiff`, `.tif`, `.webp`)
+- Sorts them alphabetically by filename for consistent ordering
+- Includes each image as a separate content item in the few-shot examples
+- Gracefully handles individual image loading failures without breaking the entire process
+
+#### Environment Variables for Path Resolution
+
+The system uses these environment variables for resolving relative paths:
+
+- **`CONFIGURATION_BUCKET`**: S3 bucket name for configuration files
+  - Used when `imagePath` doesn't start with `s3://`
+  - The path is treated as a key within this bucket
+
+- **`ROOT_DIR`**: Root directory for local file resolution
+  - Used when `CONFIGURATION_BUCKET` is not set
+  - The path is treated as relative to this directory
 
 ### Multimodal vs Text-Only Examples
 
@@ -162,6 +204,23 @@ config_library/pattern-2/your_config/example-images/
 └── invoice1.pdf
 ```
 
+For multiple images per example, you can organize them in directories:
+
+```
+config_library/pattern-2/your_config/example-images/
+├── letters/
+│   ├── 001_formal_letter.jpg
+│   ├── 002_informal_letter.png
+│   └── 003_business_letter.jpg
+├── invoices/
+│   ├── invoice_simple.jpg
+│   ├── invoice_complex.png
+│   └── invoice_international.jpg
+└── emails/
+    ├── email_formal.jpg
+    └── email_casual.png
+```
+
 ### Step 3: Define Examples in Configuration
 
 Add examples to each document class in your configuration file. You can use images, text, or both:
@@ -195,6 +254,18 @@ classes:
               "total_amount": "$1,250.00",
               "due_date": "02/15/2024"
         imagePath: "config_library/pattern-2/your_config/example-images/invoice1.pdf"
+      
+      # Example with multiple images from directory
+      - classPrompt: "These are examples of the class 'invoice' showing different formats"
+        name: "InvoiceVariations"
+        attributesPrompt: |
+          For invoices like these examples, expected attributes format:
+              "invoice_number": "string",
+              "invoice_date": "MM/DD/YYYY",
+              "vendor_name": "string",
+              "total_amount": "$X.XX",
+              "due_date": "MM/DD/YYYY or null"
+        imagePath: "config_library/pattern-2/your_config/example-images/invoices/"
       
       # Example with text only (no image)
       - classPrompt: |
@@ -362,11 +433,25 @@ task_prompt: |
    - Follow the same date formats, currency formats, etc.
    - Ensure field names match your attribute definitions exactly
 
+5. **Organize Multiple Images Effectively**
+   When using directories or S3 prefixes with multiple images:
+
+   ```yaml
+   # Good: Use descriptive, ordered filenames
+   imagePath: "examples/letters/"
+   # Contents: 001_formal_letter.jpg, 002_informal_letter.png, 003_business_letter.jpg
+
+   # Good: Group related examples together
+   imagePath: "s3://config-bucket/examples/invoices/"
+   # Contents: invoice_simple.jpg, invoice_complex.png, invoice_international.jpg
+   ```
+
 ### Optimal Example Quantities
 
 - **1-3 examples per class**: More examples aren't always better; focus on quality
 - **Diverse coverage**: Include examples that cover different variations within each class
 - **Balanced representation**: Provide examples for your most important document classes
+- **Multiple images per example**: When using directories, 3-5 images per example typically provides good coverage
 
 ### Image vs Text-Only Considerations
 
@@ -388,6 +473,7 @@ task_prompt: |
 - **Resolution**: Use high-resolution images (300 DPI or higher recommended)
 - **File size**: Balance quality with reasonable file sizes for processing efficiency
 - **Naming**: Use descriptive names that make examples easy to identify
+- **Organization**: Use directories to group related images for multi-image examples
 
 ### Cache-Friendly Prompt Design
 
@@ -476,6 +562,8 @@ Monitor these metrics to ensure optimal cache usage:
 - Set `ROOT_DIR` environment variable for local development
 - Set `CONFIGURATION_BUCKET` for S3 deployment scenarios
 - Verify image file paths in configuration match actual file locations
+- For directories: Ensure the directory contains image files with supported extensions
+- For S3 prefixes: Verify S3 bucket and prefix paths are correct
 - Consider using text-only examples if image access is problematic
 
 **Caching Not Working**
@@ -509,6 +597,48 @@ See `config_library/pattern-2/few_shot_example/` for a complete working configur
 - Email classification and extraction with 1 example
 - Proper image path configuration
 - Task prompts with few-shot placeholder integration and optimal CACHEPOINT placement
+
+### Multi-Image Example Configuration
+
+For using multiple images per example:
+
+```yaml
+classes:
+  - name: letter
+    description: "A formal written correspondence"
+    attributes:
+      - name: sender_name
+        description: "The name of the person who wrote the letter"
+      - name: recipient_name
+        description: "The name of the person receiving the letter"
+    examples:
+      # Single image example
+      - classPrompt: "This is an example of the class 'letter'"
+        name: "Letter1"
+        attributesPrompt: |
+          expected attributes are:
+              "sender_name": "John Smith",
+              "recipient_name": "Jane Doe"
+        imagePath: "config_library/pattern-2/your_config/example-images/letter1.jpg"
+      
+      # Multiple images from directory
+      - classPrompt: "These are various examples of the class 'letter'"
+        name: "LetterVariations"
+        attributesPrompt: |
+          For letters like these examples, the expected format is:
+              "sender_name": "string",
+              "recipient_name": "string"
+        imagePath: "config_library/pattern-2/your_config/example-images/letters/"
+      
+      # Multiple images from S3 prefix
+      - classPrompt: "Additional letter examples from S3"
+        name: "LetterS3Examples"
+        attributesPrompt: |
+          For these letter types, extract:
+              "sender_name": "actual sender name",
+              "recipient_name": "actual recipient name"
+        imagePath: "s3://my-config-bucket/examples/letters/"
+```
 
 ### Text-Only Example Configuration
 
@@ -614,5 +744,6 @@ The few-shot examples feature continues to evolve with planned enhancements:
 - **Additional Formats**: Support for more example formats and metadata
 - **Enhanced Caching**: More sophisticated caching strategies for different use cases
 - **Hybrid Examples**: Better integration of text and image content within examples
+- **Enhanced Multi-Image Support**: Advanced algorithms for optimal image selection from directories
 
-Few-shot examples with prompt caching represent a significant step forward in making Pattern-2 more accurate, cost-effective, and easier to configure for diverse document processing scenarios. The flexibility to use images, text, or both provides options for different security, privacy, and performance requirements.
+Few-shot examples with prompt caching represent a significant step forward in making Pattern-2 more accurate, cost-effective, and easier to configure for diverse document processing scenarios. The flexibility to use images, text, or both, combined with support for multiple images per example, provides comprehensive options for different security, privacy, and performance requirements.

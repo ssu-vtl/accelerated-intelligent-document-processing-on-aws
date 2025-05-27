@@ -605,6 +605,21 @@ classes:
         description: >-
           Additional notes or remarks about the document. Look for sections
           labeled 'notes', 'remarks', or 'comments'.
+  - name: bank-statement
+    description: >-
+      A bank statement document containing account information, transactions,
+      and financial details
+    examples:
+      - classPrompt: Here are example images for each page of a 3 page 'bank-statement '
+        name: BankStatement1
+        attributesPrompt: |-
+          Here are example images for each page of a 3 page 'bank-statement. Expected attributes are:
+              "account_holder_name": "Alejandro Rosalez",
+              "account_name": ["Checking", "Savings"],
+              "account_number": ["003525801543","352580154336"],
+              "transactions": [{"Date": "2/6/2020", "Description": "Food Purchase - AnyCompany Restaurant - 1194989245", "Amount": "-171"}]
+        imagePath: config_library/pattern-2/few_shot_example/example-images/bank-statement-pages/
+
 classification:
   classificationMethod: multimodalPageLevelClassification
   model: us.amazon.nova-pro-v1:0
