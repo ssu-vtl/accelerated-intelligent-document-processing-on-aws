@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Added
+- **Few Shot Example Support in Pattern-2**
+  - Added comprehensive few shot learning capabilities to improve classification and extraction accuracy
+  - Support for example-based prompting with concrete document examples and expected outputs
+  - Configuration of few shot examples through document class definitions with `examples` field
+  - Each example includes `name`, `classPrompt`, `attributesPrompt`, and `imagePath` parameters
+  - Automatic integration of examples into classification and extraction prompts via `{FEW_SHOT_EXAMPLES}` placeholder
+  - Demonstrated in `config_library/pattern-2/few_shot_example` configuration with letter and email examples
+
 - **Bedrock Prompt Caching Support**
   - Added support for `<<CACHEPOINT>>` delimiter in prompts to enable Bedrock prompt caching
   - Prompts can now be split into static (cacheable) and dynamic sections for improved performance and cost optimization
@@ -12,9 +20,13 @@
 - **Configuration Library Support**
   - Added `config_library/` directory with pre-built configuration templates for all patterns
   - Configuration now loaded from S3 URIs instead of being defined inline in CloudFormation templates
-  - Support for multiple configuration presets per pattern (e.g., default, checkboxed_attributes_extraction, medical_records_summarization)
+  - Support for multiple configuration presets per pattern (e.g., default, checkboxed_attributes_extraction, medical_records_summarization, few_shot_example)
   - New `ConfigurationDefaultS3Uri` parameter allows specifying custom S3 configuration sources
   - Enhanced configuration management with separation of infrastructure and business logic
+
+### Fixed
+- **Lambda Configuration Reload Issue**
+  - Fixed lambda functions loading configuration globally which prevented configuration updates from being picked up during warm starts
 
 ### Changed
 - **Simplified Model Configuration Architecture**

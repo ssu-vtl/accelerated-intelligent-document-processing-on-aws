@@ -84,6 +84,10 @@ Parameters:
     Type: String
     Description: "S3 URI (s3://bucket/path/config.json) to import default configuration from S3"
 
+  ConfigLibraryHash:
+    Type: String
+    Description: "Hash token from config library to force updates when config library changes"
+
 Conditions:
   IsSummarizationEnabled: !Equals [!Ref IsSummarizationEnabled, "true"]
   HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
@@ -149,6 +153,35 @@ Resources:
                 description:
                   type: string
                   description: Class description
+                examples:
+                  type: array
+                  description: Class few-shot examples
+                  listLabel: Few-shot examples
+                  itemLabel: Few-shot example
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - classPrompt
+                      - attributesPrompt
+                      - imagesPath
+                    properties:
+                      name:
+                        type: string
+                        description: Example name
+                        order: 0
+                      classPrompt:
+                        type: string
+                        description: Provide prompt as few-shot classification example for this class
+                        order: 2
+                      attributesPrompt:
+                        type: string
+                        description: Provide prompt as few-shot attribute value extraction example for this class.
+                        order: 3
+                      imagePath:
+                        type: string
+                        description: S3 prefix for page image in the ConfigurationBucket. Images are optional, inserted after the example prompt. You can attach multiple examples with additional images if needed for multi-page examples.
+                        order: 4
                 attributes:
                   type: array
                   listLabel: Attributes
@@ -242,7 +275,7 @@ Resources:
                 order: 7
               task_prompt:
                 type: string
-                description: Task prompt - include placeholders {DOCUMENT_TEXT} (replaced by the OCR output), and {CLASS_NAMES_AND_DESCRIPTIONS} (replaced with the class names and descriptions for all specified classes). Optionally use <<CACHEPOINT>> to separate static and dynamic elements of prompt for Bedrock prompt caching.
+                description: Task prompt - include placeholders {CLASS_NAMES_AND_DESCRIPTIONS} (replaced with the class names and descriptions for all specified classes), {FEW_SHOT_EXAMPLES} (replaced by classPrompt and image data from examples in class definitions), {DOCUMENT_TEXT} (replaced by the OCR output). Optionally use <<CACHEPOINT>> to separate static and dynamic elements of prompt for Bedrock prompt caching.
                 order: 8
           extraction:
             order: 4
@@ -288,7 +321,7 @@ Resources:
                 order: 6
               task_prompt:
                 type: string
-                description: Task prompt - supports placeholders {DOCUMENT_CLASS} (replaced with the detected class label), {ATTRIBUTE_NAMES_AND_DESCRIPTIONS} (replaced with the attribute names and descriptions for the detected class), and {DOCUMENT_TEXT} (replaced by the OCR output). Optionally use <<CACHEPOINT>> to separate static and dynamic elements of prompt for Bedrock prompt caching.
+                description: Task prompt - supports placeholders {DOCUMENT_CLASS} (replaced with the detected class label), {ATTRIBUTE_NAMES_AND_DESCRIPTIONS} (replaced with the attribute names and descriptions for the detected class), {FEW_SHOT_EXAMPLES} (replaced by classPrompt and image data from examples in class definitions), and {DOCUMENT_TEXT} (replaced by the OCR output). Optionally use <<CACHEPOINT>> to separate static and dynamic elements of prompt for Bedrock prompt caching.
                 order: 7
           evaluation:
             order: 5
@@ -407,6 +440,7 @@ Resources:
     Properties:
       ServiceToken: !Ref UpdateConfigurationFunctionArn
       Default: !Ref ConfigurationDefaultS3Uri
+      ConfigLibraryHash: !Ref ConfigLibraryHash
 
   OCRFunction:
     Type: AWS::Serverless::Function
@@ -504,6 +538,7 @@ Resources:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
           MAX_WORKERS: 20
+          CONFIGURATION_BUCKET: !Ref ConfigurationBucket
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
           LOG_LEVEL: !Ref LogLevel
           APPSYNC_API_URL: !Ref AppSyncApiUrl
@@ -517,6 +552,8 @@ Resources:
             BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
+        - S3ReadPolicy:
+            BucketName: !Ref ConfigurationBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref ConfigurationTable
         - Statement:
@@ -580,6 +617,7 @@ Resources:
       Environment:
         Variables:
           METRIC_NAMESPACE: !Ref StackName
+          CONFIGURATION_BUCKET: !Ref ConfigurationBucket
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
           GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
           LOG_LEVEL: !Ref LogLevel
@@ -592,6 +630,8 @@ Resources:
             BucketName: !Ref OutputBucket
         - S3ReadPolicy:
             BucketName: !Ref InputBucket
+        - S3ReadPolicy:
+            BucketName: !Ref ConfigurationBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref ConfigurationTable
         - Statement:
@@ -1235,4 +1275,3 @@ Outputs:
   DashboardArn:
     Description: ARN of the Pattern 1 CloudWatch Dashboard
     Value: !Sub "arn:aws:cloudwatch::${AWS::AccountId}:dashboard/${Dashboard}"
-

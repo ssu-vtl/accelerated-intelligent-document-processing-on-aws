@@ -5,6 +5,7 @@ import boto3
 from botocore.exceptions import ClientError
 from typing import Dict, Any, Union
 import cfnresponse
+import yaml
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
@@ -17,7 +18,7 @@ table = dynamodb.Table(os.environ['CONFIGURATION_TABLE_NAME'])
 
 def fetch_content_from_s3(s3_uri: str) -> Union[Dict[str, Any], str]:
     """
-    Fetches content from S3 URI and parses as JSON if possible
+    Fetches content from S3 URI and parses as JSON or YAML if possible
     """
     try:
         # Parse S3 URI
@@ -34,12 +35,15 @@ def fetch_content_from_s3(s3_uri: str) -> Union[Dict[str, Any], str]:
         response = s3_client.get_object(Bucket=bucket, Key=key)
         content = response['Body'].read().decode('utf-8')
         
-        # Try to parse as JSON, return as string if it fails
+        # Try to parse as JSON first, then YAML, return as string if both fail
         try:
             return json.loads(content)
         except json.JSONDecodeError:
-            logger.warning(f"Content from {s3_uri} is not valid JSON, returning as string")
-            return content
+            try:
+                return yaml.safe_load(content)
+            except yaml.YAMLError:
+                logger.warning(f"Content from {s3_uri} is not valid JSON or YAML, returning as string")
+                return content
             
     except ClientError as e:
         logger.error(f"Error fetching content from S3 {s3_uri}: {str(e)}")
