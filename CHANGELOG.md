@@ -7,10 +7,9 @@
   - Added comprehensive few shot learning capabilities to improve classification and extraction accuracy
   - Support for example-based prompting with concrete document examples and expected outputs
   - Configuration of few shot examples through document class definitions with `examples` field
-  - Each example includes `classPrompt`, `name`, `attributesPrompt`, and `imagePath` parameters
+  - Each example includes `name`, `classPrompt`, `attributesPrompt`, and `imagePath` parameters
   - Automatic integration of examples into classification and extraction prompts via `{FEW_SHOT_EXAMPLES}` placeholder
   - Demonstrated in `config_library/pattern-2/few_shot_example` configuration with letter and email examples
-  - Enhanced documentation in classification README with comprehensive usage guide and best practices
 
 - **Bedrock Prompt Caching Support**
   - Added support for `<<CACHEPOINT>>` delimiter in prompts to enable Bedrock prompt caching
