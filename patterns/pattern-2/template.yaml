@@ -180,7 +180,7 @@ Resources:
                         order: 3
                       imagePath:
                         type: string
-                        description: S3 prefix for page image in the ConfigurationBucket. Images are optional, inserted after the example prompt. You can attach multiple examples with additional images if needed for multi-page examples.
+                        description: Path to example document image(s) in the Configuration Bucket. Supports single files, or S3 prefixes for folders with multiple images. Optional but recommended for better visual understanding.
                         order: 4
                 attributes:
                   type: array
