@@ -34,7 +34,7 @@ class ClassificationService:
     """Service for classifying documents using various backends."""
 
     # Configuration for the SageMaker retry mechanism
-    MAX_RETRIES = 8
+      MAX_RETRIES = 7
     INITIAL_BACKOFF = 2  # seconds
     MAX_BACKOFF = 300  # 5 minutes
 
