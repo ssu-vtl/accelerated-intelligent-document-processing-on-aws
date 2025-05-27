@@ -6,7 +6,7 @@ from typing import Tuple, Dict, Any, Optional
 logger = logging.getLogger(__name__)
 
 # Common backoff constants
-MAX_RETRIES = 8
+  MAX_RETRIES = 7
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 300    # 5 minutes
 

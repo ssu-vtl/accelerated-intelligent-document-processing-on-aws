@@ -17,7 +17,7 @@ logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_
 # Get LOG_LEVEL from environment variable with INFO as default
 
 # Retry configuration
-MAX_RETRIES = 8
+  MAX_RETRIES = 7
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 300   # 5 minutes
 

@@ -18,7 +18,7 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger(__name__)
 
 # Default retry settings
-DEFAULT_MAX_RETRIES = 8
+DEFAULT_MAX_RETRIES = 7
 DEFAULT_INITIAL_BACKOFF = 2  # seconds
 DEFAULT_MAX_BACKOFF = 300    # 5 minutes
 
