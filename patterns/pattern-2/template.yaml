@@ -84,6 +84,10 @@ Parameters:
     Type: String
     Description: "S3 URI (s3://bucket/path/config.json) to import default configuration from S3"
 
+  ConfigLibraryHash:
+    Type: String
+    Description: "Hash token from config library to force updates when config library changes"
+
 Conditions:
   IsSummarizationEnabled: !Equals [!Ref IsSummarizationEnabled, "true"]
   HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
@@ -436,6 +440,7 @@ Resources:
     Properties:
       ServiceToken: !Ref UpdateConfigurationFunctionArn
       Default: !Ref ConfigurationDefaultS3Uri
+      ConfigLibraryHash: !Ref ConfigLibraryHash
 
   OCRFunction:
     Type: AWS::Serverless::Function
@@ -1270,4 +1275,3 @@ Outputs:
   DashboardArn:
     Description: ARN of the Pattern 1 CloudWatch Dashboard
     Value: !Sub "arn:aws:cloudwatch::${AWS::AccountId}:dashboard/${Dashboard}"
-
