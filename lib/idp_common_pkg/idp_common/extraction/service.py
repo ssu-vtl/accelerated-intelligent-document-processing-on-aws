@@ -222,45 +222,101 @@ class ExtractionService:
 
                     from idp_common import image, s3
 
-                    # Handle different path types
-                    if image_path.startswith("s3://"):
-                        # Direct S3 URI
-                        image_content = s3.get_binary_content(image_path)
-                    else:
-                        # Check if CONFIGURATION_BUCKET environment variable is set
-                        config_bucket = os.environ.get("CONFIGURATION_BUCKET")
-                        if config_bucket:
-                            # Use environment bucket with imagePath as key
-                            s3_uri = f"s3://{config_bucket}/{image_path}"
-                            image_content = s3.get_binary_content(s3_uri)
-                        else:
-                            # Read from local filesystem
-                            # Use ROOT_DIR environment variable if set, otherwise calculate from service location
-                            root_dir = os.environ.get("ROOT_DIR")
-                            if root_dir:
-                                # Use relative path from ROOT_DIR
-                                full_image_path = os.path.join(root_dir, image_path)
-                                full_image_path = os.path.normpath(full_image_path)
-                                with open(full_image_path, "rb") as f:
-                                    image_content = f.read()
-                            else:
-                                # throw an error if neither CONFIGURATION_BUCKET nor ROOT_DIR is not set
-                                raise ValueError(
-                                    "No CONFIGURATION_BUCKET or ROOT_DIR set. Cannot read example image from local filesystem."
-                                )
+                    # Get list of image files from the path (supports directories/prefixes)
+                    image_files = self._get_image_files_from_path(image_path)
 
-                    # Prepare image content for Bedrock
-                    image_attachment = image.prepare_bedrock_image_attachment(
-                        image_content
-                    )
-                    content.append(image_attachment)
+                    # Process each image file
+                    for image_file_path in image_files:
+                        try:
+                            # Load image content
+                            if image_file_path.startswith("s3://"):
+                                # Direct S3 URI
+                                image_content = s3.get_binary_content(image_file_path)
+                            else:
+                                # Local file
+                                with open(image_file_path, "rb") as f:
+                                    image_content = f.read()
+
+                            # Prepare image content for Bedrock
+                            image_attachment = image.prepare_bedrock_image_attachment(
+                                image_content
+                            )
+                            content.append(image_attachment)
+
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to load image {image_file_path}: {e}"
+                            )
+                            continue
 
                 except Exception as e:
                     raise ValueError(
-                        f"Failed to load example image from {image_path}: {e}"
+                        f"Failed to load example images from {image_path}: {e}"
                     )
 
         return content
+
+    def _get_image_files_from_path(self, image_path: str) -> List[str]:
+        """
+        Get list of image files from a path that could be a single file, directory, or S3 prefix.
+
+        Args:
+            image_path: Path to image file, directory, or S3 prefix
+
+        Returns:
+            List of image file paths/URIs sorted by filename
+        """
+        import os
+        from idp_common import s3
+
+        # Handle S3 URIs
+        if image_path.startswith("s3://"):
+            # Check if it's a direct file or a prefix
+            if image_path.endswith(
+                (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp")
+            ):
+                # Direct S3 file
+                return [image_path]
+            else:
+                # S3 prefix - list all images
+                return s3.list_images_from_path(image_path)
+        else:
+            # Handle local paths
+            config_bucket = os.environ.get("CONFIGURATION_BUCKET")
+            root_dir = os.environ.get("ROOT_DIR")
+
+            if config_bucket:
+                # Use environment bucket with imagePath as key
+                s3_uri = f"s3://{config_bucket}/{image_path}"
+
+                # Check if it's a direct file or a prefix
+                if image_path.endswith(
+                    (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp")
+                ):
+                    # Direct S3 file
+                    return [s3_uri]
+                else:
+                    # S3 prefix - list all images
+                    return s3.list_images_from_path(s3_uri)
+            elif root_dir:
+                # Use relative path from ROOT_DIR
+                full_path = os.path.join(root_dir, image_path)
+                full_path = os.path.normpath(full_path)
+
+                if os.path.isfile(full_path):
+                    # Single local file
+                    return [full_path]
+                elif os.path.isdir(full_path):
+                    # Local directory - list all images
+                    return s3.list_images_from_path(full_path)
+                else:
+                    # Path doesn't exist
+                    logger.warning(f"Image path does not exist: {full_path}")
+                    return []
+            else:
+                raise ValueError(
+                    "No CONFIGURATION_BUCKET or ROOT_DIR set. Cannot read example images from local filesystem."
+                )
 
     def process_document_section(self, document: Document, section_id: str) -> Document:
         """
