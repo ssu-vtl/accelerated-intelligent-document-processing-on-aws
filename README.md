@@ -665,3 +665,355 @@ EvaluationModelId:
   - Identify areas for improvement
 
 ### Metrics and Monitoring
+
+The evaluation framework includes comprehensive monitoring through CloudWatch metrics:
+
+- **Evaluation Success/Failure Rates**: Track evaluation completion and error rates
+- **Baseline Data Availability**: Monitor percentage of documents with baseline data for comparison
+- **Report Generation Performance**: Track time to generate evaluation reports
+- **Model Usage Metrics**: Monitor token consumption and API calls for evaluation models
+- **Accuracy Trends**: Historical tracking of processing accuracy over time
+
+## Configuration / Customization
+
+The solution provides multiple configuration approaches to customize document processing behavior:
+
+### Pattern Configuration via Web UI
+
+The web interface allows real-time configuration updates without stack redeployment:
+
+- **Document Classes**: Define and modify document categories and their descriptions
+- **Extraction Attributes**: Configure fields to extract for each document class
+- **Model Selection**: Choose between available Bedrock models for classification and extraction
+- **Prompt Engineering**: Customize system and task prompts for optimal results
+- **Few Shot Examples**: Upload and configure example documents to improve accuracy
+
+Configuration changes are validated and applied immediately, with rollback capability if issues arise.
+
+### Stack Parameters
+
+Key parameters that can be configured during CloudFormation deployment:
+
+- `IDPPattern`: Select processing pattern (Pattern1, Pattern2, Pattern3)
+- `AdminEmail`: Administrator email for web UI access
+- `MaxConcurrentWorkflows`: Control concurrent document processing
+- `EvaluationAutoEnabled`: Enable automatic accuracy evaluation
+- `ShouldUseDocumentKnowledgeBase`: Enable document querying features
+- `WAFAllowedIPv4Ranges`: IP restrictions for web UI access
+
+### Request Service Quota Limits for high volume processing
+
+For high-volume document processing, consider requesting increases for these service quotas:
+
+- **Lambda Concurrent Executions**: Default 1,000 per region
+- **Step Functions Executions**: Default 25,000 per second
+- **Bedrock Model Invocations**: Varies by model and region
+- **SQS Message Rate**: Default 300 per second for FIFO queues
+- **DynamoDB Read/Write Capacity**: Configure based on expected throughput
+
+Use the AWS Service Quotas console to request increases before deploying for production workloads.
+
+### Cost Estimation
+
+The solution provides built-in cost estimation capabilities:
+
+- Real-time cost tracking for Bedrock model usage
+- Per-document processing cost breakdown
+- Historical cost analysis and trends
+- Budget alerts and threshold monitoring
+
+See [COST_CALCULATOR.md](./COST_CALCULATOR.md) for detailed cost analysis across different processing volumes.
+
+## Customizing Classification
+
+Classification behavior can be customized through several mechanisms:
+
+### Classification Methods
+
+The solution supports multiple classification approaches:
+
+1. **Page-Level Classification**: Classifies individual pages independently
+2. **Holistic Packet Classification**: Analyzes entire document packets to identify boundaries
+3. **Few Shot Classification**: Uses example documents to improve accuracy
+
+### Classification Prompts
+
+Customize classification behavior through:
+
+- **System Prompts**: Define overall model behavior and constraints
+- **Task Prompts**: Specify classification instructions and formatting
+- **Class Descriptions**: Detailed descriptions for each document category
+- **Few Shot Examples**: Reference documents with expected classifications
+
+### Using CachePoint for Classification
+
+The solution integrates with Amazon Bedrock CachePoint for improved performance:
+
+- Caches frequently used prompts and responses
+- Reduces latency for similar classification requests
+- Optimizes costs through response reuse
+- Automatic cache management and expiration
+
+### Document Classes
+
+Standard document classes based on RVL-CDIP dataset:
+
+- `letter`: Formal written correspondence
+- `form`: Structured documents with fields
+- `email`: Digital messages with headers
+- `handwritten`: Documents with handwritten content
+- `advertisement`: Marketing materials
+- `scientific_report`: Research documents
+- `scientific_publication`: Academic papers
+- `specification`: Technical specifications
+- `file_folder`: Organizational documents
+- `news_article`: Journalistic content
+- `budget`: Financial planning documents
+- `invoice`: Commercial billing documents
+- `presentation`: Slide-based documents
+- `questionnaire`: Survey forms
+- `resume`: Employment documents
+- `memo`: Internal communications
+
+## Customizing Extraction
+
+Information extraction can be tailored for specific document types and use cases:
+
+### Extraction Prompts
+
+Configure extraction behavior through:
+
+- **Attribute Definitions**: Specify fields to extract per document class
+- **Extraction Instructions**: Detailed guidance for field identification
+- **Output Formatting**: Structure and validation requirements
+- **Error Handling**: Fallback behavior for missing or unclear data
+
+### Using CachePoint for Extraction
+
+CachePoint integration for extraction provides:
+
+- Cached extraction results for similar documents
+- Improved consistency across similar document types
+- Reduced processing costs and latency
+- Automatic cache invalidation when prompts change
+
+### Extraction Attributes
+
+Common extraction attributes by document type:
+
+**Invoice Documents:**
+- `invoice_number`: Unique invoice identifier
+- `invoice_date`: Date of invoice issuance
+- `vendor_name`: Name of the invoicing company
+- `total_amount`: Final amount due
+- `due_date`: Payment deadline
+
+**Form Documents:**
+- `form_type`: Type or title of the form
+- `applicant_name`: Name of person filling the form
+- `date_submitted`: Form submission date
+- `reference_number`: Form tracking number
+
+**Letter Documents:**
+- `sender_name`: Name of letter writer
+- `recipient_name`: Name of letter recipient
+- `date`: Letter date
+- `subject`: Letter subject or topic
+
+## Monitoring and Logging
+
+The solution provides comprehensive monitoring through Amazon CloudWatch:
+
+### CloudWatch Dashboard
+
+The integrated dashboard displays:
+
+#### Latency Metrics
+- **End-to-End Processing Time**: Total time from document upload to completion
+- **Step Function Execution Duration**: Time spent in workflow orchestration
+- **Lambda Function Latency**: Processing time per function (OCR, Classification, Extraction)
+- **Queue Wait Time**: Time documents spend in processing queues
+- **Model Inference Time**: Bedrock model response latencies
+
+#### Throughput Metrics
+- **Documents Processed per Hour**: Overall system throughput
+- **Pages Processed per Minute**: OCR processing rate
+- **Classification Requests per Second**: Page classification throughput
+- **Extraction Completions per Hour**: Field extraction processing rate
+- **Queue Message Rate**: SQS message processing velocity
+
+#### Error Tracking
+- **Workflow Failures**: Step Function execution failures with error categorization
+- **Lambda Timeouts**: Function timeout events and duration analysis
+- **Model Throttling**: Bedrock throttling events and retry patterns
+- **Dead Letter Queue Messages**: Failed messages requiring manual intervention
+- **Validation Errors**: Data validation failures and format issues
+
+### Log Groups
+
+Centralized logging across all components:
+
+- `/aws/stepfunctions/IDPWorkflow`: Step Function execution logs
+- `/aws/lambda/QueueProcessor`: Document queue processing logs
+- `/aws/lambda/OCRFunction`: OCR processing logs and errors
+- `/aws/lambda/ClassificationFunction`: Classification processing logs
+- `/aws/lambda/ExtractionFunction`: Extraction processing logs
+- `/aws/lambda/TrackingFunction`: Document tracking and status logs
+- `/aws/appsync/GraphQLAPI`: Web UI API access logs
+
+All logs include correlation IDs for tracing individual document processing journeys.
+
+## Document Status Lookup
+
+The solution provides tools for tracking document processing status:
+
+### Using the Lookup Script
+
+Use the included script to check document processing status:
+
+```bash
+python scripts/document_status_lookup.py --stack-name <STACK_NAME> --document-key <DOCUMENT_KEY>
+```
+
+### Response Format
+
+Status lookup returns comprehensive information:
+
+```json
+{
+  "document_key": "example.pdf",
+  "status": "COMPLETED",
+  "workflow_arn": "arn:aws:states:...",
+  "start_time": "2024-01-01T12:00:00Z",
+  "end_time": "2024-01-01T12:05:30Z",
+  "processing_time_seconds": 330,
+  "pages_processed": 15,
+  "sections_identified": 3,
+  "output_location": "s3://output-bucket/results/example.json",
+  "error_details": null
+}
+```
+
+## Bedrock Guardrail Integration
+
+The solution supports Amazon Bedrock Guardrails for content safety and compliance:
+
+### How Guardrails Work
+
+Guardrails provide:
+- **Content Filtering**: Block harmful, inappropriate, or sensitive content
+- **Topic Restrictions**: Prevent processing of specific topic areas
+- **Data Protection**: Redact or block personally identifiable information (PII)
+- **Custom Filters**: Define organization-specific content policies
+
+### Configuring Guardrails
+
+Enable guardrails through configuration:
+
+```yaml
+bedrock_settings:
+  guardrail_id: "your-guardrail-id"
+  guardrail_version: "1"
+  enable_content_filtering: true
+  enable_pii_detection: true
+```
+
+### Best Practices
+
+1. **Test Thoroughly**: Validate guardrail behavior with representative documents
+2. **Monitor Impact**: Track processing latency and accuracy changes
+3. **Regular Updates**: Review and update guardrail policies as requirements evolve
+4. **Compliance Alignment**: Ensure guardrails align with organizational compliance requirements
+
+## Concurrency and Throttling Management
+
+The solution implements sophisticated concurrency control and throttling management:
+
+### Throttling and Retry (Bedrock and/or SageMaker)
+
+- **Exponential Backoff**: Automatic retry with increasing delays
+- **Jitter Addition**: Random delay variation to prevent thundering herd
+- **Circuit Breaker**: Temporary halt on repeated failures
+- **Rate Limiting**: Configurable request rate controls
+
+### Step Functions Retry Configuration
+
+```json
+{
+  "Retry": [
+    {
+      "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+      "IntervalSeconds": 2,
+      "MaxAttempts": 6,
+      "BackoffRate": 2
+    },
+    {
+      "ErrorEquals": ["States.TaskFailed"],
+      "IntervalSeconds": 1,
+      "MaxAttempts": 3,
+      "BackoffRate": 2
+    }
+  ]
+}
+```
+
+### Concurrency Control
+
+- **Workflow Limits**: Maximum concurrent Step Function executions
+- **Lambda Concurrency**: Per-function concurrent execution limits
+- **Queue Management**: SQS visibility timeout and message batching
+- **Dynamic Scaling**: Automatic adjustment based on queue depth
+
+## Troubleshooting Guide
+
+Common issues and resolution steps:
+
+**Document Processing Failures:**
+1. Check CloudWatch logs for specific error messages
+2. Verify input document format and size limits
+3. Confirm sufficient IAM permissions
+4. Review Bedrock service quotas and throttling
+
+**Web UI Access Issues:**
+1. Verify Cognito user status and permissions
+2. Check CloudFront distribution status
+3. Confirm WAF IP allowlist configuration
+4. Review browser console for client-side errors
+
+**Performance Issues:**
+1. Monitor CloudWatch dashboard for bottlenecks
+2. Check Lambda function memory and timeout settings
+3. Review Step Function execution patterns
+4. Analyze queue depth and processing rates
+
+**Configuration Problems:**
+1. Validate configuration file syntax and schema
+2. Test configuration changes in development environment
+3. Review configuration validation logs
+4. Confirm model availability in selected region
+
+## Performance Considerations
+
+Optimize performance through:
+
+**Resource Sizing:**
+- Lambda memory allocation based on document complexity
+- Step Function timeout settings for large documents
+- SQS batch size tuning for optimal throughput
+
+**Concurrency Management:**
+- Workflow concurrency limits to prevent service throttling
+- Lambda reserved concurrency for critical functions
+- Queue parallelism configuration
+
+**Cost Optimization:**
+- Model selection based on accuracy vs. cost requirements
+- Caching strategies for repeated processing patterns
+- Scheduled processing for non-urgent documents
+
+**Monitoring:**
+- Real-time performance dashboards
+- Automated alerting for performance degradation
+- Historical trend analysis for capacity planning
+
+## Additional scripts / utilities
