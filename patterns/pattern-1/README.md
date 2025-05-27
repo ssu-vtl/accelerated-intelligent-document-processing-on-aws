@@ -126,7 +126,7 @@ The included CloudWatch dashboard provides visibility into the workflow:
 ### BDA API Throttling
 Implements exponential backoff with retry handling for transient errors:
 ```python
-MAX_RETRIES = 8
+MAX_RETRIES = 7
 INITIAL_BACKOFF = 2  # seconds
 MAX_BACKOFF = 300   # 5 minutes
 

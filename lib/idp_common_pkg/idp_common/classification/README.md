@@ -289,7 +289,49 @@ Each few shot example includes:
 - **classPrompt**: A description identifying this as an example of the document class
 - **name**: A unique identifier for the example (for reference and debugging)
 - **attributesPrompt**: The expected attribute extraction results in a structured format
-- **imagePath**: Path to the example document image file
+- **imagePath**: Path to example document image(s) - supports single files, local directories, or S3 prefixes
+
+#### Image Path Options
+
+The `imagePath` field now supports multiple formats for maximum flexibility:
+
+**Single Image File (Original functionality)**:
+```yaml
+imagePath: "config_library/pattern-2/few_shot_example/example-images/letter1.jpg"
+```
+
+**Local Directory with Multiple Images (New)**:
+```yaml
+imagePath: "config_library/pattern-2/few_shot_example/example-images/"
+```
+
+**S3 Prefix with Multiple Images (New)**:
+```yaml
+imagePath: "s3://my-config-bucket/few-shot-examples/letter/"
+```
+
+**Direct S3 Image URI**:
+```yaml
+imagePath: "s3://my-config-bucket/few-shot-examples/letter/example1.jpg"
+```
+
+When pointing to a directory or S3 prefix, the system automatically:
+- Discovers all image files with supported extensions (`.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.tiff`, `.tif`, `.webp`)
+- Sorts them alphabetically by filename for consistent ordering
+- Includes each image as a separate content item in the few-shot examples
+- Gracefully handles individual image loading failures without breaking the entire process
+
+#### Environment Variables for Path Resolution
+
+The system uses these environment variables for resolving relative paths:
+
+- **`CONFIGURATION_BUCKET`**: S3 bucket name for configuration files
+  - Used when `imagePath` doesn't start with `s3://`
+  - The path is treated as a key within this bucket
+
+- **`ROOT_DIR`**: Root directory for local file resolution
+  - Used when `CONFIGURATION_BUCKET` is not set
+  - The path is treated as relative to this directory
 
 ### Benefits
 
