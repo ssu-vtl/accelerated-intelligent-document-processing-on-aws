@@ -700,6 +700,7 @@ Resources:
         AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationDefaultS3Uri: !Sub "s3://${ConfigurationBucket}/config_library/pattern-1/${Pattern1Configuration}/config.yaml"
+        ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
 
   PATTERN2STACK:
     DependsOn:
@@ -729,6 +730,7 @@ Resources:
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationTable: !Ref ConfigurationTable
         ConfigurationDefaultS3Uri: !Sub "s3://${ConfigurationBucket}/config_library/pattern-2/${Pattern2Configuration}/config.yaml"
+        ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
 
   PATTERN3STACK:
     DependsOn:
@@ -757,6 +759,7 @@ Resources:
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationTable: !Ref ConfigurationTable
         ConfigurationDefaultS3Uri: !Sub "s3://${ConfigurationBucket}/config_library/pattern-3/${Pattern3Configuration}/config.yaml"
+        ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
 
   ##########################################################################
   # Encryption key
