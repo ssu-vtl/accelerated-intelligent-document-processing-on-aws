@@ -74,6 +74,7 @@ Parameters:
     AllowedValues:
       - "default"
       - "checkboxed_attributes_extraction"
+      - "few_shot_example"
       - "medical_records_summarization"
     Description: Select the configuration preset for Pattern 2. Each configuration contains pre-tuned settings for specific document processing scenarios.
 
@@ -507,6 +508,131 @@ Resources:
       InputString: !Ref "AWS::StackName"
       MaxLength: 25
 
+  ConfigurationCopyFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: Function does not require VPC access as it only interacts with S3
+          - id: W92
+            reason: Reserved concurrency not required
+    # checkov:skip=CKV_AWS_116: "DLQ not required for Cfn Custom Resource function"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    Properties:
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 300
+      InlineCode: |
+        import boto3
+        import cfnresponse
+        import json
+        import logging
+
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+
+        def handler(event, context):
+            logger.info(json.dumps(event))
+            
+            try:
+                source_bucket = event['ResourceProperties']['SourceBucket']
+                source_prefix = event['ResourceProperties']['SourcePrefix']
+                target_bucket = event['ResourceProperties']['TargetBucket']
+                target_prefix = event['ResourceProperties'].get('TargetPrefix', '')
+                
+                s3_client = boto3.client('s3')
+                
+                if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
+                    # List all objects in the source bucket with the given prefix
+                    paginator = s3_client.get_paginator('list_objects_v2')
+                    pages = paginator.paginate(Bucket=source_bucket, Prefix=source_prefix)
+                    
+                    copied_count = 0
+                    for page in pages:
+                        if 'Contents' in page:
+                            for obj in page['Contents']:
+                                source_key = obj['Key']
+                                # Remove the source prefix and add to target bucket with target prefix
+                                relative_key = source_key[len(source_prefix):].lstrip('/')
+                                
+                                # Skip if this is just the prefix directory
+                                if not relative_key:
+                                    continue
+                                
+                                # Construct target key with optional target prefix
+                                if target_prefix:
+                                    target_key = f"{target_prefix}/{relative_key}"
+                                else:
+                                    target_key = relative_key
+                                
+                                logger.info(f"Copying {source_bucket}/{source_key} to {target_bucket}/{target_key}")
+                                
+                                copy_source = {'Bucket': source_bucket, 'Key': source_key}
+                                s3_client.copy_object(
+                                    CopySource=copy_source,
+                                    Bucket=target_bucket,
+                                    Key=target_key
+                                )
+                                copied_count += 1
+                    
+                    logger.info(f"Successfully copied {copied_count} configuration files")
+                    cfnresponse.send(event, context, cfnresponse.SUCCESS, {
+                        'CopiedFiles': copied_count
+                    }, reason=f"Successfully copied {copied_count} configuration files")
+                    
+                elif event['RequestType'] == 'Delete':
+                    # For delete, we don't need to clean up the configuration files
+                    # as they may be needed by other resources
+                    logger.info("Delete request - no action needed for configuration files")
+                    cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, 
+                                   reason="Delete completed - configuration files retained")
+                    
+            except Exception as e:
+                logger.error(f"Error: {str(e)}")
+                cfnresponse.send(event, context, cfnresponse.FAILED, {}, 
+                               reason=f"Error copying configuration files: {str(e)}")
+
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+      LoggingConfig:
+        LogGroup:
+          Ref: ConfigurationCopyFunctionLogGroup
+      Policies:
+        - S3ReadPolicy:
+            BucketName: "<ARTIFACT_BUCKET_TOKEN>"
+        - S3WritePolicy:
+            BucketName: !Ref ConfigurationBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - kms:Encrypt
+                - kms:Decrypt
+                - kms:ReEncrypt*
+                - kms:GenerateDataKey*
+                - kms:DescribeKey
+              Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+
+  ConfigurationCopyFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: !Ref LogRetentionDays
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
+
+  CopyConfigurationFiles:
+    Type: Custom::ConfigurationCopy
+    DependsOn:
+      - ConfigurationBucket
+    Properties:
+      ServiceToken: !GetAtt ConfigurationCopyFunction.Arn
+      SourceBucket: "<ARTIFACT_BUCKET_TOKEN>"
+      SourcePrefix: "<ARTIFACT_PREFIX_TOKEN>/config_library"
+      TargetBucket: !Ref ConfigurationBucket
+      TargetPrefix: "config_library"
+      ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
+
   ##########################################################################
   # Nested stack for selected options
   ##########################################################################
@@ -545,6 +671,7 @@ Resources:
   PATTERN1STACK:
     DependsOn:
       - IsStacknameLengthOK
+      - CopyConfigurationFiles
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern1
     Properties:
@@ -572,11 +699,13 @@ Resources:
         ConfigurationTable: !Ref ConfigurationTable
         AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
-        ConfigurationDefaultS3Uri: !Sub "<CONFIG_BASE_PATH_TOKEN>/pattern-1/${Pattern1Configuration}/config.json"
+        ConfigurationDefaultS3Uri: !Sub "s3://${ConfigurationBucket}/config_library/pattern-1/${Pattern1Configuration}/config.yaml"
+        ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
 
   PATTERN2STACK:
     DependsOn:
       - IsStacknameLengthOK
+      - CopyConfigurationFiles
       - GraphQLApi
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern2
@@ -600,11 +729,13 @@ Resources:
         AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationTable: !Ref ConfigurationTable
-        ConfigurationDefaultS3Uri: !Sub "<CONFIG_BASE_PATH_TOKEN>/pattern-2/${Pattern2Configuration}/config.json"
+        ConfigurationDefaultS3Uri: !Sub "s3://${ConfigurationBucket}/config_library/pattern-2/${Pattern2Configuration}/config.yaml"
+        ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
 
   PATTERN3STACK:
     DependsOn:
       - IsStacknameLengthOK
+      - CopyConfigurationFiles
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern3
     Properties:
@@ -627,7 +758,8 @@ Resources:
         AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationTable: !Ref ConfigurationTable
-        ConfigurationDefaultS3Uri: !Sub "<CONFIG_BASE_PATH_TOKEN>/pattern-3/${Pattern3Configuration}/config.json"
+        ConfigurationDefaultS3Uri: !Sub "s3://${ConfigurationBucket}/config_library/pattern-3/${Pattern3Configuration}/config.yaml"
+        ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
 
   ##########################################################################
   # Encryption key
