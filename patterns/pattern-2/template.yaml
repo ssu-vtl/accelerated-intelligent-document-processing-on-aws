@@ -168,15 +168,15 @@ Resources:
                         order: 0
                       classPrompt:
                         type: string
-                        description: Prompt snippet for classification
+                        description: Provide prompt as few-shot classification example for this class
                         order: 2
                       attributesPrompt:
                         type: string
-                        description: Prompt snippet for attribute value extraction
+                        description: Provide prompt as few-shot attribute value extraction example for this class.
                         order: 3
                       imagePath:
                         type: string
-                        description: (Optional) S3 prefix for page image or folder with multiple page images, in the ConfigurationBucket.
+                        description: S3 prefix for page image in the ConfigurationBucket. Images are optional, inserted after the example prompt. You can attach multiple examples with additional images if needed for multi-page examples.
                         order: 4
                 attributes:
                   type: array
