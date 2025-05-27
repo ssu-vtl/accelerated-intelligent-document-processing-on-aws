@@ -210,11 +210,17 @@ class ExtractionService:
         examples = target_class.get("examples", [])
         for example in examples:
             attributes_prompt = example.get("attributesPrompt")
+
+            # Only process this example if it has a non-empty attributesPrompt
+            if not attributes_prompt or not attributes_prompt.strip():
+                logger.info(
+                    f"Skipping example with empty attributesPrompt: {example.get('name')}"
+                )
+                continue
+
+            content.append({"text": attributes_prompt})
+
             image_path = example.get("imagePath")
-
-            if attributes_prompt:
-                content.append({"text": attributes_prompt})
-
             if image_path:
                 try:
                     # Load image content from the path
