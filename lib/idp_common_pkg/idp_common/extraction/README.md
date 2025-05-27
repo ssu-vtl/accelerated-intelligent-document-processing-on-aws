@@ -178,7 +178,49 @@ Each few-shot example includes:
 - **classPrompt**: A description identifying this as an example of the document class (used for classification)
 - **attributesPrompt**: The expected attribute extraction results showing the exact JSON format and values expected
 - **name**: A unique identifier for the example (for reference and debugging)
-- **imagePath**: Path to the example document image file
+- **imagePath**: Path to example document image(s) - supports single files, local directories, or S3 prefixes
+
+#### Image Path Options
+
+The `imagePath` field now supports multiple formats for maximum flexibility:
+
+**Single Image File (Original functionality)**:
+```yaml
+imagePath: "config_library/pattern-2/few_shot_example/example-images/letter1.jpg"
+```
+
+**Local Directory with Multiple Images (New)**:
+```yaml
+imagePath: "config_library/pattern-2/few_shot_example/example-images/"
+```
+
+**S3 Prefix with Multiple Images (New)**:
+```yaml
+imagePath: "s3://my-config-bucket/few-shot-examples/letter/"
+```
+
+**Direct S3 Image URI**:
+```yaml
+imagePath: "s3://my-config-bucket/few-shot-examples/letter/example1.jpg"
+```
+
+When pointing to a directory or S3 prefix, the system automatically:
+- Discovers all image files with supported extensions (`.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.tiff`, `.tif`, `.webp`)
+- Sorts them alphabetically by filename for consistent ordering
+- Includes each image as a separate content item in the few-shot examples
+- Gracefully handles individual image loading failures without breaking the entire process
+
+#### Environment Variables for Path Resolution
+
+The system uses these environment variables for resolving relative paths:
+
+- **`CONFIGURATION_BUCKET`**: S3 bucket name for configuration files
+  - Used when `imagePath` doesn't start with `s3://`
+  - The path is treated as a key within this bucket
+
+- **`ROOT_DIR`**: Root directory for local file resolution
+  - Used when `CONFIGURATION_BUCKET` is not set
+  - The path is treated as relative to this directory
 
 ### Task Prompt Integration
 
@@ -283,6 +325,20 @@ attributesPrompt: |
   field1: value1
   field2 = "value2"
   field3: (empty)
+```
+
+#### 5. Organize Multiple Images
+
+When using directories or S3 prefixes with multiple images:
+
+```yaml
+# Good: Use descriptive, ordered filenames
+imagePath: "examples/letters/"
+# Contents: 001_formal_letter.jpg, 002_informal_letter.png, 003_business_letter.jpg
+
+# Good: Group related examples together
+imagePath: "s3://config-bucket/examples/invoices/"
+# Contents: invoice_simple.jpg, invoice_complex.png, invoice_international.jpg
 ```
 
 ### Class-Specific Example Filtering
@@ -493,6 +549,7 @@ The extraction service is designed to be thread-safe, supporting concurrent proc
 - ✅ Few-shot example support for improved accuracy and consistency
 - ✅ Class-specific example filtering for targeted extraction guidance
 - ✅ Multimodal example support with document images
+- ✅ Enhanced imagePath support for multiple images from directories and S3 prefixes
 - 🔲 Dynamic few-shot example selection based on document similarity
 - 🔲 Confidence scoring for extracted attributes
 - 🔲 Support for additional extraction backends (custom models)
