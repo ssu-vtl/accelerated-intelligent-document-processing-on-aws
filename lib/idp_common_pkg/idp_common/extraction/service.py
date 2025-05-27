@@ -224,7 +224,6 @@ class ExtractionService:
             if image_path:
                 try:
                     # Load image content from the path
-                    import os
 
                     from idp_common import image, s3
 
@@ -273,6 +272,7 @@ class ExtractionService:
             List of image file paths/URIs sorted by filename
         """
         import os
+
         from idp_common import s3
 
         # Handle S3 URIs
