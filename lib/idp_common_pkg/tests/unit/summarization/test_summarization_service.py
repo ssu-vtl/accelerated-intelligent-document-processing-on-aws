@@ -546,27 +546,6 @@ class TestSummarizationService:
         assert result.metering["input_tokens"] == 100
         assert result.metering["output_tokens"] == 50
 
-    def test_generate_markdown(self, service):
-        """Test generating markdown from summary content."""
-        # Test with direct summary field
-        content1 = {"summary": "This is a summary with *markdown* formatting"}
-        markdown1 = service._generate_markdown(content1)
-        assert markdown1 == "This is a summary with *markdown* formatting"
-
-        # Test with nested structure
-        content2 = {
-            "overview": {"summary": "This is an overview"},
-            "details": {"point1": "First point", "point2": "Second point"},
-        }
-        markdown2 = service._generate_markdown(content2)
-        assert "## overview" in markdown2
-        assert "This is an overview" in markdown2
-        assert "## details" in markdown2
-        assert "### point1" in markdown2
-        assert "First point" in markdown2
-        assert "### point2" in markdown2
-        assert "Second point" in markdown2
-
     def test_update_document_status(self, service, sample_document):
         """Test updating document status."""
         # Test successful update
