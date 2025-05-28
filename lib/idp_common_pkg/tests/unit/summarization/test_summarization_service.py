@@ -42,7 +42,7 @@ class TestSummarizationService:
             "summarization": {
                 "model": "anthropic.claude-3-sonnet-20240229-v1:0",
                 "temperature": 0.0,
-                "top_k": 250,
+                "top_k": 5,
                 "system_prompt": "You are a helpful assistant that summarizes documents.",
                 "task_prompt": "Please summarize the following document: {DOCUMENT_TEXT}",
             }
@@ -127,7 +127,7 @@ class TestSummarizationService:
 
         assert config["model_id"] == "anthropic.claude-3-sonnet-20240229-v1:0"
         assert config["temperature"] == 0.0
-        assert config["top_k"] == 250.0
+        assert config["top_k"] == 5
         assert "You are a helpful assistant" in config["system_prompt"]
         assert "Please summarize" in config["task_prompt"]
 
@@ -251,7 +251,7 @@ class TestSummarizationService:
             "model_id": "test-model",
             "system_prompt": "Test system prompt",
             "temperature": 0.0,
-            "top_k": 250,
+            "top_k": 5,
             "top_p": 0.1,
             "max_tokens": 5000,
         }
@@ -358,7 +358,9 @@ class TestSummarizationService:
         mock_merge_metering.return_value = {"input_tokens": 100, "output_tokens": 50}
 
         # Process section
-        result = service.process_document_section(sample_document, "1")
+        result, section_metering = service.process_document_section(
+            sample_document, "1"
+        )
 
         # Verify get_text_content was called for each page
         assert mock_get_text_content.call_count == 2
@@ -379,9 +381,8 @@ class TestSummarizationService:
         assert "summary_uri" in section.attributes
         assert "summary_md_uri" in section.attributes
 
-        # Verify document metering was updated
-        assert result.metering["input_tokens"] == 100
-        assert result.metering["output_tokens"] == 50
+        # Verify section metering data was returned
+        assert section_metering == {"input_tokens": 100, "output_tokens": 50}
 
     @patch("idp_common.s3.get_text_content")
     def test_process_document_section_no_pages(
@@ -394,7 +395,9 @@ class TestSummarizationService:
                 section.page_ids = []
 
         # Process section
-        result = service.process_document_section(sample_document, "1")
+        result, section_metering = service.process_document_section(
+            sample_document, "1"
+        )
 
         # Verify get_text_content was not called
         mock_get_text_content.assert_not_called()
@@ -402,19 +405,27 @@ class TestSummarizationService:
         # Verify error was added
         assert "Section 1 has no page IDs" in result.errors
 
+        # Verify empty metering data was returned for error case
+        assert section_metering == {}
+
     @patch("idp_common.s3.get_text_content")
     def test_process_document_section_invalid_section(
         self, mock_get_text_content, service, sample_document
     ):
         """Test processing an invalid document section."""
         # Process non-existent section
-        result = service.process_document_section(sample_document, "999")
+        result, section_metering = service.process_document_section(
+            sample_document, "999"
+        )
 
         # Verify get_text_content was not called
         mock_get_text_content.assert_not_called()
 
         # Verify error was added
         assert "Section 999 not found in document" in result.errors
+
+        # Verify empty metering data was returned for error case
+        assert section_metering == {}
 
     @patch("concurrent.futures.ThreadPoolExecutor")
     @patch("idp_common.s3.get_json_content")
@@ -436,18 +447,20 @@ class TestSummarizationService:
         future1 = MagicMock()
         future2 = MagicMock()
 
-        # Configure the futures to return updated documents
+        # Configure the futures to return (document, metering) tuples
         doc1 = sample_document
         doc1.sections[0].attributes = {
             "summary_uri": "s3://output-bucket/test-document.pdf/sections/1/summary.json"
         }
-        future1.result.return_value = doc1
+        section1_metering = {"input_tokens": 100, "output_tokens": 50}
+        future1.result.return_value = (doc1, section1_metering)
 
         doc2 = sample_document
         doc2.sections[1].attributes = {
             "summary_uri": "s3://output-bucket/test-document.pdf/sections/2/summary.json"
         }
-        future2.result.return_value = doc2
+        section2_metering = {"input_tokens": 150, "output_tokens": 75}
+        future2.result.return_value = (doc2, section2_metering)
 
         # Configure the executor to return the futures
         mock_executor_instance.submit.side_effect = [future1, future2]
@@ -532,27 +545,6 @@ class TestSummarizationService:
         # Verify document metering was updated
         assert result.metering["input_tokens"] == 100
         assert result.metering["output_tokens"] == 50
-
-    def test_generate_markdown(self, service):
-        """Test generating markdown from summary content."""
-        # Test with direct summary field
-        content1 = {"summary": "This is a summary with *markdown* formatting"}
-        markdown1 = service._generate_markdown(content1)
-        assert markdown1 == "This is a summary with *markdown* formatting"
-
-        # Test with nested structure
-        content2 = {
-            "overview": {"summary": "This is an overview"},
-            "details": {"point1": "First point", "point2": "Second point"},
-        }
-        markdown2 = service._generate_markdown(content2)
-        assert "## overview" in markdown2
-        assert "This is an overview" in markdown2
-        assert "## details" in markdown2
-        assert "### point1" in markdown2
-        assert "First point" in markdown2
-        assert "### point2" in markdown2
-        assert "Second point" in markdown2
 
     def test_update_document_status(self, service, sample_document):
         """Test updating document status."""

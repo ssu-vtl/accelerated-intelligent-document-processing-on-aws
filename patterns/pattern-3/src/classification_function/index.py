@@ -12,14 +12,13 @@ from idp_common import classification, metrics, get_config
 from idp_common.models import Document, Status
 from idp_common.appsync.service import DocumentAppSyncService
 
-# Configuration
-CONFIG = get_config()
+# Configuration will be loaded in handler function
 region = os.environ['AWS_REGION']
 MAX_WORKERS = int(os.environ.get('MAX_WORKERS', 20))
 
 logger = logging.getLogger()
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
-logger.setLevel(LOG_LEVEL)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_LOG_LEVEL", "INFO"))
 
 
 def handler(event, context):
@@ -51,8 +50,9 @@ def handler(event, context):
     total_pages = len(document.pages)
     metrics.put_metric('ClassificationRequestsTotal', total_pages)
     
-    # Update config with SageMaker endpoint name
-    config_with_endpoint = CONFIG.copy() if CONFIG else {}
+    # Load configuration and update with SageMaker endpoint name
+    config = get_config()
+    config_with_endpoint = config.copy() if config else {}
     config_with_endpoint["sagemaker_endpoint_name"] = os.environ['SAGEMAKER_ENDPOINT_NAME']
     
     # Initialize classification service with SageMaker backend

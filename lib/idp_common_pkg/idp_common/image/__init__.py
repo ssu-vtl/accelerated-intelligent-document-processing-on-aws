@@ -69,9 +69,21 @@ def prepare_bedrock_image_attachment(image_data: bytes) -> Dict[str, Any]:
     Returns:
         Formatted image attachment for Bedrock API
     """
+    # Detect image format from image data
+    image = Image.open(io.BytesIO(image_data))
+    format_mapping = {
+        'JPEG': 'jpeg',
+        'PNG': 'png', 
+        'GIF': 'gif',
+        'WEBP': 'webp'
+    }
+    detected_format = format_mapping.get(image.format)
+    if not detected_format:
+        raise ValueError(f"Unsupported image format: {image.format}")
+    logger.info(f"Detected image format: {detected_format}")
     return {
         "image": {
-            "format": 'jpeg',
+            "format": detected_format,
             "source": {"bytes": image_data}
         }
     }

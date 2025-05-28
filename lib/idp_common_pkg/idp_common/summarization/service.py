@@ -3,17 +3,22 @@ Summarization service for documents using LLMs.
 
 This module provides a service for summarizing documents using various backends:
 1. Bedrock LLMs with text support
+
+The service includes advanced markdown formatting capabilities for generated summaries,
+including table of contents, citation formatting, and navigation aids.
 """
 
 import concurrent.futures
+import copy
 import json
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from idp_common import bedrock, s3, utils
 from idp_common.models import Document, Status
+from idp_common.summarization.markdown_formatter import SummaryMarkdownFormatter
 from idp_common.summarization.models import DocumentSummarizationResult, DocumentSummary
 
 logger = logging.getLogger(__name__)
@@ -308,7 +313,9 @@ class SummarizationService:
             logger.error(f"Error summarizing text: {str(e)}")
             return self._create_error_summary(str(e))
 
-    def process_document_section(self, document: Document, section_id: str) -> Document:
+    def process_document_section(
+        self, document: Document, section_id: str
+    ) -> Tuple[Document, Dict[str, Any]]:
         """
         Summarize a specific section of a document and update the Document object with the summary.
 
@@ -317,17 +324,17 @@ class SummarizationService:
             section_id: ID of the section to summarize
 
         Returns:
-            Document: Updated Document object with section summary
+            Tuple[Document, Dict[str, Any]]: Updated Document object with section summary and section-specific metering data
         """
         # Validate input document
         if not document:
             logger.error("No document provided")
-            return document
+            return document, {}
 
         if not document.sections:
             logger.error("Document has no sections to process")
             document.errors.append("Document has no sections to process")
-            return document
+            return document, {}
 
         # Find the section with the given ID
         section = None
@@ -340,7 +347,7 @@ class SummarizationService:
             error_msg = f"Section {section_id} not found in document"
             logger.error(error_msg)
             document.errors.append(error_msg)
-            return document
+            return document, {}
 
         # Extract information about the section
         class_label = section.classification
@@ -356,7 +363,7 @@ class SummarizationService:
             error_msg = f"Section {section_id} has no page IDs"
             logger.error(error_msg)
             document.errors.append(error_msg)
-            return document
+            return document, {}
 
         # Sort pages by page number
         sorted_page_ids = sorted(section.page_ids, key=int)
@@ -387,11 +394,12 @@ class SummarizationService:
 
             if not all_text:
                 logger.warning(f"No text content found in section {section_id}")
-                return self._update_document_status(
+                document = self._update_document_status(
                     document,
                     success=False,
                     error_message=f"No text content found in section {section_id}",
                 )
+                return document, {}
 
             # Generate summary
             summary = self.process_text(all_text)
@@ -415,8 +423,14 @@ class SummarizationService:
                 content_type="application/json",
             )
 
-            # Generate and store markdown report using our custom markdown generator
-            markdown_report = self._generate_markdown(summary.content)
+            # Generate and store markdown report using our custom formatter
+            # Create a single-section document for the formatter
+            single_section = {section_id: summary.content}
+            formatter = SummaryMarkdownFormatter(
+                document, single_section, is_section=True, include_toc=True
+            )
+            markdown_report = formatter.format_all()
+
             s3.write_content(
                 content=markdown_report,
                 bucket=output_bucket,
@@ -432,11 +446,10 @@ class SummarizationService:
             section.attributes["summary_uri"] = output_uri
             section.attributes["summary_md_uri"] = output_md_uri
 
-            # Update document metering
+            # Extract metering data to return separately
+            section_metering = {}
             if "metering" in summary.metadata:
-                document.metering = utils.merge_metering_data(
-                    document.metering, summary.metadata["metering"]
-                )
+                section_metering = summary.metadata["metering"]
 
             logger.info(
                 f"Section {section_id} summarized successfully. Summary stored at: {output_uri}"
@@ -446,8 +459,9 @@ class SummarizationService:
             error_msg = f"Error summarizing section {section_id}: {str(e)}"
             logger.error(error_msg)
             document.errors.append(error_msg)
+            return document, {}
 
-        return document
+        return document, section_metering
 
     def process_document(
         self, document: Document, store_results: bool = True
@@ -487,7 +501,7 @@ class SummarizationService:
             # Initialize data structures for results
             combined_content = {}
             combined_metadata = {"section_summaries": {}}
-            section_markdown_parts = []
+            section_markdowns = {}  # Use dictionary instead of list for section markdowns
 
             # Create a thread pool with 20 workers for parallel processing
             max_workers = 20
@@ -495,9 +509,8 @@ class SummarizationService:
                 f"Processing document sections in parallel with {max_workers} workers"
             )
 
-            # Create a copy of the document for thread safety
-            # Each thread will work on its own copy and return the processed section
-            document_copy = document
+            # Initialize a dictionary to collect all section-specific metering data
+            all_section_metering = {}
 
             # Process sections in parallel using ThreadPoolExecutor
             with concurrent.futures.ThreadPoolExecutor(
@@ -511,8 +524,15 @@ class SummarizationService:
                     logger.info(
                         f"Submitting section {section.section_id} with classification {section.classification} for processing"
                     )
+                    # Create a deep copy of the document for thread safety, excluding metering data
+                    thread_document = copy.deepcopy(document)
+                    # Reset metering data in the copy to avoid double-counting
+                    thread_document.metering = {}
+
                     future = executor.submit(
-                        self.process_document_section, document_copy, section.section_id
+                        self.process_document_section,
+                        thread_document,
+                        section.section_id,
                     )
                     future_to_section[future] = section
 
@@ -520,8 +540,13 @@ class SummarizationService:
                 for future in concurrent.futures.as_completed(future_to_section):
                     section = future_to_section[future]
                     try:
-                        # Get the result (updated document with processed section)
-                        updated_document = future.result()
+                        # Get the result (updated document with processed section and section-specific metering)
+                        updated_document, section_metering = future.result()
+
+                        # Store section-specific metering data
+                        if section_metering:
+                            section_key = f"section_{section.section_id}"
+                            all_section_metering[section_key] = section_metering
 
                         # Find the processed section in the updated document
                         processed_section = None
@@ -552,11 +577,6 @@ class SummarizationService:
                                 if error not in document.errors:
                                     document.errors.append(error)
 
-                            # Merge metering data
-                            document.metering = utils.merge_metering_data(
-                                document.metering, updated_document.metering
-                            )
-
                             # Load the summary content
                             try:
                                 summary_content = s3.get_json_content(summary_uri)
@@ -585,8 +605,11 @@ class SummarizationService:
                                             section.classification
                                             or f"Section {section.section_id}"
                                         )
-                                        section_markdown = f"## {section_title}\n\n{self._generate_markdown(summary_content)}\n\n"
-                                        section_markdown_parts.append(section_markdown)
+                                        # Store section content with metadata
+                                        section_markdowns[section.section_id] = {
+                                            "content": summary_content,
+                                            "title": section_title,
+                                        }
                                     except Exception as e:
                                         logger.warning(
                                             f"Failed to generate markdown for section {section.section_id}: {e}"
@@ -607,6 +630,12 @@ class SummarizationService:
 
             # Calculate execution time
             execution_time = time.time() - start_time
+
+            # Merge all section-specific metering data into the document's metering data
+            for section_metering in all_section_metering.values():
+                document.metering = utils.merge_metering_data(
+                    document.metering, section_metering
+                )
 
             # Create a combined summary from all section summaries
             summary = DocumentSummary(
@@ -638,17 +667,14 @@ class SummarizationService:
                 md_key = f"{document.input_key}/summary/summary.md"
 
                 # Create a complete markdown document that combines all section summaries
-                if section_markdown_parts:
-                    # Create header for the document without including document ID
-                    doc_header = "# Document Summary\n\n"
-
-                    # Combine all section markdown parts
-                    combined_markdown = doc_header + "\n".join(section_markdown_parts)
-
-                    # Add execution time at the end
-                    combined_markdown += (
-                        f"\n\nExecution time: {execution_time:.2f} seconds"
+                if section_markdowns:
+                    # Create our custom formatter with the document object for section ordering
+                    formatter = SummaryMarkdownFormatter(
+                        document, section_markdowns, is_section=False, include_toc=True
                     )
+                    combined_markdown = formatter.format_all()
+
+                    # Execution time line removed
 
                     # Write the combined markdown
                     s3.write_content(
@@ -659,7 +685,16 @@ class SummarizationService:
                     )
                 else:
                     # If no section markdown parts, generate a markdown report directly from the summary content
-                    markdown_report = self._generate_markdown(summary.content)
+                    # Create a single-section document for the formatter
+                    single_section = {"full_document": summary.content}
+                    formatter = SummaryMarkdownFormatter(document, single_section)
+                    markdown_report = formatter.format_all()
+
+                    # Add execution time
+                    markdown_report += (
+                        f"\n\nExecution time: {execution_time:.2f} seconds"
+                    )
+
                     s3.write_content(
                         content=markdown_report,
                         bucket=output_bucket,
@@ -763,8 +798,20 @@ class SummarizationService:
 
                 # Generate and store markdown report
                 md_key = f"{document.input_key}/summary/summary.md"
-                # Generate markdown directly from the summary content
-                markdown_report = self._generate_markdown(summary.content)
+                # Create a single-section document for the formatter with metadata
+                single_section = {
+                    "full_document": {
+                        "content": summary.content,
+                        "title": "Document Summary",
+                    }
+                }
+                formatter = SummaryMarkdownFormatter(
+                    document, single_section, is_section=False, include_toc=True
+                )
+                markdown_report = formatter.format_all()
+
+                # Execution time line removed
+
                 s3.write_content(
                     content=markdown_report,
                     bucket=output_bucket,
@@ -802,61 +849,6 @@ class SummarizationService:
             )
 
         return document
-
-    def _generate_markdown(self, summary_content: Dict[str, Any]) -> str:
-        """
-        Generate clean markdown from summary content.
-
-        Args:
-            summary_content: Summary content dictionary
-
-        Returns:
-            Properly formatted markdown representation
-        """
-        # Special case: If there's a top-level "summary" field with a string value, use it directly
-        if "summary" in summary_content and isinstance(summary_content["summary"], str):
-            return summary_content["summary"]
-
-        markdown_parts = []
-        seen_headers = set()
-
-        # Process the content based on its structure
-        for key, value in summary_content.items():
-            # Skip metadata
-            if key == "metadata" or key == "error":
-                continue
-
-            # Handle string values directly
-            if isinstance(value, str) and value.strip():
-                section_header = f"## {key}"
-                if section_header not in seen_headers:
-                    markdown_parts.append(section_header)
-                    seen_headers.add(section_header)
-                markdown_parts.append(value)
-                continue
-
-            # Handle dictionary values
-            if isinstance(value, dict):
-                # Add section header
-                section_header = f"## {key}"
-                if section_header not in seen_headers:
-                    markdown_parts.append(section_header)
-                    seen_headers.add(section_header)
-
-                # Add content
-                if "summary" in value and isinstance(value["summary"], str):
-                    markdown_parts.append(value["summary"])
-                else:
-                    # Format other fields
-                    for field_key, field_value in value.items():
-                        if isinstance(field_value, str) and field_value.strip():
-                            field_header = f"### {field_key}"
-                            if field_header not in seen_headers:
-                                markdown_parts.append(field_header)
-                                seen_headers.add(field_header)
-                            markdown_parts.append(field_value)
-
-        return "\n\n".join(markdown_parts)
 
     def _update_document_status(
         self,
