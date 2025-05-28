@@ -1,4 +1,6 @@
 /* eslint-disable react/prop-types */
+/* eslint-disable prettier/prettier */
+/* eslint-disable prefer-destructuring */
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
@@ -55,22 +57,26 @@ const BoundingBox = ({ box, page, currentPage, imageRef }) => {
   let style = {};
 
   if (box.boundingBox) {
-    // Format: { Width, Height, Left, Top }
-    const { Width, Height, Left, Top } = box.boundingBox;
+    // Handle both uppercase and lowercase property names
+    const bbox = box.boundingBox;
+    const left = bbox.left || bbox.Left || 0;
+    const top = bbox.top || bbox.Top || 0;
+    const width = bbox.width || bbox.Width || 0;
+    const height = bbox.height || bbox.Height || 0;
     style = {
       position: 'absolute',
-      left: `${Left * dimensions.width}px`,
-      top: `${Top * dimensions.height}px`,
-      width: `${Width * dimensions.width}px`,
-      height: `${Height * dimensions.height}px`,
+      left: `${left * dimensions.width}px`,
+      top: `${top * dimensions.height}px`,
+      width: `${width * dimensions.width}px`,
+      height: `${height * dimensions.height}px`,
       border: '2px solid red',
       pointerEvents: 'none',
       zIndex: 10,
     };
   } else if (box.vertices) {
-    // Format: array of {X, Y} points
-    const xs = box.vertices.map((v) => v.X);
-    const ys = box.vertices.map((v) => v.Y);
+    // Format: array of {x, y} or {X, Y} points
+    const xs = box.vertices.map((v) => v.x || v.X || 0);
+    const ys = box.vertices.map((v) => v.y || v.Y || 0);
     const minX = Math.min(...xs);
     const minY = Math.min(...ys);
     const maxX = Math.max(...xs);
@@ -101,6 +107,7 @@ const FormFieldRenderer = ({
   geometry,
   onFieldFocus,
   path = [],
+  explainabilityInfo = null,
 }) => {
   // Determine field type
   let fieldType = typeof value;
@@ -120,18 +127,66 @@ const FormFieldRenderer = ({
     }
   };
 
+  // Handle field click - debug version
+  const handleClick = (event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    console.log('=== FIELD CLICKED ===');
+    console.log('Field Key:', fieldKey);
+    console.log('Full Path:', `${path.join('.')}${path.length > 0 ? '.' : ''}${fieldKey}`);
+    console.log('Field Value:', value);
+    console.log('Geometry Passed:', geometry);
+    console.log('Explainability Info Available:', !!explainabilityInfo);
+    
+    let actualGeometry = geometry;
+    
+    // Try to extract geometry from explainabilityInfo if not provided
+    if (!actualGeometry && explainabilityInfo && Array.isArray(explainabilityInfo) && explainabilityInfo[0]) {
+      const [firstExplainabilityItem] = explainabilityInfo;
+      console.log('Explainability Info Object:', firstExplainabilityItem);
+      const fieldInfo = firstExplainabilityItem[fieldKey];
+      console.log(`Field Info from explainabilityInfo[0][${fieldKey}]:`, fieldInfo);
+      
+      if (fieldInfo && fieldInfo.geometry && Array.isArray(fieldInfo.geometry) && fieldInfo.geometry[0]) {
+        actualGeometry = fieldInfo.geometry[0];
+        console.log('Found geometry in explainabilityInfo:', actualGeometry);
+      }
+      
+      // Also search all keys in explainabilityInfo to find geometry
+      const allKeys = Object.keys(firstExplainabilityItem);
+      console.log('All available keys in explainabilityInfo:', allKeys);
+    }
+    
+    if (actualGeometry && onFieldFocus) {
+      console.log('Calling onFieldFocus with geometry:', actualGeometry);
+      onFieldFocus(actualGeometry);
+    } else {
+      console.log('No geometry found for field:', fieldKey);
+    }
+    console.log('=== END FIELD CLICK ===');
+  };
+
   // Render based on field type
   switch (fieldType) {
     case 'string':
       return (
-        <FormField label={label}>
-          <Input
-            value={value || ''}
-            disabled={isReadOnly}
-            onChange={({ detail }) => !isReadOnly && onChange(detail.value)}
-            onFocus={handleFocus}
-          />
-        </FormField>
+        <div
+          onClick={handleClick}
+          onKeyDown={(e) => e.key === 'Enter' && handleClick(e)}
+          role="button"
+          tabIndex={0}
+          style={{ cursor: geometry ? 'pointer' : 'default' }}
+        >
+          <FormField label={label}>
+            <Input
+              value={value || ''}
+              disabled={isReadOnly}
+              onChange={({ detail }) => !isReadOnly && onChange(detail.value)}
+              onFocus={handleFocus}
+            />
+          </FormField>
+        </div>
       );
 
     case 'number':
@@ -183,13 +238,57 @@ const FormFieldRenderer = ({
           <Box padding={{ left: 'l' }}>
             <SpaceBetween size="xs">
               {Object.entries(value).map(([key, val]) => {
-                // Get confidence and geometry for this field if available
-                const fieldConfidence =
-                  value.explainability_info?.confidence_scores?.[key] ||
-                  value.explainability_info?.confidenceScores?.[key];
-
-                const fieldGeometry =
-                  value.explainability_info?.geometry?.[key] || value.explainability_info?.geometries?.[key];
+                // Get confidence and geometry for this field from explainability_info
+                let fieldConfidence;
+                let fieldGeometry;
+                
+                // Try to get from explainability_info if available
+                if (explainabilityInfo && Array.isArray(explainabilityInfo)) {
+                  // Handle nested structure like explainabilityInfo[0].NAME_DETAILS.LAST_NAME
+                  const currentPath = [...path, key];
+                  const [firstExplainabilityItem] = explainabilityInfo;
+                  // eslint-disable-next-line prefer-destructuring
+                  let fieldInfo = firstExplainabilityItem;
+                  
+                  // Navigate through the path to find the field info
+                  let pathFieldInfo = fieldInfo;
+                  currentPath.forEach((pathPart) => {
+                    if (pathFieldInfo && typeof pathFieldInfo === 'object' && pathFieldInfo[pathPart]) {
+                      pathFieldInfo = pathFieldInfo[pathPart];
+                    } else {
+                      pathFieldInfo = null;
+                    }
+                  });
+                  fieldInfo = pathFieldInfo;
+                  
+                  if (fieldInfo) {
+                    fieldConfidence = fieldInfo.confidence;
+                    
+                    // Extract geometry - handle both direct geometry and geometry arrays
+                    if (fieldInfo.geometry && Array.isArray(fieldInfo.geometry) && fieldInfo.geometry.length > 0) {
+                      const geomData = fieldInfo.geometry[0];
+                      if (geomData.boundingBox && geomData.page !== undefined) {
+                        fieldGeometry = {
+                          boundingBox: geomData.boundingBox,
+                          page: geomData.page,
+                          vertices: geomData.vertices
+                        };
+                      }
+                    }
+                  }
+                }
+                
+                // Also check legacy format within the value itself
+                if (!fieldConfidence) {
+                  fieldConfidence =
+                    value.explainability_info?.confidence_scores?.[key] ||
+                    value.explainability_info?.confidenceScores?.[key];
+                }
+                
+                if (!fieldGeometry) {
+                  fieldGeometry =
+                    value.explainability_info?.geometry?.[key] || value.explainability_info?.geometries?.[key];
+                }
 
                 return (
                   <FormFieldRenderer
@@ -208,6 +307,7 @@ const FormFieldRenderer = ({
                     geometry={fieldGeometry}
                     onFieldFocus={onFieldFocus}
                     path={[...path, key]}
+                    explainabilityInfo={explainabilityInfo}
                   />
                 );
               })}
@@ -404,12 +504,24 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
 
   // Handle field focus - update active field geometry and switch to the correct page
   const handleFieldFocus = (geometry) => {
+    console.log('VisualEditorModal - handleFieldFocus called with geometry:', geometry);
+    console.log('VisualEditorModal - pageIds:', pageIds);
+    console.log('VisualEditorModal - currentPage:', currentPage);
+    
     if (geometry) {
       setActiveFieldGeometry(geometry);
 
       // If geometry has a page field, switch to that page
-      if (geometry.page && pageIds.includes(geometry.page)) {
-        setCurrentPage(geometry.page);
+      // geometry.page is 1-based and refers to the page within this section
+      // pageIds contains the actual document page IDs for this section
+      if (geometry.page !== undefined && pageIds.length > 0) {
+        // Map geometry page (1-based) to pageIds array index (0-based)
+        const pageIndex = geometry.page - 1;
+        if (pageIndex >= 0 && pageIndex < pageIds.length) {
+          const targetPageId = pageIds[pageIndex];
+          console.log('VisualEditorModal - Setting currentPage to:', targetPageId);
+          setCurrentPage(targetPageId);
+        }
       }
     } else {
       setActiveFieldGeometry(null);
@@ -442,7 +554,7 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
             {activeFieldGeometry && (
               <BoundingBox
                 box={activeFieldGeometry}
-                page={activeFieldGeometry.page}
+                page={currentPage} 
                 currentPage={currentPage}
                 imageRef={imageRef}
               />
@@ -658,6 +770,7 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
                     }}
                     isReadOnly={isReadOnly}
                     onFieldFocus={handleFieldFocus}
+                    explainabilityInfo={jsonData?.explainability_info}
                   />
                 ) : (
                   <Box padding="xl" textAlign="center">
