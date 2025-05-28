@@ -172,15 +172,15 @@ Resources:
                         order: 0
                       classPrompt:
                         type: string
-                        description: Provide prompt as few-shot classification example for this class
+                        description: Classification prompt as few-shot classification example for this class
                         order: 2
                       attributesPrompt:
                         type: string
-                        description: Provide prompt as few-shot attribute value extraction example for this class.
+                        description: Extraction prompt as few-shot attribute value extraction example for this class.
                         order: 3
                       imagePath:
                         type: string
-                        description: Path to example document image(s) in the Configuration Bucket. Supports single files, or S3 prefixes for folders with multiple images. Optional but recommended for better visual understanding.
+                        description: Image(s) Path in the Configuration Bucket. Supports single files, or S3 prefixes for folders with multiple images. Optional but recommended for better visual understanding.
                         order: 4
                 attributes:
                   type: array
