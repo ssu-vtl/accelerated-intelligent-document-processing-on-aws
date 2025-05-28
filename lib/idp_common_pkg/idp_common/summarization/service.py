@@ -18,8 +18,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from idp_common import bedrock, s3, utils
 from idp_common.models import Document, Status
-from idp_common.summarization.models import DocumentSummarizationResult, DocumentSummary
 from idp_common.summarization.markdown_formatter import SummaryMarkdownFormatter
+from idp_common.summarization.models import DocumentSummarizationResult, DocumentSummary
 
 logger = logging.getLogger(__name__)
 
@@ -426,9 +426,11 @@ class SummarizationService:
             # Generate and store markdown report using our custom formatter
             # Create a single-section document for the formatter
             single_section = {section_id: summary.content}
-            formatter = SummaryMarkdownFormatter(document, single_section, is_section=True, include_toc=True)
+            formatter = SummaryMarkdownFormatter(
+                document, single_section, is_section=True, include_toc=True
+            )
             markdown_report = formatter.format_all()
-            
+
             s3.write_content(
                 content=markdown_report,
                 bucket=output_bucket,
@@ -606,7 +608,7 @@ class SummarizationService:
                                         # Store section content with metadata
                                         section_markdowns[section.section_id] = {
                                             "content": summary_content,
-                                            "title": section_title
+                                            "title": section_title,
                                         }
                                     except Exception as e:
                                         logger.warning(
@@ -667,9 +669,11 @@ class SummarizationService:
                 # Create a complete markdown document that combines all section summaries
                 if section_markdowns:
                     # Create our custom formatter with the document object for section ordering
-                    formatter = SummaryMarkdownFormatter(document, section_markdowns, is_section=False, include_toc=True)
+                    formatter = SummaryMarkdownFormatter(
+                        document, section_markdowns, is_section=False, include_toc=True
+                    )
                     combined_markdown = formatter.format_all()
-                    
+
                     # Execution time line removed
 
                     # Write the combined markdown
@@ -685,10 +689,12 @@ class SummarizationService:
                     single_section = {"full_document": summary.content}
                     formatter = SummaryMarkdownFormatter(document, single_section)
                     markdown_report = formatter.format_all()
-                    
+
                     # Add execution time
-                    markdown_report += f"\n\nExecution time: {execution_time:.2f} seconds"
-                    
+                    markdown_report += (
+                        f"\n\nExecution time: {execution_time:.2f} seconds"
+                    )
+
                     s3.write_content(
                         content=markdown_report,
                         bucket=output_bucket,
@@ -796,14 +802,16 @@ class SummarizationService:
                 single_section = {
                     "full_document": {
                         "content": summary.content,
-                        "title": "Document Summary"
+                        "title": "Document Summary",
                     }
                 }
-                formatter = SummaryMarkdownFormatter(document, single_section, is_section=False, include_toc=True)
+                formatter = SummaryMarkdownFormatter(
+                    document, single_section, is_section=False, include_toc=True
+                )
                 markdown_report = formatter.format_all()
-                
+
                 # Execution time line removed
-                
+
                 s3.write_content(
                     content=markdown_report,
                     bucket=output_bucket,
@@ -841,7 +849,6 @@ class SummarizationService:
             )
 
         return document
-
 
     def _update_document_status(
         self,
