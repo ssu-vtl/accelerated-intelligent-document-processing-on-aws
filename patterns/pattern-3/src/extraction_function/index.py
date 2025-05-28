@@ -9,13 +9,13 @@ from idp_common import metrics, get_config, extraction
 from idp_common.models import Document, Section, Status
 from idp_common.appsync.service import DocumentAppSyncService
 
-CONFIG = get_config()
+# Configuration will be loaded in handler function
 
 OCR_TEXT_ONLY = os.environ.get('OCR_TEXT_ONLY', 'false').lower() == 'true'
 
 logger = logging.getLogger()
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
-logger.setLevel(LOG_LEVEL)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_LOG_LEVEL", "INFO"))
 
 
 def handler(event, context):
@@ -23,7 +23,9 @@ def handler(event, context):
     Process a single section of a document for information extraction
     """
     logger.info(f"Event: {json.dumps(event)}")
-    logger.info(f"Config: {json.dumps(CONFIG)}")
+    # Load configuration
+    config = get_config()
+    logger.info(f"Config: {json.dumps(config)}")
     
     # For Map state, we get just one section from the document
     # Extract the document and section from the event
@@ -52,7 +54,7 @@ def handler(event, context):
     section_document.pages = needed_pages
     
     # Initialize the extraction service
-    extraction_service = extraction.ExtractionService(config=CONFIG)
+    extraction_service = extraction.ExtractionService(config=config)
     
     # Track metrics
     metrics.put_metric('InputDocuments', 1)

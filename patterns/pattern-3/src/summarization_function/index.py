@@ -11,12 +11,11 @@ from idp_common import get_config, summarization
 from idp_common.models import Document, Status
 from idp_common.appsync.service import DocumentAppSyncService
 
-# Configuration
-CONFIG = get_config()
+# Configuration will be loaded in handler function
 
 logger = logging.getLogger()
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
-logger.setLevel(LOG_LEVEL)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_LOG_LEVEL", "INFO"))
 
 def handler(event, context):
     """
@@ -48,9 +47,10 @@ def handler(event, context):
         logger.info(f"Updating document status to {document.status}")
         appsync_service.update_document(document)
         
-        # Create the summarization service with provided config
+        # Load configuration and create the summarization service
+        config = get_config()
         summarization_service = summarization.SummarizationService(
-            config=CONFIG
+            config=config
         )        
         # Process the document using the service
         logger.info(f"Processing document with SummarizationService, document ID: {document.id}")
