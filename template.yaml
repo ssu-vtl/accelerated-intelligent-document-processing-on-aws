@@ -5,7 +5,7 @@ Transform: AWS::Serverless-2016-10-31
 Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v<VERSION>)
 
 Mappings:
-  LogLevelMap:
+  AppSyncLogLevelMap:
     DEBUG:
       FieldLogLevel: ALL
     INFO:
@@ -56,7 +56,7 @@ Parameters:
     Type: String
     Default: ""
     AllowedPattern: "^(|^arn:aws:bedrock:[a-z0-9-]+:.+:data-automation-project/.+)$"
-    Description: For Pattern3, provide a Bedrock Data Automation (BDA) project ARN, or leave blank to create a sample project for processing the sample lending package.
+    Description: For Pattern-1, provide a Bedrock Data Automation (BDA) project ARN, or leave blank to create a sample project for processing the sample lending package.
 
 
   Pattern1Configuration:
@@ -94,7 +94,7 @@ Parameters:
     Type: String
     Default: "<PUBLIC_SAMPLE_UDOP_MODEL>"
     AllowedPattern: "^(|s3://.*)$"
-    Description: For Pattern1, provide S3 path to the UDOP model.tar.gz file (e.g., s3://bucket-name/path/to/model.tar.gz)
+    Description: For Pattern-3, provide S3 path to the UDOP model.tar.gz file (e.g., s3://bucket-name/path/to/model.tar.gz)
 
   Pattern3Configuration:
     Type: String
@@ -2917,7 +2917,7 @@ Resources:
       LogConfig:
         CloudWatchLogsRoleArn: !GetAtt AppSyncCwlRole.Arn
         ExcludeVerboseContent: false
-        FieldLogLevel: !FindInMap [LogLevelMap, !Ref LogLevel, FieldLogLevel]
+        FieldLogLevel: !FindInMap [AppSyncLogLevelMap, !Ref LogLevel, FieldLogLevel]
       # Disable introspection for security purposes
       IntrospectionConfig: DISABLED
 
