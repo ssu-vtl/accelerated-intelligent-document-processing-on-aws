@@ -611,6 +611,7 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
+              flex: 1,
             }}
           >
             <div
@@ -620,7 +621,8 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
                 overflowX: 'hidden',
                 padding: '16px',
                 boxSizing: 'border-box',
-                height: 0, // This forces the flex child to respect the parent's height
+                maxHeight: '800px',
+                minHeight: '600px',
               }}
             >
               <Box style={{ minHeight: 'fit-content' }}>
