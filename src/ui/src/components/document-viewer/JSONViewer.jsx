@@ -15,7 +15,7 @@ import { API, Logger } from 'aws-amplify';
 import { Editor } from '@monaco-editor/react';
 import getFileContents from '../../graphql/queries/getFileContents';
 import uploadDocument from '../../graphql/queries/uploadDocument';
-import VisualEditor from './VisualEditor';
+import VisualEditorModal from './VisualEditorModal';
 
 const logger = new Logger('FileEditor');
 
@@ -304,6 +304,7 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
   const [isValid, setIsValid] = useState(true);
   const [jsonData, setJsonData] = useState(null);
   const [viewMode, setViewMode] = useState(fileType === 'markdown' ? 'markdown' : 'form');
+  const [showVisualEditor, setShowVisualEditor] = useState(false);
 
   useEffect(() => {
     if (fileType === 'json') {
@@ -362,7 +363,12 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
   }
 
   const handleViewModeChange = ({ detail }) => {
-    setViewMode(detail.selectedId);
+    if (detail.selectedId === 'visual') {
+      setShowVisualEditor(true);
+      // Don't change viewMode, keep it as current
+    } else {
+      setViewMode(detail.selectedId);
+    }
   };
 
   return (
@@ -390,16 +396,6 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
       {isValid && fileType === 'json' ? (
         viewMode === 'form' ? (
           <FormEditorView jsonData={jsonData} onChange={handleFormChange} isReadOnly={isReadOnly} />
-        ) : viewMode === 'visual' ? (
-          <VisualEditor
-            jsonData={jsonData}
-            onChange={handleFormChange}
-            isReadOnly={isReadOnly}
-            sectionData={{
-              ...sectionData,
-              documentItem: sectionData?.documentItem || sectionData?.item,
-            }}
-          />
         ) : (
           <TextEditorView
             fileContent={typeof fileContent === 'string' ? fileContent : JSON.stringify(jsonData, null, 2)}
@@ -416,6 +412,19 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
           fileType={fileType === 'json' ? 'json' : fileType}
         />
       )}
+
+      {/* Visual Editor Modal */}
+      <VisualEditorModal
+        visible={showVisualEditor}
+        onDismiss={() => setShowVisualEditor(false)}
+        jsonData={jsonData}
+        onChange={handleFormChange}
+        isReadOnly={isReadOnly}
+        sectionData={{
+          ...sectionData,
+          documentItem: sectionData?.documentItem || sectionData?.item,
+        }}
+      />
     </Box>
   );
 };
