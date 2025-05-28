@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import React, { useState, useEffect, useRef } from 'react';
 import {
+  Modal,
   Box,
   SpaceBetween,
   FormField,
@@ -15,7 +16,7 @@ import { Logger } from 'aws-amplify';
 import generateS3PresignedUrl from '../common/generate-s3-presigned-url';
 import useAppContext from '../../contexts/app';
 
-const logger = new Logger('VisualEditor');
+const logger = new Logger('VisualEditorModal');
 
 // Component to render a bounding box on an image
 const BoundingBox = ({ box, page, currentPage, imageRef }) => {
@@ -43,7 +44,7 @@ const BoundingBox = ({ box, page, currentPage, imageRef }) => {
         }
       };
     }
-    return undefined; // Explicit return for the arrow function
+    return undefined;
   }, [imageRef, page, currentPage]);
 
   if (page !== currentPage || !box || !dimensions.width) {
@@ -68,7 +69,6 @@ const BoundingBox = ({ box, page, currentPage, imageRef }) => {
     };
   } else if (box.vertices) {
     // Format: array of {X, Y} points
-    // For simplicity, we'll create a rectangle from the min/max points
     const xs = box.vertices.map((v) => v.X);
     const ys = box.vertices.map((v) => v.Y);
     const minX = Math.min(...xs);
@@ -265,7 +265,7 @@ const FormFieldRenderer = ({
   }
 };
 
-const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
+const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly, sectionData }) => {
   const { currentCredentials } = useAppContext();
   const [pageImages, setPageImages] = useState({});
   const [loadingImages, setLoadingImages] = useState(true);
@@ -279,13 +279,15 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
 
   // Debug logs for sectionData
   useEffect(() => {
-    logger.debug('VisualEditor - sectionData:', sectionData);
-    logger.debug('VisualEditor - pageIds:', pageIds);
-    logger.debug('VisualEditor - pages from sectionData:', sectionData?.pages);
+    logger.debug('VisualEditorModal - sectionData:', sectionData);
+    logger.debug('VisualEditorModal - pageIds:', pageIds);
+    logger.debug('VisualEditorModal - pages from sectionData:', sectionData?.pages);
   }, [sectionData, pageIds]);
 
   // Load page images
   useEffect(() => {
+    if (!visible) return;
+
     const loadImages = async () => {
       if (!pageIds || pageIds.length === 0) {
         setLoadingImages(false);
@@ -295,13 +297,11 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
       setLoadingImages(true);
 
       try {
-        // The section's PageIds refer to pages in the document's pages array
-        // We need to find the corresponding page objects from the document item
         const documentPages = sectionData?.documentItem?.pages || [];
-        logger.debug('VisualEditor - document pages:', documentPages);
-        logger.debug('VisualEditor - sectionData:', sectionData);
-        logger.debug('VisualEditor - documentItem:', sectionData?.documentItem);
-        logger.debug('VisualEditor - pageIds:', pageIds);
+        logger.debug('VisualEditorModal - document pages:', documentPages);
+        logger.debug('VisualEditorModal - sectionData:', sectionData);
+        logger.debug('VisualEditorModal - documentItem:', sectionData?.documentItem);
+        logger.debug('VisualEditorModal - pageIds:', pageIds);
 
         const images = {};
 
@@ -309,19 +309,19 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
           pageIds.map(async (pageId) => {
             // Find the page in the document's pages array by matching the Id
             const page = documentPages.find((p) => p.Id === pageId);
-            logger.debug(`VisualEditor - page for ID ${pageId}:`, page);
+            logger.debug(`VisualEditorModal - page for ID ${pageId}:`, page);
 
             if (page?.ImageUri) {
               try {
-                logger.debug(`VisualEditor - generating presigned URL for ${page.ImageUri}`);
+                logger.debug(`VisualEditorModal - generating presigned URL for ${page.ImageUri}`);
                 const url = await generateS3PresignedUrl(page.ImageUri, currentCredentials);
-                logger.debug(`VisualEditor - presigned URL generated:`, url);
+                logger.debug(`VisualEditorModal - presigned URL generated:`, url);
                 images[pageId] = url;
               } catch (err) {
                 logger.error(`Error generating presigned URL for page ${pageId}:`, err);
               }
             } else {
-              logger.warn(`VisualEditor - no ImageUri found for page ${pageId}`);
+              logger.warn(`VisualEditorModal - no ImageUri found for page ${pageId}`);
 
               // Try multiple fallback strategies in sequence
               let imageFound = false;
@@ -330,14 +330,14 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
               const numericPageId = parseInt(pageId, 10);
               if (!imageFound && !Number.isNaN(numericPageId) && documentPages.length > numericPageId) {
                 const pageByIndex = documentPages[numericPageId];
-                logger.debug(`VisualEditor - trying page by numeric index ${numericPageId}:`, pageByIndex);
+                logger.debug(`VisualEditorModal - trying page by numeric index ${numericPageId}:`, pageByIndex);
                 if (pageByIndex?.ImageUri) {
                   try {
-                    logger.debug(`VisualEditor - generating presigned URL for ${pageByIndex.ImageUri}`);
+                    logger.debug(`VisualEditorModal - generating presigned URL for ${pageByIndex.ImageUri}`);
                     const url = await generateS3PresignedUrl(pageByIndex.ImageUri, currentCredentials);
-                    logger.debug(`VisualEditor - presigned URL generated:`, url);
+                    logger.debug(`VisualEditorModal - presigned URL generated:`, url);
                     images[pageId] = url;
-                    imageFound = true; // Mark as found so we skip other methods
+                    imageFound = true;
                   } catch (err) {
                     logger.error(`Error generating presigned URL for page ${pageId}:`, err);
                   }
@@ -349,14 +349,14 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
                 const positionIndex = pageIds.indexOf(pageId);
                 if (positionIndex !== -1 && documentPages.length > positionIndex) {
                   const pageByPosition = documentPages[positionIndex];
-                  logger.debug(`VisualEditor - trying page by position index ${positionIndex}:`, pageByPosition);
+                  logger.debug(`VisualEditorModal - trying page by position index ${positionIndex}:`, pageByPosition);
                   if (pageByPosition?.ImageUri) {
                     try {
-                      logger.debug(`VisualEditor - generating presigned URL for ${pageByPosition.ImageUri}`);
+                      logger.debug(`VisualEditorModal - generating presigned URL for ${pageByPosition.ImageUri}`);
                       const url = await generateS3PresignedUrl(pageByPosition.ImageUri, currentCredentials);
-                      logger.debug(`VisualEditor - presigned URL generated:`, url);
+                      logger.debug(`VisualEditorModal - presigned URL generated:`, url);
                       images[pageId] = url;
-                      imageFound = true; // Mark as found so we skip other methods
+                      imageFound = true;
                     } catch (err) {
                       logger.error(`Error generating presigned URL for page ${pageId}:`, err);
                     }
@@ -366,15 +366,15 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
 
               // 3. Last resort: try to find any page with an ImageUri
               if (!imageFound && documentPages.length > 0) {
-                logger.debug(`VisualEditor - trying to find any page with ImageUri as last resort`);
+                logger.debug(`VisualEditorModal - trying to find any page with ImageUri as last resort`);
 
                 // Find the first page with an ImageUri
                 const pageWithImage = documentPages.find((docPage) => docPage?.ImageUri);
                 if (pageWithImage?.ImageUri) {
                   try {
-                    logger.debug(`VisualEditor - generating presigned URL for ${pageWithImage.ImageUri}`);
+                    logger.debug(`VisualEditorModal - generating presigned URL for ${pageWithImage.ImageUri}`);
                     const url = await generateS3PresignedUrl(pageWithImage.ImageUri, currentCredentials);
-                    logger.debug(`VisualEditor - presigned URL generated:`, url);
+                    logger.debug(`VisualEditorModal - presigned URL generated:`, url);
                     images[pageId] = url;
                   } catch (err) {
                     logger.error(`Error generating presigned URL for fallback page:`, err);
@@ -385,7 +385,7 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
           }),
         );
 
-        logger.debug('VisualEditor - images loaded:', images);
+        logger.debug('VisualEditorModal - images loaded:', images);
         setPageImages(images);
 
         // Set the first page as current if not already set
@@ -400,7 +400,7 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
     };
 
     loadImages();
-  }, [pageIds, sectionData, currentCredentials, currentPage]);
+  }, [pageIds, sectionData, currentCredentials, currentPage, visible]);
 
   // Handle field focus - update active field geometry and switch to the correct page
   const handleFieldFocus = (geometry) => {
@@ -427,10 +427,10 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
               ref={pageId === currentPage ? imageRef : null}
               src={pageImages[pageId]}
               alt={`Page ${pageId}`}
-              style={{ maxWidth: '100%', maxHeight: '600px', objectFit: 'contain' }}
+              style={{ maxWidth: '100%', maxHeight: 'calc(100vh - 200px)', objectFit: 'contain' }}
               onError={(e) => {
                 logger.error(`Error loading image for page ${pageId}:`, e);
-                // Fallback image for error state - simple SVG with error message
+                // Fallback image for error state
                 const fallbackImage =
                   'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6' +
                   'Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Yw' +
@@ -459,146 +459,216 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
   }));
 
   return (
-    <Box style={{ display: 'flex', flexDirection: 'row', gap: '20px', height: '600px' }}>
-      {/* Left side - Page images carousel - Fixed height, non-scrollable */}
-      <Box style={{ width: '50%', position: 'relative', height: '600px', display: 'flex', flexDirection: 'column' }}>
-        <Container
-          header={<Header variant="h3">Document Pages ({pageIds.length})</Header>}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+    <Modal
+      onDismiss={onDismiss}
+      visible={visible}
+      header="Visual Document Editor"
+      size="max"
+      footer={
+        <Box float="right">
+          <SpaceBetween direction="horizontal" size="xs">
+            <Button variant="link" onClick={onDismiss}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={onDismiss}>
+              Done
+            </Button>
+          </SpaceBetween>
+        </Box>
+      }
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          gap: '20px',
+          height: 'calc(100vh - 200px)',
+          maxHeight: '800px',
+          minHeight: '600px',
+          width: '100%',
+        }}
+      >
+        {/* Left side - Page images carousel - Fixed height, non-scrollable */}
+        <div
+          style={{
+            width: '50%',
+            minWidth: '50%',
+            maxWidth: '50%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            flex: '0 0 50%',
+          }}
         >
-          {(() => {
-            if (loadingImages) {
-              return (
-                <Box padding="xl" textAlign="center">
-                  <Spinner />
-                  <div>Loading page images...</div>
-                </Box>
-              );
-            }
-            if (carouselItems.length > 0) {
-              return (
-                <Box style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                  {/* Display current page */}
-                  {carouselItems.find((item) => item.id === currentPage)?.content}
-
-                  {/* Simple navigation */}
-                  <Box
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      position: 'absolute',
-                      width: '100%',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                    }}
-                  >
-                    <Button
-                      iconName="angle-left"
-                      variant="icon"
-                      onClick={() => {
-                        const currentIndex = pageIds.indexOf(currentPage);
-                        if (currentIndex > 0) {
-                          setCurrentPage(pageIds[currentIndex - 1]);
-                          setActiveFieldGeometry(null);
-                        }
-                      }}
-                      disabled={pageIds.indexOf(currentPage) === 0}
-                    />
-                    <Button
-                      iconName="angle-right"
-                      variant="icon"
-                      onClick={() => {
-                        const currentIndex = pageIds.indexOf(currentPage);
-                        if (currentIndex < pageIds.length - 1) {
-                          setCurrentPage(pageIds[currentIndex + 1]);
-                          setActiveFieldGeometry(null);
-                        }
-                      }}
-                      disabled={pageIds.indexOf(currentPage) === pageIds.length - 1}
-                    />
-                  </Box>
-
-                  {/* Page indicator */}
-                  <Box
-                    style={{
-                      position: 'absolute',
-                      bottom: '10px',
-                      width: '100%',
-                      textAlign: 'center',
-                    }}
-                  >
-                    Page {pageIds.indexOf(currentPage) + 1} of {pageIds.length}
-                  </Box>
-                </Box>
-              );
-            }
-            return (
-              <Box padding="xl" textAlign="center">
-                No page images available
-              </Box>
-            );
-          })()}
-        </Container>
-      </Box>
-
-      {/* Right side - Form fields - Independently scrollable */}
-      <Box style={{ width: '50%', height: '600px', display: 'flex', flexDirection: 'column' }}>
-        <Container
-          header={<Header variant="h3">Document Data</Header>}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', maxHeight: '600px' }}
-        >
-          <Box
+          <Container
+            header={<Header variant="h3">Document Pages ({pageIds.length})</Header>}
             style={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
               flex: 1,
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              padding: '8px',
-              maxHeight: 'calc(600px - 60px)',
             }}
           >
-            {inferenceResult ? (
-              <FormFieldRenderer
-                fieldKey="Document Data"
-                value={inferenceResult}
-                onChange={(newValue) => {
-                  if (onChange && !isReadOnly) {
-                    // Update the inference_result in the JSON data
-                    const updatedData = { ...jsonData };
-                    if (updatedData.inference_result) {
-                      updatedData.inference_result = newValue;
-                    } else if (updatedData.inferenceResult) {
-                      updatedData.inferenceResult = newValue;
-                    } else {
-                      // If there's no inference_result field, update the entire object
-                      Object.keys(updatedData).forEach((key) => {
-                        delete updatedData[key];
-                      });
-                      Object.keys(newValue).forEach((key) => {
-                        updatedData[key] = newValue[key];
-                      });
-                    }
+            {(() => {
+              if (loadingImages) {
+                return (
+                  <Box padding="xl" textAlign="center">
+                    <Spinner />
+                    <div>Loading page images...</div>
+                  </Box>
+                );
+              }
+              if (carouselItems.length > 0) {
+                return (
+                  <Box style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                    {/* Display current page */}
+                    {carouselItems.find((item) => item.id === currentPage)?.content}
 
-                    try {
-                      const jsonString = JSON.stringify(updatedData, null, 2);
-                      onChange(jsonString);
-                    } catch (error) {
-                      logger.error('Error stringifying JSON:', error);
-                    }
-                  }
-                }}
-                isReadOnly={isReadOnly}
-                onFieldFocus={handleFieldFocus}
-              />
-            ) : (
-              <Box padding="xl" textAlign="center">
-                No data available
+                    {/* Simple navigation */}
+                    <Box
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        position: 'absolute',
+                        width: '100%',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <Button
+                        iconName="angle-left"
+                        variant="icon"
+                        onClick={() => {
+                          const currentIndex = pageIds.indexOf(currentPage);
+                          if (currentIndex > 0) {
+                            setCurrentPage(pageIds[currentIndex - 1]);
+                            setActiveFieldGeometry(null);
+                          }
+                        }}
+                        disabled={pageIds.indexOf(currentPage) === 0}
+                        style={{ pointerEvents: 'auto' }}
+                      />
+                      <Button
+                        iconName="angle-right"
+                        variant="icon"
+                        onClick={() => {
+                          const currentIndex = pageIds.indexOf(currentPage);
+                          if (currentIndex < pageIds.length - 1) {
+                            setCurrentPage(pageIds[currentIndex + 1]);
+                            setActiveFieldGeometry(null);
+                          }
+                        }}
+                        disabled={pageIds.indexOf(currentPage) === pageIds.length - 1}
+                        style={{ pointerEvents: 'auto' }}
+                      />
+                    </Box>
+
+                    {/* Page indicator */}
+                    <Box
+                      style={{
+                        position: 'absolute',
+                        bottom: '10px',
+                        width: '100%',
+                        textAlign: 'center',
+                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                      }}
+                    >
+                      Page {pageIds.indexOf(currentPage) + 1} of {pageIds.length}
+                    </Box>
+                  </Box>
+                );
+              }
+              return (
+                <Box padding="xl" textAlign="center">
+                  No page images available
+                </Box>
+              );
+            })()}
+          </Container>
+        </div>
+
+        {/* Right side - Form fields - Independently scrollable */}
+        <div
+          style={{
+            width: '50%',
+            minWidth: '50%',
+            maxWidth: '50%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            flex: '0 0 50%',
+            overflow: 'hidden',
+          }}
+        >
+          <Container
+            header={<Header variant="h3">Document Data</Header>}
+            style={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                padding: '16px',
+                boxSizing: 'border-box',
+                height: 0, // This forces the flex child to respect the parent's height
+              }}
+            >
+              <Box style={{ minHeight: 'fit-content' }}>
+                {inferenceResult ? (
+                  <FormFieldRenderer
+                    fieldKey="Document Data"
+                    value={inferenceResult}
+                    onChange={(newValue) => {
+                      if (onChange && !isReadOnly) {
+                        // Update the inference_result in the JSON data
+                        const updatedData = { ...jsonData };
+                        if (updatedData.inference_result) {
+                          updatedData.inference_result = newValue;
+                        } else if (updatedData.inferenceResult) {
+                          updatedData.inferenceResult = newValue;
+                        } else {
+                          // If there's no inference_result field, update the entire object
+                          Object.keys(updatedData).forEach((key) => {
+                            delete updatedData[key];
+                          });
+                          Object.keys(newValue).forEach((key) => {
+                            updatedData[key] = newValue[key];
+                          });
+                        }
+
+                        try {
+                          const jsonString = JSON.stringify(updatedData, null, 2);
+                          onChange(jsonString);
+                        } catch (error) {
+                          logger.error('Error stringifying JSON:', error);
+                        }
+                      }
+                    }}
+                    isReadOnly={isReadOnly}
+                    onFieldFocus={handleFieldFocus}
+                  />
+                ) : (
+                  <Box padding="xl" textAlign="center">
+                    No data available
+                  </Box>
+                )}
               </Box>
-            )}
-          </Box>
-        </Container>
-      </Box>
-    </Box>
+            </div>
+          </Container>
+        </div>
+      </div>
+    </Modal>
   );
 };
 
-export default VisualEditor;
+export default VisualEditorModal;
