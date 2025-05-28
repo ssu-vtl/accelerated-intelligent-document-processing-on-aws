@@ -460,9 +460,12 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
 
   return (
     <Box style={{ display: 'flex', flexDirection: 'row', gap: '20px', height: '600px' }}>
-      {/* Left side - Page images carousel */}
-      <Box style={{ width: '50%', position: 'relative' }}>
-        <Container header={<Header variant="h3">Document Pages ({pageIds.length})</Header>}>
+      {/* Left side - Page images carousel - Fixed height, non-scrollable */}
+      <Box style={{ width: '50%', position: 'relative', height: '600px', display: 'flex', flexDirection: 'column' }}>
+        <Container
+          header={<Header variant="h3">Document Pages ({pageIds.length})</Header>}
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+        >
           {(() => {
             if (loadingImages) {
               return (
@@ -474,7 +477,7 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
             }
             if (carouselItems.length > 0) {
               return (
-                <Box style={{ height: '500px', position: 'relative' }}>
+                <Box style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
                   {/* Display current page */}
                   {carouselItems.find((item) => item.id === currentPage)?.content}
 
@@ -538,47 +541,52 @@ const VisualEditor = ({ jsonData, onChange, isReadOnly, sectionData }) => {
         </Container>
       </Box>
 
-      {/* Right side - Form fields */}
-      <Box style={{ width: '50%', overflowY: 'auto', maxHeight: '600px' }}>
-        <Container header={<Header variant="h3">Document Data</Header>}>
-          {inferenceResult ? (
-            <FormFieldRenderer
-              fieldKey="Document Data"
-              value={inferenceResult}
-              onChange={(newValue) => {
-                if (onChange && !isReadOnly) {
-                  // Update the inference_result in the JSON data
-                  const updatedData = { ...jsonData };
-                  if (updatedData.inference_result) {
-                    updatedData.inference_result = newValue;
-                  } else if (updatedData.inferenceResult) {
-                    updatedData.inferenceResult = newValue;
-                  } else {
-                    // If there's no inference_result field, update the entire object
-                    Object.keys(updatedData).forEach((key) => {
-                      delete updatedData[key];
-                    });
-                    Object.keys(newValue).forEach((key) => {
-                      updatedData[key] = newValue[key];
-                    });
-                  }
+      {/* Right side - Form fields - Independently scrollable */}
+      <Box style={{ width: '50%', height: '600px', display: 'flex', flexDirection: 'column' }}>
+        <Container
+          header={<Header variant="h3">Document Data</Header>}
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+        >
+          <Box style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+            {inferenceResult ? (
+              <FormFieldRenderer
+                fieldKey="Document Data"
+                value={inferenceResult}
+                onChange={(newValue) => {
+                  if (onChange && !isReadOnly) {
+                    // Update the inference_result in the JSON data
+                    const updatedData = { ...jsonData };
+                    if (updatedData.inference_result) {
+                      updatedData.inference_result = newValue;
+                    } else if (updatedData.inferenceResult) {
+                      updatedData.inferenceResult = newValue;
+                    } else {
+                      // If there's no inference_result field, update the entire object
+                      Object.keys(updatedData).forEach((key) => {
+                        delete updatedData[key];
+                      });
+                      Object.keys(newValue).forEach((key) => {
+                        updatedData[key] = newValue[key];
+                      });
+                    }
 
-                  try {
-                    const jsonString = JSON.stringify(updatedData, null, 2);
-                    onChange(jsonString);
-                  } catch (error) {
-                    logger.error('Error stringifying JSON:', error);
+                    try {
+                      const jsonString = JSON.stringify(updatedData, null, 2);
+                      onChange(jsonString);
+                    } catch (error) {
+                      logger.error('Error stringifying JSON:', error);
+                    }
                   }
-                }
-              }}
-              isReadOnly={isReadOnly}
-              onFieldFocus={handleFieldFocus}
-            />
-          ) : (
-            <Box padding="xl" textAlign="center">
-              No data available
-            </Box>
-          )}
+                }}
+                isReadOnly={isReadOnly}
+                onFieldFocus={handleFieldFocus}
+              />
+            ) : (
+              <Box padding="xl" textAlign="center">
+                No data available
+              </Box>
+            )}
+          </Box>
         </Container>
       </Box>
     </Box>
