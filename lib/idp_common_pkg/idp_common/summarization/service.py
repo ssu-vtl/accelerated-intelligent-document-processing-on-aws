@@ -3,6 +3,9 @@ Summarization service for documents using LLMs.
 
 This module provides a service for summarizing documents using various backends:
 1. Bedrock LLMs with text support
+
+The service includes advanced markdown formatting capabilities for generated summaries,
+including table of contents, citation formatting, and navigation aids.
 """
 
 import concurrent.futures
@@ -16,6 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from idp_common import bedrock, s3, utils
 from idp_common.models import Document, Status
 from idp_common.summarization.models import DocumentSummarizationResult, DocumentSummary
+from idp_common.summarization.markdown_formatter import SummaryMarkdownFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -419,8 +423,12 @@ class SummarizationService:
                 content_type="application/json",
             )
 
-            # Generate and store markdown report using our custom markdown generator
-            markdown_report = self._generate_markdown(summary.content)
+            # Generate and store markdown report using our custom formatter
+            # Create a single-section document for the formatter
+            single_section = {section_id: summary.content}
+            formatter = SummaryMarkdownFormatter(document, single_section, is_section=True, include_toc=True)
+            markdown_report = formatter.format_all()
+            
             s3.write_content(
                 content=markdown_report,
                 bucket=output_bucket,
@@ -491,7 +499,7 @@ class SummarizationService:
             # Initialize data structures for results
             combined_content = {}
             combined_metadata = {"section_summaries": {}}
-            section_markdown_parts = []
+            section_markdowns = {}  # Use dictionary instead of list for section markdowns
 
             # Create a thread pool with 20 workers for parallel processing
             max_workers = 20
@@ -595,8 +603,11 @@ class SummarizationService:
                                             section.classification
                                             or f"Section {section.section_id}"
                                         )
-                                        section_markdown = f"## {section_title}\n\n{self._generate_markdown(summary_content)}\n\n"
-                                        section_markdown_parts.append(section_markdown)
+                                        # Store section content with metadata
+                                        section_markdowns[section.section_id] = {
+                                            "content": summary_content,
+                                            "title": section_title
+                                        }
                                     except Exception as e:
                                         logger.warning(
                                             f"Failed to generate markdown for section {section.section_id}: {e}"
@@ -654,17 +665,12 @@ class SummarizationService:
                 md_key = f"{document.input_key}/summary/summary.md"
 
                 # Create a complete markdown document that combines all section summaries
-                if section_markdown_parts:
-                    # Create header for the document without including document ID
-                    doc_header = "# Document Summary\n\n"
-
-                    # Combine all section markdown parts
-                    combined_markdown = doc_header + "\n".join(section_markdown_parts)
-
-                    # Add execution time at the end
-                    combined_markdown += (
-                        f"\n\nExecution time: {execution_time:.2f} seconds"
-                    )
+                if section_markdowns:
+                    # Create our custom formatter with the document object for section ordering
+                    formatter = SummaryMarkdownFormatter(document, section_markdowns, is_section=False, include_toc=True)
+                    combined_markdown = formatter.format_all()
+                    
+                    # Execution time line removed
 
                     # Write the combined markdown
                     s3.write_content(
@@ -675,7 +681,14 @@ class SummarizationService:
                     )
                 else:
                     # If no section markdown parts, generate a markdown report directly from the summary content
-                    markdown_report = self._generate_markdown(summary.content)
+                    # Create a single-section document for the formatter
+                    single_section = {"full_document": summary.content}
+                    formatter = SummaryMarkdownFormatter(document, single_section)
+                    markdown_report = formatter.format_all()
+                    
+                    # Add execution time
+                    markdown_report += f"\n\nExecution time: {execution_time:.2f} seconds"
+                    
                     s3.write_content(
                         content=markdown_report,
                         bucket=output_bucket,
@@ -779,8 +792,18 @@ class SummarizationService:
 
                 # Generate and store markdown report
                 md_key = f"{document.input_key}/summary/summary.md"
-                # Generate markdown directly from the summary content
-                markdown_report = self._generate_markdown(summary.content)
+                # Create a single-section document for the formatter with metadata
+                single_section = {
+                    "full_document": {
+                        "content": summary.content,
+                        "title": "Document Summary"
+                    }
+                }
+                formatter = SummaryMarkdownFormatter(document, single_section, is_section=False, include_toc=True)
+                markdown_report = formatter.format_all()
+                
+                # Execution time line removed
+                
                 s3.write_content(
                     content=markdown_report,
                     bucket=output_bucket,
@@ -819,60 +842,6 @@ class SummarizationService:
 
         return document
 
-    def _generate_markdown(self, summary_content: Dict[str, Any]) -> str:
-        """
-        Generate clean markdown from summary content.
-
-        Args:
-            summary_content: Summary content dictionary
-
-        Returns:
-            Properly formatted markdown representation
-        """
-        # Special case: If there's a top-level "summary" field with a string value, use it directly
-        if "summary" in summary_content and isinstance(summary_content["summary"], str):
-            return summary_content["summary"]
-
-        markdown_parts = []
-        seen_headers = set()
-
-        # Process the content based on its structure
-        for key, value in summary_content.items():
-            # Skip metadata
-            if key == "metadata" or key == "error":
-                continue
-
-            # Handle string values directly
-            if isinstance(value, str) and value.strip():
-                section_header = f"## {key}"
-                if section_header not in seen_headers:
-                    markdown_parts.append(section_header)
-                    seen_headers.add(section_header)
-                markdown_parts.append(value)
-                continue
-
-            # Handle dictionary values
-            if isinstance(value, dict):
-                # Add section header
-                section_header = f"## {key}"
-                if section_header not in seen_headers:
-                    markdown_parts.append(section_header)
-                    seen_headers.add(section_header)
-
-                # Add content
-                if "summary" in value and isinstance(value["summary"], str):
-                    markdown_parts.append(value["summary"])
-                else:
-                    # Format other fields
-                    for field_key, field_value in value.items():
-                        if isinstance(field_value, str) and field_value.strip():
-                            field_header = f"### {field_key}"
-                            if field_header not in seen_headers:
-                                markdown_parts.append(field_header)
-                                seen_headers.add(field_header)
-                            markdown_parts.append(field_value)
-
-        return "\n\n".join(markdown_parts)
 
     def _update_document_status(
         self,
