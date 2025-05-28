@@ -27,14 +27,36 @@ const BoundingBox = ({ box, page, currentPage, imageRef }) => {
   useEffect(() => {
     if (imageRef.current && page === currentPage) {
       const updateDimensions = () => {
+        const img = imageRef.current;
+        const rect = img.getBoundingClientRect();
+        const containerRect = img.parentElement.getBoundingClientRect();
+        
+        const width = img.width || img.naturalWidth;
+        const height = img.height || img.naturalHeight;
+        const offsetX = rect.left - containerRect.left;
+        const offsetY = rect.top - containerRect.top;
+        
         setDimensions({
-          width: imageRef.current.width,
-          height: imageRef.current.height,
+          width,
+          height,
+          offsetX,
+          offsetY,
+        });
+        
+        console.log('VisualEditorModal - BoundingBox dimensions updated:', {
+          imageWidth: img.width,
+          imageHeight: img.height,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+          offsetX: rect.left - containerRect.left,
+          offsetY: rect.top - containerRect.top,
+          imageRect: rect,
+          containerRect
         });
       };
 
       // Update dimensions when image loads
-      if (imageRef.current.complete) {
+      if (imageRef.current.complete && imageRef.current.naturalWidth > 0) {
         updateDimensions();
       } else {
         imageRef.current.addEventListener('load', updateDimensions);
@@ -53,7 +75,7 @@ const BoundingBox = ({ box, page, currentPage, imageRef }) => {
     return null;
   }
 
-  // Calculate position based on image dimensions
+  // Calculate position based on image dimensions with offset correction
   let style = {};
 
   if (box.boundingBox) {
@@ -63,16 +85,31 @@ const BoundingBox = ({ box, page, currentPage, imageRef }) => {
     const top = bbox.top || bbox.Top || 0;
     const width = bbox.width || bbox.Width || 0;
     const height = bbox.height || bbox.Height || 0;
+    
+    // Account for image offset within container
+    const offsetX = dimensions.offsetX || 0;
+    const offsetY = dimensions.offsetY || 0;
+    
     style = {
       position: 'absolute',
-      left: `${left * dimensions.width}px`,
-      top: `${top * dimensions.height}px`,
+      left: `${left * dimensions.width + offsetX}px`,
+      top: `${top * dimensions.height + offsetY}px`,
       width: `${width * dimensions.width}px`,
       height: `${height * dimensions.height}px`,
       border: '2px solid red',
       pointerEvents: 'none',
       zIndex: 10,
     };
+    
+    console.log('VisualEditorModal - BoundingBox style calculated:', {
+      bbox,
+      dimensions,
+      offsetX,
+      offsetY,
+      finalLeft: left * dimensions.width + offsetX,
+      finalTop: top * dimensions.height + offsetY,
+      style
+    });
   } else if (box.vertices) {
     // Format: array of {x, y} or {X, Y} points
     const xs = box.vertices.map((v) => v.x || v.X || 0);
@@ -81,17 +118,31 @@ const BoundingBox = ({ box, page, currentPage, imageRef }) => {
     const minY = Math.min(...ys);
     const maxX = Math.max(...xs);
     const maxY = Math.max(...ys);
+    
+    // Account for image offset within container
+    const offsetX = dimensions.offsetX || 0;
+    const offsetY = dimensions.offsetY || 0;
 
     style = {
       position: 'absolute',
-      left: `${minX * dimensions.width}px`,
-      top: `${minY * dimensions.height}px`,
+      left: `${minX * dimensions.width + offsetX}px`,
+      top: `${minY * dimensions.height + offsetY}px`,
       width: `${(maxX - minX) * dimensions.width}px`,
       height: `${(maxY - minY) * dimensions.height}px`,
       border: '2px solid red',
       pointerEvents: 'none',
       zIndex: 10,
     };
+    
+    console.log('VisualEditorModal - BoundingBox style (vertices) calculated:', {
+      vertices: box.vertices,
+      dimensions,
+      offsetX,
+      offsetY,
+      finalLeft: minX * dimensions.width + offsetX,
+      finalTop: minY * dimensions.height + offsetY,
+      style
+    });
   }
 
   return <div style={style} />;
