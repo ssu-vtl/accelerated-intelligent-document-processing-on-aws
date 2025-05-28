@@ -4,53 +4,58 @@ summarization:
   max_tokens: '4096'
   top_k: '5'
   task_prompt: >-
-    Analyze the provided document and create a comprehensive summary.
+    <document_ocr_data>
 
+    {DOCUMENT_TEXT}
 
-    CRITICAL INSTRUCTION: You MUST return your response as valid JSON with the EXACT structure shown at the end of these instructions. Do not include any explanations, notes, or text outside of the JSON structure.
+    </document_ocr_data>
 
+    Analyze the provided document (<document_ocr_data>) and create a comprehensive summary.
 
-    Create a summary that captures the essential information from the document. Your summary should:
+    CRITICAL INSTRUCTION: You MUST return your response as valid JSON with the
+    EXACT structure shown at the end of these instructions. Do not include any
+    explanations, notes, or text outside of the JSON structure.
+
+    Create a summary that captures the essential information from the document.
+    Your summary should:
 
     1. Extract key information, main points, and important details
 
-    2. Maintain the original document's organizational structure where appropriate
+    2. Maintain the original document's organizational structure where
+    appropriate
 
     3. Preserve important facts, figures, dates, and entities
 
     4. Reduce the length while retaining all critical information
 
-    5. Use markdown formatting for better readability (headings, lists, emphasis, etc.)
+    5. Use markdown formatting for better readability (headings, lists,
+    emphasis, etc.)
 
-    6. Cite all relevant facts from the source document using the format [Cite-X, Page-Y] where X is a sequential citation number and Y is the page number
+    6. Cite all relevant facts from the source document using inline citations
+    in the format [Cite-X, Page-Y] where X is a sequential citation number and Y
+    is the page number
 
-    7. For each citation, include a hover-enabled reference using HTML span tags with title attributes that contain the exact text snippet from which the fact is derived
-      Example: <span title=\"Original text from document: The company reported $10M in revenue\" class=\"citation\">[Cite-1, Page-3]</span>
+    7. Format citations as markdown links that reference the full citation list
+    at the bottom of the summary
+      Example: [[Cite-1, Page-3]](#cite-1-page-3)
+
+    8. At the end of the summary, include a "References" section that lists all
+    citations with their exact text from the source document in the format:
+      [Cite-X, Page-Y]: Exact text from the document
 
     Output Format:
 
-    You MUST return ONLY valid JSON with the following structure and nothing else:
+    You MUST return ONLY valid JSON with the following structure and nothing
+    else:
 
     ```json
-
     {
-      \"summary\": \"A comprehensive summary in markdown format with citations and hover functionality\"
+      "summary": "A comprehensive summary in markdown format with inline citations linked to a references section at the bottom"
     }
-
     ```
 
-
-    Do not include any text, explanations, or notes outside of this JSON structure. The JSON must be properly formatted and parseable.
-
-
-    <<CACHEPOINT>>
-
-
-    <document>
-
-    {DOCUMENT_TEXT}
-
-    </document>
+    Do not include any text, explanations, or notes outside of this JSON
+    structure. The JSON must be properly formatted and parseable.
   temperature: '0.0'
   model: us.amazon.nova-premier-v1:0
   system_prompt: >-
