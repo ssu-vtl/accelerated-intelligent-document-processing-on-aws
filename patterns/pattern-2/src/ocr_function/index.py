@@ -12,12 +12,11 @@ from idp_common import get_config, ocr
 from idp_common.models import Document, Status
 from idp_common.appsync.service import DocumentAppSyncService
 
-# Configuration
-CONFIG = get_config()
+# Configuration will be loaded in handler function
 
 logger = logging.getLogger()
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
-logger.setLevel(LOG_LEVEL)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
+logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_LOG_LEVEL", "INFO"))
 
 # Initialize settings
 region = os.environ['AWS_REGION']
@@ -41,8 +40,9 @@ def handler(event, context):
     
     t0 = time.time()
     
-    # Initialize the OCR service
-    features = [feature['name'] for feature in CONFIG.get("ocr",{}).get("features",[])]
+    # Load configuration and initialize the OCR service
+    config = get_config()
+    features = [feature['name'] for feature in config.get("ocr",{}).get("features",[])]
     logger.info(f"Initializing OCR for MAX_WORKERS: {MAX_WORKERS}, enhanced_features: {features}")
     service = ocr.OcrService(
         region=region,

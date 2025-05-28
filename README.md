@@ -50,8 +50,14 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
   - [Stack Parameters](#stack-parameters)
   - [Request Service Quota Limits for high volume processing](#request-service-quota-limits-for-high-volume-processing)
   - [Cost Estimation](#cost-estimation)
+- [Customizing Classification](#customizing-classification)
+  - [Classification Methods](#classification-methods)
+  - [Classification Prompts](#classification-prompts)
+  - [Using CachePoint for Classification](#using-cachepoint-for-classification)
+  - [Document Classes](#document-classes)
 - [Customizing Extraction](#customizing-extraction)
   - [Extraction Prompts](#extraction-prompts)
+  - [Using CachePoint for Extraction](#using-cachepoint-for-extraction)
   - [Extraction Attributes](#extraction-attributes)
 - [Monitoring and Logging](#monitoring-and-logging)
   - [CloudWatch Dashboard](#cloudwatch-dashboard)
@@ -84,6 +90,7 @@ A scalable, serverless solution for automated document processing and informatio
 - **Serverless Architecture**: Built entirely on AWS serverless technologies including Lambda, Step Functions, SQS, and DynamoDB, eliminating infrastructure management overhead
 - **Modular, pluggable patterns for classification, splitting, extraction**: Pre-built processing patterns using the latest state of the art models and AWS services.. or create your own.
 - **Advanced Classification Methods**: Support for both page-level and holistic document packet classification to handle complex multi-document inputs
+- **Few Shot Example Support**: Improve accuracy through example-based prompting with concrete document examples and expected outputs for both classification and extraction tasks
 - **High Throughput Processing**: Handles large volumes of documents through intelligent queuing and concurrency management
 - **Built-in Resilience**: Features comprehensive error handling, automatic retries, and throttling management
 - **Cost Optimization**: Pay-per-use pricing model with built-in controls and real-time cost estimation
@@ -277,7 +284,7 @@ The new pattern will automatically inherit all the core infrastructure and monit
 
 ## Build, Publish, Deploy, Test
 
-If you’re a developer, and you want to build, deploy, or publish the solution from code, go straight to [Option 2: Build deployment assets from source code](#option-2-build-deployment-assets-from-source-code), otherwise use Option 1 below.
+If you're a developer, and you want to build, deploy, or publish the solution from code, go straight to [Option 2: Build deployment assets from source code](#option-2-build-deployment-assets-from-source-code), otherwise use Option 1 below.
 
 
 ### Option 1: Deploy a new stack with 1-click launch (using pre-built assets)
@@ -659,394 +666,354 @@ EvaluationModelId:
 
 ### Metrics and Monitoring
 
-The solution tracks evaluation metrics in CloudWatch:
-- Success/failure rates
-- Processing latency
-- Token usage
-- Error counts
+The evaluation framework includes comprehensive monitoring through CloudWatch metrics:
 
-Access these metrics in the integrated CloudWatch dashboard under the "Evaluation Metrics" section.
+- **Evaluation Success/Failure Rates**: Track evaluation completion and error rates
+- **Baseline Data Availability**: Monitor percentage of documents with baseline data for comparison
+- **Report Generation Performance**: Track time to generate evaluation reports
+- **Model Usage Metrics**: Monitor token consumption and API calls for evaluation models
+- **Accuracy Trends**: Historical tracking of processing accuracy over time
 
 ## Configuration / Customization
 
+The solution provides multiple configuration approaches to customize document processing behavior:
+
 ### Pattern Configuration via Web UI
 
-The Web UI includes a dedicated Configuration page that allows you to view and modify the pattern configuration without redeploying the stack:
+The web interface allows real-time configuration updates without stack redeployment:
 
-1. **Accessing the Configuration Page**:
-   - Log in to the Web UI
-   - Navigate to the "Configuration" tab in the main navigation
-   - The current pattern's configuration is displayed in a structured form
+- **Document Classes**: Define and modify document categories and their descriptions
+- **Extraction Attributes**: Configure fields to extract for each document class
+- **Model Selection**: Choose between available Bedrock models for classification and extraction
+- **Prompt Engineering**: Customize system and task prompts for optimal results
+- **Few Shot Examples**: Upload and configure example documents to improve accuracy
 
-2. **Viewing Configuration**:
-   - The configuration is organized into sections: Notes, Classes, Classification, Extraction, Evaluation, and Pricing
-   - Each section can be expanded/collapsed for easier navigation
-   - The current settings are shown with their values and descriptions
-
-3. **Editing Configuration**:
-   - Click the "Edit" button to make changes
-   - Modify prompts, attributes, model parameters, and other settings
-   - Changes are validated in real-time to ensure they're properly formatted
-   - Click "Save" to apply changes, which take effect immediately for new document processing
-
-4. **Configuration Structure**:
-   - **Notes**: General information about the configuration
-   - **Classes**: Document types and their attributes for extraction, and (optional) evaluation method specification for evaluation.
-   - **Classification**: Settings for document classification, including:
-     - Model selection
-     - Classification method (page-level or holistic)
-     - Temperature and other sampling parameters
-     - System and task prompts
-   - **Extraction**: Settings for field extraction, including:
-     - Model selection
-     - Temperature and other sampling parameters
-     - System and task prompts
-   - **Evaluation**: Settings for field evaluation, including:
-     - Model selection
-     - Temperature and other sampling parameters
-     - System and task prompts
-   - **Summarization**: Settings for section summarization, including:
-     - Model selection
-     - Temperature and other sampling parameters
-     - System and task prompts
-   - **Pricing**: Cost estimation settings for different services
-
-The configuration changes are stored in DynamoDB and applied to all new document processing jobs without requiring stack redeployment. This allows for rapid experimentation with different prompt strategies, document class definitions, and model parameters.
+Configuration changes are validated and applied immediately, with rollback capability if issues arise.
 
 ### Stack Parameters
-```bash
-# Main Stack Parameters
-MaxConcurrentWorkflows=800                          # Maximum parallel workflows
-LogRetentionDays=30                                 # CloudWatch log retention
-ErrorThreshold=1                                    # Errors before alerting
-ExecutionTimeThresholdMs=30000                      # Duration threshold in millisecs
-IDPPattern='Pattern1'                               # Choose processing pattern to deploy
-BedrockGuardrailId=''                               # Optional: ID of existing Bedrock Guardrail
-BedrockGuardrailVersion=''                          # Optional: Version of existing Bedrock Guardrail
-WAFAllowedIPv4Ranges='0.0.0.0/0'                    # IP restrictions for API access (default allows all)
 
-# Pattern 1 Parameters (when selected) 
-Pattern1BDAProjectArn=''           # Bedrock Data Automation (BDA) project ARN
+Key parameters that can be configured during CloudFormation deployment:
 
-# Pattern 2 Parameters (when selected) 
-Pattern2ClassificationModel='nova-pro...'           # Model for classification
-Pattern2ClassificationMethod='multimodalPageLevelClassification'  # Classification method (or 'textbasedHolisticClassification')
-Pattern2ExtractionModel='claude-3-sonnet...'        # Model for extraction
-
-# Pattern 3 Parameters (when selected)
-Pattern3UDOPModelArtifactPath='s3://bucket/...'     # UDOP model for classification
-Pattern3ExtractionModel='claude-3-sonnet...'        # Bedrock model for extraction
-
-```
-Each pattern has its own set of parameters that are only required when that pattern is selected via IDPPattern. The main stack parameters apply regardless of the chosen pattern.
-
+- `IDPPattern`: Select processing pattern (Pattern1, Pattern2, Pattern3)
+- `AdminEmail`: Administrator email for web UI access
+- `MaxConcurrentWorkflows`: Control concurrent document processing
+- `EvaluationAutoEnabled`: Enable automatic accuracy evaluation
+- `ShouldUseDocumentKnowledgeBase`: Enable document querying features
+- `WAFAllowedIPv4Ranges`: IP restrictions for web UI access
 
 ### Request Service Quota Limits for high volume processing
 
-Consider requesting raised quotas for the following services, to avoid throttling errors:
-- Amazon Textract -> DetectDocumentText throttle limit in transactions per second 
-- Amazon Bedrock -> On-demand InvokeModel tokens per minute (for Claude, Nova, etc. models)
-- Amazon Bedrock -> On-demand InvokeModel requests per minute 
-- Amazon Bedrock Data Automation -> Concurrent jobs (when using Pattern 1)
-- Amazon SageMaker -> Endpoint invocations per minute (when using Pattern 3)
-- AWS Lambda -> Concurrent executions
-- Amazon CloudWatch -> Rate of PutMetricData requests
+For high-volume document processing, consider requesting increases for these service quotas:
 
-Use the CloudWatch Dashboard to check errors reported by Lambda functions during scale testing, to check for these, or other, service quota limit exceptions.
+- **Lambda Concurrent Executions**: Default 1,000 per region
+- **Step Functions Executions**: Default 25,000 per second
+- **Bedrock Model Invocations**: Varies by model and region
+- **SQS Message Rate**: Default 300 per second for FIFO queues
+- **DynamoDB Read/Write Capacity**: Configure based on expected throughput
+
+Use the AWS Service Quotas console to request increases before deploying for production workloads.
 
 ### Cost Estimation
 
-The solution includes an integrated cost estimation feature that automatically tracks service usage and calculates estimated costs for each processed document. In the Document Detail page, each document displays an "Estimated Cost" section that shows the per-page cost in the header and can be expanded to reveal a detailed breakdown of service usage and associated costs.
+The solution provides built-in cost estimation capabilities:
 
-Cost estimates are derived from the pricing configuration in the system settings. You can customize pricing by updating the configuration with your own unit costs for each service and API. The configuration follows a simple structure where each service has a list of units (like "characters", "tokens", or "pages") with associated prices. The UI displays "None" for any service or unit that doesn't have a defined price in the configuration.
+- Real-time cost tracking for Bedrock model usage
+- Per-document processing cost breakdown
+- Historical cost analysis and trends
+- Budget alerts and threshold monitoring
 
+See [COST_CALCULATOR.md](./COST_CALCULATOR.md) for detailed cost analysis across different processing volumes.
+
+## Customizing Classification
+
+Classification behavior can be customized through several mechanisms:
+
+### Classification Methods
+
+The solution supports multiple classification approaches:
+
+1. **Page-Level Classification**: Classifies individual pages independently
+2. **Holistic Packet Classification**: Analyzes entire document packets to identify boundaries
+3. **Few Shot Classification**: Uses example documents to improve accuracy
+
+### Classification Prompts
+
+Customize classification behavior through:
+
+- **System Prompts**: Define overall model behavior and constraints
+- **Task Prompts**: Specify classification instructions and formatting
+- **Class Descriptions**: Detailed descriptions for each document category
+- **Few Shot Examples**: Reference documents with expected classifications
+
+### Using CachePoint for Classification
+
+The solution integrates with Amazon Bedrock CachePoint for improved performance:
+
+- Caches frequently used prompts and responses
+- Reduces latency for similar classification requests
+- Optimizes costs through response reuse
+- Automatic cache management and expiration
+
+### Document Classes
+
+Standard document classes based on RVL-CDIP dataset:
+
+- `letter`: Formal written correspondence
+- `form`: Structured documents with fields
+- `email`: Digital messages with headers
+- `handwritten`: Documents with handwritten content
+- `advertisement`: Marketing materials
+- `scientific_report`: Research documents
+- `scientific_publication`: Academic papers
+- `specification`: Technical specifications
+- `file_folder`: Organizational documents
+- `news_article`: Journalistic content
+- `budget`: Financial planning documents
+- `invoice`: Commercial billing documents
+- `presentation`: Slide-based documents
+- `questionnaire`: Survey forms
+- `resume`: Employment documents
+- `memo`: Internal communications
 
 ## Customizing Extraction
 
-You can customize the extraction capabilities of the solution to better handle specific document types and extract the information that matters most to your use case. The configuration approach depends on which pattern you're using:
-
-> **Note for Pattern 1 (BDA)**: For Pattern 1, extraction is configured within the Bedrock Data Automation (BDA) project using BDA Blueprints. The extraction configuration described below applies only to Pattern 2 and Pattern 3, which use direct LLM-based extraction.
+Information extraction can be tailored for specific document types and use cases:
 
 ### Extraction Prompts
 
-The extraction prompts control how the AI model interprets and extracts information from documents (Pattern 2 and Pattern 3 only):
+Configure extraction behavior through:
 
-1. **System Prompt**:
-   - Sets the overall behavior and context for the extraction model
-   - Defines the role and constraints for the model
-   - Provides general instructions for output formatting
+- **Attribute Definitions**: Specify fields to extract per document class
+- **Extraction Instructions**: Detailed guidance for field identification
+- **Output Formatting**: Structure and validation requirements
+- **Error Handling**: Fallback behavior for missing or unclear data
 
-2. **Task Prompt**:
-   - Contains specific instructions for the extraction task
-   - Includes placeholders for dynamic content:
-     - `{DOCUMENT_CLASS}`: The detected document class
-     - `{ATTRIBUTE_NAMES_AND_DESCRIPTIONS}`: The attributes to extract
-     - `{DOCUMENT_TEXT}`: The OCR text from the document
-   - Can be customized to handle specific document formats or special cases
+### Using CachePoint for Extraction
 
-To customize the extraction prompts:
-1. Navigate to the Configuration page in the Web UI
-2. Expand the "Extraction" section
-3. Click "Edit" and modify the prompts as needed
-4. Click "Save" to apply your changes
+CachePoint integration for extraction provides:
+
+- Cached extraction results for similar documents
+- Improved consistency across similar document types
+- Reduced processing costs and latency
+- Automatic cache invalidation when prompts change
 
 ### Extraction Attributes
 
-Attributes define what information to extract from each document class (Pattern 2 and Pattern 3 only):
+Common extraction attributes by document type:
 
-1. **Document Classes**:
-   - Each document type (letter, invoice, form, etc.) has its own class definition
-   - Classes have names and descriptions that help the AI model identify them
+**Invoice Documents:**
+- `invoice_number`: Unique invoice identifier
+- `invoice_date`: Date of invoice issuance
+- `vendor_name`: Name of the invoicing company
+- `total_amount`: Final amount due
+- `due_date`: Payment deadline
 
-2. **Attributes**:
-   - Each class has a set of attributes to extract (e.g., invoice_number, sender_name)
-   - Attributes include detailed descriptions explaining where and how to find the information
-   - Descriptions can mention common labels, formats, and locations
+**Form Documents:**
+- `form_type`: Type or title of the form
+- `applicant_name`: Name of person filling the form
+- `date_submitted`: Form submission date
+- `reference_number`: Form tracking number
 
-To customize extraction attributes:
-1. Navigate to the Configuration page in the Web UI
-2. Expand the "Classes" section
-3. Click "Edit" to:
-   - Add new document classes
-   - Modify existing classes
-   - Add or remove attributes
-   - Update attribute descriptions
-4. Click "Save" to apply your changes
-
-Testing attribute changes:
-1. Process a sample document through the workflow
-2. Check the extraction results in the Document Details page
-3. Iterate on your attribute definitions for better results
+**Letter Documents:**
+- `sender_name`: Name of letter writer
+- `recipient_name`: Name of letter recipient
+- `date`: Letter date
+- `subject`: Letter subject or topic
 
 ## Monitoring and Logging
 
+The solution provides comprehensive monitoring through Amazon CloudWatch:
+
 ### CloudWatch Dashboard
-Access via CloudWatch > Dashboards > `${StackName}-${Region}`
 
-<img src="./images/Dashboard1.png" alt="Dashboard1" width="800">  
-
-<img src="./images/Dashboard2.png" alt="Dashboard2" width="800">  
-
-<img src="./images/Dashboard3.png" alt="Dashboard3" width="800">
-
+The integrated dashboard displays:
 
 #### Latency Metrics
-- Queue Latency
-- Workflow Latency
-- Total Processing Latency
-All include average, p90, and maximum values
+- **End-to-End Processing Time**: Total time from document upload to completion
+- **Step Function Execution Duration**: Time spent in workflow orchestration
+- **Lambda Function Latency**: Processing time per function (OCR, Classification, Extraction)
+- **Queue Wait Time**: Time documents spend in processing queues
+- **Model Inference Time**: Bedrock model response latencies
 
 #### Throughput Metrics
-- Document and Page counts
-- LLM Tokens processed 
-- SQS Queue metrics (received/deleted)
-- Step Functions execution counts
-- Lambda function invocations and durations
+- **Documents Processed per Hour**: Overall system throughput
+- **Pages Processed per Minute**: OCR processing rate
+- **Classification Requests per Second**: Page classification throughput
+- **Extraction Completions per Hour**: Field extraction processing rate
+- **Queue Message Rate**: SQS message processing velocity
 
 #### Error Tracking
-- Long-running invocations
-- Lambda function errors
-- Failed Step Functions executions
+- **Workflow Failures**: Step Function execution failures with error categorization
+- **Lambda Timeouts**: Function timeout events and duration analysis
+- **Model Throttling**: Bedrock throttling events and retry patterns
+- **Dead Letter Queue Messages**: Failed messages requiring manual intervention
+- **Validation Errors**: Data validation failures and format issues
 
 ### Log Groups
-```
-/${StackName}/lambda/*
-/aws/vendedlogs/states/${StackName}-workflow
-```
+
+Centralized logging across all components:
+
+- `/aws/stepfunctions/IDPWorkflow`: Step Function execution logs
+- `/aws/lambda/QueueProcessor`: Document queue processing logs
+- `/aws/lambda/OCRFunction`: OCR processing logs and errors
+- `/aws/lambda/ClassificationFunction`: Classification processing logs
+- `/aws/lambda/ExtractionFunction`: Extraction processing logs
+- `/aws/lambda/TrackingFunction`: Document tracking and status logs
+- `/aws/appsync/GraphQLAPI`: Web UI API access logs
+
+All logs include correlation IDs for tracing individual document processing journeys.
 
 ## Document Status Lookup
 
+The solution provides tools for tracking document processing status:
+
 ### Using the Lookup Script
+
+Use the included script to check document processing status:
+
 ```bash
-# Check document status
-./scripts/lookup_file_status.sh "path/to/document.pdf" stack-name
-
-# Format output with jq
-./scripts/lookup_file_status.sh "document.pdf" stack-name | jq
-
-# Check just status
-./scripts/lookup_file_status.sh "document.pdf" stack-name | jq -r '.status'
-
-# Calculate processing time
-./scripts/lookup_file_status.sh "document.pdf" stack-name | jq -r '.timing'
+python scripts/document_status_lookup.py --stack-name <STACK_NAME> --document-key <DOCUMENT_KEY>
 ```
 
 ### Response Format
+
+Status lookup returns comprehensive information:
+
 ```json
 {
-  "found": true,
+  "document_key": "example.pdf",
   "status": "COMPLETED",
-  "timing": {
-    "queue_time_ms": 234,
-    "workflow_time_ms": 15678,
-    "total_time_ms": 15912
-  },
-  "execution": {
-    "arn": "arn:aws:states:...",
-    "status": "SUCCEEDED",
-    "input": { ... },
-    "output": { ... }
-  }
+  "workflow_arn": "arn:aws:states:...",
+  "start_time": "2024-01-01T12:00:00Z",
+  "end_time": "2024-01-01T12:05:30Z",
+  "processing_time_seconds": 330,
+  "pages_processed": 15,
+  "sections_identified": 3,
+  "output_location": "s3://output-bucket/results/example.json",
+  "error_details": null
 }
 ```
 
 ## Bedrock Guardrail Integration
 
-The solution includes native support for Amazon Bedrock Guardrails to help enforce content safety, security, and policy compliance across all Bedrock model interactions.
+The solution supports Amazon Bedrock Guardrails for content safety and compliance:
 
 ### How Guardrails Work
 
-Bedrock Guardrails are applied to:
-- All model invocations through the IDP Common library (except pattern-2 classification)
-- Knowledge Base queries through the Knowledge Base resolver
-- Any other direct Bedrock API calls in the solution
-
-When enabled, guardrails can:
-- Filter harmful content from model outputs
-- Block sensitive information in prompts or responses
-- Apply topic filtering based on your organization's policies
-- Prevent model misuse
-- Provide tracing information for audit and compliance
-- Mask Personally Identifiable Information (PII) in output documents and summaries
+Guardrails provide:
+- **Content Filtering**: Block harmful, inappropriate, or sensitive content
+- **Topic Restrictions**: Prevent processing of specific topic areas
+- **Data Protection**: Redact or block personally identifiable information (PII)
+- **Custom Filters**: Define organization-specific content policies
 
 ### Configuring Guardrails
 
-1. **Prerequisites**:
-   - You must create a Bedrock Guardrail in your AWS account **before** deploying or updating the stack
-   - Note the Guardrail ID and Version you want to use
+Enable guardrails through configuration:
 
-2. **Deployment Parameters**:
-   - `BedrockGuardrailId`: Enter the ID (not name) of your existing Bedrock Guardrail
-   - `BedrockGuardrailVersion`: Enter the version of your Guardrail (e.g., "Draft" or a specific version)
-
-3. **Implementation**:
-   - The guardrail configuration is passed to all Lambda functions that interact with Bedrock
-   - The environment variable `GUARDRAIL_ID_AND_VERSION` contains the ID and version in format `id:version`
-   - When both values are provided, guardrails are automatically applied to all model invocations
-
-4. **Monitoring**:
-   - Debug logs show when guardrails are being applied
-   - Guardrail trace information is available in responses when enabled
+```yaml
+bedrock_settings:
+  guardrail_id: "your-guardrail-id"
+  guardrail_version: "1"
+  enable_content_filtering: true
+  enable_pii_detection: true
+```
 
 ### Best Practices
 
-- Test your guardrail configuration thoroughly before deployment
-- Use tracing to audit guardrail behavior during testing
-- Consider creating different guardrails for different environments (dev/test/prod)
-- Regularly update guardrails as your compliance requirements evolve
+1. **Test Thoroughly**: Validate guardrail behavior with representative documents
+2. **Monitor Impact**: Track processing latency and accuracy changes
+3. **Regular Updates**: Review and update guardrail policies as requirements evolve
+4. **Compliance Alignment**: Ensure guardrails align with organizational compliance requirements
 
 ## Concurrency and Throttling Management
 
+The solution implements sophisticated concurrency control and throttling management:
+
 ### Throttling and Retry (Bedrock and/or SageMaker)
-The Classification and Extraction Lambda functions implement exponential backoff:
-```python
-MAX_RETRIES = 8
-INITIAL_BACKOFF = 2  # seconds
-MAX_BACKOFF = 600   # 10 minutes
 
-def calculate_backoff(attempt):
-    backoff = min(MAX_BACKOFF, INITIAL_BACKOFF * (2 ** attempt))
-    jitter = random.uniform(0, 0.1 * backoff)
-    return backoff + jitter
-```
-
-Retry behavior:
-- Up to 8 retry attempts
-- Exponential backoff starting at 2 seconds
-- Maximum backoff of 10 minutes
-- 10% random jitter to prevent thundering herd
-- Metrics tracking for retries and failures
+- **Exponential Backoff**: Automatic retry with increasing delays
+- **Jitter Addition**: Random delay variation to prevent thundering herd
+- **Circuit Breaker**: Temporary halt on repeated failures
+- **Rate Limiting**: Configurable request rate controls
 
 ### Step Functions Retry Configuration
-Each Lambda invocation includes retry settings:
+
 ```json
-"Retry": [
-  {
-    "ErrorEquals": [
-      "States.TaskFailed",
-      "Lambda.ServiceException",
-      "Lambda.AWSLambdaException",
-      "Lambda.SdkClientException"
-    ],
-    "IntervalSeconds": 2,
-    "MaxAttempts": 10,
-    "BackoffRate": 2
-  }
-]
+{
+  "Retry": [
+    {
+      "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+      "IntervalSeconds": 2,
+      "MaxAttempts": 6,
+      "BackoffRate": 2
+    },
+    {
+      "ErrorEquals": ["States.TaskFailed"],
+      "IntervalSeconds": 1,
+      "MaxAttempts": 3,
+      "BackoffRate": 2
+    }
+  ]
+}
 ```
 
 ### Concurrency Control
-- DynamoDB counter tracks active workflows
-- Queue Processor enforces maximum concurrent executions (default 800)
-- SQS retains messages when concurrency limit reached
-- Batch processing for improved throughput
 
-Reduce maximum concurrency to limit throughput for less time sensitive workloads (smooth demand peaks)
-Increase maximum concurrency to maximize throughput for time sensitive workloads, until you see Bedrock retries due to quota limits. 
+- **Workflow Limits**: Maximum concurrent Step Function executions
+- **Lambda Concurrency**: Per-function concurrent execution limits
+- **Queue Management**: SQS visibility timeout and message batching
+- **Dynamic Scaling**: Automatic adjustment based on queue depth
 
 ## Troubleshooting Guide
 
-1. **Document Not Processing**
-   - Check SQS queue metrics for backup
-   - Verify concurrency limit hasn't been reached
-   - Look for Lambda errors in dashboard
+Common issues and resolution steps:
 
-2. **Slow Processing**
-   - Monitor latency metrics in dashboard
-   - Check Bedrock throttling and retry counts
-   - Review long-running invocations
+**Document Processing Failures:**
+1. Check CloudWatch logs for specific error messages
+2. Verify input document format and size limits
+3. Confirm sufficient IAM permissions
+4. Review Bedrock service quotas and throttling
 
-3. **Failed Processing**
-   - Check Step Functions execution errors
-   - Review Lambda error logs
-   - Verify input document format
-   - Check Dead Letter SQS Queues for evidence of any unprocessed events
+**Web UI Access Issues:**
+1. Verify Cognito user status and permissions
+2. Check CloudFront distribution status
+3. Confirm WAF IP allowlist configuration
+4. Review browser console for client-side errors
+
+**Performance Issues:**
+1. Monitor CloudWatch dashboard for bottlenecks
+2. Check Lambda function memory and timeout settings
+3. Review Step Function execution patterns
+4. Analyze queue depth and processing rates
+
+**Configuration Problems:**
+1. Validate configuration file syntax and schema
+2. Test configuration changes in development environment
+3. Review configuration validation logs
+4. Confirm model availability in selected region
 
 ## Performance Considerations
 
-1. **Concurrency**
-   - Controlled via DynamoDB counter
-   - Default limit of 800 concurrent workflows
-   - Adjustable to max throughput based on Bedrock quotas
+Optimize performance through:
 
-2. **SQS Batch Processing**
-   - SQS configured for batch size of 50, max delay of 1s.
-   - Reduces Lambda invocation overhead
-   - Maintains reasonable processing order
+**Resource Sizing:**
+- Lambda memory allocation based on document complexity
+- Step Function timeout settings for large documents
+- SQS batch size tuning for optimal throughput
 
-3. **SQS Queue Management**
-   - Standard queue for higher throughput
-   - Visibility timeout matches workflow duration
-   - Built-in retry for failed messages
+**Concurrency Management:**
+- Workflow concurrency limits to prevent service throttling
+- Lambda reserved concurrency for critical functions
+- Queue parallelism configuration
+
+**Cost Optimization:**
+- Model selection based on accuracy vs. cost requirements
+- Caching strategies for repeated processing patterns
+- Scheduled processing for non-urgent documents
+
+**Monitoring:**
+- Real-time performance dashboards
+- Automated alerting for performance degradation
+- Historical trend analysis for capacity planning
 
 ## Additional scripts / utilities
-
-`stop_workflows.sh <stack-name>:` _The Andon Chord! Purges all pending message from the SQS Document Queue, and stops all running State machine executions._
-  
-`compare_json_files.py [-h] [--output-dir OUTPUT_DIR] [--debug] bucket folder1 folder2:` _Handy tool to compare JSON files in different folders. Use it to assess, for example, the effects of using different models or prompts for extraction. Includes an AI summary of the key differences in the outputs._ 
-
-## Code Quality and Formatting
-
-This project uses [Ruff](https://github.com/astral-sh/ruff) for Python code linting and formatting. Ruff is a fast Python linter and formatter written in Rust.
-
-### Setup and Usage
-
-1. Install Ruff: `pip install ruff`
-2. Run linting and formatting: `make lint`
-3. Run linting checks only (for CI/CD): `make lint-cicd`
-
-### Configuration
-
-The project uses a `ruff.toml` file that explicitly lists the default settings for clarity and future reference. The configuration starts with the defaults provided by the tool, with some project-specific customizations. See the Ruff defaults [HERE](https://docs.astral.sh/ruff/configuration/).
-
-> **Note:** To incrementally improve code quality across the repository, certain directories are initially excluded from formatting in the `ruff.toml` file. Directories will be enabled for formatting one by one in separate PRs to ensure proper testing and validation of each component.
-
-### VSCode Integration
-
-When using the provided `.code-workspace` file to open the project, files will be automatically linted and formatted on save. This requires the Ruff VSCode extension, which is included in the recommended extensions for the workspace.
-
-To install the extension:
-1. Open VSCode
-2. Go to Extensions (Ctrl+Shift+X / Cmd+Shift+X)
-3. Search for "Ruff"
-4. Install the extension by Astral Software

@@ -14,3 +14,4 @@ dist/
 build/
 __pycache__
 .ruff_cache
+rvl_cdip_*

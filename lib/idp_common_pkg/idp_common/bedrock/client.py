@@ -18,10 +18,18 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger(__name__)
 
 # Default retry settings
-DEFAULT_MAX_RETRIES = 8
+DEFAULT_MAX_RETRIES = 7
 DEFAULT_INITIAL_BACKOFF = 2  # seconds
 DEFAULT_MAX_BACKOFF = 300    # 5 minutes
 
+
+# Models that support cachePoint functionality
+CACHEPOINT_SUPPORTED_MODELS = [
+    "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+    "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    "us.amazon.nova-lite-v1:0",
+    "us.amazon.nova-pro-v1:0"
+]
 
 class BedrockClient:
     """Client for interacting with Amazon Bedrock models."""
@@ -101,6 +109,62 @@ class BedrockClient:
             max_retries=effective_max_retries
         )
     
+    def _preprocess_content_for_cachepoint(self, content: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Process content list to handle <<CACHEPOINT>> tags in text elements.
+        
+        For text elements containing <<CACHEPOINT>> tags, this function will split the text
+        and insert cachePoint elements at the tag positions.
+        
+        Args:
+            content: The content list for the user message (can include text and images)
+            
+        Returns:
+            Processed content list with cachePoint elements inserted
+        """
+        if not content:
+            return content
+            
+        processed_content = []
+        cachepoint_count = 0
+        
+        for item in content:
+            # If it's a text element, check for <<CACHEPOINT>> tags
+            if "text" in item and isinstance(item["text"], str) and "<<CACHEPOINT>>" in item["text"]:
+                # Log that we found a cachepoint tag
+                logger.debug(f"Found <<CACHEPOINT>> tags in text content: {item['text'][:50]}...")
+                
+                # Split the text by the tag
+                text_parts = item["text"].split("<<CACHEPOINT>>")
+                logger.debug(f"Split text into {len(text_parts)} parts at cachepoint tags")
+                
+                # Add each text part interspersed with cachePoint elements
+                for i, text_part in enumerate(text_parts):
+                    # Only add non-empty text parts
+                    if text_part:
+                        # Count words in this part
+                        word_count = len(text_part.split())
+                        logger.debug(f"Text part {i+1}: {word_count} words")
+                        processed_content.append({"text": text_part})
+                    else:
+                        logger.debug(f"Text part {i+1}: Empty, skipping")
+                    
+                    # Add cachePoint after each text part except the last one
+                    if i < len(text_parts) - 1:
+                        cachepoint_count += 1
+                        logger.debug(f"Inserting cachePoint #{cachepoint_count} after text part {i+1}")
+                        processed_content.append({"cachePoint": {"type": "default"}})
+            else:
+                # If not a text element or no tags, add it as is
+                content_type = "text" if "text" in item else "image" if "image" in item else "other"
+                logger.debug(f"No cachepoint tags in {content_type} content, passing through unchanged")
+                processed_content.append(item)
+        
+        if cachepoint_count > 0:
+            logger.info(f"Processed content with {cachepoint_count} cachepoint insertions")
+        
+        return processed_content
+    
     def invoke_model(
         self,
         model_id: str,
@@ -140,10 +204,34 @@ class BedrockClient:
         else:
             formatted_system_prompt = system_prompt
         
+        # Check for cachePoint tags in content
+        has_cachepoint_tags = any("text" in item and isinstance(item["text"], str) and "<<CACHEPOINT>>" in item["text"] for item in content)
+        
+        if has_cachepoint_tags:
+            if model_id in CACHEPOINT_SUPPORTED_MODELS:
+                # Process content for cachePoint tags with supported model
+                processed_content = self._preprocess_content_for_cachepoint(content)
+                logger.info(f"Applied cachePoint processing for supported model: {model_id}")
+            else:
+                # For unsupported models, just remove the <<CACHEPOINT>> tags but keep content intact
+                processed_content = []
+                for item in content:
+                    if "text" in item and isinstance(item["text"], str) and "<<CACHEPOINT>>" in item["text"]:
+                        # Remove the cachepoint tags but keep the text
+                        clean_text = item["text"].replace("<<CACHEPOINT>>", "")
+                        processed_content.append({"text": clean_text})
+                        logger.warning(f"Removed <<CACHEPOINT>> tags for unsupported model: {model_id}. CachePoint is only supported for: {', '.join(CACHEPOINT_SUPPORTED_MODELS)}")
+                    else:
+                        # Pass through unchanged
+                        processed_content.append(item)
+        else:
+            # No cachepoint tags, use content as is
+            processed_content = content
+            
         # Build message
         message = {
             "role": "user",
-            "content": content
+            "content": processed_content
         }
         messages = [message]
         
@@ -284,11 +372,11 @@ class BedrockClient:
             
             # Log detailed request parameters
             logger.info(f"Bedrock request attempt {retry_count + 1}/{max_retries}:")
-            logger.debug(f"  - model: {converse_params['modelId']}")
-            logger.debug(f"  - inferenceConfig: {converse_params['inferenceConfig']}")
-            logger.debug(f"  - system: {converse_params['system']}")
-            logger.debug(f"  - messages: {sanitized_params['messages']}")
-            logger.debug(f"  - additionalModelRequestFields: {converse_params['additionalModelRequestFields']}")
+            logger.info(f"  - model: {converse_params['modelId']}")
+            logger.info(f"  - inferenceConfig: {converse_params['inferenceConfig']}")
+            logger.info(f"  - system: {converse_params['system']}")
+            logger.info(f"  - messages: {sanitized_params['messages']}")
+            logger.info(f"  - additionalModelRequestFields: {converse_params['additionalModelRequestFields']}")
             
             # Log guardrail usage if configured
             if "guardrailConfig" in converse_params:
@@ -305,9 +393,9 @@ class BedrockClient:
             
             # Log response details, but sanitize large content
             sanitized_response = self._sanitize_response_for_logging(response)
-            logger.debug(f"Bedrock request successful after {retry_count + 1} attempts. Duration: {duration:.2f}s")
-            logger.info(f"Response: {sanitized_response}")
-            
+            logger.info(f"Bedrock request successful after {retry_count + 1} attempts. Duration: {duration:.2f}s")
+            logger.debug(f"Response: {sanitized_response}")
+            logger.info(f"Token Usage: {response.get('usage')}")
             # Track successful requests and latency
             self._put_metric('BedrockRequestsSucceeded', 1)
             self._put_metric('BedrockRequestLatency', duration * 1000, 'Milliseconds')
@@ -316,12 +404,16 @@ class BedrockClient:
             
             # Track token usage
             if 'usage' in response:
-                input_tokens = response['usage'].get('inputTokens', 0)
-                output_tokens = response['usage'].get('outputTokens', 0)
+                inputTokens = response['usage'].get('inputTokens', 0)
+                outputTokens = response['usage'].get('outputTokens', 0)
                 total_tokens = response['usage'].get('totalTokens', 0)
-                self._put_metric('InputTokens', input_tokens)
-                self._put_metric('OutputTokens', output_tokens)
+                cacheReadInputTokens = response['usage'].get('cacheReadInputTokens', 0)
+                cacheWriteInputTokens = response['usage'].get('cacheWriteInputTokens', 0)
+                self._put_metric('InputTokens', inputTokens)
+                self._put_metric('OutputTokens', outputTokens)
                 self._put_metric('TotalTokens', total_tokens)
+                self._put_metric('CacheReadInputTokens', cacheReadInputTokens)
+                self._put_metric('CacheWriteInputTokens', cacheWriteInputTokens)
             
             # Calculate total duration
             total_duration = time.time() - request_start_time

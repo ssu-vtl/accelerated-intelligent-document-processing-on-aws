@@ -34,7 +34,7 @@ class ClassificationService:
     """Service for classifying documents using various backends."""
 
     # Configuration for the SageMaker retry mechanism
-    MAX_RETRIES = 8
+    MAX_RETRIES = 7
     INITIAL_BACKOFF = 2  # seconds
     MAX_BACKOFF = 300  # 5 minutes
 
@@ -212,6 +212,206 @@ class ClassificationService:
 
         return format_prompt(prompt_template, substitutions, required_placeholders)
 
+    def _build_content_with_few_shot_examples(
+        self,
+        task_prompt_template: str,
+        document_text: str,
+        class_names_and_descriptions: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Build content array with few-shot examples inserted at the FEW_SHOT_EXAMPLES placeholder.
+
+        Args:
+            task_prompt_template: The task prompt template containing {FEW_SHOT_EXAMPLES}
+            document_text: The document text content
+            class_names_and_descriptions: Formatted class names and descriptions
+
+        Returns:
+            List of content items with text and image content properly ordered
+        """
+        # Split the task prompt at the FEW_SHOT_EXAMPLES placeholder
+        parts = task_prompt_template.split("{FEW_SHOT_EXAMPLES}")
+
+        if len(parts) != 2:
+            # Fallback to regular prompt processing if placeholder not found or malformed
+            task_prompt = self._prepare_prompt_from_template(
+                task_prompt_template,
+                {
+                    "DOCUMENT_TEXT": document_text,
+                    "CLASS_NAMES_AND_DESCRIPTIONS": class_names_and_descriptions,
+                },
+                required_placeholders=["DOCUMENT_TEXT", "CLASS_NAMES_AND_DESCRIPTIONS"],
+            )
+            return [{"text": task_prompt}]
+
+        # Replace other placeholders in the prompt parts
+        before_examples = self._prepare_prompt_from_template(
+            parts[0],
+            {
+                "DOCUMENT_TEXT": document_text,
+                "CLASS_NAMES_AND_DESCRIPTIONS": class_names_and_descriptions,
+            },
+            required_placeholders=[],  # Don't enforce required placeholders for partial templates
+        )
+
+        after_examples = self._prepare_prompt_from_template(
+            parts[1],
+            {
+                "DOCUMENT_TEXT": document_text,
+                "CLASS_NAMES_AND_DESCRIPTIONS": class_names_and_descriptions,
+            },
+            required_placeholders=[],  # Don't enforce required placeholders for partial templates
+        )
+
+        # Build content array
+        content = []
+
+        # Add the part before examples
+        if before_examples.strip():
+            content.append({"text": before_examples})
+
+        # Add few-shot examples from config
+        examples_content = self._build_few_shot_examples_content()
+        content.extend(examples_content)
+
+        # Add the part after examples
+        if after_examples.strip():
+            content.append({"text": after_examples})
+
+        return content
+
+    def _build_few_shot_examples_content(self) -> List[Dict[str, Any]]:
+        """
+        Build content items for few-shot examples from the configuration.
+
+        Returns:
+            List of content items containing text and image content for examples
+        """
+        content = []
+        classes = self.config.get("classes", [])
+
+        for class_obj in classes:
+            examples = class_obj.get("examples", [])
+            for example in examples:
+                class_prompt = example.get("classPrompt")
+
+                # Only process this example if it has a non-empty class_prompt
+                if not class_prompt or not class_prompt.strip():
+                    logger.info(
+                        f"Skipping example with empty classPrompt: {example.get('name')}"
+                    )
+                    continue
+
+                content.append({"text": class_prompt})
+
+                image_path = example.get("imagePath")
+                if image_path:
+                    try:
+                        # Load image content from the path
+
+                        from idp_common import image, s3
+
+                        # Get list of image files from the path (supports directories/prefixes)
+                        image_files = self._get_image_files_from_path(image_path)
+
+                        # Process each image file
+                        for image_file_path in image_files:
+                            try:
+                                # Load image content
+                                if image_file_path.startswith("s3://"):
+                                    # Direct S3 URI
+                                    image_content = s3.get_binary_content(
+                                        image_file_path
+                                    )
+                                else:
+                                    # Local file
+                                    with open(image_file_path, "rb") as f:
+                                        image_content = f.read()
+
+                                # Prepare image content for Bedrock
+                                image_attachment = (
+                                    image.prepare_bedrock_image_attachment(
+                                        image_content
+                                    )
+                                )
+                                content.append(image_attachment)
+
+                            except Exception as e:
+                                logger.warning(
+                                    f"Failed to load image {image_file_path}: {e}"
+                                )
+                                continue
+
+                    except Exception as e:
+                        raise ValueError(
+                            f"Failed to load example images from {image_path}: {e}"
+                        )
+
+        return content
+
+    def _get_image_files_from_path(self, image_path: str) -> List[str]:
+        """
+        Get list of image files from a path that could be a single file, directory, or S3 prefix.
+
+        Args:
+            image_path: Path to image file, directory, or S3 prefix
+
+        Returns:
+            List of image file paths/URIs sorted by filename
+        """
+        import os
+
+        from idp_common import s3
+
+        # Handle S3 URIs
+        if image_path.startswith("s3://"):
+            # Check if it's a direct file or a prefix
+            if image_path.endswith(
+                (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp")
+            ):
+                # Direct S3 file
+                return [image_path]
+            else:
+                # S3 prefix - list all images
+                return s3.list_images_from_path(image_path)
+        else:
+            # Handle local paths
+            config_bucket = os.environ.get("CONFIGURATION_BUCKET")
+            root_dir = os.environ.get("ROOT_DIR")
+
+            if config_bucket:
+                # Use environment bucket with imagePath as key
+                s3_uri = f"s3://{config_bucket}/{image_path}"
+
+                # Check if it's a direct file or a prefix
+                if image_path.endswith(
+                    (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp")
+                ):
+                    # Direct S3 file
+                    return [s3_uri]
+                else:
+                    # S3 prefix - list all images
+                    return s3.list_images_from_path(s3_uri)
+            elif root_dir:
+                # Use relative path from ROOT_DIR
+                full_path = os.path.join(root_dir, image_path)
+                full_path = os.path.normpath(full_path)
+
+                if os.path.isfile(full_path):
+                    # Single local file
+                    return [full_path]
+                elif os.path.isdir(full_path):
+                    # Local directory - list all images
+                    return s3.list_images_from_path(full_path)
+                else:
+                    # Path doesn't exist
+                    logger.warning(f"Image path does not exist: {full_path}")
+                    return []
+            else:
+                raise ValueError(
+                    "No CONFIGURATION_BUCKET or ROOT_DIR set. Cannot read example images from local filesystem."
+                )
+
     def classify_page_bedrock(
         self,
         page_id: str,
@@ -266,17 +466,22 @@ class ClassificationService:
         # Get classification configuration
         config = self._get_classification_config()
 
-        # Use common function to prepare prompt with required placeholder validation
-        task_prompt = self._prepare_prompt_from_template(
-            config["task_prompt"],
-            {
-                "DOCUMENT_TEXT": text_content or "",
-                "CLASS_NAMES_AND_DESCRIPTIONS": self._format_classes_list(),
-            },
-            required_placeholders=["DOCUMENT_TEXT", "CLASS_NAMES_AND_DESCRIPTIONS"],
-        )
-
-        content = [{"text": task_prompt}]
+        # Check if task prompt contains FEW_SHOT_EXAMPLES placeholder
+        if "{FEW_SHOT_EXAMPLES}" in config["task_prompt"]:
+            content = self._build_content_with_few_shot_examples(
+                config["task_prompt"], text_content or "", self._format_classes_list()
+            )
+        else:
+            # Use common function to prepare prompt with required placeholder validation
+            task_prompt = self._prepare_prompt_from_template(
+                config["task_prompt"],
+                {
+                    "DOCUMENT_TEXT": text_content or "",
+                    "CLASS_NAMES_AND_DESCRIPTIONS": self._format_classes_list(),
+                },
+                required_placeholders=["DOCUMENT_TEXT", "CLASS_NAMES_AND_DESCRIPTIONS"],
+            )
+            content = [{"text": task_prompt}]
 
         # Add image if available
         if image_content:

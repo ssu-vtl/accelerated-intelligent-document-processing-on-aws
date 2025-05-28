@@ -28,3 +28,4 @@ See the main [README.md](../README.md) for more detailed instructions on creatin
 
 - [default](./default/): Default configuration for general document processing
 - [medical_records_summarization](./medical_records_summarization/): Specialized configuration for processing and summarizing medical records
+- [checkboxed_attributes_extraction](./checkboxed_attributes_extraction): Specialized configuration for processing documents that contain checkboxes where key information is extracted by selected boxes

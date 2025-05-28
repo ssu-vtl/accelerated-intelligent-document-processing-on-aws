@@ -53,7 +53,7 @@ class EvaluationService:
             "model", "anthropic.claude-3-sonnet-20240229-v1:0"
         )
         self.default_temperature = self.llm_config.get("temperature", 0.0)
-        self.default_top_k = self.llm_config.get("top_k", 250)
+        self.default_top_k = self.llm_config.get("top_k", 5)
         self.default_system_prompt = self.llm_config.get(
             "system_prompt",
             """You are an evaluator that helps determine if the predicted and expected values match for document attribute extraction. You will consider the context and meaning rather than just exact string matching.""",

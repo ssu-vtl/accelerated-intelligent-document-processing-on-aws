@@ -400,8 +400,9 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       const part = pathParts[i];
 
       if (!Number.isNaN(parseInt(part, 10))) {
-        // Skip array indices
-        return property;
+        // Skip array indices but continue traversing
+        // eslint-disable-next-line no-continue
+        continue;
       }
 
       if (!current[part]) {
