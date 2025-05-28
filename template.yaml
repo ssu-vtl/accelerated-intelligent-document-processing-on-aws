@@ -64,7 +64,7 @@ Parameters:
     Default: "default"
     AllowedValues:
       - "default"
-    Description: Select the configuration preset for Pattern 1. Each configuration contains pre-tuned settings for specific document processing scenarios.
+    Description: Select the configuration preset for Pattern 1. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md.
 
   # Pattern 2 Parameters
 
@@ -76,7 +76,7 @@ Parameters:
       - "checkboxed_attributes_extraction"
       - "few_shot_example"
       - "medical_records_summarization"
-    Description: Select the configuration preset for Pattern 2. Each configuration contains pre-tuned settings for specific document processing scenarios.
+    Description: Select the configuration preset for Pattern 2. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md.
 
   Pattern2CustomClassificationModelARN:
     Type: String
@@ -101,7 +101,7 @@ Parameters:
     Default: "default"
     AllowedValues:
       - "default"
-    Description: Select the configuration preset for Pattern 3. Each configuration contains pre-tuned settings for specific document processing scenarios.
+    Description: Select the configuration preset for Pattern 3. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md.
 
   # Evaluation
   EvaluationBaselineBucketName:
