@@ -20,7 +20,7 @@ To quickly deploy the GenAI-IDP solution in your own AWS account:
 
 | Region name           | Region code | Launch                                                                                                                                                                                                                                                                                                                                                                      |
 | --------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| US West (Oregon)      | us-west-2   | [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.us-west-2.amazonaws.com/bobs-artifacts-us-west-2/genaiidp-preview-latest/idp-main.yaml&stackName=IDP) |
+| US West (Oregon)      | us-west-2   | [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.us-west-2.amazonaws.com/aws-ml-blog-us-west-2/artifacts/genai-idp/idp-main.yaml&stackName=IDP) |
 
 3. Review the template parameters and provide values as needed
 4. Check the acknowledgment box and click **Create stack**
@@ -107,6 +107,28 @@ aws cloudformation deploy \
   * Requires a UDOP model in S3 that will be deployed on SageMaker
 
 After deployment, check the Outputs tab in the CloudFormation console to find links to dashboards, buckets, workflows, and other solution resources.
+
+## Updating an Existing Stack
+
+To update an existing GenAIIDP deployment to a new version:
+
+1. Log into the [AWS console](https://console.aws.amazon.com/)
+2. Navigate to CloudFormation in the AWS Management Console
+3. Select your existing GenAIIDP stack
+4. Click on the "Update" button
+5. Select "Replace current template"
+6. Provide the new template URL: `https://s3.us-west-2.amazonaws.com/aws-ml-blog-us-west-2/artifacts/genai-idp/idp-main.yaml`
+7. Click "Next"
+8. Review the parameters and make any necessary changes
+   - The update will preserve your existing parameter values
+   - Consider checking for new parameters that may be available in the updated template
+9. Click "Next", then "Next" again on the Configure stack options page
+10. Review the changes that will be made to your stack
+11. Check the acknowledgment box for IAM capabilities
+12. Click "Update stack"
+13. Monitor the update process in the CloudFormation console
+
+> **Note**: Updating the stack may cause some resources to be replaced, which could lead to brief service interruptions. Consider updating during a maintenance window if the solution is being used in production.
 
 ## Testing the Solution
 
