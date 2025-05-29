@@ -33,6 +33,8 @@ Current patterns include:
 
 ## Detailed Documentation
 
+### Core Documentation
+
 - [Architecture](./docs/architecture.md) - Detailed component architecture and data flow
 - [Deployment](./docs/deployment.md) - Build, publish, deploy, and test instructions
 - [Web UI](./docs/web-ui.md) - Web interface features and usage
@@ -43,6 +45,19 @@ Current patterns include:
 - [Extraction](./docs/extraction.md) - Customizing information extraction
 - [Monitoring](./docs/monitoring.md) - Monitoring and logging capabilities
 - [Troubleshooting](./docs/troubleshooting.md) - Troubleshooting and performance guides
+
+### Processing Patterns
+
+- [Pattern 1: BDA](./docs/pattern-1.md) - Packet or Media processing with Bedrock Data Automation (BDA)
+- [Pattern 2: Textract + Bedrock](./docs/pattern-2.md) - OCR with Textract and generative AI with Bedrock
+- [Pattern 3: Textract + UDOP + Bedrock](./docs/pattern-3.md) - OCR with Textract, UDOP Classification, and Bedrock extraction
+- [Few-Shot Examples](./docs/few-shot-examples.md) - Implementing few-shot examples for improved accuracy
+
+### Planning & Operations
+
+- [Well-Architected Framework Assessment](./docs/well-architected.md) - Analysis based on AWS Well-Architected Framework
+- [AWS Services & IAM Roles](./docs/aws-services-and-roles.md) - AWS services used and IAM role requirements
+- [Cost Calculator](./docs/cost-calculator.md) - Framework for estimating solution costs
 
 ## Quick Start
 
@@ -55,7 +70,14 @@ To quickly deploy the GenAI-IDP solution in your AWS account:
 | --------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | US West (Oregon)      | us-west-2   | [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.us-west-2.amazonaws.com/bobs-artifacts-us-west-2/genaiidp-preview-latest/idp-main.yaml&stackName=IDP) |
 
-For detailed deployment instructions, see the [Deployment Guide](./docs/deployment.md).
+3. When the stack deploys for the first time, you'll receive an email with a temporary password to access the web UI
+4. Use this temporary password for your first login to set up a permanent password
+
+For testing, use these sample files:
+- Pattern-1 BDA default project: `samples/lending_package.pdf`
+- Patterns 2 and 3 default configurations: `samples/rvl_cdip_package.pdf`
+
+For detailed deployment and testing instructions, see the [Deployment Guide](./docs/deployment.md).
 
 ## License
 

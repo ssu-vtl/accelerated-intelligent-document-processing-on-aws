@@ -14,7 +14,7 @@ The solution automatically creates an integrated dashboard that displays:
 - **Queue Wait Time**: Time documents spend in processing queues
 - **Model Inference Time**: Bedrock model response latencies
 
-![Dashboard Example](../images/Dashboard1.png)
+![Latency Metrics Dashboard](../images/Dashboard1.png)
 
 ### Throughput Metrics
 
@@ -24,6 +24,8 @@ The solution automatically creates an integrated dashboard that displays:
 - **Extraction Completions per Hour**: Field extraction processing rate
 - **Queue Message Rate**: SQS message processing velocity
 
+![Throughput Metrics Dashboard](../images/Dashboard2.png)
+
 ### Error Tracking
 
 - **Workflow Failures**: Step Function execution failures with error categorization
@@ -31,6 +33,8 @@ The solution automatically creates an integrated dashboard that displays:
 - **Model Throttling**: Bedrock throttling events and retry patterns
 - **Dead Letter Queue Messages**: Failed messages requiring manual intervention
 - **Validation Errors**: Data validation failures and format issues
+
+![Error Tracking Dashboard](../images/Dashboard3.png)
 
 ## Log Groups
 

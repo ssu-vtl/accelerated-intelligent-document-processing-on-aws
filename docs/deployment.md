@@ -26,6 +26,8 @@ To quickly deploy the GenAI-IDP solution in your own AWS account:
 4. Check the acknowledgment box and click **Create stack**
 5. Wait for the stack to reach the `CREATE_COMPLETE` state
 
+> **Note**: When the stack is deploying for the first time, it will send an email with a temporary password to the address specified in the AdminEmail parameter. You will need to use this temporary password to log into the UI and set a permanent password.
+
 ## Option 2: Build Deployment Assets from Source Code
 
 ### Dependencies
@@ -72,11 +74,6 @@ Optional: Add a final parameter `public` if you want to make the published artif
 ```
 Note: Your bucket and account must be configured not to Block Public Access using new ACLs.
 
-> **Troubleshooting**: 
-> * If the process throws an error `Docker daemon is not running` but Docker Desktop or similar is running, it may be necessary to examine the current docker context with the command `docker context ls`. 
-> * To set the Docker context daemon, use the `docker context use` command, e.g. `docker context use desktop-linux`
-> * Alternatively, set the `DOCKER_HOST` to the socket running the desired Docker daemon, e.g. `export DOCKER_HOST=unix:///Users/username/.docker/run/docker.sock`
-
 When completed, the script displays:
 - The CloudFormation template's S3 URL
 - A 1-click URL for launching the stack creation in the CloudFormation console
@@ -117,9 +114,31 @@ After deployment, check the Outputs tab in the CloudFormation console to find li
 
 1. Open the `S3InputBucketConsoleURL` and `S3OutputBucketConsoleURL` from the stack Outputs tab
 2. Open the `StateMachineConsoleURL` from the stack Outputs tab
-3. Upload a PDF form to the Input bucket (sample files are in the `./samples` folder)
+3. Upload a PDF form to the Input bucket (sample files are in the `./samples` folder):
+   - For Pattern-1 BDA default project: use `samples/lending_package.pdf`
+   - For Patterns 2 and 3 default configurations: use `samples/rvl_cdip_package.pdf`
 4. Monitor the Step Functions execution to observe the workflow
 5. When complete, check the Output bucket for the structured JSON file with extracted fields
+
+### Testing via the UI
+
+1. Open the Web UI URL from the CloudFormation stack's Outputs tab
+2. Log in using your credentials (the temporary password from the email if this is your first login)
+3. Navigate to the main dashboard
+4. Click the "Upload Document" button
+5. Select a sample PDF file appropriate for your pattern (see above for recommendations)
+6. Follow the upload process and observe the document processing in the UI
+7. View the extraction results once processing is complete
+
+### Testing without the UI
+
+You can test the solution without using the UI through the following methods:
+1. Direct S3 uploads as described in the Basic Test section
+2. Using the AWS CLI to upload documents to the input bucket:
+   ```bash
+   aws s3 cp ./samples/lending_package.pdf s3://idp-inputbucket-kmsxxxxxxxxx/
+   ```
+3. Using the AWS SDK in your application code to programmatically send documents for processing
 
 ### Upload Multiple Sample Files
 
