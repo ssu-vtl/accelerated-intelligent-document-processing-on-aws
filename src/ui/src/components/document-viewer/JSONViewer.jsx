@@ -4,7 +4,6 @@ import {
   Box,
   SpaceBetween,
   Button,
-  Toggle,
   Alert,
   SegmentedControl,
   FormField,
@@ -436,7 +435,6 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File', sect
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(null);
 
   const fetchContent = async () => {
@@ -461,18 +459,12 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File', sect
       }
       logger.debug('Received content:', `${fetchedContent.substring(0, 100)}...`);
       setFileContent(fetchedContent);
+      setEditedContent(fetchedContent); // Initialize edited content for always-on edit mode
     } catch (err) {
       logger.error('Error fetching content:', err);
       setError(`Failed to load ${fileType} content. Please try again.`);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleEditToggle = ({ detail }) => {
-    setIsEditing(detail.checked);
-    if (detail.checked && !editedContent) {
-      setEditedContent(fileContent);
     }
   };
 
@@ -539,7 +531,6 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File', sect
 
       // Update the file content state to reflect saved changes
       setFileContent(editedContent);
-      setIsEditing(false);
       setSuccess('File saved and uploaded successfully');
       logger.info('Successfully saved changes');
 
@@ -556,7 +547,6 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File', sect
   const closeViewer = () => {
     setFileContent(null);
     setEditedContent(null);
-    setIsEditing(false);
   };
 
   if (!fileUri) {
@@ -592,25 +582,16 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File', sect
           <Box>
             <SpaceBetween direction="horizontal" size="xs">
               <Button onClick={closeViewer}>Close</Button>
-              <Toggle onChange={handleEditToggle} checked={isEditing}>
-                Edit mode
-              </Toggle>
-              {isEditing && (
-                <Button
-                  variant="primary"
-                  onClick={handleSave}
-                  disabled={!editedContent || editedContent === fileContent}
-                >
-                  Save Changes
-                </Button>
-              )}
+              <Button variant="primary" onClick={handleSave} disabled={!editedContent || editedContent === fileContent}>
+                Save Changes
+              </Button>
             </SpaceBetween>
           </Box>
           <div style={{ width: '100%' }}>
             <FileEditorView
-              fileContent={isEditing ? editedContent : fileContent}
+              fileContent={editedContent || fileContent}
               onChange={handleContentChange}
-              isReadOnly={!isEditing}
+              isReadOnly={false}
               fileType={fileType}
               sectionData={sectionData}
             />
