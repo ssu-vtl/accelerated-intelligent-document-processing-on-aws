@@ -1,92 +1,135 @@
 # Customizing Extraction
 
-Information extraction is a central capability of the GenAIIDP solution, transforming unstructured document content into structured data. This guide explains how to customize extraction for your specific use cases.
+Information extraction is a central capability of the GenAIIDP solution, transforming unstructured document content into structured data. This guide explains how to customize extraction for your specific use cases, including few-shot prompting and CachePoint optimization.
 
-## Extraction Prompts
+## Extraction Configuration
 
 Configure extraction behavior through several components:
 
-### Attribute Definitions
+### Document Classes and Attributes
 
-Specify fields to extract per document class:
+Specify document classes and the fields to extract from each:
 
 ```yaml
-extraction_attributes:
-  invoice:
-    - name: "invoice_number"
-      description: "The unique identifier for this invoice, typically labeled as 'Invoice #', 'Invoice Number', or similar"
-    - name: "invoice_date"
-      description: "The date when the invoice was issued, typically labeled as 'Date', 'Invoice Date', or similar"
-    - name: "due_date"
-      description: "The date by which payment is due, typically labeled as 'Due Date', 'Payment Due', or similar"
+classes:
+  - name: "invoice"
+    description: "A billing document listing items/services, quantities, prices, payment terms, and transaction totals"
+    attributes:
+      - name: "invoice_number"
+        description: "The unique identifier for this invoice, typically labeled as 'Invoice #', 'Invoice Number', or similar"
+      - name: "invoice_date"
+        description: "The date when the invoice was issued, typically labeled as 'Date', 'Invoice Date', or similar"
+      - name: "due_date"
+        description: "The date by which payment is due, typically labeled as 'Due Date', 'Payment Due', or similar"
 ```
 
 ### Extraction Instructions
 
-Provide detailed guidance for field identification:
+### Model and Prompt Configuration
+
+Configure the extraction model and prompting strategy:
 
 ```yaml
-system_prompt: |
-  You are an expert in extracting structured information from documents.
-  Focus on accuracy in identifying key fields based on their descriptions.
-  For each field, look for both the field label and the associated value.
-  Pay attention to formatting patterns common in business documents.
-  When a field is not present, indicate this explicitly rather than guessing.
-```
-
-### Output Formatting
-
-Define structure and validation requirements:
-
-```yaml
-task_prompt: |
-  Extract the following fields from this {{document_class}} document:
-  {{attribute_list}}
+extraction:
+  # Model selection and parameters
+  model: us.amazon.nova-pro-v1:0
+  temperature: 0.0
+  top_p: 0.1
+  top_k: 5
+  max_tokens: 4096
   
-  For each field, provide:
-  1. The exact extracted value
-  2. The confidence level (HIGH, MEDIUM, LOW)
-  3. The location where the information was found
-  
-  Format your response as valid JSON:
-  {
-    "field_name": {
-      "value": "extracted value",
-      "confidence": "HIGH|MEDIUM|LOW",
-      "location": "page 1, top section"
-    },
-    ...
-  }
+  # Prompts for extraction
+  system_prompt: |
+    You are an expert in extracting structured information from documents.
+    Focus on accuracy in identifying key fields based on their descriptions.
+    For each field, look for both the field label and the associated value.
+    Pay attention to formatting patterns common in business documents.
+    When a field is not present, indicate this explicitly rather than guessing.
+    
+  task_prompt: |
+    Extract the following fields from this {DOCUMENT_CLASS} document:
+    
+    {ATTRIBUTE_NAMES_AND_DESCRIPTIONS}
+    
+    <few_shot_examples>
+    {FEW_SHOT_EXAMPLES}
+    </few_shot_examples>
+    
+    <<CACHEPOINT>>
+    
+    Here is the document to analyze:
+    {DOCUMENT_TEXT}
+    
+    Format your response as valid JSON:
+    {
+      "field_name": "extracted value",
+      ...
+    }
 ```
 
-### Error Handling
-
-Configure fallback behavior for missing or unclear data:
-
-```yaml
-extraction_settings:
-  missing_field_behavior: "RETURN_EMPTY"  # Options: RETURN_EMPTY, RETURN_NOT_FOUND, ATTEMPT_INFERENCE
-  low_confidence_threshold: 0.4
-  require_validation_for_low_confidence: true
-```
+The extraction service parses the JSON response and makes it available for downstream processing.
 
 ## Using CachePoint for Extraction
 
-CachePoint integration for extraction provides:
+CachePoint is a feature of select Bedrock models that caches partial computations to improve performance and reduce costs. When used with extraction, it provides:
 
-- Cached extraction results for similar documents
+- Cached processing for portions of the prompt
 - Improved consistency across similar document types
 - Reduced processing costs and latency
-- Automatic cache invalidation when prompts change
+- Faster inference times
 
-To enable CachePoint for extraction:
+### Enabling CachePoint
+
+CachePoint is enabled by placing special `<<CACHEPOINT>>` tags in your prompt templates. These indicate where the model should cache preceding components of the prompt:
 
 ```yaml
-extraction_settings:
-  use_cache_point: true
-  cache_ttl_seconds: 86400  # 24 hours
-  similarity_threshold: 0.85  # Higher values require more document similarity for cache hits
+extraction:
+  model: us.amazon.nova-pro-v1:0  # Must be a CachePoint-compatible model
+  task_prompt: |
+    <background>
+    You are an expert in business document analysis and information extraction.
+    </background>
+    
+    <<CACHEPOINT>>  # Cache the instruction portion
+    
+    Here is the document to analyze:
+    {DOCUMENT_TEXT}
 ```
+
+### Supported Models
+
+CachePoint is currently supported by the following models:
+
+- `us.anthropic.claude-3-5-haiku-20241022-v1:0`
+- `us.anthropic.claude-3-7-sonnet-20250219-v1:0`
+- `us.amazon.nova-lite-v1:0`
+- `us.amazon.nova-pro-v1:0`
+
+### Cost Benefits
+
+CachePoint significantly reduces token costs for cached portions:
+
+```yaml
+pricing:
+  - name: bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0
+    units:
+      - name: inputTokens
+        price: '8.0E-7'
+      - name: outputTokens
+        price: '4.0E-6'
+      - name: cacheReadInputTokens  # Reduced rate for cached content
+        price: '8.0E-8'             # 10x cheaper than standard input tokens
+      - name: cacheWriteInputTokens
+        price: '1.0E-6'
+```
+
+### Optimal CachePoint Placement
+
+For extraction tasks, place CachePoint tags to separate:
+1. **Static content** (system instructions, few-shot examples) - cacheable
+2. **Dynamic content** (document text, specific attributes) - not cacheable
+
+This ensures the expensive parts of your prompt that remain unchanged across documents are efficiently cached.
 
 ## Extraction Attributes
 
@@ -159,64 +202,65 @@ You can define custom extraction attributes through the Web UI:
 
 ### Few-Shot Extraction
 
-Improve extraction with examples:
+Improve extraction accuracy by providing examples within each document class configuration:
 
 ```yaml
-few_shot_examples:
-  - document_class: "invoice"
-    document_path: "s3://example-bucket/samples/invoice1.pdf"
-    extracted_values:
-      invoice_number: "INV-12345"
-      invoice_date: "2023-04-15"
-      total_amount: "$1,234.56"
+classes:
+  - name: "invoice"
+    description: "A billing document for goods or services"
+    attributes:
+      - name: "invoice_number"
+        description: "The unique identifier for this invoice"
+      # Other attributes...
+    examples:
+      - name: "SampleInvoice1"
+        attributesPrompt: |
+          Expected attributes are:
+            "invoice_number": "INV-12345"
+            "invoice_date": "2023-04-15"
+            "total_amount": "$1,234.56"
+        imagePath: "config_library/pattern-2/examples/invoice-samples/invoice1.jpg"
+      # Additional examples...
 ```
 
-### Hierarchical Extraction
-
-Extract nested or hierarchical data:
+The extraction service will use these examples as context when processing similar documents. To use few-shot examples in your extraction prompts, include the `{FEW_SHOT_EXAMPLES}` placeholder:
 
 ```yaml
-extraction_attributes:
-  invoice:
-    - name: "line_items"
-      description: "The individual items listed on the invoice"
-      type: "array"
-      items:
-        - name: "item_description"
-          description: "Description of the item or service"
-        - name: "quantity"
-          description: "Number of items"
-        - name: "unit_price"
-          description: "Price per unit"
-        - name: "total_price"
-          description: "Total price for this line item"
+extraction:
+  task_prompt: |
+    Extract the following fields from this {DOCUMENT_CLASS} document:
+    
+    {ATTRIBUTE_NAMES_AND_DESCRIPTIONS}
+    
+    <few_shot_examples>
+    {FEW_SHOT_EXAMPLES}
+    </few_shot_examples>
+    
+    Now extract the attributes from this document:
+    {DOCUMENT_TEXT}
 ```
 
-### Conditional Extraction
-
-Configure attributes that only apply in certain contexts:
-
-```yaml
-extraction_attributes:
-  invoice:
-    - name: "late_fee"
-      description: "Fee applied for late payment"
-      conditional:
-        field: "payment_status"
-        value: "OVERDUE"
-    - name: "discount_amount"
-      description: "Discount applied to the total"
-      conditional:
-        field: "has_discount"
-        value: "true"
-```
+Examples are class-specific - only examples from the same document class being processed will be included in the prompt.
 
 ## Best Practices
 
-1. **Clear Attribute Descriptions**: Include detail on where and how information appears
-2. **Balance Precision and Recall**: Decide whether false positives or false negatives are more problematic
-3. **Consider Data Validation**: Include format guidance (e.g., date format, currency)
-4. **Test with Real Documents**: Validate extraction across representative samples
-5. **Group Related Attributes**: Organize attributes logically for better model understanding
-6. **Iterative Refinement**: Use the evaluation framework to identify and address extraction issues
-7. **Document Variants**: Consider different layouts and formats for the same document types
+1. **Clear Attribute Descriptions**: Include detail on where and how information appears in the document. More specific descriptions lead to better extraction results.
+
+2. **Balance Precision and Recall**: Decide whether false positives or false negatives are more problematic for your use case and adjust the prompt accordingly.
+
+3. **Optimize Few-Shot Examples**: Select diverse, representative examples that cover common variations in your document formats and challenging edge cases.
+
+4. **Use CachePoint Strategically**: Position CachePoint tags to maximize caching of static content while isolating dynamic content, placing them right before document text is introduced.
+
+5. **Leverage Image Examples**: When providing few-shot examples with `imagePath`, ensure the images highlight the key fields to extract, especially for visually complex documents.
+
+6. **Monitor Evaluation Results**: Use the evaluation framework to identify extraction issues and iteratively refine your prompts and examples.
+
+7. **Choose Appropriate Models**: Select models based on your task requirements:
+   - `us.amazon.nova-pro-v1:0` - Best for complex extraction with few-shot learning
+   - `us.anthropic.claude-3-5-haiku-20241022-v1:0` - Good balance of performance vs. cost
+   - `us.anthropic.claude-3-7-sonnet-20250219-v1:0` - Highest accuracy for specialized tasks
+
+8. **Handle Document Variations**: Consider creating separate document classes for significantly different layouts of the same document type rather than trying to handle all variations with a single class.
+
+9. **Test Extraction Pipeline End-to-End**: Validate your extraction configuration with the full pipeline including OCR, classification, and extraction to ensure components work together effectively.

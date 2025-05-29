@@ -4,6 +4,8 @@ The solution includes a responsive web-based user interface built with React tha
 
 ![Web UI Screenshot](../images/WebUI.png)
 
+*The GenAIIDP Web Interface showing the document tracking dashboard with status information, classification results, and extracted data.*
+
 ## Features
 
 - Document tracking and monitoring capabilities

@@ -17,6 +17,7 @@ This document outlines the AWS services used by the GenAI Intelligent Document P
 | **Amazon CloudFront** | Delivers the web UI with global distribution | ✓ | ✓ |
 | **AWS CloudFormation** | Deploys and manages the solution infrastructure | ✓ | |
 | **AWS SAM** | Simplifies serverless application deployment | ✓ | |
+| **AWS CodeBuild** | Builds and packages the web UI assets | ✓ | |
 
 ### AI/ML Services
 
@@ -27,7 +28,7 @@ This document outlines the AWS services used by the GenAI Intelligent Document P
 | **Amazon Textract** | Extracts text and data from documents (OCR) | | ✓ |
 | **Amazon SageMaker** | Hosts custom ML models for document classification (UDOP) | ✓ | ✓ |
 | **Amazon Bedrock Knowledge Base** | Enables semantic document querying (optional) | ✓ | ✓ |
-| **Bedrock Data Automation (BDA)** | Automates document processing workflows (Pattern 1) | | ✓ |
+| **Bedrock Data Automation (BDA)** | Automates document processing workflows (Pattern 1) | ✓ | ✓ |
 
 ### Auth & API Services
 
@@ -36,7 +37,6 @@ This document outlines the AWS services used by the GenAI Intelligent Document P
 | **Amazon Cognito** | Manages user authentication and authorization | ✓ | ✓ |
 | **AWS AppSync** | Provides GraphQL API for the web UI | ✓ | ✓ |
 | **AWS WAF** | Protects web applications from web exploits (optional) | ✓ | ✓ |
-| **Amazon OpenSearch Service** | Powers document indexing and search (for KB feature) | ✓ | ✓ |
 
 ### Monitoring & Operations
 
@@ -62,7 +62,8 @@ Deploying this solution requires an IAM role/user with the following permissions
 * `sqs:*` - Create and configure SQS queues
 * `events:*` - Create and configure EventBridge rules
 * `cloudfront:*` - Create and configure CloudFront distributions
-* `cognito-idp:*` - Create and configure Cognito user pools
+* `cognito-idp:*` - Create and configure Cognito user pools 
+* `cognito-identity:*` - Create and configure Cognito identity pools for AWS service access
 * `appsync:*` - Create and configure AppSync APIs
 * `logs:*` - Create and configure CloudWatch log groups
 * `cloudwatch:*` - Create and configure CloudWatch dashboards and alarms
@@ -110,9 +111,10 @@ The solution creates various IAM roles to run different components of the system
   * `logs:*`
 
 * **BDA Integration Role** (Pattern 1):
-  * `bedrock-agent:StartIngestionJob`
-  * `bedrock-agent:GetIngestionJob`
+  * `bedrock:InvokeDataAutomationAsync`
   * `s3:GetObject`, `s3:PutObject`
+  * `dynamodb:GetItem`, `dynamodb:PutItem`, `dynamodb:UpdateItem`
+  * `cloudwatch:PutMetricData`
   * `logs:*`
 
 #### Web UI & API Roles
@@ -123,22 +125,38 @@ The solution creates various IAM roles to run different components of the system
 
 * **Cognito Authentication Role**:
   * `appsync:GraphQL`
-  * `s3:GetObject` (for UI assets)
-  * `mobileanalytics:PutEvents`, `cognito-sync:*`
+  * `s3:GetObject` (for UI assets and buckets)
+  * `ssm:GetParameter` (for settings)
 
 * **Knowledge Base Query Role**:
   * `bedrock:InvokeModel`
+  * `bedrock:Retrieve`
+  * `bedrock:RetrieveAndGenerate`
   * `bedrock:ApplyGuardrail` (when Guardrails configured)
-  * `opensearch:ESHttpGet`, `opensearch:ESHttpPost`
+  * `aoss:APIAccessAll` (for OpenSearch Serverless access)
   * `logs:*`
 
-#### Monitoring & Operations Roles
+* **Knowledge Base Service Role**:
+  * `bedrock:InvokeModel`
+  * `aoss:APIAccessAll`
+  * `s3:ListBucket`, `s3:GetObject` (when using S3 data source)
+
+#### Monitoring & Evaluation Roles
 * **CloudWatch Dashboard Role**:
   * `cloudwatch:GetDashboard`, `cloudwatch:PutDashboard`
   * `logs:DescribeLogGroups`
 
 * **Workflow Tracking Role**:
   * `dynamodb:GetItem`, `dynamodb:PutItem`, `dynamodb:UpdateItem`
+  * `cloudwatch:PutMetricData`
+  * `logs:*`
+  
+* **Evaluation Function Role**:
+  * `s3:GetObject` (from baseline bucket)
+  * `s3:PutObject`, `s3:GetObject` (for output bucket)
+  * `dynamodb:GetItem`, `dynamodb:PutItem`, `dynamodb:UpdateItem`
+  * `bedrock:InvokeModel` (for LLM-based evaluations)
+  * `appsync:GraphQL` (for updating evaluation results)
   * `cloudwatch:PutMetricData`
   * `logs:*`
 
@@ -157,7 +175,7 @@ For high-volume document processing, consider requesting quota increases for:
 | AWS Step Functions | State transitions per second | 2,000 transitions |
 | Amazon SQS | API requests per queue | Very high by default |
 | Amazon CloudWatch | PutMetricData API requests per second | 150 requests/second |
-| Bedrock Data Automation | Concurrent jobs (Pattern 3) | Varies by region |
+| Bedrock Data Automation | Concurrent jobs (Pattern 1) | Varies by region |
 
 ## Security Recommendations
 
