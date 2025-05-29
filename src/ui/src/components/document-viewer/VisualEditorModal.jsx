@@ -45,18 +45,16 @@ const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, pan
           transformedOffsetY,
         });
         
-        if (isDevelopment) {
-          console.log('VisualEditorModal - BoundingBox dimensions updated:', {
-            imageWidth: img.width,
-            imageHeight: img.height,
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight,
-            offsetX: rect.left - containerRect.left,
-            offsetY: rect.top - containerRect.top,
-            imageRect: rect,
-            containerRect
-          });
-        }
+        logger.debug('VisualEditorModal - BoundingBox dimensions updated:', {
+          imageWidth: img.width,
+          imageHeight: img.height,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+          offsetX: rect.left - containerRect.left,
+          offsetY: rect.top - containerRect.top,
+          imageRect: rect,
+          containerRect
+        });
       };
 
       // Update dimensions when image loads
@@ -139,17 +137,15 @@ const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, pan
       transition: 'all 0.1s ease-out'
     };
     
-    if (isDevelopment) {
-      console.log('VisualEditorModal - BoundingBox style calculated:', {
-        bbox,
-        dimensions,
-        finalLeft,
-        finalTop,
-        finalWidth,
-        finalHeight,
-        style
-      });
-    }
+    logger.debug('VisualEditorModal - BoundingBox style calculated:', {
+      bbox,
+      dimensions,
+      finalLeft,
+      finalTop,
+      finalWidth,
+      finalHeight,
+      style
+    });
   } else if (box.vertices) {
     // Format: array of {x, y} or {X, Y} points
     const xs = box.vertices.map((v) => v.x || v.X || 0);
@@ -178,24 +174,22 @@ const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, pan
       transition: 'all 0.1s ease-out'
     };
     
-    if (isDevelopment) {
-      console.log('VisualEditorModal - BoundingBox style (vertices) calculated:', {
-        vertices: box.vertices,
-        dimensions,
-        finalLeft,
-        finalTop,
-        finalWidth,
-        finalHeight,
-        style
-      });
-    }
+    logger.debug('VisualEditorModal - BoundingBox style (vertices) calculated:', {
+      vertices: box.vertices,
+      dimensions,
+      finalLeft,
+      finalTop,
+      finalWidth,
+      finalHeight,
+      style
+    });
   }
 
   return <div style={style} />;
 });
 
-// Component to render a form field based on its type
-const FormFieldRenderer = ({
+// Memoized component to render a form field based on its type
+const FormFieldRenderer = memo(({
   fieldKey,
   value,
   onChange,
@@ -230,34 +224,34 @@ const FormFieldRenderer = ({
     if (event) {
       event.stopPropagation();
     }
-    console.log('=== FIELD CLICKED ===');
-    console.log('Field Key:', fieldKey);
+    logger.debug('=== FIELD CLICKED ===');
+    logger.debug('Field Key:', fieldKey);
     const fullPath = `${path.join('.')}${path.length > 0 ? '.' : ''}${fieldKey}`;
-    console.log('Full Path:', fullPath);
-    console.log('Field Value:', value);
-    console.log('Geometry Passed:', geometry);
-    console.log('Explainability Info Available:', !!explainabilityInfo);
+    logger.debug('Full Path:', fullPath);
+    logger.debug('Field Value:', value);
+    logger.debug('Geometry Passed:', geometry);
+    logger.debug('Explainability Info Available:', !!explainabilityInfo);
     
     let actualGeometry = geometry;
     
     // Try to extract geometry from explainabilityInfo if not provided
     if (!actualGeometry && explainabilityInfo && Array.isArray(explainabilityInfo) && explainabilityInfo[0]) {
       const [firstExplainabilityItem] = explainabilityInfo;
-      console.log('Explainability Info Object:', firstExplainabilityItem);
+      logger.debug('Explainability Info Object:', firstExplainabilityItem);
       
       // Try direct field lookup first
       let fieldInfo = firstExplainabilityItem[fieldKey];
-      console.log(`Field Info from explainabilityInfo[0][${fieldKey}]:`, fieldInfo);
+      logger.debug(`Field Info from explainabilityInfo[0][${fieldKey}]:`, fieldInfo);
       
       // If not found directly, try to navigate the full path
       if (!fieldInfo) {
-        console.log('Trying to navigate full path in explainabilityInfo:', fullPath);
+        logger.debug('Trying to navigate full path in explainabilityInfo:', fullPath);
         const fullPathParts = [...path, fieldKey];
         let pathFieldInfo = firstExplainabilityItem;
         
         fullPathParts.forEach((pathPart, index) => {
-          console.log(`Navigating path part ${index}: ${pathPart}`);
-          console.log('Current pathFieldInfo:', pathFieldInfo);
+          logger.debug(`Navigating path part ${index}: ${pathPart}`);
+          logger.debug('Current pathFieldInfo:', pathFieldInfo);
           
           if (pathFieldInfo && typeof pathFieldInfo === 'object') {
             if (Array.isArray(pathFieldInfo) && !Number.isNaN(parseInt(pathPart, 10))) {
@@ -265,46 +259,46 @@ const FormFieldRenderer = ({
               const arrayIndex = parseInt(pathPart, 10);
               if (arrayIndex >= 0 && arrayIndex < pathFieldInfo.length) {
                 pathFieldInfo = pathFieldInfo[arrayIndex];
-                console.log(`Found array item at index ${arrayIndex}:`, pathFieldInfo);
+                logger.debug(`Found array item at index ${arrayIndex}:`, pathFieldInfo);
               } else {
-                console.log(`Array index ${arrayIndex} out of bounds`);
+                logger.debug(`Array index ${arrayIndex} out of bounds`);
                 pathFieldInfo = null;
               }
             } else if (pathFieldInfo[pathPart]) {
               // Handle object property
               pathFieldInfo = pathFieldInfo[pathPart];
-              console.log(`Found object property ${pathPart}:`, pathFieldInfo);
+              logger.debug(`Found object property ${pathPart}:`, pathFieldInfo);
             } else {
-              console.log(`Property ${pathPart} not found in object`);
+              logger.debug(`Property ${pathPart} not found in object`);
               pathFieldInfo = null;
             }
           } else {
-            console.log(`Cannot navigate further - pathFieldInfo is not an object`);
+            logger.debug(`Cannot navigate further - pathFieldInfo is not an object`);
             pathFieldInfo = null;
           }
         });
         
         fieldInfo = pathFieldInfo;
-        console.log('Final fieldInfo from path navigation:', fieldInfo);
+        logger.debug('Final fieldInfo from path navigation:', fieldInfo);
       }
       
       if (fieldInfo && fieldInfo.geometry && Array.isArray(fieldInfo.geometry) && fieldInfo.geometry[0]) {
         actualGeometry = fieldInfo.geometry[0];
-        console.log('Found geometry in explainabilityInfo:', actualGeometry);
+        logger.debug('Found geometry in explainabilityInfo:', actualGeometry);
       }
       
       // Also search all keys in explainabilityInfo to find geometry
       const allKeys = Object.keys(firstExplainabilityItem);
-      console.log('All available keys in explainabilityInfo:', allKeys);
+      logger.debug('All available keys in explainabilityInfo:', allKeys);
     }
     
     if (actualGeometry && onFieldFocus) {
-      console.log('Calling onFieldFocus with geometry:', actualGeometry);
+      logger.debug('Calling onFieldFocus with geometry:', actualGeometry);
       onFieldFocus(actualGeometry);
     } else {
-      console.log('No geometry found for field:', fieldKey);
+      logger.debug('No geometry found for field:', fieldKey);
     }
-    console.log('=== END FIELD CLICK ===');
+    logger.debug('=== END FIELD CLICK ===');
   };
 
   // Handle field double-click
@@ -312,9 +306,9 @@ const FormFieldRenderer = ({
     if (event) {
       event.stopPropagation();
     }
-    console.log('=== FIELD DOUBLE-CLICKED ===');
-    console.log('Field Key:', fieldKey);
-    console.log('Geometry Passed:', geometry);
+    logger.debug('=== FIELD DOUBLE-CLICKED ===');
+    logger.debug('Field Key:', fieldKey);
+    logger.debug('Geometry Passed:', geometry);
     
     let actualGeometry = geometry;
     
@@ -329,12 +323,12 @@ const FormFieldRenderer = ({
     }
     
     if (actualGeometry && onFieldDoubleClick) {
-      console.log('Calling onFieldDoubleClick with geometry:', actualGeometry);
+      logger.debug('Calling onFieldDoubleClick with geometry:', actualGeometry);
       onFieldDoubleClick(actualGeometry);
     } else {
-      console.log('No geometry found for field double-click:', fieldKey);
+      logger.debug('No geometry found for field double-click:', fieldKey);
     }
-    console.log('=== END FIELD DOUBLE-CLICK ===');
+    logger.debug('=== END FIELD DOUBLE-CLICK ===');
   };
 
   // Render based on field type
@@ -491,7 +485,7 @@ const FormFieldRenderer = ({
 
                 return (
                   <FormFieldRenderer
-                    key={`obj-${fieldKey}-${path.join('.')}-${key}-${Date.now()}-${Math.random()}`}
+                    key={`obj-${fieldKey}-${path.join('.')}-${key}`}
                     fieldKey={key}
                     value={val}
                     onChange={(newVal) => {
@@ -525,8 +519,8 @@ const FormFieldRenderer = ({
           <Box padding={{ left: 'l' }}>
             <SpaceBetween size="xs">
               {value.map((item, index) => {
-                // Create a unique key for each array item with timestamp and random component
-                const itemKey = `arr-${fieldKey}-${path.join('.')}-${index}-${Date.now()}-${Math.random()}`;
+                // Create a stable unique key for each array item
+                const itemKey = `arr-${fieldKey}-${path.join('.')}-${index}`;
 
                 // Extract confidence and geometry for array items
                 let itemConfidence;
@@ -622,7 +616,7 @@ const FormFieldRenderer = ({
         </div>
       );
   }
-};
+});
 
 const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly, sectionData }) => {
   const { currentCredentials } = useAppContext();
@@ -803,9 +797,9 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
 
   // Handle field focus - update active field geometry and switch to the correct page
   const handleFieldFocus = (geometry) => {
-    console.log('VisualEditorModal - handleFieldFocus called with geometry:', geometry);
-    console.log('VisualEditorModal - pageIds:', pageIds);
-    console.log('VisualEditorModal - currentPage:', currentPage);
+    logger.debug('VisualEditorModal - handleFieldFocus called with geometry:', geometry);
+    logger.debug('VisualEditorModal - pageIds:', pageIds);
+    logger.debug('VisualEditorModal - currentPage:', currentPage);
     
     if (geometry) {
       setActiveFieldGeometry(geometry);
@@ -818,7 +812,7 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
         const pageIndex = geometry.page - 1;
         if (pageIndex >= 0 && pageIndex < pageIds.length) {
           const targetPageId = pageIds[pageIndex];
-          console.log('VisualEditorModal - Setting currentPage to:', targetPageId);
+          logger.debug('VisualEditorModal - Setting currentPage to:', targetPageId);
           setCurrentPage(targetPageId);
         }
       }
@@ -829,7 +823,7 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
 
   // Handle field double-click - zoom to 200% and center on field
   const handleFieldDoubleClick = (geometry) => {
-    console.log('VisualEditorModal - handleFieldDoubleClick called with geometry:', geometry);
+    logger.debug('VisualEditorModal - handleFieldDoubleClick called with geometry:', geometry);
     
     if (geometry && imageRef.current && imageContainerRef.current) {
       // First switch to the correct page if needed
@@ -907,14 +901,16 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
             const requiredPanX = viewportCenterX - (imageCenterX + scaledRelativeX);
             const requiredPanY = viewportCenterY - (imageCenterY + scaledRelativeY);
             
-            console.log('VisualEditorModal - Auto-centering calculation:', {
-              fieldCenterX, fieldCenterY,
-              viewportCenterX, viewportCenterY,
-              imageCenterX, imageCenterY,
-              relativeX, relativeY,
-              scaledRelativeX, scaledRelativeY,
-              requiredPanX, requiredPanY
-            });
+            if (isDevelopment) {
+              logger.debug('VisualEditorModal - Auto-centering calculation:', {
+                fieldCenterX, fieldCenterY,
+                viewportCenterX, viewportCenterY,
+                imageCenterX, imageCenterY,
+                relativeX, relativeY,
+                scaledRelativeX, scaledRelativeY,
+                requiredPanX, requiredPanY
+              });
+            }
             
             setPanOffset({ x: requiredPanX, y: requiredPanY });
           }
