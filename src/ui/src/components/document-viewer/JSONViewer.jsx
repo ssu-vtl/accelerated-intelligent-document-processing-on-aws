@@ -113,11 +113,11 @@ const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
           <Box padding={{ left: 'xs' }}>
             <SpaceBetween size="xxxs">
               {value.map((item, index) => {
-                // Create a stable key based on content and a unique ID if possible
+                // Create a stable key based on index and timestamp to ensure uniqueness
                 const itemKey =
                   typeof item === 'object' && item !== null && item.id
-                    ? `array-item-${item.id}`
-                    : `array-item-${typeof item}-${JSON.stringify(item)}`;
+                    ? `array-item-${item.id}-${index}`
+                    : `array-item-${index}-${typeof item}-${Date.now()}-${Math.random()}`;
                 return (
                   <Box key={itemKey}>
                     {renderKeyValuePair(`[${index}]`, item, (newValue) => {
