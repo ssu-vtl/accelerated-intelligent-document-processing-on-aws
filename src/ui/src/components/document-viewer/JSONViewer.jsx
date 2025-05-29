@@ -413,18 +413,20 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
         />
       )}
 
-      {/* Visual Editor Modal */}
-      <VisualEditorModal
-        visible={showVisualEditor}
-        onDismiss={() => setShowVisualEditor(false)}
-        jsonData={jsonData}
-        onChange={handleFormChange}
-        isReadOnly={isReadOnly}
-        sectionData={{
-          ...sectionData,
-          documentItem: sectionData?.documentItem || sectionData?.item,
-        }}
-      />
+      {/* Visual Editor Modal - Only render when needed */}
+      {showVisualEditor && (
+        <VisualEditorModal
+          visible={showVisualEditor}
+          onDismiss={() => setShowVisualEditor(false)}
+          jsonData={jsonData}
+          onChange={handleFormChange}
+          isReadOnly={isReadOnly}
+          sectionData={{
+            ...sectionData,
+            documentItem: sectionData?.documentItem || sectionData?.item,
+          }}
+        />
+      )}
     </Box>
   );
 };
