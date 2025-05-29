@@ -21,7 +21,7 @@ import useAppContext from '../../contexts/app';
 const logger = new Logger('VisualEditorModal');
 
 // Component to render a bounding box on an image
-const BoundingBox = ({ box, page, currentPage, imageRef }) => {
+const BoundingBox = ({ box, page, currentPage, imageRef, zoomLevel = 1, panOffset = { x: 0, y: 0 } }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -92,10 +92,10 @@ const BoundingBox = ({ box, page, currentPage, imageRef }) => {
     
     style = {
       position: 'absolute',
-      left: `${left * dimensions.width + offsetX}px`,
-      top: `${top * dimensions.height + offsetY}px`,
-      width: `${width * dimensions.width}px`,
-      height: `${height * dimensions.height}px`,
+      left: `${(left * dimensions.width + offsetX) * zoomLevel + panOffset.x}px`,
+      top: `${(top * dimensions.height + offsetY) * zoomLevel + panOffset.y}px`,
+      width: `${width * dimensions.width * zoomLevel}px`,
+      height: `${height * dimensions.height * zoomLevel}px`,
       border: '2px solid red',
       pointerEvents: 'none',
       zIndex: 10,
@@ -125,10 +125,10 @@ const BoundingBox = ({ box, page, currentPage, imageRef }) => {
 
     style = {
       position: 'absolute',
-      left: `${minX * dimensions.width + offsetX}px`,
-      top: `${minY * dimensions.height + offsetY}px`,
-      width: `${(maxX - minX) * dimensions.width}px`,
-      height: `${(maxY - minY) * dimensions.height}px`,
+      left: `${(minX * dimensions.width + offsetX) * zoomLevel + panOffset.x}px`,
+      top: `${(minY * dimensions.height + offsetY) * zoomLevel + panOffset.y}px`,
+      width: `${(maxX - minX) * dimensions.width * zoomLevel}px`,
+      height: `${(maxY - minY) * dimensions.height * zoomLevel}px`,
       border: '2px solid red',
       pointerEvents: 'none',
       zIndex: 10,
@@ -422,7 +422,10 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
   const [loadingImages, setLoadingImages] = useState(true);
   const [currentPage, setCurrentPage] = useState(null);
   const [activeFieldGeometry, setActiveFieldGeometry] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const imageRef = useRef(null);
+  const imageContainerRef = useRef(null);
 
   // Extract inference results and page IDs
   const inferenceResult = jsonData?.inference_result || jsonData?.inferenceResult || jsonData;
@@ -553,6 +556,48 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
     loadImages();
   }, [pageIds, sectionData, currentCredentials, currentPage, visible]);
 
+  // Zoom controls
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev * 1.25, 4));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev / 1.25, 0.25));
+  };
+
+  // Pan controls
+  const panStep = 50;
+  
+  const handlePanLeft = () => {
+    setPanOffset(prev => ({ ...prev, x: prev.x + panStep }));
+  };
+
+  const handlePanRight = () => {
+    setPanOffset(prev => ({ ...prev, x: prev.x - panStep }));
+  };
+
+  const handlePanUp = () => {
+    setPanOffset(prev => ({ ...prev, y: prev.y + panStep }));
+  };
+
+  const handlePanDown = () => {
+    setPanOffset(prev => ({ ...prev, y: prev.y - panStep }));
+  };
+
+  const handleResetView = () => {
+    setZoomLevel(1);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
+  // Handle mouse wheel for zoom
+  const handleWheel = (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 1.1 : 0.9;
+      setZoomLevel(prev => Math.min(Math.max(prev * delta, 0.25), 4));
+    }
+  };
+
   // Handle field focus - update active field geometry and switch to the correct page
   const handleFieldFocus = (geometry) => {
     console.log('VisualEditorModal - handleFieldFocus called with geometry:', geometry);
@@ -583,14 +628,33 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
   const carouselItems = pageIds.map((pageId) => ({
     id: pageId,
     content: (
-      <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', justifyContent: 'center' }}>
+      <div 
+        ref={pageId === currentPage ? imageContainerRef : null}
+        style={{ 
+          position: 'relative', 
+          width: '100%', 
+          height: '100%', 
+          display: 'flex', 
+          justifyContent: 'center',
+          overflow: 'hidden',
+          cursor: zoomLevel > 1 ? 'grab' : 'default'
+        }}
+        onWheel={handleWheel}
+      >
         {pageImages[pageId] ? (
           <>
             <img
               ref={pageId === currentPage ? imageRef : null}
               src={pageImages[pageId]}
               alt={`Page ${pageId}`}
-              style={{ maxWidth: '100%', maxHeight: 'calc(100vh - 200px)', objectFit: 'contain' }}
+              style={{ 
+                maxWidth: zoomLevel === 1 ? '100%' : 'none',
+                maxHeight: zoomLevel === 1 ? 'calc(100vh - 200px)' : 'none',
+                objectFit: 'contain',
+                transform: `scale(${zoomLevel}) translate(${panOffset.x / zoomLevel}px, ${panOffset.y / zoomLevel}px)`,
+                transformOrigin: 'center center',
+                transition: 'transform 0.1s ease-out'
+              }}
               onError={(e) => {
                 logger.error(`Error loading image for page ${pageId}:`, e);
                 // Fallback image for error state
@@ -608,6 +672,8 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
                 page={currentPage} 
                 currentPage={currentPage}
                 imageRef={imageRef}
+                zoomLevel={zoomLevel}
+                panOffset={panOffset}
               />
             )}
           </>
@@ -685,6 +751,8 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
               if (carouselItems.length > 0) {
                 return (
                   <Box style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+
+
                     {/* Display current page */}
                     {carouselItems.find((item) => item.id === currentPage)?.content}
 
@@ -728,19 +796,162 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
                       />
                     </Box>
 
-                    {/* Page indicator */}
+                    {/* Page indicator and Controls */}
                     <Box
                       style={{
                         position: 'absolute',
                         bottom: '10px',
                         width: '100%',
-                        textAlign: 'center',
-                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px'
                       }}
                     >
-                      Page {pageIds.indexOf(currentPage) + 1} of {pageIds.length}
+                      {/* Page indicator */}
+                      <Box
+                        style={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        Page {pageIds.indexOf(currentPage) + 1} of {pageIds.length}
+                      </Box>
+                      
+                      {/* Zoom and Pan Controls */}
+                      <Box
+                        style={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          boxShadow: '0 1px 4px rgba(0, 0, 0, 0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        <span style={{ fontWeight: 'bold' }}>Zoom:</span>
+                        <span
+                          onClick={handleZoomOut}
+                          onKeyDown={(e) => e.key === 'Enter' && handleZoomOut()}
+                          role="button"
+                          tabIndex={0}
+                          style={{
+                            cursor: zoomLevel <= 0.25 ? 'not-allowed' : 'pointer',
+                            opacity: zoomLevel <= 0.25 ? 0.5 : 1,
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            userSelect: 'none',
+                            padding: '2px 4px'
+                          }}
+                          title="Zoom Out"
+                        >
+                          −
+                        </span>
+                        <span style={{ fontSize: '12px', minWidth: '30px', textAlign: 'center' }}>
+                          {Math.round(zoomLevel * 100)}%
+                        </span>
+                        <span
+                          onClick={handleZoomIn}
+                          onKeyDown={(e) => e.key === 'Enter' && handleZoomIn()}
+                          role="button"
+                          tabIndex={0}
+                          style={{
+                            cursor: zoomLevel >= 4 ? 'not-allowed' : 'pointer',
+                            opacity: zoomLevel >= 4 ? 0.5 : 1,
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            userSelect: 'none',
+                            padding: '2px 4px'
+                          }}
+                          title="Zoom In"
+                        >
+                          +
+                        </span>
+                        <span style={{ fontWeight: 'bold', marginLeft: '4px' }}>Pan:</span>
+                        <span
+                          onClick={handlePanLeft}
+                          onKeyDown={(e) => e.key === 'Enter' && handlePanLeft()}
+                          role="button"
+                          tabIndex={0}
+                          style={{
+                            cursor: zoomLevel <= 1 ? 'not-allowed' : 'pointer',
+                            opacity: zoomLevel <= 1 ? 0.5 : 1,
+                            fontSize: '14px',
+                            userSelect: 'none',
+                            padding: '2px 3px'
+                          }}
+                          title="Pan Left"
+                        >
+                          ←
+                        </span>
+                        <span
+                          onClick={handlePanRight}
+                          onKeyDown={(e) => e.key === 'Enter' && handlePanRight()}
+                          role="button"
+                          tabIndex={0}
+                          style={{
+                            cursor: zoomLevel <= 1 ? 'not-allowed' : 'pointer',
+                            opacity: zoomLevel <= 1 ? 0.5 : 1,
+                            fontSize: '14px',
+                            userSelect: 'none',
+                            padding: '2px 3px'
+                          }}
+                          title="Pan Right"
+                        >
+                          →
+                        </span>
+                        <span
+                          onClick={handlePanUp}
+                          onKeyDown={(e) => e.key === 'Enter' && handlePanUp()}
+                          role="button"
+                          tabIndex={0}
+                          style={{
+                            cursor: zoomLevel <= 1 ? 'not-allowed' : 'pointer',
+                            opacity: zoomLevel <= 1 ? 0.5 : 1,
+                            fontSize: '14px',
+                            userSelect: 'none',
+                            padding: '2px 3px'
+                          }}
+                          title="Pan Up"
+                        >
+                          ↑
+                        </span>
+                        <span
+                          onClick={handlePanDown}
+                          onKeyDown={(e) => e.key === 'Enter' && handlePanDown()}
+                          role="button"
+                          tabIndex={0}
+                          style={{
+                            cursor: zoomLevel <= 1 ? 'not-allowed' : 'pointer',
+                            opacity: zoomLevel <= 1 ? 0.5 : 1,
+                            fontSize: '14px',
+                            userSelect: 'none',
+                            padding: '2px 3px'
+                          }}
+                          title="Pan Down"
+                        >
+                          ↓
+                        </span>
+                        <span
+                          onClick={handleResetView}
+                          onKeyDown={(e) => e.key === 'Enter' && handleResetView()}
+                          role="button"
+                          tabIndex={0}
+                          style={{
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            userSelect: 'none',
+                            padding: '2px 3px',
+                            marginLeft: '2px'
+                          }}
+                          title="Reset View"
+                        >
+                          ⟲
+                        </span>
+                      </Box>
                     </Box>
                   </Box>
                 );
