@@ -243,6 +243,7 @@ const FormFieldRenderer = ({
   confidence,
   geometry,
   onFieldFocus,
+  onFieldDoubleClick,
   path = [],
   explainabilityInfo = null,
 }) => {
@@ -304,12 +305,43 @@ const FormFieldRenderer = ({
     console.log('=== END FIELD CLICK ===');
   };
 
+  // Handle field double-click
+  const handleDoubleClick = (event) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    console.log('=== FIELD DOUBLE-CLICKED ===');
+    console.log('Field Key:', fieldKey);
+    console.log('Geometry Passed:', geometry);
+    
+    let actualGeometry = geometry;
+    
+    // Try to extract geometry from explainabilityInfo if not provided
+    if (!actualGeometry && explainabilityInfo && Array.isArray(explainabilityInfo) && explainabilityInfo[0]) {
+      const [firstExplainabilityItem] = explainabilityInfo;
+      const fieldInfo = firstExplainabilityItem[fieldKey];
+      
+      if (fieldInfo && fieldInfo.geometry && Array.isArray(fieldInfo.geometry) && fieldInfo.geometry[0]) {
+        actualGeometry = fieldInfo.geometry[0];
+      }
+    }
+    
+    if (actualGeometry && onFieldDoubleClick) {
+      console.log('Calling onFieldDoubleClick with geometry:', actualGeometry);
+      onFieldDoubleClick(actualGeometry);
+    } else {
+      console.log('No geometry found for field double-click:', fieldKey);
+    }
+    console.log('=== END FIELD DOUBLE-CLICK ===');
+  };
+
   // Render based on field type
   switch (fieldType) {
     case 'string':
       return (
         <div
           onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
           onKeyDown={(e) => e.key === 'Enter' && handleClick(e)}
           role="button"
           tabIndex={0}
@@ -328,34 +360,62 @@ const FormFieldRenderer = ({
 
     case 'number':
       return (
-        <FormField label={label}>
-          <Input
-            type="number"
-            value={String(value)}
-            disabled={isReadOnly}
-            onChange={({ detail }) => {
-              if (!isReadOnly) {
-                const numValue = Number(detail.value);
-                onChange(Number.isNaN(numValue) ? 0 : numValue);
-              }
-            }}
-            onFocus={handleFocus}
-          />
-        </FormField>
+        <div
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleClick(e);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          style={{ cursor: geometry ? 'pointer' : 'default' }}
+        >
+          <FormField label={label}>
+            <Input
+              type="number"
+              value={String(value)}
+              disabled={isReadOnly}
+              onChange={({ detail }) => {
+                if (!isReadOnly) {
+                  const numValue = Number(detail.value);
+                  onChange(Number.isNaN(numValue) ? 0 : numValue);
+                }
+              }}
+              onFocus={handleFocus}
+            />
+          </FormField>
+        </div>
       );
 
     case 'boolean':
       return (
-        <FormField label={label}>
-          <Checkbox
-            checked={Boolean(value)}
-            disabled={isReadOnly}
-            onChange={({ detail }) => !isReadOnly && onChange(detail.checked)}
-            onFocus={handleFocus}
-          >
-            {String(value)}
-          </Checkbox>
-        </FormField>
+        <div
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleClick(e);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          style={{ cursor: geometry ? 'pointer' : 'default' }}
+        >
+          <FormField label={label}>
+            <Checkbox
+              checked={Boolean(value)}
+              disabled={isReadOnly}
+              onChange={({ detail }) => !isReadOnly && onChange(detail.checked)}
+              onFocus={handleFocus}
+            >
+              {String(value)}
+            </Checkbox>
+          </FormField>
+        </div>
       );
 
     case 'object':
@@ -443,6 +503,7 @@ const FormFieldRenderer = ({
                     confidence={fieldConfidence}
                     geometry={fieldGeometry}
                     onFieldFocus={onFieldFocus}
+                    onFieldDoubleClick={onFieldDoubleClick}
                     path={[...path, key]}
                     explainabilityInfo={explainabilityInfo}
                   />
@@ -479,6 +540,7 @@ const FormFieldRenderer = ({
                     }}
                     isReadOnly={isReadOnly}
                     onFieldFocus={onFieldFocus}
+                    onFieldDoubleClick={onFieldDoubleClick}
                     path={[...path, index]}
                   />
                 );
@@ -490,14 +552,28 @@ const FormFieldRenderer = ({
 
     default:
       return (
-        <FormField label={label}>
-          <Input
-            value={String(value)}
-            disabled={isReadOnly}
-            onChange={({ detail }) => !isReadOnly && onChange(detail.value)}
-            onFocus={handleFocus}
-          />
-        </FormField>
+        <div
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleClick(e);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          style={{ cursor: geometry ? 'pointer' : 'default' }}
+        >
+          <FormField label={label}>
+            <Input
+              value={String(value)}
+              disabled={isReadOnly}
+              onChange={({ detail }) => !isReadOnly && onChange(detail.value)}
+              onFocus={handleFocus}
+            />
+          </FormField>
+        </div>
       );
   }
 };
@@ -707,6 +783,105 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
       }
     } else {
       setActiveFieldGeometry(null);
+    }
+  };
+
+  // Handle field double-click - zoom to 200% and center on field
+  const handleFieldDoubleClick = (geometry) => {
+    console.log('VisualEditorModal - handleFieldDoubleClick called with geometry:', geometry);
+    
+    if (geometry && imageRef.current && imageContainerRef.current) {
+      // First switch to the correct page if needed
+      if (geometry.page !== undefined && pageIds.length > 0) {
+        const pageIndex = geometry.page - 1;
+        if (pageIndex >= 0 && pageIndex < pageIds.length) {
+          const targetPageId = pageIds[pageIndex];
+          if (targetPageId !== currentPage) {
+            setCurrentPage(targetPageId);
+          }
+        }
+      }
+
+      // Set zoom to 200%
+      const targetZoom = 2.0;
+      setZoomLevel(targetZoom);
+      
+      // Calculate pan offset to center the field
+      setTimeout(() => {
+        if (imageRef.current && imageContainerRef.current) {
+          const img = imageRef.current;
+          const container = imageContainerRef.current;
+          
+          // Get image and container dimensions
+          const imgRect = img.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          
+          const imageWidth = img.width || img.naturalWidth;
+          const imageHeight = img.height || img.naturalHeight;
+          const offsetX = imgRect.left - containerRect.left;
+          const offsetY = imgRect.top - containerRect.top;
+          
+          // Get bounding box coordinates
+          let bbox;
+          if (geometry.boundingBox) {
+            bbox = geometry.boundingBox;
+          } else if (geometry.vertices) {
+            const xs = geometry.vertices.map((v) => v.x || v.X || 0);
+            const ys = geometry.vertices.map((v) => v.y || v.Y || 0);
+            bbox = {
+              left: Math.min(...xs),
+              top: Math.min(...ys),
+              width: Math.max(...xs) - Math.min(...xs),
+              height: Math.max(...ys) - Math.min(...ys)
+            };
+          }
+          
+          if (bbox) {
+            const left = bbox.left || bbox.Left || 0;
+            const top = bbox.top || bbox.Top || 0;
+            const width = bbox.width || bbox.Width || 0;
+            const height = bbox.height || bbox.Height || 0;
+            
+            // Calculate field center in image coordinates
+            const fieldCenterX = (left + width / 2) * imageWidth + offsetX;
+            const fieldCenterY = (top + height / 2) * imageHeight + offsetY;
+            
+            // Calculate viewport center
+            const viewportCenterX = containerRect.width / 2;
+            const viewportCenterY = containerRect.height / 2;
+            
+            // Calculate image center
+            const imageCenterX = offsetX + imageWidth / 2;
+            const imageCenterY = offsetY + imageHeight / 2;
+            
+            // Calculate relative position of field center from image center
+            const relativeX = fieldCenterX - imageCenterX;
+            const relativeY = fieldCenterY - imageCenterY;
+            
+            // At 200% zoom, calculate where the field center will be
+            const scaledRelativeX = relativeX * targetZoom;
+            const scaledRelativeY = relativeY * targetZoom;
+            
+            // Calculate required pan offset to center the field in viewport
+            const requiredPanX = viewportCenterX - (imageCenterX + scaledRelativeX);
+            const requiredPanY = viewportCenterY - (imageCenterY + scaledRelativeY);
+            
+            console.log('VisualEditorModal - Auto-centering calculation:', {
+              fieldCenterX, fieldCenterY,
+              viewportCenterX, viewportCenterY,
+              imageCenterX, imageCenterY,
+              relativeX, relativeY,
+              scaledRelativeX, scaledRelativeY,
+              requiredPanX, requiredPanY
+            });
+            
+            setPanOffset({ x: requiredPanX, y: requiredPanY });
+          }
+        }
+      }, 100); // Small delay to allow zoom to take effect
+      
+      // Also set the active geometry for bounding box display
+      setActiveFieldGeometry(geometry);
     }
   };
 
@@ -1118,6 +1293,7 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
                     }}
                     isReadOnly={isReadOnly}
                     onFieldFocus={handleFieldFocus}
+                    onFieldDoubleClick={handleFieldDoubleClick}
                     explainabilityInfo={jsonData?.explainability_info}
                   />
                 ) : (
