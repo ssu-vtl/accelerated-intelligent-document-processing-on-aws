@@ -73,10 +73,22 @@ To quickly deploy the GenAI-IDP solution in your AWS account:
 
 | Region name           | Region code | Launch                                                                                                                                                                                                                                                                                                                                                                      |
 | --------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| US West (Oregon)      | us-west-2   | [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.us-west-2.amazonaws.com/bobs-artifacts-us-west-2/genaiidp-preview-latest/idp-main.yaml&stackName=IDP) |
+| US West (Oregon)      | us-west-2   | [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.us-west-2.amazonaws.com/aws-ml-blog-us-west-2/artifacts/genai-idp/idp-main.yaml&stackName=IDP) |
 
 3. When the stack deploys for the first time, you'll receive an email with a temporary password to access the web UI
 4. Use this temporary password for your first login to set up a permanent password
+
+### Updating an Existing Deployment
+
+To update an existing GenAIIDP stack to a new version:
+
+1. Navigate to CloudFormation in the AWS Management Console
+2. Select your existing stack
+3. Click "Update"
+4. Select "Replace current template"
+5. Enter the template URL: `https://s3.us-west-2.amazonaws.com/aws-ml-blog-us-west-2/artifacts/genai-idp/idp-main.yaml`
+6. Follow the prompts to update your stack, reviewing any parameter changes
+7. For detailed instructions, see the [Deployment Guide](./docs/deployment.md#updating-an-existing-stack)
 
 For testing, use these sample files:
 - Pattern-1 BDA default project: `samples/lending_package.pdf`
