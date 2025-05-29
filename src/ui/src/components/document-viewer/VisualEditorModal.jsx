@@ -272,7 +272,8 @@ const FormFieldRenderer = ({
     }
     console.log('=== FIELD CLICKED ===');
     console.log('Field Key:', fieldKey);
-    console.log('Full Path:', `${path.join('.')}${path.length > 0 ? '.' : ''}${fieldKey}`);
+    const fullPath = `${path.join('.')}${path.length > 0 ? '.' : ''}${fieldKey}`;
+    console.log('Full Path:', fullPath);
     console.log('Field Value:', value);
     console.log('Geometry Passed:', geometry);
     console.log('Explainability Info Available:', !!explainabilityInfo);
@@ -283,8 +284,49 @@ const FormFieldRenderer = ({
     if (!actualGeometry && explainabilityInfo && Array.isArray(explainabilityInfo) && explainabilityInfo[0]) {
       const [firstExplainabilityItem] = explainabilityInfo;
       console.log('Explainability Info Object:', firstExplainabilityItem);
-      const fieldInfo = firstExplainabilityItem[fieldKey];
+      
+      // Try direct field lookup first
+      let fieldInfo = firstExplainabilityItem[fieldKey];
       console.log(`Field Info from explainabilityInfo[0][${fieldKey}]:`, fieldInfo);
+      
+      // If not found directly, try to navigate the full path
+      if (!fieldInfo) {
+        console.log('Trying to navigate full path in explainabilityInfo:', fullPath);
+        const fullPathParts = [...path, fieldKey];
+        let pathFieldInfo = firstExplainabilityItem;
+        
+        fullPathParts.forEach((pathPart, index) => {
+          console.log(`Navigating path part ${index}: ${pathPart}`);
+          console.log('Current pathFieldInfo:', pathFieldInfo);
+          
+          if (pathFieldInfo && typeof pathFieldInfo === 'object') {
+            if (Array.isArray(pathFieldInfo) && !Number.isNaN(parseInt(pathPart, 10))) {
+              // Handle array index
+              const arrayIndex = parseInt(pathPart, 10);
+              if (arrayIndex >= 0 && arrayIndex < pathFieldInfo.length) {
+                pathFieldInfo = pathFieldInfo[arrayIndex];
+                console.log(`Found array item at index ${arrayIndex}:`, pathFieldInfo);
+              } else {
+                console.log(`Array index ${arrayIndex} out of bounds`);
+                pathFieldInfo = null;
+              }
+            } else if (pathFieldInfo[pathPart]) {
+              // Handle object property
+              pathFieldInfo = pathFieldInfo[pathPart];
+              console.log(`Found object property ${pathPart}:`, pathFieldInfo);
+            } else {
+              console.log(`Property ${pathPart} not found in object`);
+              pathFieldInfo = null;
+            }
+          } else {
+            console.log(`Cannot navigate further - pathFieldInfo is not an object`);
+            pathFieldInfo = null;
+          }
+        });
+        
+        fieldInfo = pathFieldInfo;
+        console.log('Final fieldInfo from path navigation:', fieldInfo);
+      }
       
       if (fieldInfo && fieldInfo.geometry && Array.isArray(fieldInfo.geometry) && fieldInfo.geometry[0]) {
         actualGeometry = fieldInfo.geometry[0];
@@ -526,6 +568,47 @@ const FormFieldRenderer = ({
                 // Create a unique key for each array item
                 const itemKey = `${path.join('.')}.${index}:${JSON.stringify(item).substring(0, 20)}`;
 
+                // Extract confidence and geometry for array items
+                let itemConfidence;
+                let itemGeometry;
+                
+                // Try to get from explainability_info if available
+                if (explainabilityInfo && Array.isArray(explainabilityInfo)) {
+                  const [firstExplainabilityItem] = explainabilityInfo;
+                  
+                  // Handle nested structure - navigate to the array field first
+                  let arrayFieldInfo = firstExplainabilityItem;
+                  path.forEach((pathPart) => {
+                    if (arrayFieldInfo && typeof arrayFieldInfo === 'object' && arrayFieldInfo[pathPart]) {
+                      arrayFieldInfo = arrayFieldInfo[pathPart];
+                    } else {
+                      arrayFieldInfo = null;
+                    }
+                  });
+                  
+                  // For arrays, the explainability info structure can be:
+                  // 1. An array where each element has confidence/geometry (e.g., ENDORSEMENTS, RESTRICTIONS)
+                  // 2. An object with nested structure
+                  if (arrayFieldInfo && Array.isArray(arrayFieldInfo) && arrayFieldInfo[index]) {
+                    const itemInfo = arrayFieldInfo[index];
+                    if (itemInfo) {
+                      itemConfidence = itemInfo.confidence;
+                      
+                      // Extract geometry
+                      if (itemInfo.geometry && Array.isArray(itemInfo.geometry) && itemInfo.geometry.length > 0) {
+                        const geomData = itemInfo.geometry[0];
+                        if (geomData.boundingBox && geomData.page !== undefined) {
+                          itemGeometry = {
+                            boundingBox: geomData.boundingBox,
+                            page: geomData.page,
+                            vertices: geomData.vertices
+                          };
+                        }
+                      }
+                    }
+                  }
+                }
+
                 return (
                   <FormFieldRenderer
                     key={itemKey}
@@ -539,9 +622,12 @@ const FormFieldRenderer = ({
                       }
                     }}
                     isReadOnly={isReadOnly}
+                    confidence={itemConfidence}
+                    geometry={itemGeometry}
                     onFieldFocus={onFieldFocus}
                     onFieldDoubleClick={onFieldDoubleClick}
                     path={[...path, index]}
+                    explainabilityInfo={explainabilityInfo}
                   />
                 );
               })}
