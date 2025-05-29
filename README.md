@@ -53,6 +53,11 @@ Current patterns include:
 - [Pattern 3: Textract + UDOP + Bedrock](./docs/pattern-3.md) - OCR with Textract, UDOP Classification, and Bedrock extraction
 - [Few-Shot Examples](./docs/few-shot-examples.md) - Implementing few-shot examples for improved accuracy
 
+### Python Development
+
+- [Using Notebooks with IDP Common Library](./docs/using-notebooks-with-idp-common.md) - Guide for using and creating Jupyter notebooks to experiment with the IDP Common Library
+- [IDP Common Package](./lib/idp_common_pkg/README.md) - Documentation for the core library powering the accelerator
+
 ### Planning & Operations
 
 - [Well-Architected Framework Assessment](./docs/well-architected.md) - Analysis based on AWS Well-Architected Framework
