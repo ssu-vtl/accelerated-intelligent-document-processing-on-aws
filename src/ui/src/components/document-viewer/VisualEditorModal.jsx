@@ -693,9 +693,15 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
     logger.debug('VisualEditorModal - pages from sectionData:', sectionData?.pages);
   }, [sectionData, pageIds]);
 
-  // Load page images
+  // Load page images - only when modal opens or when core data changes
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      // Reset state when modal closes
+      setPageImages({});
+      setCurrentPage(null);
+      setActiveFieldGeometry(null);
+      return;
+    }
 
     const loadImages = async () => {
       if (!pageIds || pageIds.length === 0) {
@@ -707,10 +713,9 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
 
       try {
         const documentPages = sectionData?.documentItem?.pages || [];
-        logger.debug('VisualEditorModal - document pages:', documentPages);
-        logger.debug('VisualEditorModal - sectionData:', sectionData);
-        logger.debug('VisualEditorModal - documentItem:', sectionData?.documentItem);
-        logger.debug('VisualEditorModal - pageIds:', pageIds);
+        if (isDevelopment) {
+          logger.debug('VisualEditorModal - Loading images for pageIds:', pageIds);
+        }
 
         const images = {};
 
@@ -718,33 +723,28 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
           pageIds.map(async (pageId) => {
             // Find the page in the document's pages array by matching the Id
             const page = documentPages.find((p) => p.Id === pageId);
-            logger.debug(`VisualEditorModal - page for ID ${pageId}:`, page);
 
             if (page?.ImageUri) {
               try {
-                logger.debug(`VisualEditorModal - generating presigned URL for ${page.ImageUri}`);
+                if (isDevelopment) {
+                  logger.debug(`VisualEditorModal - generating presigned URL for page ${pageId}`);
+                }
                 const url = await generateS3PresignedUrl(page.ImageUri, currentCredentials);
-                logger.debug(`VisualEditorModal - presigned URL generated:`, url);
                 images[pageId] = url;
               } catch (err) {
                 logger.error(`Error generating presigned URL for page ${pageId}:`, err);
               }
             } else {
-              logger.warn(`VisualEditorModal - no ImageUri found for page ${pageId}`);
-
-              // Try multiple fallback strategies in sequence
+              // Try fallback strategies
               let imageFound = false;
 
               // 1. Try to find the page in the pages array by index if pageId is a number
               const numericPageId = parseInt(pageId, 10);
               if (!imageFound && !Number.isNaN(numericPageId) && documentPages.length > numericPageId) {
                 const pageByIndex = documentPages[numericPageId];
-                logger.debug(`VisualEditorModal - trying page by numeric index ${numericPageId}:`, pageByIndex);
                 if (pageByIndex?.ImageUri) {
                   try {
-                    logger.debug(`VisualEditorModal - generating presigned URL for ${pageByIndex.ImageUri}`);
                     const url = await generateS3PresignedUrl(pageByIndex.ImageUri, currentCredentials);
-                    logger.debug(`VisualEditorModal - presigned URL generated:`, url);
                     images[pageId] = url;
                     imageFound = true;
                   } catch (err) {
@@ -758,12 +758,9 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
                 const positionIndex = pageIds.indexOf(pageId);
                 if (positionIndex !== -1 && documentPages.length > positionIndex) {
                   const pageByPosition = documentPages[positionIndex];
-                  logger.debug(`VisualEditorModal - trying page by position index ${positionIndex}:`, pageByPosition);
                   if (pageByPosition?.ImageUri) {
                     try {
-                      logger.debug(`VisualEditorModal - generating presigned URL for ${pageByPosition.ImageUri}`);
                       const url = await generateS3PresignedUrl(pageByPosition.ImageUri, currentCredentials);
-                      logger.debug(`VisualEditorModal - presigned URL generated:`, url);
                       images[pageId] = url;
                       imageFound = true;
                     } catch (err) {
@@ -775,15 +772,10 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
 
               // 3. Last resort: try to find any page with an ImageUri
               if (!imageFound && documentPages.length > 0) {
-                logger.debug(`VisualEditorModal - trying to find any page with ImageUri as last resort`);
-
-                // Find the first page with an ImageUri
                 const pageWithImage = documentPages.find((docPage) => docPage?.ImageUri);
                 if (pageWithImage?.ImageUri) {
                   try {
-                    logger.debug(`VisualEditorModal - generating presigned URL for ${pageWithImage.ImageUri}`);
                     const url = await generateS3PresignedUrl(pageWithImage.ImageUri, currentCredentials);
-                    logger.debug(`VisualEditorModal - presigned URL generated:`, url);
                     images[pageId] = url;
                   } catch (err) {
                     logger.error(`Error generating presigned URL for fallback page:`, err);
@@ -794,7 +786,9 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
           }),
         );
 
-        logger.debug('VisualEditorModal - images loaded:', images);
+        if (isDevelopment) {
+          logger.debug('VisualEditorModal - Successfully loaded images for', Object.keys(images).length, 'pages');
+        }
         setPageImages(images);
 
         // Set the first page as current if not already set
@@ -809,7 +803,8 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
     };
 
     loadImages();
-  }, [pageIds, sectionData, currentCredentials, currentPage, visible]);
+    // Only reload images when modal opens or when pageIds/sectionData changes, not when switching pages
+  }, [visible, pageIds, sectionData?.documentItem?.pages, currentCredentials]);
 
   // Zoom controls
   const handleZoomIn = () => {
