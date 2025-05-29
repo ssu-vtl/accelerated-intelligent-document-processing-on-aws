@@ -232,6 +232,78 @@ response = invoke_model(
 )
 ```
 
+## Generation Parameter Configuration
+
+The Bedrock client supports key generation parameters that control the output behavior of foundation models. Understanding these parameters is crucial for optimizing model performance for different document processing tasks.
+
+### Understanding Generation Parameters
+
+#### Temperature
+
+Temperature controls the randomness of model outputs by scaling the probability distribution of next tokens:
+
+- **Low temperature (0.0-0.3)**: More deterministic, focused outputs ideal for factual extraction
+- **Medium temperature (0.4-0.7)**: Balanced outputs with some creativity
+- **High temperature (0.8-1.0)**: More diverse and creative outputs
+
+#### Top-p (Nucleus Sampling)
+
+Top-p (nucleus sampling) computes the cumulative distribution over all token options in decreasing probability order and cuts it off once it reaches the specified probability threshold:
+
+- Lower values (0.1-0.5): More focused on high-probability tokens
+- Higher values (0.6-1.0): Includes more diversity in possible tokens
+
+**Important**: Anthropic recommends adjusting either temperature OR top-p, but not both simultaneously, as this can lead to unpredictable generation behavior.
+
+#### Top-k
+
+Top-k limits the selection to only the k highest probability tokens before temperature/top-p logic runs:
+
+- Lower values (5-20): Narrows token selection for more predictable outputs
+- Higher values (50-200): Allows for more diverse language
+
+### Parameter Implementation by Model Family
+
+Different Bedrock models implement these parameters with varying defaults, naming conventions, and parameter placements:
+
+- **Claude models**:
+  - Default values: temperature=1.0, top_p=0.999, top_k=250 (wide open)
+  - Parameters use snake_case: `temperature`, `top_p`, `top_k`
+  - Implementation: `top_k` is placed in `additionalModelRequestFields`
+
+- **Nova models**:
+  - Default values: temperature=0.7, topP=0.9, topK≈50 (moderately constrained)
+  - Parameters use camelCase: `temperature`, `topP`, `topK`
+  - Implementation: `topK` is placed in `additionalModelRequestFields.inferenceConfig`
+
+**Common implementation details**:
+- Temperature is always included in the main `inferenceConfig`
+- top_p is added to `inferenceConfig` as "topP"
+
+### Task-Specific Best Practices
+
+For document understanding tasks, we recommend the following parameter settings:
+
+1. **Key Information Extraction**:
+   - Temperature: 0.0 (deterministic)
+   - Top-p: 0.1 (focused on highest probability tokens)
+   - Top-k: 5 (restrict to most likely tokens)
+   - Rationale: Maximizes precision and consistency for structured data extraction
+
+2. **Classification**:
+   - Temperature: 0.0 (deterministic)
+   - Top-p: 0.1 (focused)
+   - Top-k: 5 (restricted)
+   - Rationale: Ensures consistent classification decisions with minimum variance
+
+3. **Summarization**:
+   - Temperature: 0.0 (deterministic)
+   - Top-p: 0.1 (focused but allows some flexibility)
+   - Top-k: 5 (moderately restricted)
+   - Rationale: Balances factual accuracy with coherent narrative flow
+
+Remember: As Anthropic recommends, adjust either temperature OR top-p, but not both simultaneously. For document processing tasks that require high accuracy and consistency, we've found that using a temperature of 0.0 with a low top-p value (0.1) provides the most reliable results.
+
 ## Resilience Features
 
 The BedrockClient automatically handles common failure scenarios:
