@@ -75,7 +75,7 @@ const BoundingBox = ({ box, page, currentPage, imageRef, zoomLevel = 1, panOffse
     return null;
   }
 
-  // Calculate position based on image dimensions with offset correction
+  // Calculate position based on image dimensions with proper zoom and pan handling
   let style = {};
 
   if (box.boundingBox) {
@@ -90,15 +90,44 @@ const BoundingBox = ({ box, page, currentPage, imageRef, zoomLevel = 1, panOffse
     const offsetX = dimensions.offsetX || 0;
     const offsetY = dimensions.offsetY || 0;
     
+    // Calculate base position and size relative to image
+    const baseLeft = left * dimensions.width + offsetX;
+    const baseTop = top * dimensions.height + offsetY;
+    const baseWidth = width * dimensions.width;
+    const baseHeight = height * dimensions.height;
+    
+    // Calculate the center of the image for transform origin reference
+    const imageCenterX = offsetX + dimensions.width / 2;
+    const imageCenterY = offsetY + dimensions.height / 2;
+    
+    // Calculate bounding box center relative to image center
+    const boxCenterX = baseLeft + baseWidth / 2;
+    const boxCenterY = baseTop + baseHeight / 2;
+    const relativeX = boxCenterX - imageCenterX;
+    const relativeY = boxCenterY - imageCenterY;
+    
+    // Apply zoom transformation to the relative position
+    const scaledRelativeX = relativeX * zoomLevel;
+    const scaledRelativeY = relativeY * zoomLevel;
+    
+    // Calculate final position after zoom and pan
+    const finalCenterX = imageCenterX + scaledRelativeX + panOffset.x;
+    const finalCenterY = imageCenterY + scaledRelativeY + panOffset.y;
+    
+    // Calculate final bounding box position (top-left corner)
+    const finalLeft = finalCenterX - (baseWidth * zoomLevel) / 2;
+    const finalTop = finalCenterY - (baseHeight * zoomLevel) / 2;
+    
     style = {
       position: 'absolute',
-      left: `${(left * dimensions.width + offsetX) * zoomLevel + panOffset.x}px`,
-      top: `${(top * dimensions.height + offsetY) * zoomLevel + panOffset.y}px`,
-      width: `${width * dimensions.width * zoomLevel}px`,
-      height: `${height * dimensions.height * zoomLevel}px`,
+      left: `${finalLeft}px`,
+      top: `${finalTop}px`,
+      width: `${baseWidth * zoomLevel}px`,
+      height: `${baseHeight * zoomLevel}px`,
       border: '2px solid red',
       pointerEvents: 'none',
       zIndex: 10,
+      transition: 'all 0.1s ease-out'
     };
     
     console.log('VisualEditorModal - BoundingBox style calculated:', {
@@ -106,8 +135,22 @@ const BoundingBox = ({ box, page, currentPage, imageRef, zoomLevel = 1, panOffse
       dimensions,
       offsetX,
       offsetY,
-      finalLeft: left * dimensions.width + offsetX,
-      finalTop: top * dimensions.height + offsetY,
+      zoomLevel,
+      panOffset,
+      baseLeft,
+      baseTop,
+      imageCenterX,
+      imageCenterY,
+      boxCenterX,
+      boxCenterY,
+      relativeX,
+      relativeY,
+      scaledRelativeX,
+      scaledRelativeY,
+      finalCenterX,
+      finalCenterY,
+      finalLeft,
+      finalTop,
       style
     });
   } else if (box.vertices) {
@@ -123,15 +166,44 @@ const BoundingBox = ({ box, page, currentPage, imageRef, zoomLevel = 1, panOffse
     const offsetX = dimensions.offsetX || 0;
     const offsetY = dimensions.offsetY || 0;
 
+    // Calculate base position and size relative to image
+    const baseLeft = minX * dimensions.width + offsetX;
+    const baseTop = minY * dimensions.height + offsetY;
+    const baseWidth = (maxX - minX) * dimensions.width;
+    const baseHeight = (maxY - minY) * dimensions.height;
+    
+    // Calculate the center of the image for transform origin reference
+    const imageCenterX = offsetX + dimensions.width / 2;
+    const imageCenterY = offsetY + dimensions.height / 2;
+    
+    // Calculate bounding box center relative to image center
+    const boxCenterX = baseLeft + baseWidth / 2;
+    const boxCenterY = baseTop + baseHeight / 2;
+    const relativeX = boxCenterX - imageCenterX;
+    const relativeY = boxCenterY - imageCenterY;
+    
+    // Apply zoom transformation to the relative position
+    const scaledRelativeX = relativeX * zoomLevel;
+    const scaledRelativeY = relativeY * zoomLevel;
+    
+    // Calculate final position after zoom and pan
+    const finalCenterX = imageCenterX + scaledRelativeX + panOffset.x;
+    const finalCenterY = imageCenterY + scaledRelativeY + panOffset.y;
+    
+    // Calculate final bounding box position (top-left corner)
+    const finalLeft = finalCenterX - (baseWidth * zoomLevel) / 2;
+    const finalTop = finalCenterY - (baseHeight * zoomLevel) / 2;
+
     style = {
       position: 'absolute',
-      left: `${(minX * dimensions.width + offsetX) * zoomLevel + panOffset.x}px`,
-      top: `${(minY * dimensions.height + offsetY) * zoomLevel + panOffset.y}px`,
-      width: `${(maxX - minX) * dimensions.width * zoomLevel}px`,
-      height: `${(maxY - minY) * dimensions.height * zoomLevel}px`,
+      left: `${finalLeft}px`,
+      top: `${finalTop}px`,
+      width: `${baseWidth * zoomLevel}px`,
+      height: `${baseHeight * zoomLevel}px`,
       border: '2px solid red',
       pointerEvents: 'none',
       zIndex: 10,
+      transition: 'all 0.1s ease-out'
     };
     
     console.log('VisualEditorModal - BoundingBox style (vertices) calculated:', {
@@ -139,8 +211,22 @@ const BoundingBox = ({ box, page, currentPage, imageRef, zoomLevel = 1, panOffse
       dimensions,
       offsetX,
       offsetY,
-      finalLeft: minX * dimensions.width + offsetX,
-      finalTop: minY * dimensions.height + offsetY,
+      zoomLevel,
+      panOffset,
+      baseLeft,
+      baseTop,
+      imageCenterX,
+      imageCenterY,
+      boxCenterX,
+      boxCenterY,
+      relativeX,
+      relativeY,
+      scaledRelativeX,
+      scaledRelativeY,
+      finalCenterX,
+      finalCenterY,
+      finalLeft,
+      finalTop,
       style
     });
   }
