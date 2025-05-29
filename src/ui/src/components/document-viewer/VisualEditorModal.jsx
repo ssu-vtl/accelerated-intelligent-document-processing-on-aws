@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 /* eslint-disable prettier/prettier */
 /* eslint-disable prefer-destructuring */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import {
   Modal,
   Box,
@@ -19,9 +19,10 @@ import generateS3PresignedUrl from '../common/generate-s3-presigned-url';
 import useAppContext from '../../contexts/app';
 
 const logger = new Logger('VisualEditorModal');
+const isDevelopment = process.env.NODE_ENV === 'development';
 
-// Component to render a bounding box on an image
-const BoundingBox = ({ box, page, currentPage, imageRef, zoomLevel = 1, panOffset = { x: 0, y: 0 } }) => {
+// Memoized component to render a bounding box on an image
+const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, panOffset = { x: 0, y: 0 } }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -43,16 +44,18 @@ const BoundingBox = ({ box, page, currentPage, imageRef, zoomLevel = 1, panOffse
           offsetY,
         });
         
-        console.log('VisualEditorModal - BoundingBox dimensions updated:', {
-          imageWidth: img.width,
-          imageHeight: img.height,
-          naturalWidth: img.naturalWidth,
-          naturalHeight: img.naturalHeight,
-          offsetX: rect.left - containerRect.left,
-          offsetY: rect.top - containerRect.top,
-          imageRect: rect,
-          containerRect
-        });
+        if (isDevelopment) {
+          console.log('VisualEditorModal - BoundingBox dimensions updated:', {
+            imageWidth: img.width,
+            imageHeight: img.height,
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight,
+            offsetX: rect.left - containerRect.left,
+            offsetY: rect.top - containerRect.top,
+            imageRect: rect,
+            containerRect
+          });
+        }
       };
 
       // Update dimensions when image loads
@@ -130,29 +133,31 @@ const BoundingBox = ({ box, page, currentPage, imageRef, zoomLevel = 1, panOffse
       transition: 'all 0.1s ease-out'
     };
     
-    console.log('VisualEditorModal - BoundingBox style calculated:', {
-      bbox,
-      dimensions,
-      offsetX,
-      offsetY,
-      zoomLevel,
-      panOffset,
-      baseLeft,
-      baseTop,
-      imageCenterX,
-      imageCenterY,
-      boxCenterX,
-      boxCenterY,
-      relativeX,
-      relativeY,
-      scaledRelativeX,
-      scaledRelativeY,
-      finalCenterX,
-      finalCenterY,
-      finalLeft,
-      finalTop,
-      style
-    });
+    if (isDevelopment) {
+      console.log('VisualEditorModal - BoundingBox style calculated:', {
+        bbox,
+        dimensions,
+        offsetX,
+        offsetY,
+        zoomLevel,
+        panOffset,
+        baseLeft,
+        baseTop,
+        imageCenterX,
+        imageCenterY,
+        boxCenterX,
+        boxCenterY,
+        relativeX,
+        relativeY,
+        scaledRelativeX,
+        scaledRelativeY,
+        finalCenterX,
+        finalCenterY,
+        finalLeft,
+        finalTop,
+        style
+      });
+    }
   } else if (box.vertices) {
     // Format: array of {x, y} or {X, Y} points
     const xs = box.vertices.map((v) => v.x || v.X || 0);
@@ -206,33 +211,35 @@ const BoundingBox = ({ box, page, currentPage, imageRef, zoomLevel = 1, panOffse
       transition: 'all 0.1s ease-out'
     };
     
-    console.log('VisualEditorModal - BoundingBox style (vertices) calculated:', {
-      vertices: box.vertices,
-      dimensions,
-      offsetX,
-      offsetY,
-      zoomLevel,
-      panOffset,
-      baseLeft,
-      baseTop,
-      imageCenterX,
-      imageCenterY,
-      boxCenterX,
-      boxCenterY,
-      relativeX,
-      relativeY,
-      scaledRelativeX,
-      scaledRelativeY,
-      finalCenterX,
-      finalCenterY,
-      finalLeft,
-      finalTop,
-      style
-    });
+    if (isDevelopment) {
+      console.log('VisualEditorModal - BoundingBox style (vertices) calculated:', {
+        vertices: box.vertices,
+        dimensions,
+        offsetX,
+        offsetY,
+        zoomLevel,
+        panOffset,
+        baseLeft,
+        baseTop,
+        imageCenterX,
+        imageCenterY,
+        boxCenterX,
+        boxCenterY,
+        relativeX,
+        relativeY,
+        scaledRelativeX,
+        scaledRelativeY,
+        finalCenterX,
+        finalCenterY,
+        finalLeft,
+        finalTop,
+        style
+      });
+    }
   }
 
   return <div style={style} />;
-};
+});
 
 // Component to render a form field based on its type
 const FormFieldRenderer = ({
@@ -531,7 +538,7 @@ const FormFieldRenderer = ({
 
                 return (
                   <FormFieldRenderer
-                    key={`${path.join('.')}.${key}`}
+                    key={`obj-${fieldKey}-${path.join('.')}-${key}-${Date.now()}-${Math.random()}`}
                     fieldKey={key}
                     value={val}
                     onChange={(newVal) => {
@@ -565,8 +572,8 @@ const FormFieldRenderer = ({
           <Box padding={{ left: 'l' }}>
             <SpaceBetween size="xs">
               {value.map((item, index) => {
-                // Create a unique key for each array item
-                const itemKey = `${path.join('.')}.${index}:${JSON.stringify(item).substring(0, 20)}`;
+                // Create a unique key for each array item with timestamp and random component
+                const itemKey = `arr-${fieldKey}-${path.join('.')}-${index}-${Date.now()}-${Math.random()}`;
 
                 // Extract confidence and geometry for array items
                 let itemConfidence;
