@@ -19,7 +19,6 @@ import generateS3PresignedUrl from '../common/generate-s3-presigned-url';
 import useAppContext from '../../contexts/app';
 
 const logger = new Logger('VisualEditorModal');
-const isDevelopment = process.env.NODE_ENV === 'development';
 
 // Memoized component to render a bounding box on an image
 const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, panOffset = { x: 0, y: 0 } }) => {
@@ -108,82 +107,40 @@ const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, pan
   }
 
   // Calculate position based on image dimensions with proper zoom and pan handling
-  let style = {};
-
-  if (box.boundingBox) {
-    // Handle both uppercase and lowercase property names
-    const bbox = box.boundingBox;
-    const left = bbox.left || bbox.Left || 0;
-    const top = bbox.top || bbox.Top || 0;
-    const width = bbox.width || bbox.Width || 0;
-    const height = bbox.height || bbox.Height || 0;
-    
-    // Calculate position and size directly on the transformed image
-    const finalLeft = left * dimensions.transformedWidth + dimensions.transformedOffsetX;
-    const finalTop = top * dimensions.transformedHeight + dimensions.transformedOffsetY;
-    const finalWidth = width * dimensions.transformedWidth;
-    const finalHeight = height * dimensions.transformedHeight;
-    
-    // Position the bounding box directly without additional transforms
-    style = {
-      position: 'absolute',
-      left: `${finalLeft}px`,
-      top: `${finalTop}px`,
-      width: `${finalWidth}px`,
-      height: `${finalHeight}px`,
-      border: '2px solid red',
-      pointerEvents: 'none',
-      zIndex: 10,
-      transition: 'all 0.1s ease-out'
-    };
-    
-    logger.debug('VisualEditorModal - BoundingBox style calculated:', {
-      bbox,
-      dimensions,
-      finalLeft,
-      finalTop,
-      finalWidth,
-      finalHeight,
-      style
-    });
-  } else if (box.vertices) {
-    // Format: array of {x, y} or {X, Y} points
-    const xs = box.vertices.map((v) => v.x || v.X || 0);
-    const ys = box.vertices.map((v) => v.y || v.Y || 0);
-    const minX = Math.min(...xs);
-    const minY = Math.min(...ys);
-    const maxX = Math.max(...xs);
-    const maxY = Math.max(...ys);
-    
-    // Calculate position and size directly on the transformed image
-    const finalLeft = minX * dimensions.transformedWidth + dimensions.transformedOffsetX;
-    const finalTop = minY * dimensions.transformedHeight + dimensions.transformedOffsetY;
-    const finalWidth = (maxX - minX) * dimensions.transformedWidth;
-    const finalHeight = (maxY - minY) * dimensions.transformedHeight;
-
-    // Position the bounding box directly without additional transforms
-    style = {
-      position: 'absolute',
-      left: `${finalLeft}px`,
-      top: `${finalTop}px`,
-      width: `${finalWidth}px`,
-      height: `${finalHeight}px`,
-      border: '2px solid red',
-      pointerEvents: 'none',
-      zIndex: 10,
-      transition: 'all 0.1s ease-out'
-    };
-    
-    logger.debug('VisualEditorModal - BoundingBox style (vertices) calculated:', {
-      vertices: box.vertices,
-      dimensions,
-      finalLeft,
-      finalTop,
-      finalWidth,
-      finalHeight,
-      style
-    });
+  if (!box.boundingBox) {
+    return null;
   }
+
+  const bbox = box.boundingBox;
+  
+  // Calculate position and size directly on the transformed image
+  const finalLeft = bbox.left * dimensions.transformedWidth + dimensions.transformedOffsetX;
+  const finalTop = bbox.top * dimensions.transformedHeight + dimensions.transformedOffsetY;
+  const finalWidth = bbox.width * dimensions.transformedWidth;
+  const finalHeight = bbox.height * dimensions.transformedHeight;
+  
+  // Position the bounding box directly without additional transforms
+  const style = {
+    position: 'absolute',
+    left: `${finalLeft}px`,
+    top: `${finalTop}px`,
+    width: `${finalWidth}px`,
+    height: `${finalHeight}px`,
+    border: '2px solid red',
+    pointerEvents: 'none',
+    zIndex: 10,
+    transition: 'all 0.1s ease-out'
+  };
+  
+  logger.debug('VisualEditorModal - BoundingBox style calculated:', {
+    bbox,
+    dimensions,
+    finalLeft,
+    finalTop,
+    finalWidth,
+    finalHeight,
+    style
+  });
 
   return <div style={style} />;
 });
@@ -660,9 +617,7 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
 
       try {
         const documentPages = sectionData?.documentItem?.pages || [];
-        if (isDevelopment) {
-          logger.debug('VisualEditorModal - Loading images for pageIds:', pageIds);
-        }
+        logger.debug('VisualEditorModal - Loading images for pageIds:', pageIds);
 
         const images = {};
 
@@ -673,69 +628,18 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
 
             if (page?.ImageUri) {
               try {
-                if (isDevelopment) {
-                  logger.debug(`VisualEditorModal - generating presigned URL for page ${pageId}`);
-                }
+                logger.debug(`VisualEditorModal - generating presigned URL for page ${pageId}`);
                 const url = await generateS3PresignedUrl(page.ImageUri, currentCredentials);
                 images[pageId] = url;
               } catch (err) {
                 logger.error(`Error generating presigned URL for page ${pageId}:`, err);
               }
-            } else {
-              // Try fallback strategies
-              let imageFound = false;
-
-              // 1. Try to find the page in the pages array by index if pageId is a number
-              const numericPageId = parseInt(pageId, 10);
-              if (!imageFound && !Number.isNaN(numericPageId) && documentPages.length > numericPageId) {
-                const pageByIndex = documentPages[numericPageId];
-                if (pageByIndex?.ImageUri) {
-                  try {
-                    const url = await generateS3PresignedUrl(pageByIndex.ImageUri, currentCredentials);
-                    images[pageId] = url;
-                    imageFound = true;
-                  } catch (err) {
-                    logger.error(`Error generating presigned URL for page ${pageId}:`, err);
-                  }
-                }
-              }
-
-              // 2. Try to use the position of pageId in the pageIds array as an index
-              if (!imageFound) {
-                const positionIndex = pageIds.indexOf(pageId);
-                if (positionIndex !== -1 && documentPages.length > positionIndex) {
-                  const pageByPosition = documentPages[positionIndex];
-                  if (pageByPosition?.ImageUri) {
-                    try {
-                      const url = await generateS3PresignedUrl(pageByPosition.ImageUri, currentCredentials);
-                      images[pageId] = url;
-                      imageFound = true;
-                    } catch (err) {
-                      logger.error(`Error generating presigned URL for page ${pageId}:`, err);
-                    }
-                  }
-                }
-              }
-
-              // 3. Last resort: try to find any page with an ImageUri
-              if (!imageFound && documentPages.length > 0) {
-                const pageWithImage = documentPages.find((docPage) => docPage?.ImageUri);
-                if (pageWithImage?.ImageUri) {
-                  try {
-                    const url = await generateS3PresignedUrl(pageWithImage.ImageUri, currentCredentials);
-                    images[pageId] = url;
-                  } catch (err) {
-                    logger.error(`Error generating presigned URL for fallback page:`, err);
-                  }
-                }
-              }
             }
           }),
         );
 
-        if (isDevelopment) {
-          logger.debug('VisualEditorModal - Successfully loaded images for', Object.keys(images).length, 'pages');
-        }
+        logger.debug('VisualEditorModal - Successfully loaded images for', Object.keys(images).length, 'pages');
+
         setPageImages(images);
 
         // Set the first page as current if not already set
@@ -857,25 +761,10 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
           const offsetY = imgRect.top - containerRect.top;
           
           // Get bounding box coordinates
-          let bbox;
-          if (geometry.boundingBox) {
-            bbox = geometry.boundingBox;
-          } else if (geometry.vertices) {
-            const xs = geometry.vertices.map((v) => v.x || v.X || 0);
-            const ys = geometry.vertices.map((v) => v.y || v.Y || 0);
-            bbox = {
-              left: Math.min(...xs),
-              top: Math.min(...ys),
-              width: Math.max(...xs) - Math.min(...xs),
-              height: Math.max(...ys) - Math.min(...ys)
-            };
-          }
+          const bbox = geometry.boundingBox;
           
           if (bbox) {
-            const left = bbox.left || bbox.Left || 0;
-            const top = bbox.top || bbox.Top || 0;
-            const width = bbox.width || bbox.Width || 0;
-            const height = bbox.height || bbox.Height || 0;
+            const { left, top, width, height } = bbox;
             
             // Calculate field center in image coordinates
             const fieldCenterX = (left + width / 2) * imageWidth + offsetX;
@@ -901,16 +790,14 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
             const requiredPanX = viewportCenterX - (imageCenterX + scaledRelativeX);
             const requiredPanY = viewportCenterY - (imageCenterY + scaledRelativeY);
             
-            if (isDevelopment) {
-              logger.debug('VisualEditorModal - Auto-centering calculation:', {
-                fieldCenterX, fieldCenterY,
-                viewportCenterX, viewportCenterY,
-                imageCenterX, imageCenterY,
-                relativeX, relativeY,
-                scaledRelativeX, scaledRelativeY,
-                requiredPanX, requiredPanY
-              });
-            }
+            logger.debug('VisualEditorModal - Auto-centering calculation:', {
+              fieldCenterX, fieldCenterY,
+              viewportCenterX, viewportCenterY,
+              imageCenterX, imageCenterY,
+              relativeX, relativeY,
+              scaledRelativeX, scaledRelativeY,
+              requiredPanX, requiredPanY
+            });
             
             setPanOffset({ x: requiredPanX, y: requiredPanY });
           }
