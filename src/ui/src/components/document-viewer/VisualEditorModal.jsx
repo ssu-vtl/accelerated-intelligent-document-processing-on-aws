@@ -176,86 +176,56 @@ const FormFieldRenderer = memo(({
     }
   };
 
-  // Handle field click - debug version
+  // Handle field click - optimized version
   const handleClick = (event) => {
     if (event) {
       event.stopPropagation();
     }
-    logger.debug('=== FIELD CLICKED ===');
-    logger.debug('Field Key:', fieldKey);
-    const fullPath = `${path.join('.')}${path.length > 0 ? '.' : ''}${fieldKey}`;
-    logger.debug('Full Path:', fullPath);
-    logger.debug('Field Value:', value);
-    logger.debug('Geometry Passed:', geometry);
-    logger.debug('Explainability Info Available:', !!explainabilityInfo);
     
     let actualGeometry = geometry;
     
     // Try to extract geometry from explainabilityInfo if not provided
     if (!actualGeometry && explainabilityInfo && Array.isArray(explainabilityInfo) && explainabilityInfo[0]) {
       const [firstExplainabilityItem] = explainabilityInfo;
-      logger.debug('Explainability Info Object:', firstExplainabilityItem);
       
       // Try direct field lookup first
       let fieldInfo = firstExplainabilityItem[fieldKey];
-      logger.debug(`Field Info from explainabilityInfo[0][${fieldKey}]:`, fieldInfo);
       
       // If not found directly, try to navigate the full path
       if (!fieldInfo) {
-        logger.debug('Trying to navigate full path in explainabilityInfo:', fullPath);
         const fullPathParts = [...path, fieldKey];
         let pathFieldInfo = firstExplainabilityItem;
         
-        fullPathParts.forEach((pathPart, index) => {
-          logger.debug(`Navigating path part ${index}: ${pathPart}`);
-          logger.debug('Current pathFieldInfo:', pathFieldInfo);
-          
+        fullPathParts.forEach((pathPart) => {
           if (pathFieldInfo && typeof pathFieldInfo === 'object') {
             if (Array.isArray(pathFieldInfo) && !Number.isNaN(parseInt(pathPart, 10))) {
-              // Handle array index
               const arrayIndex = parseInt(pathPart, 10);
               if (arrayIndex >= 0 && arrayIndex < pathFieldInfo.length) {
                 pathFieldInfo = pathFieldInfo[arrayIndex];
-                logger.debug(`Found array item at index ${arrayIndex}:`, pathFieldInfo);
               } else {
-                logger.debug(`Array index ${arrayIndex} out of bounds`);
                 pathFieldInfo = null;
               }
             } else if (pathFieldInfo[pathPart]) {
-              // Handle object property
               pathFieldInfo = pathFieldInfo[pathPart];
-              logger.debug(`Found object property ${pathPart}:`, pathFieldInfo);
             } else {
-              logger.debug(`Property ${pathPart} not found in object`);
               pathFieldInfo = null;
             }
           } else {
-            logger.debug(`Cannot navigate further - pathFieldInfo is not an object`);
             pathFieldInfo = null;
           }
         });
         
         fieldInfo = pathFieldInfo;
-        logger.debug('Final fieldInfo from path navigation:', fieldInfo);
       }
       
       if (fieldInfo && fieldInfo.geometry && Array.isArray(fieldInfo.geometry) && fieldInfo.geometry[0]) {
         actualGeometry = fieldInfo.geometry[0];
-        logger.debug('Found geometry in explainabilityInfo:', actualGeometry);
       }
-      
-      // Also search all keys in explainabilityInfo to find geometry
-      const allKeys = Object.keys(firstExplainabilityItem);
-      logger.debug('All available keys in explainabilityInfo:', allKeys);
     }
     
     if (actualGeometry && onFieldFocus) {
-      logger.debug('Calling onFieldFocus with geometry:', actualGeometry);
       onFieldFocus(actualGeometry);
-    } else {
-      logger.debug('No geometry found for field:', fieldKey);
     }
-    logger.debug('=== END FIELD CLICK ===');
   };
 
   // Handle field double-click
@@ -304,7 +274,23 @@ const FormFieldRenderer = memo(({
             <Input
               value={value || ''}
               disabled={isReadOnly}
-              onChange={({ detail }) => !isReadOnly && onChange(detail.value)}
+              onChange={({ detail }) => {
+                const startTime = performance.now();
+                logger.debug('🔥 KEYSTROKE START:', {
+                  fieldKey, newValue: detail.value, isReadOnly, timestamp: startTime
+                });
+                
+                if (!isReadOnly) {
+                  logger.debug('🔄 Calling onChange...', { fieldKey });
+                  const changeStartTime = performance.now();
+                  onChange(detail.value);
+                  const changeEndTime = performance.now();
+                  logger.debug('✅ onChange completed:', { fieldKey, duration: `${(changeEndTime - changeStartTime).toFixed(2)}ms` });
+                }
+                
+                const endTime = performance.now();
+                logger.debug('🏁 KEYSTROKE END:', { fieldKey, totalDuration: `${(endTime - startTime).toFixed(2)}ms` });
+              }}
               onFocus={handleFocus}
             />
           </FormField>
@@ -583,19 +569,51 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
   const [activeFieldGeometry, setActiveFieldGeometry] = useState(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [localJsonData, setLocalJsonData] = useState(jsonData);
   const imageRef = useRef(null);
   const imageContainerRef = useRef(null);
+  const debounceTimerRef = useRef(null);
 
-  // Extract inference results and page IDs
-  const inferenceResult = jsonData?.inference_result || jsonData?.inferenceResult || jsonData;
+  // Sync local data with props
+  useEffect(() => {
+    setLocalJsonData(jsonData);
+  }, [jsonData]);
+
+  // Debounced parent onChange function
+  const debouncedParentOnChange = (jsonString) => {
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set new timer - call parent after 1 second of no typing
+    debounceTimerRef.current = setTimeout(() => {
+      if (onChange) {
+        const parentCallStart = performance.now();
+        logger.debug('🚀 DEBOUNCED PARENT onChange - Calling parent onChange...');
+        onChange(jsonString);
+        const parentCallEnd = performance.now();
+        logger.debug('🏁 DEBOUNCED PARENT onChange - Parent onChange completed:', {
+          duration: `${(parentCallEnd - parentCallStart).toFixed(2)}ms`
+        });
+      }
+    }, 1000); // 1 second debounce
+  };
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Extract inference results and page IDs from local data for immediate UI updates
+  const inferenceResult = localJsonData?.inference_result || localJsonData?.inferenceResult || localJsonData;
   const pageIds = sectionData?.PageIds || [];
 
-  // Debug logs for sectionData
-  useEffect(() => {
-    logger.debug('VisualEditorModal - sectionData:', sectionData);
-    logger.debug('VisualEditorModal - pageIds:', pageIds);
-    logger.debug('VisualEditorModal - pages from sectionData:', sectionData?.pages);
-  }, [sectionData, pageIds]);
+
 
   // Load page images - only when modal opens or when core data changes
   useEffect(() => {
@@ -1190,9 +1208,9 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
                     fieldKey="Document Data"
                     value={inferenceResult}
                     onChange={(newValue) => {
-                      if (onChange && !isReadOnly) {
-                        // Update the inference_result in the JSON data
-                        const updatedData = { ...jsonData };
+                      if (!isReadOnly) {
+                        // Update local state immediately for responsive UI
+                        const updatedData = { ...localJsonData };
                         if (updatedData.inference_result) {
                           updatedData.inference_result = newValue;
                         } else if (updatedData.inferenceResult) {
@@ -1207,11 +1225,28 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
                           });
                         }
 
-                        try {
-                          const jsonString = JSON.stringify(updatedData, null, 2);
-                          onChange(jsonString);
-                        } catch (error) {
-                          logger.error('Error stringifying JSON:', error);
+                        // Update local state immediately for responsive UI
+                        setLocalJsonData(updatedData);
+                        logger.debug('💨 LOCAL UPDATE - Updated local state immediately');
+
+                        // Debounce expensive parent call
+                        if (onChange) {
+                          const jsonStart = performance.now();
+                          logger.debug('🔄 DEBOUNCED - JSON stringify starting...');
+                          
+                          try {
+                            const jsonString = JSON.stringify(updatedData, null, 2);
+                            const jsonEnd = performance.now();
+                            logger.debug('✅ DEBOUNCED - JSON stringify completed:', { 
+                              duration: `${(jsonEnd - jsonStart).toFixed(2)}ms`,
+                              jsonLength: jsonString.length 
+                            });
+                            
+                            // Call debounced parent onChange
+                            debouncedParentOnChange(jsonString);
+                          } catch (error) {
+                            logger.error('Error stringifying JSON:', error);
+                          }
                         }
                       }
                     }}
