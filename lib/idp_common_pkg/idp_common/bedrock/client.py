@@ -291,9 +291,6 @@ class BedrockClient:
             if top_k is not None:
                 additional_model_fields["top_k"] = top_k
             
-            # if top_p is not None:
-            #     additional_model_fields["top_p"] = top_p
-            
             if max_tokens is not None:
                 additional_model_fields["max_tokens"] = max_tokens
         
