@@ -178,6 +178,9 @@ const FormFieldRenderer = memo(({
 
   // Handle field click - optimized version
   const handleClick = (event) => {
+    const clickStart = performance.now();
+    logger.debug('🖱️ FIELD CLICK START:', { fieldKey, timestamp: clickStart });
+    
     if (event) {
       event.stopPropagation();
     }
@@ -224,8 +227,15 @@ const FormFieldRenderer = memo(({
     }
     
     if (actualGeometry && onFieldFocus) {
+      const focusStart = performance.now();
+      logger.debug('🎯 FIELD FOCUS START:', { fieldKey, timestamp: focusStart });
       onFieldFocus(actualGeometry);
+      const focusEnd = performance.now();
+      logger.debug('✅ FIELD FOCUS END:', { fieldKey, duration: `${(focusEnd - focusStart).toFixed(2)}ms` });
     }
+    
+    const clickEnd = performance.now();
+    logger.debug('🏁 FIELD CLICK END:', { fieldKey, totalDuration: `${(clickEnd - clickStart).toFixed(2)}ms` });
   };
 
   // Handle field double-click
@@ -579,7 +589,7 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
     setLocalJsonData(jsonData);
   }, [jsonData]);
 
-  // Debounced parent onChange function
+  // Debounced parent onChange function with non-blocking execution
   const debouncedParentOnChange = (jsonString) => {
     // Clear existing timer
     if (debounceTimerRef.current) {
@@ -591,11 +601,28 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
       if (onChange) {
         const parentCallStart = performance.now();
         logger.debug('🚀 DEBOUNCED PARENT onChange - Calling parent onChange...');
-        onChange(jsonString);
-        const parentCallEnd = performance.now();
-        logger.debug('🏁 DEBOUNCED PARENT onChange - Parent onChange completed:', {
-          duration: `${(parentCallEnd - parentCallStart).toFixed(2)}ms`
-        });
+        
+        // Use requestIdleCallback to ensure parent onChange doesn't block UI
+        // If not available, fall back to setTimeout with 0 delay
+        const executeParentChange = () => {
+          try {
+            onChange(jsonString);
+            const parentCallEnd = performance.now();
+            logger.debug('🏁 DEBOUNCED PARENT onChange - Parent onChange completed:', {
+              duration: `${(parentCallEnd - parentCallStart).toFixed(2)}ms`
+            });
+          } catch (error) {
+            logger.error('Error in parent onChange:', error);
+          }
+        };
+        
+        if (window.requestIdleCallback) {
+          // Use requestIdleCallback to run during browser idle time
+          window.requestIdleCallback(executeParentChange, { timeout: 5000 });
+        } else {
+          // Fallback: use setTimeout to yield control back to browser
+          setTimeout(executeParentChange, 0);
+        }
       }
     }, 1000); // 1 second debounce
   };
@@ -718,29 +745,31 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
   };
 
   // Handle field focus - update active field geometry and switch to the correct page
+  // This function is intentionally kept lightweight and independent of debounced operations
   const handleFieldFocus = (geometry) => {
-    logger.debug('VisualEditorModal - handleFieldFocus called with geometry:', geometry);
-    logger.debug('VisualEditorModal - pageIds:', pageIds);
-    logger.debug('VisualEditorModal - currentPage:', currentPage);
+    const focusStart = performance.now();
+    logger.debug('VisualEditorModal - handleFieldFocus START:', { timestamp: focusStart });
     
-    if (geometry) {
-      setActiveFieldGeometry(geometry);
+    // Use setTimeout to make this completely asynchronous and non-blocking
+    setTimeout(() => {
+      if (geometry) {
+        setActiveFieldGeometry(geometry);
 
-      // If geometry has a page field, switch to that page
-      // geometry.page is 1-based and refers to the page within this section
-      // pageIds contains the actual document page IDs for this section
-      if (geometry.page !== undefined && pageIds.length > 0) {
-        // Map geometry page (1-based) to pageIds array index (0-based)
-        const pageIndex = geometry.page - 1;
-        if (pageIndex >= 0 && pageIndex < pageIds.length) {
-          const targetPageId = pageIds[pageIndex];
-          logger.debug('VisualEditorModal - Setting currentPage to:', targetPageId);
-          setCurrentPage(targetPageId);
+        // If geometry has a page field, switch to that page
+        if (geometry.page !== undefined && pageIds.length > 0) {
+          const pageIndex = geometry.page - 1;
+          if (pageIndex >= 0 && pageIndex < pageIds.length) {
+            const targetPageId = pageIds[pageIndex];
+            setCurrentPage(targetPageId);
+          }
         }
+      } else {
+        setActiveFieldGeometry(null);
       }
-    } else {
-      setActiveFieldGeometry(null);
-    }
+      
+      const focusEnd = performance.now();
+      logger.debug('VisualEditorModal - handleFieldFocus END:', { duration: `${(focusEnd - focusStart).toFixed(2)}ms` });
+    }, 0);
   };
 
   // Handle field double-click - zoom to 200% and center on field
@@ -899,10 +928,28 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
       footer={
         <Box float="right">
           <SpaceBetween direction="horizontal" size="xs">
-            <Button variant="link" onClick={onDismiss}>
+            <Button 
+              variant="link" 
+              onClick={() => {
+                const dismissStart = performance.now();
+                logger.debug('🚪 CANCEL BUTTON - onDismiss starting...', { timestamp: dismissStart });
+                onDismiss();
+                const dismissEnd = performance.now();
+                logger.debug('✅ CANCEL BUTTON - onDismiss completed:', { duration: `${(dismissEnd - dismissStart).toFixed(2)}ms` });
+              }}
+            >
               Cancel
             </Button>
-            <Button variant="primary" onClick={onDismiss}>
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                const dismissStart = performance.now();
+                logger.debug('🚪 DONE BUTTON - onDismiss starting...', { timestamp: dismissStart });
+                onDismiss();
+                const dismissEnd = performance.now();
+                logger.debug('✅ DONE BUTTON - onDismiss completed:', { duration: `${(dismissEnd - dismissStart).toFixed(2)}ms` });
+              }}
+            >
               Done
             </Button>
           </SpaceBetween>
@@ -915,8 +962,8 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
           flexDirection: 'row',
           gap: '20px',
           height: 'calc(100vh - 200px)',
-          maxHeight: '800px',
-          minHeight: '600px',
+          maxHeight: '1000px',
+          minHeight: '1000px',
           width: '100%',
         }}
       >
