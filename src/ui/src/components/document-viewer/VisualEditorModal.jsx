@@ -32,14 +32,21 @@ const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, pan
         const rect = img.getBoundingClientRect();
         const containerRect = img.parentElement.getBoundingClientRect();
         
-        const width = img.width || img.naturalWidth;
-        const height = img.height || img.naturalHeight;
+        // Use natural dimensions for bounding box calculations
+        const naturalWidth = img.naturalWidth;
+        const naturalHeight = img.naturalHeight;
+        
+        // Get displayed dimensions and position
+        const displayedWidth = img.width;
+        const displayedHeight = img.height;
         const offsetX = rect.left - containerRect.left;
         const offsetY = rect.top - containerRect.top;
         
         setDimensions({
-          width,
-          height,
+          naturalWidth,
+          naturalHeight,
+          displayedWidth,
+          displayedHeight,
           offsetX,
           offsetY,
         });
@@ -74,7 +81,7 @@ const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, pan
     return undefined;
   }, [imageRef, page, currentPage]);
 
-  if (page !== currentPage || !box || !dimensions.width) {
+  if (page !== currentPage || !box || !dimensions.naturalWidth) {
     return null;
   }
 
@@ -93,40 +100,21 @@ const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, pan
     const offsetX = dimensions.offsetX || 0;
     const offsetY = dimensions.offsetY || 0;
     
-    // Calculate base position and size relative to image
-    const baseLeft = left * dimensions.width + offsetX;
-    const baseTop = top * dimensions.height + offsetY;
-    const baseWidth = width * dimensions.width;
-    const baseHeight = height * dimensions.height;
+    // Calculate base position and size relative to displayed image (before any transforms)
+    const baseLeft = left * dimensions.displayedWidth + offsetX;
+    const baseTop = top * dimensions.displayedHeight + offsetY;
+    const baseWidth = width * dimensions.displayedWidth;
+    const baseHeight = height * dimensions.displayedHeight;
     
-    // Calculate the center of the image for transform origin reference
-    const imageCenterX = offsetX + dimensions.width / 2;
-    const imageCenterY = offsetY + dimensions.height / 2;
-    
-    // Calculate bounding box center relative to image center
-    const boxCenterX = baseLeft + baseWidth / 2;
-    const boxCenterY = baseTop + baseHeight / 2;
-    const relativeX = boxCenterX - imageCenterX;
-    const relativeY = boxCenterY - imageCenterY;
-    
-    // Apply zoom transformation to the relative position
-    const scaledRelativeX = relativeX * zoomLevel;
-    const scaledRelativeY = relativeY * zoomLevel;
-    
-    // Calculate final position after zoom and pan
-    const finalCenterX = imageCenterX + scaledRelativeX + panOffset.x;
-    const finalCenterY = imageCenterY + scaledRelativeY + panOffset.y;
-    
-    // Calculate final bounding box position (top-left corner)
-    const finalLeft = finalCenterX - (baseWidth * zoomLevel) / 2;
-    const finalTop = finalCenterY - (baseHeight * zoomLevel) / 2;
-    
+    // Use the same CSS transform as the image to ensure perfect alignment
     style = {
       position: 'absolute',
-      left: `${finalLeft}px`,
-      top: `${finalTop}px`,
-      width: `${baseWidth * zoomLevel}px`,
-      height: `${baseHeight * zoomLevel}px`,
+      left: `${baseLeft}px`,
+      top: `${baseTop}px`,
+      width: `${baseWidth}px`,
+      height: `${baseHeight}px`,
+      transform: `scale(${zoomLevel}) translate(${panOffset.x / zoomLevel}px, ${panOffset.y / zoomLevel}px)`,
+      transformOrigin: 'center center',
       border: '2px solid red',
       pointerEvents: 'none',
       zIndex: 10,
@@ -143,18 +131,9 @@ const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, pan
         panOffset,
         baseLeft,
         baseTop,
-        imageCenterX,
-        imageCenterY,
-        boxCenterX,
-        boxCenterY,
-        relativeX,
-        relativeY,
-        scaledRelativeX,
-        scaledRelativeY,
-        finalCenterX,
-        finalCenterY,
-        finalLeft,
-        finalTop,
+        baseWidth,
+        baseHeight,
+        transform: `scale(${zoomLevel}) translate(${panOffset.x / zoomLevel}px, ${panOffset.y / zoomLevel}px)`,
         style
       });
     }
@@ -171,40 +150,21 @@ const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, pan
     const offsetX = dimensions.offsetX || 0;
     const offsetY = dimensions.offsetY || 0;
 
-    // Calculate base position and size relative to image
-    const baseLeft = minX * dimensions.width + offsetX;
-    const baseTop = minY * dimensions.height + offsetY;
-    const baseWidth = (maxX - minX) * dimensions.width;
-    const baseHeight = (maxY - minY) * dimensions.height;
-    
-    // Calculate the center of the image for transform origin reference
-    const imageCenterX = offsetX + dimensions.width / 2;
-    const imageCenterY = offsetY + dimensions.height / 2;
-    
-    // Calculate bounding box center relative to image center
-    const boxCenterX = baseLeft + baseWidth / 2;
-    const boxCenterY = baseTop + baseHeight / 2;
-    const relativeX = boxCenterX - imageCenterX;
-    const relativeY = boxCenterY - imageCenterY;
-    
-    // Apply zoom transformation to the relative position
-    const scaledRelativeX = relativeX * zoomLevel;
-    const scaledRelativeY = relativeY * zoomLevel;
-    
-    // Calculate final position after zoom and pan
-    const finalCenterX = imageCenterX + scaledRelativeX + panOffset.x;
-    const finalCenterY = imageCenterY + scaledRelativeY + panOffset.y;
-    
-    // Calculate final bounding box position (top-left corner)
-    const finalLeft = finalCenterX - (baseWidth * zoomLevel) / 2;
-    const finalTop = finalCenterY - (baseHeight * zoomLevel) / 2;
+    // Calculate base position and size relative to displayed image (before any transforms)
+    const baseLeft = minX * dimensions.displayedWidth + offsetX;
+    const baseTop = minY * dimensions.displayedHeight + offsetY;
+    const baseWidth = (maxX - minX) * dimensions.displayedWidth;
+    const baseHeight = (maxY - minY) * dimensions.displayedHeight;
 
+    // Use the same CSS transform as the image to ensure perfect alignment
     style = {
       position: 'absolute',
-      left: `${finalLeft}px`,
-      top: `${finalTop}px`,
-      width: `${baseWidth * zoomLevel}px`,
-      height: `${baseHeight * zoomLevel}px`,
+      left: `${baseLeft}px`,
+      top: `${baseTop}px`,
+      width: `${baseWidth}px`,
+      height: `${baseHeight}px`,
+      transform: `scale(${zoomLevel}) translate(${panOffset.x / zoomLevel}px, ${panOffset.y / zoomLevel}px)`,
+      transformOrigin: 'center center',
       border: '2px solid red',
       pointerEvents: 'none',
       zIndex: 10,
@@ -221,18 +181,9 @@ const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, pan
         panOffset,
         baseLeft,
         baseTop,
-        imageCenterX,
-        imageCenterY,
-        boxCenterX,
-        boxCenterY,
-        relativeX,
-        relativeY,
-        scaledRelativeX,
-        scaledRelativeY,
-        finalCenterX,
-        finalCenterY,
-        finalLeft,
-        finalTop,
+        baseWidth,
+        baseHeight,
+        transform: `scale(${zoomLevel}) translate(${panOffset.x / zoomLevel}px, ${panOffset.y / zoomLevel}px)`,
         style
       });
     }
