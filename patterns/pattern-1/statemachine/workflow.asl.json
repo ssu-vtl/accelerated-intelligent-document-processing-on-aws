@@ -19,6 +19,7 @@
         "Retry": [
           {
             "ErrorEquals": [
+              "Sandbox.Timedout",
               "Lambda.ServiceException",
               "Lambda.SdkClientException",
               "Lambda.TooManyRequestsException",
@@ -54,6 +55,7 @@
         "Retry": [
             {
                 "ErrorEquals": [
+                    "Sandbox.Timedout",
                     "Lambda.ServiceException",
                     "Lambda.AWSLambdaException",
                     "Lambda.SdkClientException",
@@ -92,6 +94,7 @@
         "Retry": [
           {
             "ErrorEquals": [
+              "Sandbox.Timedout",
               "Lambda.ServiceException",
               "Lambda.AWSLambdaException",
               "Lambda.SdkClientException",
