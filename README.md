@@ -15,6 +15,7 @@ Copyright © Amazon.com and Affiliates: This deliverable is considered Developed
   - [Processing Patterns](#processing-patterns)
   - [Python Development](#python-development)
   - [Planning & Operations](#planning--operations)
+- [Contributing](#contributing)
 - [License](#license)
 
 ## Introduction
@@ -133,6 +134,24 @@ For detailed deployment and testing instructions, see the [Deployment Guide](./d
 - [Well-Architected Framework Assessment](./docs/well-architected.md) - Analysis based on AWS Well-Architected Framework
 - [AWS Services & IAM Roles](./docs/aws-services-and-roles.md) - AWS services used and IAM role requirements
 - [Cost Calculator](./docs/cost-calculator.md) - Framework for estimating solution costs
+
+## Contributing
+
+We welcome contributions to the GenAI Intelligent Document Processing accelerator! Whether you're fixing bugs, improving documentation, or proposing new features, your contributions are appreciated.
+
+Please refer to our [Contributing Guide](./CONTRIBUTING.md) for detailed information on:
+
+- Setting up your development environment
+- Project structure
+- Making and testing changes
+- Pull request process
+- Coding standards
+  - Python code uses `ruff` for linting
+  - UI code uses ESLint (`npm run lint` to verify)
+- Documentation requirements
+- Issue reporting guidelines
+
+Thank you to everyone who has contributed to making this project better!
 
 ## License
 
