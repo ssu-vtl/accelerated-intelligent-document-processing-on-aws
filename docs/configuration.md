@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Configuration and Customization
 
 The GenAIIDP solution provides multiple configuration approaches to customize document processing behavior to suit your specific needs.

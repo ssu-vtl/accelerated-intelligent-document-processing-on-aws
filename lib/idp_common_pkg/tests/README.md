@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # IDP Common Package Tests
 
 This directory contains tests for the `idp_common` package, organized into unit tests and integration tests.

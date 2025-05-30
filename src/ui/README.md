@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # How to run IDP UI Locally:
 
 1. To get the IDP UI to run locally, you will need to configure a `.env` file in the `/src/ui/` folder. The contents of the `.env` file must contain the environment variables listed below along with their values. 

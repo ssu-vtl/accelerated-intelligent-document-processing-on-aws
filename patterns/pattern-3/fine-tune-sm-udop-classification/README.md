@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Fine-Tuning and Deploying Models on SageMaker
 
 This guide provides step-by-step instructions for fine-tuning a model on SageMaker, deploying it as an endpoint, and running inference.

@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # [Configuration Name] Configuration
 
 This directory contains a specialized configuration for [brief description of the use case] using the GenAI IDP Accelerator.
