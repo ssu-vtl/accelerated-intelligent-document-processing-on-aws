@@ -2,6 +2,21 @@
 
 Copyright © Amazon.com and Affiliates: This deliverable is considered Developed Content as defined in the AWS Service Terms and the SOW between the parties
 
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Key Features](#key-features)
+- [Architecture Overview](#architecture-overview)
+- [Quick Start](#quick-start)
+  - [Processing Your First Document](#processing-your-first-document)
+  - [Updating an Existing Deployment](#updating-an-existing-deployment)
+- [Detailed Documentation](#detailed-documentation)
+  - [Core Documentation](#core-documentation)
+  - [Processing Patterns](#processing-patterns)
+  - [Python Development](#python-development)
+  - [Planning & Operations](#planning--operations)
+- [License](#license)
+
 ## Introduction
 
 A scalable, serverless solution for automated document processing and information extraction using AWS services. This system combines OCR capabilities with generative AI to convert unstructured documents into structured data at scale.
@@ -30,6 +45,61 @@ Current patterns include:
 - Pattern 1: Packet or Media processing with Bedrock Data Automation (BDA)
 - Pattern 2: OCR → Bedrock Classification (page-level or holistic) → Bedrock Extraction
 - Pattern 3: OCR → UDOP Classification (SageMaker) → Bedrock Extraction
+
+## Quick Start
+
+To quickly deploy the GenAI-IDP solution in your AWS account:
+
+1. Log into the [AWS console](https://console.aws.amazon.com/)
+2. Choose the **Launch Stack** button below for your desired region:
+
+| Region name           | Region code | Launch                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| US West (Oregon)      | us-west-2   | [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.us-west-2.amazonaws.com/aws-ml-blog-us-west-2/artifacts/genai-idp/idp-main.yaml&stackName=IDP) |
+
+3. When the stack deploys for the first time, you'll receive an email with a temporary password to access the web UI
+4. Use this temporary password for your first login to set up a permanent password
+
+### Processing Your First Document
+
+After deployment, you can quickly process a document and view results:
+
+1. **Upload a Document**:
+   - **Via Web UI**: Open the Web UI URL from the CloudFormation stack's Outputs tab, log in, and click "Upload Document"
+   - **Via S3**: Upload directly to the S3 input bucket (find the bucket URL in CloudFormation stack Outputs)
+
+2. **Use Sample Documents**:
+   - For Pattern 1 (BDA): Use `samples/lending_package.pdf`
+   - For Patterns 2 and 3: Use `samples/insurance_package.pdf` 
+
+3. **Monitor Processing**:
+   - **Via Web UI**: Track document status on the dashboard
+   - **Via Step Functions**: Open the StateMachine URL from CloudFormation stack Outputs to observe workflow execution
+
+4. **View Results**:
+   - **Via Web UI**: Access processing results through the document details page
+   - **Via S3**: Check the output bucket for structured JSON files with extracted data
+
+See the [Deployment Guide](./docs/deployment.md#testing-the-solution) for more detailed testing instructions.
+
+### Updating an Existing Deployment
+
+To update an existing GenAIIDP stack to a new version:
+
+1. Navigate to CloudFormation in the AWS Management Console
+2. Select your existing stack
+3. Click "Update"
+4. Select "Replace current template"
+5. Enter the template URL: `https://s3.us-west-2.amazonaws.com/aws-ml-blog-us-west-2/artifacts/genai-idp/idp-main.yaml`
+6. Follow the prompts to update your stack, reviewing any parameter changes
+7. For detailed instructions, see the [Deployment Guide](./docs/deployment.md#updating-an-existing-stack)
+
+For testing, use these sample files:
+- Pattern-1 BDA default project: `samples/lending_package.pdf`
+- Patterns 2 and 3 default configurations: `samples/rvl_cdip_package.pdf`
+
+For detailed deployment and testing instructions, see the [Deployment Guide](./docs/deployment.md).
+
 
 ## Detailed Documentation
 
@@ -63,38 +133,6 @@ Current patterns include:
 - [Well-Architected Framework Assessment](./docs/well-architected.md) - Analysis based on AWS Well-Architected Framework
 - [AWS Services & IAM Roles](./docs/aws-services-and-roles.md) - AWS services used and IAM role requirements
 - [Cost Calculator](./docs/cost-calculator.md) - Framework for estimating solution costs
-
-## Quick Start
-
-To quickly deploy the GenAI-IDP solution in your AWS account:
-
-1. Log into the [AWS console](https://console.aws.amazon.com/)
-2. Choose the **Launch Stack** button below for your desired region:
-
-| Region name           | Region code | Launch                                                                                                                                                                                                                                                                                                                                                                      |
-| --------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| US West (Oregon)      | us-west-2   | [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.us-west-2.amazonaws.com/aws-ml-blog-us-west-2/artifacts/genai-idp/idp-main.yaml&stackName=IDP) |
-
-3. When the stack deploys for the first time, you'll receive an email with a temporary password to access the web UI
-4. Use this temporary password for your first login to set up a permanent password
-
-### Updating an Existing Deployment
-
-To update an existing GenAIIDP stack to a new version:
-
-1. Navigate to CloudFormation in the AWS Management Console
-2. Select your existing stack
-3. Click "Update"
-4. Select "Replace current template"
-5. Enter the template URL: `https://s3.us-west-2.amazonaws.com/aws-ml-blog-us-west-2/artifacts/genai-idp/idp-main.yaml`
-6. Follow the prompts to update your stack, reviewing any parameter changes
-7. For detailed instructions, see the [Deployment Guide](./docs/deployment.md#updating-an-existing-stack)
-
-For testing, use these sample files:
-- Pattern-1 BDA default project: `samples/lending_package.pdf`
-- Patterns 2 and 3 default configurations: `samples/rvl_cdip_package.pdf`
-
-For detailed deployment and testing instructions, see the [Deployment Guide](./docs/deployment.md).
 
 ## License
 
