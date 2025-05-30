@@ -87,4 +87,4 @@ all = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/aws-samples/genaiic-idp-accelerator"
+"Homepage" = "https://github.com/aws-samples/sample-genai-idp"
