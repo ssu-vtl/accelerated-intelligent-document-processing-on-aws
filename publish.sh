@@ -60,9 +60,9 @@ function check_parameters() {
   
   # Set UDOP model path based on region
   if [[ "$REGION" == "us-east-1" ]]; then
-    PUBLIC_SAMPLE_UDOP_MODEL="s3://bobs-artifacts-us-east-1/udop-finetuning/rvl-cdip/model.tar.gz"
+    PUBLIC_SAMPLE_UDOP_MODEL="s3://aws-ml-blog-us-east-1/artifacts/genai-idp/udop-finetuning/rvl-cdip/model.tar.gz"
   elif [[ "$REGION" == "us-west-2" ]]; then
-    PUBLIC_SAMPLE_UDOP_MODEL="s3://bobs-artifacts-us-west-2/udop-finetuning/rvl-cdip/model.tar.gz"
+    PUBLIC_SAMPLE_UDOP_MODEL="s3://aws-ml-blog-us-west-2/artifacts/genai-idp/udop-finetuning/rvl-cdip/model.tar.gz"
   else
     PUBLIC_SAMPLE_UDOP_MODEL=""
   fi
