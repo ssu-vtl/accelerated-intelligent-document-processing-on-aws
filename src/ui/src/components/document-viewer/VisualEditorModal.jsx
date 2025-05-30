@@ -880,9 +880,10 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
               src={pageImages[pageId]}
               alt={`Page ${pageId}`}
               style={{ 
-                maxWidth: zoomLevel === 1 ? '100%' : 'none',
-                maxHeight: zoomLevel === 1 ? 'calc(100vh - 200px)' : 'none',
-                objectFit: 'contain',
+                maxWidth: 'none',
+                maxHeight: 'none',
+                width: 'auto',
+                height: 'auto',
                 transform: `scale(${zoomLevel}) translate(${panOffset.x / zoomLevel}px, ${panOffset.y / zoomLevel}px)`,
                 transformOrigin: 'center center',
                 transition: 'transform 0.1s ease-out'
