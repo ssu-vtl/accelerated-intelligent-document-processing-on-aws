@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Checkboxed Attributes Extraction Configuration
 
 This directory contains a specialized configuration for information extraction of attributes with checkboxes using the GenAI IDP Accelerator. This configuration is designed to accurately extract information from documents containing checkbox-based attributes, such as satisfaction surveys, questionnaires, and forms with multiple-choice selections.

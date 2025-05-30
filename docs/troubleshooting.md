@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Troubleshooting Guide
 
 This guide provides solutions for common issues and optimization techniques for the GenAIIDP solution.

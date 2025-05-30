@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Evaluation Service
 
 The Evaluation Service component provides functionality to evaluate document extraction results by comparing extracted attributes against expected values.

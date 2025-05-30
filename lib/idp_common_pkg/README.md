@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # IDP Common Package
 
 This package contains common utilities and services for the GenAI IDP Accelerator patterns.

@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 ---
 name: Feature Request
 about: Suggest an idea for the GenAIIDP solution
