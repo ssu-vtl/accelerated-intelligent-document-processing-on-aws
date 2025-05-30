@@ -1380,5 +1380,6 @@ class ClassificationService:
             document = self._update_document_status(
                 document, success=False, error_message=error_msg
             )
+            raise
 
         return document
