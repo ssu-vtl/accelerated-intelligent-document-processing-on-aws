@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 /* eslint-disable react/prop-types, react/destructuring-assignment, no-nested-ternary, no-use-before-define */
 import React, { useState, useEffect } from 'react';
 import { Box, SpaceBetween, Button, Toggle, Alert, SegmentedControl } from '@awsui/components-react';

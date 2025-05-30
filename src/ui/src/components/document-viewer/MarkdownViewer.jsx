@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 /* eslint-disable react/prop-types */
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Button, SpaceBetween } from '@awsui/components-react';
@@ -15,6 +18,51 @@ const MARKDOWN_DEFAULT_HEIGHT = '600px';
 
 const MarkdownViewer = ({ content, documentName, title, simple = false, height = MARKDOWN_DEFAULT_HEIGHT }) => {
   const contentRef = useRef(null);
+
+  // Handle anchor link clicks for smooth scrolling within the document
+  const handleAnchorClick = (event) => {
+    const { target } = event;
+    if (target.tagName === 'A' && target.href && target.href.includes('#')) {
+      const url = new URL(target.href);
+      // Check if this is an internal anchor link (same origin + hash)
+      if (url.origin === window.location.origin && url.hash) {
+        event.preventDefault();
+        const targetId = url.hash.substring(1); // Remove the # symbol
+
+        // Special handling for "Back to Top" links
+        if (targetId === 'table-of-contents') {
+          // Scroll to the top of the markdown content container
+          if (contentRef.current) {
+            contentRef.current.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start',
+            });
+          }
+          return;
+        }
+
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+          targetElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+          });
+        }
+      }
+    }
+  };
+
+  // Add click event listener when component mounts
+  useEffect(() => {
+    const currentRef = contentRef.current;
+    if (currentRef) {
+      currentRef.addEventListener('click', handleAnchorClick);
+      return () => {
+        currentRef.removeEventListener('click', handleAnchorClick);
+      };
+    }
+    return undefined;
+  }, [content]);
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');

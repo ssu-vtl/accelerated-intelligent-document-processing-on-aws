@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 ##############################################################################################
 # Create new Cfn artifacts bucket if not already existing
 # Build artifacts
@@ -60,9 +64,9 @@ function check_parameters() {
   
   # Set UDOP model path based on region
   if [[ "$REGION" == "us-east-1" ]]; then
-    PUBLIC_SAMPLE_UDOP_MODEL="s3://bobs-artifacts-us-east-1/udop-finetuning/rvl-cdip/model.tar.gz"
+    PUBLIC_SAMPLE_UDOP_MODEL="s3://aws-ml-blog-us-east-1/artifacts/genai-idp/udop-finetuning/rvl-cdip/model.tar.gz"
   elif [[ "$REGION" == "us-west-2" ]]; then
-    PUBLIC_SAMPLE_UDOP_MODEL="s3://bobs-artifacts-us-west-2/udop-finetuning/rvl-cdip/model.tar.gz"
+    PUBLIC_SAMPLE_UDOP_MODEL="s3://aws-ml-blog-us-west-2/artifacts/genai-idp/udop-finetuning/rvl-cdip/model.tar.gz"
   else
     PUBLIC_SAMPLE_UDOP_MODEL=""
   fi
@@ -285,6 +289,28 @@ function build_and_package_template() {
   fi
 }
 
+# Upload configuration library to S3
+function upload_config_library() {
+  local config_dir="config_library"
+  echo "UPLOADING $config_dir to S3"
+  
+  if needs_rebuild "$config_dir"; then
+    echo "Uploading configuration library to S3"
+    
+    # Upload the entire config_library directory to S3, excluding README files
+    aws s3 sync "$config_dir" "s3://${BUCKET}/${PREFIX_AND_VERSION}/config_library" \
+      --exclude ".checksum" \
+      --delete
+    
+    echo "Configuration library uploaded to s3://${BUCKET}/${PREFIX_AND_VERSION}/config_library"
+    
+    # Update the checksum
+    set_checksum "$config_dir"
+  else
+    echo "SKIPPING $config_dir upload (unchanged)"
+  fi
+}
+
 # Build and package web UI
 function build_web_ui() {
   local dir="src/ui"
@@ -358,6 +384,10 @@ function build_main_template() {
   
   local HASH=$(calculate_hash ".")
   local BUILD_DATE_TIME=$(date -u +"%Y-%m-%d %H:%M:%S")
+  local CONFIG_LIBRARY_HASH=$(calculate_hash "config_library")
+  
+  # Define configuration S3 base path
+  local CONFIG_BASE_PATH="s3://${BUCKET}/${PREFIX_AND_VERSION}/config_library"
   
   echo "Inline edit main template to replace:"
   echo "   <VERSION> with: $VERSION"
@@ -367,6 +397,8 @@ function build_main_template() {
   echo "   <ARTIFACT_PREFIX_TOKEN> with prefix: $PREFIX_AND_VERSION"
   echo "   <WEBUI_ZIPFILE_TOKEN> with filename: $webui_zipfile"
   echo "   <HASH_TOKEN> with: $HASH"
+  echo "   <CONFIG_BASE_PATH_TOKEN> with: $CONFIG_BASE_PATH"
+  echo "   <CONFIG_LIBRARY_HASH_TOKEN> with: $CONFIG_LIBRARY_HASH"
   
   # Use a more reliable approach for multiple sed replacements
   sed -e "s|<VERSION>|$VERSION|g" \
@@ -376,6 +408,8 @@ function build_main_template() {
       -e "s|<ARTIFACT_PREFIX_TOKEN>|$PREFIX_AND_VERSION|g" \
       -e "s|<WEBUI_ZIPFILE_TOKEN>|$webui_zipfile|g" \
       -e "s|<HASH_TOKEN>|$HASH|g" \
+      -e "s|<CONFIG_BASE_PATH_TOKEN>|$CONFIG_BASE_PATH|g" \
+      -e "s|<CONFIG_LIBRARY_HASH_TOKEN>|$CONFIG_LIBRARY_HASH|g" \
       .aws-sam/packaged.yaml > .aws-sam/${MAIN_TEMPLATE}
   
   # Upload and validate main template
@@ -410,7 +444,7 @@ function set_public_acls() {
   echo ""
   echo "Done with ACLs."
 }
-
+ 
 # Print output information
 function print_outputs() {
   local template_url=$1
@@ -442,6 +476,9 @@ setup_artifacts_bucket
 for dir in patterns/* options/*; do
   build_and_package_template "$dir"
 done
+
+# Upload configuration library
+upload_config_library
 
 # Build and package WebUI
 build_web_ui

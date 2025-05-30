@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 /* eslint-disable react/prop-types */
 import React, { useState, useEffect } from 'react';
 import {
@@ -363,7 +366,7 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, o
         evaluationReportUri={item.evaluationReportUri}
         summaryReportUri={item.summaryReportUri}
       />
-      <SectionsPanel sections={item.sections} />
+      <SectionsPanel sections={item.sections} pages={item.pages} documentItem={item} />
       <PagesPanel pages={item.pages} />
     </SpaceBetween>
   );

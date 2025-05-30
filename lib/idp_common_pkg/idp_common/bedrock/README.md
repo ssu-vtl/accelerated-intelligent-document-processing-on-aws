@@ -1,6 +1,201 @@
-# Bedrock Utilities
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
 
-This module provides utility functions for interacting with Amazon Bedrock's LLM services.
+# Bedrock Integration
+
+The GenAIIC IDP Accelerator includes a robust client for Amazon Bedrock that provides resilient model invocation with built-in retry handling, metrics collection, and helpful utilities. This integration supports all document processing patterns that utilize Bedrock models.
+
+## Using the Bedrock Client
+
+### Simple Function Approach
+
+For quick, straightforward use cases, you can use the function-style interface:
+
+```python
+from idp_common.bedrock import invoke_model
+
+# Basic model invocation
+response = invoke_model(
+    model_id="anthropic.claude-3-haiku-20240307-v1:0",
+    system_prompt="You are a helpful assistant.",
+    content=[{"text": "What are the main features of AWS Bedrock?"}],
+    temperature=0.0,
+    top_k=5
+)
+
+# Process the response
+output_text = response["response"]["output"]["message"]["content"][0]["text"]
+print(output_text)
+```
+
+### Class-Based Interface
+
+For more control and advanced features, use the BedrockClient class directly:
+
+```python
+from idp_common.bedrock.client import BedrockClient
+
+# Create a custom client
+client = BedrockClient(
+    region="us-east-1",
+    max_retries=5,
+    initial_backoff=1.5,
+    max_backoff=300,
+    metrics_enabled=True
+)
+
+# Invoke a model
+response = client.invoke_model(
+    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+    system_prompt="You are a helpful assistant.",
+    content=[{"text": "How does document processing work?"}],
+    temperature=0.0
+)
+
+# Extract text using the helper method
+output_text = client.extract_text_from_response(response)
+print(output_text)
+```
+
+## Working with Embeddings
+
+Generate text embeddings for semantic search or document comparison:
+
+```python
+from idp_common.bedrock.client import BedrockClient
+
+client = BedrockClient()
+embedding = client.generate_embedding(
+    text="This document contains information about loan applications.",
+    model_id="amazon.titan-embed-text-v1"
+)
+
+# Use embedding for vector search, clustering, etc.
+```
+
+## Prompt Caching with CachePoint
+
+Prompt caching is a powerful feature in Amazon Bedrock that significantly reduces response latency for workloads with repetitive contexts. The Bedrock client provides built-in support for this via the `<<CACHEPOINT>>` tag.
+
+### Supported Models
+
+CachePoint functionality is only available for specific Bedrock model IDs:
+
+- `us.anthropic.claude-3-5-haiku-20241022-v1:0`
+- `us.anthropic.claude-3-7-sonnet-20250219-v1:0`
+- `us.amazon.nova-lite-v1:0`
+- `us.amazon.nova-pro-v1:0`
+
+When using unsupported models, the client will automatically remove `<<CACHEPOINT>>` tags from the content while preserving all text, and log a warning.
+
+### Using CachePoint in Your Prompts
+
+To implement prompt caching, insert the `<<CACHEPOINT>>` tag in your text content to indicate where caching boundaries should occur:
+
+```python
+from idp_common.bedrock.client import BedrockClient
+
+client = BedrockClient()
+
+# Content with cachepoint tags
+content = [
+    {
+        "text": """This is static context that doesn't change between requests. 
+        It could include model instructions, few shot examples, etc.
+        <<CACHEPOINT>>
+        This is dynamic content that changes with each request.
+        """
+    }
+]
+
+response = client.invoke_model(
+    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+    system_prompt="You are a helpful assistant.",
+    content=content,
+    temperature=0.0
+)
+```
+
+### How CachePoint Works
+
+When the `invoke_model` method processes your content:
+
+1. It detects any text elements containing the `<<CACHEPOINT>>` tag
+2. The text is split at each tag location
+3. The client inserts a `{"cachePoint": {"type": "default"}}` element between the split text parts
+4. The resulting message structure enables Bedrock to cache the preceding content
+
+### Multiple CachePoints and Mixed Content
+
+You can use multiple cachepoints in a single prompt and combine them with other content types:
+
+```python
+content = [
+    {"text": "Static instructions for document processing<<CACHEPOINT>>"},
+    {"image": {"url": "s3://bucket/document.png"}},
+    {"text": "Static analysis guidelines<<CACHEPOINT>>Dynamic query about the document"}
+]
+```
+
+### Benefits of Prompt Caching
+
+- **Faster Response Times**: Avoid reprocessing the same context repeatedly
+- **Reduced TTFT**: Time-To-First-Token is significantly lower for subsequent requests
+- **Cost Efficiency**: Potentially lower token usage by avoiding redundant processing
+
+> **NOTE**: To effectively use Prompt Caching, there is a [minimum number of tokens](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-caching.html#prompt-caching-models) for the cache.
+
+### Debugging CachePoint Processing
+
+The Bedrock client includes detailed debug logging for cachepoint processing:
+
+```python
+import logging
+logging.getLogger('idp_common.bedrock.client').setLevel(logging.DEBUG)
+
+# Now invoke_model calls will log detailed cachepoint processing information
+# including word counts and split points in the content
+```
+
+### Example CachePoint Processing
+See notebook [Bedrock Client Prompt Cache Testing Notebook](../../../../notebooks/bedrock_client_cachepoint_test.ipynb)
+
+## Helper Methods
+
+The BedrockClient provides useful utilities for common tasks:
+
+### Prompt Formatting
+
+```python
+from idp_common.bedrock.client import BedrockClient
+
+client = BedrockClient()
+
+template = """
+Please analyze this {DOCUMENT_TYPE}:
+
+<document>
+{CONTENT}
+</document>
+
+Extract the following fields: {FIELDS}
+"""
+
+substitutions = {
+    "DOCUMENT_TYPE": "invoice",
+    "CONTENT": "Invoice #12345\nDate: 2023-05-15\nAmount: $1,250.00",
+    "FIELDS": "invoice_number, date, amount"
+}
+
+formatted_prompt = client.format_prompt(template, substitutions)
+```
+
+### Response Text Extraction
+
+```python
+# Extract text from a complex response structure
+text = client.extract_text_from_response(response)
+```
 
 ## Guardrail Support
 
@@ -26,13 +221,13 @@ When properly configured, the `get_guardrail_config()` function will automatical
 
 ```python
 import os
-import bedrock
+from idp_common.bedrock import invoke_model
 
 # Set the environment variable (typically configured in Lambda environment)
 os.environ["GUARDRAIL_ID_AND_VERSION"] = "your-guardrail-id:Draft"
 
 # Call invoke_model normally - guardrails are applied automatically
-response = bedrock.invoke_model(
+response = invoke_model(
     model_id="anthropic.claude-3-sonnet-20240229-v1:0",
     system_prompt="You are a helpful assistant.",
     content=[{"text": "Tell me about security best practices."}],
@@ -40,123 +235,95 @@ response = bedrock.invoke_model(
 )
 ```
 
-## Key Functions
+## Generation Parameter Configuration
 
-### get_guardrail_config
+The Bedrock client supports key generation parameters that control the output behavior of foundation models. Understanding these parameters is crucial for optimizing model performance for different document processing tasks.
 
-```python
-def get_guardrail_config() -> Optional[Dict[str, str]]
-```
+### Understanding Generation Parameters
 
-Gets guardrail configuration from environment if available.
+#### Temperature
 
-**Returns:**
-- Optional guardrail configuration dict with identifier, version and trace settings
-- Returns None if GUARDRAIL_ID_AND_VERSION environment variable is not set
+Temperature controls the randomness of model outputs by scaling the probability distribution of next tokens:
 
-### invoke_model
+- **Low temperature (0.0-0.3)**: More deterministic, focused outputs ideal for factual extraction
+- **Medium temperature (0.4-0.7)**: Balanced outputs with some creativity
+- **High temperature (0.8-1.0)**: More diverse and creative outputs
 
-```python
-def invoke_model(
-    model_id: str, 
-    system_prompt: Union[str, List[Dict[str, str]]], 
-    content: List[Dict[str, Any]], 
-    temperature: Union[float, str] = 0.0, 
-    top_k: Optional[Union[float, str]] = None, 
-    max_retries: int = MAX_RETRIES
-) -> Dict[str, Any]
-```
+#### Top-p (Nucleus Sampling)
 
-Invokes a Bedrock model with built-in retry logic for throttling and service exceptions.
+Top-p (nucleus sampling) computes the cumulative distribution over all token options in decreasing probability order and cuts it off once it reaches the specified probability threshold:
 
-**Parameters:**
-- `model_id`: The Bedrock model ID (e.g., 'anthropic.claude-3-sonnet-20240229-v1:0')
-- `system_prompt`: The system prompt as string or list of content objects
-- `content`: The content for the user message (can include text and images)
-- `temperature`: Model temperature parameter (float or string convertible to float)
-- `top_k`: Optional top_k parameter for Anthropic models
-- `max_retries`: Maximum number of retry attempts
+- Lower values (0.1-0.5): More focused on high-probability tokens
+- Higher values (0.6-1.0): Includes more diversity in possible tokens
 
-**Returns:**
-- Dictionary with the response and metering data
+**Important**: Anthropic recommends adjusting either temperature OR top-p, but not both simultaneously, as this can lead to unpredictable generation behavior.
 
-### extract_text_from_response
+#### Top-k
 
-```python
-def extract_text_from_response(response: Dict[str, Any]) -> str
-```
+Top-k limits the selection to only the k highest probability tokens before temperature/top-p logic runs:
 
-Extracts the text content from a Bedrock response.
+- Lower values (5-20): Narrows token selection for more predictable outputs
+- Higher values (50-200): Allows for more diverse language
 
-**Parameters:**
-- `response`: Bedrock response object
+### Parameter Implementation by Model Family
 
-**Returns:**
-- Extracted text content as a string
+Different Bedrock models implement these parameters with varying defaults, naming conventions, and parameter placements:
 
-### format_prompt
+- **Claude models**:
+  - Default values: temperature=1.0, top_p=0.999, top_k=250 (wide open)
+  - Parameters use snake_case: `temperature`, `top_p`, `top_k`
+  - Implementation: `top_k` is placed in `additionalModelRequestFields`
 
-```python
-def format_prompt(prompt_template: str, substitutions: Dict[str, str], required_placeholders: List[str] = None) -> str
-```
+- **Nova models**:
+  - Default values: temperature=0.7, topP=0.9, topK≈50 (moderately constrained)
+  - Parameters use camelCase: `temperature`, `topP`, `topK`
+  - Implementation: `topK` is placed in `additionalModelRequestFields.inferenceConfig`
 
-Prepares a prompt from a template by safely replacing placeholders with values.
+**Common implementation details**:
+- Temperature is always included in the main `inferenceConfig`
+- top_p is added to `inferenceConfig` as "topP"
 
-**Parameters:**
-- `prompt_template`: The prompt template with placeholders in {PLACEHOLDER} format
-- `substitutions`: Dictionary of placeholder values
-- `required_placeholders`: Optional list of placeholder names that must be present in the template
+### Task-Specific Best Practices
 
-**Returns:**
-- String with placeholders replaced by values
+For document understanding tasks, we recommend the following parameter settings:
 
-**Raises:**
-- ValueError: If a required placeholder is missing from the template
+1. **Key Information Extraction**:
+   - Temperature: 0.0 (deterministic)
+   - Top-p: 0.1 (focused on highest probability tokens)
+   - Top-k: 5 (restrict to most likely tokens)
+   - Rationale: Maximizes precision and consistency for structured data extraction
 
-## Examples
+2. **Classification**:
+   - Temperature: 0.0 (deterministic)
+   - Top-p: 0.1 (focused)
+   - Top-k: 5 (restricted)
+   - Rationale: Ensures consistent classification decisions with minimum variance
 
-### Invoking a Bedrock Model
+3. **Summarization**:
+   - Temperature: 0.0 (deterministic)
+   - Top-p: 0.1 (focused but allows some flexibility)
+   - Top-k: 5 (moderately restricted)
+   - Rationale: Balances factual accuracy with coherent narrative flow
 
-```python
-import bedrock
+Remember: As Anthropic recommends, adjust either temperature OR top-p, but not both simultaneously. For document processing tasks that require high accuracy and consistency, we've found that using a temperature of 0.0 with a low top-p value (0.1) provides the most reliable results.
 
-response = bedrock.invoke_model(
-    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
-    system_prompt="You are a helpful assistant with expertise in document analysis.",
-    content=[{"text": "Extract the key information from this invoice."}],
-    temperature=0.0
-)
+## Resilience Features
 
-# Extract the model's response text
-result_text = bedrock.extract_text_from_response(response)
-```
+The BedrockClient automatically handles common failure scenarios:
 
-### Using the Prompt Template Formatter
+- Exponential backoff with jitter for rate limits and transient errors
+- Intelligent classification of retryable vs. non-retryable errors
+- Detailed logging with appropriate content sanitization
+- Metrics collection for request counts, latencies, and token usage
 
-```python
-import bedrock
+## Configuration Options
 
-# Define a prompt template with placeholders
-template = """
-Extract the following information from this {DOCUMENT_TYPE} document:
+When creating a BedrockClient instance, you can customize:
 
-Fields to extract:
-{FIELDS_LIST}
+- `region`: AWS region for Bedrock (default: AWS_REGION env var or us-west-2)
+- `max_retries`: Maximum retry attempts for throttled requests (default: 8)
+- `initial_backoff`: Starting backoff time in seconds (default: 2)
+- `max_backoff`: Maximum backoff time in seconds (default: 300)
+- `metrics_enabled`: Whether to publish CloudWatch metrics (default: True)
 
-Document content:
-{DOCUMENT_TEXT}
-"""
-
-# Define substitution values
-substitutions = {
-    "DOCUMENT_TYPE": "invoice",
-    "FIELDS_LIST": "- Invoice Number\n- Date\n- Total Amount",
-    "DOCUMENT_TEXT": "INVOICE #1234\nDate: 2023-05-15\nTotal: $1,250.00"
-}
-
-# Define required placeholders
-required = ["DOCUMENT_TYPE", "FIELDS_LIST", "DOCUMENT_TEXT"]
-
-# Format the prompt
-formatted_prompt = bedrock.format_prompt(template, substitutions, required)
-```
+This integration provides the foundation for reliable, scalable document processing with Amazon Bedrock models throughout the accelerator.

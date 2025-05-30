@@ -14,3 +14,5 @@ dist/
 build/
 __pycache__
 *.code-workspace
+.ruff_cache
+rvl_cdip_*

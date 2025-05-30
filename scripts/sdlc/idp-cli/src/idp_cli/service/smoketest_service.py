@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 from idp_cli.util.cfn_util import CfnUtil
 from idp_cli.util.path_util import PathUtil
 from idp_cli.util.s3_util import S3Util
@@ -112,15 +115,15 @@ class SmokeTestService():
                 raise ValueError(f"Result file not found")
             
             # Check for text property
-            if "text" not in result_json:
-                logger.error("Missing 'text' property in result JSON")
-                raise ValueError("Missing 'text' property in result JSON")
+            if "pages" not in result_json:
+                logger.error("Missing 'pages' property in result JSON")
+                raise ValueError("Missing 'pages' property in result JSON")
             
             # Check if the text content contains the expected verification string
-            if self.verify_string not in result_json["text"]:
+            if self.verify_string not in result_json["pages"][0]["representation"]["markdown"]:
                 logger.error(f"Text content does not contain expected string: '{self.verify_string}'")
                 logger.debug(f"Actual text starts with: '{result_json['text'][:100]}...'")
-                raise ValueError(f"Text content does not contain expected verification string")
+                raise ValueError("Text content does not contain expected verification string")
             
             logger.debug("Smoke test verification passed!")
             return True

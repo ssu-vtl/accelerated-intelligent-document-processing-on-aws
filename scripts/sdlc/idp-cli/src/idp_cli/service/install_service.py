@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 from typing import Optional
 import os
 import subprocess
@@ -157,6 +160,7 @@ class InstallService():
                 '--s3-prefix', s3_prefix,
                 '--capabilities', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND',
                 '--parameter-overrides',
+                "DocumentKnowledgeBase=DISABLED",
                 f"IDPPattern={idp_pattern}",
                 f"AdminEmail={admin_email}",
                 '--stack-name', self.stack_name

@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Evaluation Service
 
 The Evaluation Service component provides functionality to evaluate document extraction results by comparing extracted attributes against expected values.
@@ -40,7 +43,7 @@ config = {
         "llm_method": {
             "model": "anthropic.claude-3-sonnet-20240229-v1:0",
             "temperature": 0.0,
-            "top_k": 250,
+            "top_k": 5,
             "system_prompt": "You are an evaluator that helps determine if the predicted and expected values match...",
             "task_prompt": "I need to evaluate attribute extraction for a document of class: {DOCUMENT_CLASS}..."
         }

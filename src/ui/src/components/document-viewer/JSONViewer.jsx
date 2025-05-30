@@ -1,10 +1,12 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 /* eslint-disable react/prop-types, react/destructuring-assignment, no-nested-ternary, no-use-before-define */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import {
   Box,
   SpaceBetween,
   Button,
-  Toggle,
   Alert,
   SegmentedControl,
   FormField,
@@ -15,6 +17,8 @@ import { API, Logger } from 'aws-amplify';
 import { Editor } from '@monaco-editor/react';
 import getFileContents from '../../graphql/queries/getFileContents';
 import uploadDocument from '../../graphql/queries/uploadDocument';
+// Lazy load VisualEditorModal for better performance
+const VisualEditorModal = React.lazy(() => import('./VisualEditorModal'));
 
 const logger = new Logger('FileEditor');
 
@@ -112,11 +116,11 @@ const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
           <Box padding={{ left: 'xs' }}>
             <SpaceBetween size="xxxs">
               {value.map((item, index) => {
-                // Create a stable key based on content and a unique ID if possible
+                // Create a stable key based on index only
                 const itemKey =
                   typeof item === 'object' && item !== null && item.id
-                    ? `array-item-${item.id}`
-                    : `array-item-${typeof item}-${JSON.stringify(item)}`;
+                    ? `array-item-${item.id}-${index}`
+                    : `array-item-${index}`;
                 return (
                   <Box key={itemKey}>
                     {renderKeyValuePair(`[${index}]`, item, (newValue) => {
@@ -299,10 +303,20 @@ const TextEditorView = ({ fileContent, onChange, isReadOnly, fileType }) => {
   );
 };
 
-const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = 'text' }) => {
+const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = 'text', sectionData }) => {
   const [isValid, setIsValid] = useState(true);
   const [jsonData, setJsonData] = useState(null);
   const [viewMode, setViewMode] = useState(fileType === 'markdown' ? 'markdown' : 'form');
+  const [showVisualEditor, setShowVisualEditor] = useState(false);
+
+  // Memoize expensive props for better performance
+  const memoizedSectionData = useMemo(
+    () => ({
+      ...sectionData,
+      documentItem: sectionData?.documentItem || sectionData?.item,
+    }),
+    [sectionData],
+  );
 
   useEffect(() => {
     if (fileType === 'json') {
@@ -361,7 +375,12 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
   }
 
   const handleViewModeChange = ({ detail }) => {
-    setViewMode(detail.selectedId);
+    if (detail.selectedId === 'visual') {
+      setShowVisualEditor(true);
+      // Don't change viewMode, keep it as current
+    } else {
+      setViewMode(detail.selectedId);
+    }
   };
 
   return (
@@ -374,6 +393,7 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
             options={[
               { id: 'form', text: 'Form View' },
               { id: 'text', text: 'Text View' },
+              { id: 'visual', text: 'Visual Edit' },
             ]}
           />
 
@@ -404,16 +424,29 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
           fileType={fileType === 'json' ? 'json' : fileType}
         />
       )}
+
+      {/* Visual Editor Modal - Lazy loaded with Suspense for better performance */}
+      {showVisualEditor && (
+        <Suspense fallback={<Box padding="s">Loading Visual Editor...</Box>}>
+          <VisualEditorModal
+            visible={showVisualEditor}
+            onDismiss={() => setShowVisualEditor(false)}
+            jsonData={jsonData}
+            onChange={handleFormChange}
+            isReadOnly={isReadOnly}
+            sectionData={memoizedSectionData}
+          />
+        </Suspense>
+      )}
     </Box>
   );
 };
 
-const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) => {
+const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File', sectionData }) => {
   const [fileContent, setFileContent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(null);
 
   const fetchContent = async () => {
@@ -438,18 +471,12 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) =>
       }
       logger.debug('Received content:', `${fetchedContent.substring(0, 100)}...`);
       setFileContent(fetchedContent);
+      setEditedContent(fetchedContent); // Initialize edited content for always-on edit mode
     } catch (err) {
       logger.error('Error fetching content:', err);
       setError(`Failed to load ${fileType} content. Please try again.`);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleEditToggle = ({ detail }) => {
-    setIsEditing(detail.checked);
-    if (detail.checked && !editedContent) {
-      setEditedContent(fileContent);
     }
   };
 
@@ -516,7 +543,6 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) =>
 
       // Update the file content state to reflect saved changes
       setFileContent(editedContent);
-      setIsEditing(false);
       setSuccess('File saved and uploaded successfully');
       logger.info('Successfully saved changes');
 
@@ -533,7 +559,6 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) =>
   const closeViewer = () => {
     setFileContent(null);
     setEditedContent(null);
-    setIsEditing(false);
   };
 
   if (!fileUri) {
@@ -569,26 +594,18 @@ const JSONViewer = ({ fileUri, fileType = 'text', buttonText = 'View File' }) =>
           <Box>
             <SpaceBetween direction="horizontal" size="xs">
               <Button onClick={closeViewer}>Close</Button>
-              <Toggle onChange={handleEditToggle} checked={isEditing}>
-                Edit mode
-              </Toggle>
-              {isEditing && (
-                <Button
-                  variant="primary"
-                  onClick={handleSave}
-                  disabled={!editedContent || editedContent === fileContent}
-                >
-                  Save Changes
-                </Button>
-              )}
+              <Button variant="primary" onClick={handleSave} disabled={!editedContent || editedContent === fileContent}>
+                Save Changes
+              </Button>
             </SpaceBetween>
           </Box>
           <div style={{ width: '100%' }}>
             <FileEditorView
-              fileContent={isEditing ? editedContent : fileContent}
+              fileContent={editedContent || fileContent}
               onChange={handleContentChange}
-              isReadOnly={!isEditing}
+              isReadOnly={false}
               fileType={fileType}
+              sectionData={sectionData}
             />
           </div>
         </SpaceBetween>

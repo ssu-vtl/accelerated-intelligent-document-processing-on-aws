@@ -1,15 +1,18 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
 
 [project]
 name = "idp_common"
-version = "0.2.19"
+version = "0.2.21"
 description = "Common utilities for GenAI IDP Accelerator patterns"
 authors = [
     {name = "AWS", email = "noreply@amazon.com"}
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9,<3.13"
 dependencies = [
     "boto3>=1.37.29",  # Core dependency for AWS services
 ]
@@ -24,6 +27,13 @@ classifiers = [
 [project.optional-dependencies]
 # Core utilities only - minimal dependencies
 core = []
+
+# Development only dependencies
+dev = [
+    "python-dotenv (>=1.1.0,<2.0.0)",
+    "ipykernel (>=6.29.5,<7.0.0)",
+    "jupyter (>=1.1.1,<2.0.0)",
+]
 
 # Image handling dependencies
 image = [
@@ -58,6 +68,14 @@ appsync = [
     "requests>=2.32.3",
 ]
 
+# Testing dependencies
+test = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.3.1",  # For parallel test execution
+    "requests (>=2.32.3,<3.0.0)",
+]
+
 # Full package with all dependencies
 all = [
     "Pillow>=11.1.0",
@@ -69,4 +87,4 @@ all = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/aws-samples/genaiic-idp-accelerator"
+"Homepage" = "https://github.com/aws-samples/sample-genai-idp"
