@@ -40,6 +40,11 @@ export const documentsNavItems = [
 ];
 
 const defaultOnFollowHandler = (ev) => {
+  // Prevent navigation for deployment info items (make them non-clickable)
+  if (ev.detail.href === '#deployment-info') {
+    ev.preventDefault();
+    return;
+  }
   // XXX keep the locked href for our demo pages
   // ev.preventDefault();
   console.log(ev);
@@ -71,14 +76,14 @@ const Navigation = ({
   const navigationItems = [...(items || documentsNavItems)];
 
   // Add deployment info section if version, stack name, or build datetime is available
-  if (settings?.Version || settings?.StackName || settings?.BuildDateTime) {
+  if (settings?.Version || settings?.StackName || settings?.BuildDateTime || settings?.IDPPattern) {
     const deploymentInfoItems = [];
 
     if (settings?.StackName) {
       deploymentInfoItems.push({
         type: 'link',
         text: `Stack Name: ${settings.StackName}`,
-        href: '#',
+        href: '#stackname',
       });
     }
 
@@ -86,7 +91,7 @@ const Navigation = ({
       deploymentInfoItems.push({
         type: 'link',
         text: `Version: ${settings.Version}`,
-        href: '#',
+        href: '#version',
       });
     }
 
@@ -94,7 +99,16 @@ const Navigation = ({
       deploymentInfoItems.push({
         type: 'link',
         text: `Build: ${settings.BuildDateTime}`,
-        href: '#',
+        href: '#builddatetime',
+      });
+    }
+
+    if (settings?.IDPPattern) {
+      const pattern = settings.IDPPattern.split(' ')[0];
+      deploymentInfoItems.push({
+        type: 'link',
+        text: `Pattern: ${pattern}`,
+        href: '#idppattern',
       });
     }
 
