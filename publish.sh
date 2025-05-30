@@ -440,7 +440,7 @@ function set_public_acls() {
   echo ""
   echo "Done with ACLs."
 }
-
+ 
 # Print output information
 function print_outputs() {
   local template_url=$1
