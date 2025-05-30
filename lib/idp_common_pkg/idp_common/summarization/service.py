@@ -314,7 +314,7 @@ class SummarizationService:
 
         except Exception as e:
             logger.error(f"Error summarizing text: {str(e)}")
-            return self._create_error_summary(str(e))
+            raise
 
     def process_document_section(
         self, document: Document, section_id: str
@@ -850,6 +850,7 @@ class SummarizationService:
             document = self._update_document_status(
                 document, success=False, error_message=error_msg
             )
+            raise
 
         return document
 
