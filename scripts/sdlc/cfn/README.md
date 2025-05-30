@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # IDP Accelerator SDLC Cloudformation
 * This directory contains Cloudformation scripts useful to deploy SDLC infrastructure used during SDLC development.
 

@@ -1,7 +1,71 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Changelog
 
 ## [Unreleased]
 
+## [0.3.0]
+
+### Added
+
+- **Visual Edit Feature for Document Processing**
+  - Interactive visual interface for editing extracted document data combining document image display with overlay annotations and form-based editing.
+  - Split-Pane Layout, showing page image(s) and extraction inference results side by side 
+  - Zoom & Pan Controls for page image
+  - Bounding Box Overlay System (Pattern-1 BDA only)
+  - Confidence Scores (Pattern-1 BDA only)
+  - **User Experience Benefits**
+    - Visual context showing exactly where data was extracted from in original documents
+    - Precision editing with visual verification ensuring accuracy of extracted data
+    - Real-time visual connection between form fields and document locations
+    - Efficient workflow eliminating context switching between viewing and editing
+
+- **Enhanced Few Shot Example Support in Pattern-2**
+  - Added comprehensive few shot learning capabilities to improve classification and extraction accuracy
+  - Support for example-based prompting with concrete document examples and expected outputs
+  - Configuration of few shot examples through document class definitions with `examples` field
+  - Each example includes `name`, `classPrompt`, `attributesPrompt`, and `imagePath` parameters
+  - **Enhanced imagePath Support**: Now supports single files, local directories, or S3 prefixes with multiple images
+    - Automatic discovery of all image files with supported extensions (`.jpg`, `.jpeg`, `.png`, `.gif`, `.bmp`, `.tiff`, `.tif`, `.webp`)
+    - Images sorted alphabetically in prompt by filename for consistent ordering
+  - Automatic integration of examples into classification and extraction prompts via `{FEW_SHOT_EXAMPLES}` placeholder
+  - Demonstrated in `config_library/pattern-2/few_shot_example` configuration with letter, email, and multi-page bank-statement examples
+  - Environment variable support for path resolution (`CONFIGURATION_BUCKET` and `ROOT_DIR`)
+  - Updated documentation in classification and extraction README files and Pattern-2 few-shot examples guide
+
+- **Bedrock Prompt Caching Support**
+  - Added support for `<<CACHEPOINT>>` delimiter in prompts to enable Bedrock prompt caching
+  - Prompts can now be split into static (cacheable) and dynamic sections for improved performance and cost optimization
+  - Available in classification, extraction, and summarization prompts across all patterns
+  - Automatic detection and processing of cache point delimiters in BedrockClient
+
+- **Configuration Library Support**
+  - Added `config_library/` directory with pre-built configuration templates for all patterns
+  - Configuration now loaded from S3 URIs instead of being defined inline in CloudFormation templates
+  - Support for multiple configuration presets per pattern (e.g., default, checkboxed_attributes_extraction, medical_records_summarization, few_shot_example)
+  - New `ConfigurationDefaultS3Uri` parameter allows specifying custom S3 configuration sources
+  - Enhanced configuration management with separation of infrastructure and business logic
+
+### Fixed
+- **Lambda Configuration Reload Issue**
+  - Fixed lambda functions loading configuration globally which prevented configuration updates from being picked up during warm starts
+
+### Changed
+- **Simplified Model Configuration Architecture**
+  - Removed individual model parameters from main template: `Pattern1SummarizationModel`, `Pattern2ClassificationModel`, `Pattern2ExtractionModel`, `Pattern2SummarizationModel`, `Pattern3ExtractionModel`, `Pattern3SummarizationModel`, `EvaluationLLMModelId`
+  - Model selection now handled through enum constraints in UpdateSchemaConfig sections within each pattern template
+  - Added centralized `IsSummarizationEnabled` parameter (true|false) to control summarization functionality across all patterns
+  - Updated all pattern templates to use new boolean parameter instead of checking if model is "DISABLED"
+  - Refactored IsSummarizationEnabled conditions in all pattern templates to use the new parameter
+  - Maintained backward compatibility while significantly reducing parameter complexity
+
+- **Documentation Restructure**
+  - Simplified and condensed README
+  - Added new ./docs folder with detailed documentation
+  - New Contribution Guidelines
+  - GitHub Issue Templates
+  - Added documentation clarifying the separation between GenAIIDP solution issues and underlying AWS service concerns
 
 ## [0.2.20]
 ### Added

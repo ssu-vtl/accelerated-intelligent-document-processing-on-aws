@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Summarization Service
 
 The Summarization Service module provides functionality for generating summaries of documents using LLMs through AWS Bedrock.
@@ -163,7 +166,7 @@ The service requires configuration with the following structure:
   "summarization": {
     "model": "us.amazon.nova-pro-v1:0",
     "temperature": 0,
-    "top_k": 0.5,
+    "top_k": 5,
     "system_prompt": "You are an expert document summarizer. Create a balanced summary that captures key points.",
     "task_prompt": "Summarize the following document:\n\n{DOCUMENT_TEXT}\n\nProvide your summary in JSON format with the following fields:\n- 'brief_summary': A brief 1-2 sentence overview\n- 'detailed_summary': A comprehensive summary with key points\n\nEnsure the response is valid JSON."
   }

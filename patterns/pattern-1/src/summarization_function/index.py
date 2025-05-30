@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 """
 Lambda function to summarize document content using the SummarizationService from idp_common.
 """
@@ -11,12 +14,11 @@ from idp_common import get_config, summarization
 from idp_common.models import Document, Status
 from idp_common.appsync.service import DocumentAppSyncService
 
-# Configuration
-CONFIG = get_config()
+# Configuration will be loaded in handler function
 
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
-# Get LOG_LEVEL from environment variable with INFO as default
+logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_LOG_LEVEL", "INFO"))
 
 def handler(event, context):
     """
@@ -48,9 +50,10 @@ def handler(event, context):
         logger.info(f"Updating document status to {document.status}")
         appsync_service.update_document(document)
         
-        # Create the summarization service with provided config
+        # Load configuration and create the summarization service
+        config = get_config()
         summarization_service = summarization.SummarizationService(
-            config=CONFIG
+            config=config
         )        
         # Process the document using the service
         logger.info(f"Processing document with SummarizationService, document ID: {document.id}")
