@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 # from https://github.com/aws-samples/aws-waf-ipset-auto-update-aws-ip-ranges
 
 import json

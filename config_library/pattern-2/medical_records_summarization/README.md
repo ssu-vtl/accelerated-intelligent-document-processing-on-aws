@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Medical Records Summarization Configuration
 
 This directory contains a specialized configuration for processing and summarizing medical records using the GenAI IDP Accelerator. This configuration is optimized for healthcare documents and provides enhanced summarization capabilities specifically for medical content.

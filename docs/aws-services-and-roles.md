@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # AWS Services and IAM Role Requirements for GenAI IDP Accelerator
 
 This document outlines the AWS services used by the GenAI Intelligent Document Processing (IDP) Accelerator solution, along with the IAM role scopes needed for deployment and operation.

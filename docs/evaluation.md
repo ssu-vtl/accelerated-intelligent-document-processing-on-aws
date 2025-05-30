@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Evaluation Framework
 
 The GenAIIDP solution includes a built-in evaluation framework to assess the accuracy of document processing outputs. This allows you to:
