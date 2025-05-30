@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # GenAIIDP Documentation
 
 This folder contains detailed documentation on various aspects of the GenAI Intelligent Document Processing solution.

@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 // src/components/upload-document/UploadDocumentPanel.jsx
 import React, { useState } from 'react';
 import {

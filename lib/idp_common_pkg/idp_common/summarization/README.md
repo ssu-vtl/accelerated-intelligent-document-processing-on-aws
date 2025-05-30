@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Summarization Service
 
 The Summarization Service module provides functionality for generating summaries of documents using LLMs through AWS Bedrock.

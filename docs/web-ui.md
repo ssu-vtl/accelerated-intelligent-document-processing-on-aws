@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # GenAIIDP Web User Interface
 
 The solution includes a responsive web-based user interface built with React that provides comprehensive document management and monitoring capabilities.

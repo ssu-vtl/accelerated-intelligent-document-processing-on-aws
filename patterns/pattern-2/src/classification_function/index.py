@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 """
 Classification function that processes documents and classifies them using LLMs.
 Uses the idp_common.classification package for classification functionality.

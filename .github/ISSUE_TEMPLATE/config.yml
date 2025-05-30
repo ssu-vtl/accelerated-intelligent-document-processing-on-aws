@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 # Configuration for GitHub issue templates
 blank_issues_enabled: false
 contact_links:

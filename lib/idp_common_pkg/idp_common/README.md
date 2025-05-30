@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # IDP Common Library
 
 This library provides common utilities and data models for the Intelligent Document Processing (IDP) pipeline.

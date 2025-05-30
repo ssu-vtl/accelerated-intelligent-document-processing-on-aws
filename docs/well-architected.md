@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # AWS Well-Architected Framework Assessment
 
 This document assesses the GenAI Intelligent Document Processing (GenAIIDP) Accelerator against the six pillars of the AWS Well-Architected Framework.

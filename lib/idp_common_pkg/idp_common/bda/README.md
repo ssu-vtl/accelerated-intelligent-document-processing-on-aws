@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # IDP Bedrock Data Automation (BDA) Module
 
 This module provides functionality for interacting with Amazon Bedrock Data Automation (BDA) for document processing and information extraction.

@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 ##############################################################################################
 # Create new Cfn artifacts bucket if not already existing
 # Build artifacts

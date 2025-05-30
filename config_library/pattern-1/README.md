@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Pattern 1 Configurations
 
 This directory contains configurations for Pattern 1 of the GenAI IDP Accelerator, which uses Amazon Bedrock Data Automation (BDA) for document processing tasks.

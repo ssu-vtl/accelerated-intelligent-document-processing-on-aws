@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # IDP Extraction Module
 
 This module provides functionality for extracting structured information from document sections using LLMs with support for few-shot example prompting to improve accuracy.

@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+
 from setuptools import find_packages, setup
 
 # Core dependencies required for all installations

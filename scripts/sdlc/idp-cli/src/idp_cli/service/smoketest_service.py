@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 from idp_cli.util.cfn_util import CfnUtil
 from idp_cli.util.path_util import PathUtil
 from idp_cli.util.s3_util import S3Util

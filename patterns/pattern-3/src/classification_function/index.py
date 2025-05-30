@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 """
 Classification function for Pattern 3 that classifies documents using a SageMaker UDOP model.
 Uses the common classification service with the SageMaker backend.

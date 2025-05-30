@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 /* eslint-disable react/no-array-index-key */
 /* eslint-disable no-use-before-define */
 import React, { useState, useRef, useEffect } from 'react';

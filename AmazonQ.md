@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Amazon Q Development Guidelines
 
 Always follow these guidelines when assisting in development for the Amazon Q CLI.
