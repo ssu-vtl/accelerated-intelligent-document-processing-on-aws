@@ -5,7 +5,22 @@ SPDX-License-Identifier: MIT-0
 
 ## [Unreleased]
 
+## [0.3.0]
+
 ### Added
+
+- **Visual Edit Feature for Document Processing**
+  - Interactive visual interface for editing extracted document data combining document image display with overlay annotations and form-based editing.
+  - Split-Pane Layout, showing page image(s) and extraction inference results side by side 
+  - Zoom & Pan Controls for page image
+  - Bounding Box Overlay System (Pattern-1 BDA only)
+  - Confidence Scores (Pattern-1 BDA only)
+  - **User Experience Benefits**
+    - Visual context showing exactly where data was extracted from in original documents
+    - Precision editing with visual verification ensuring accuracy of extracted data
+    - Real-time visual connection between form fields and document locations
+    - Efficient workflow eliminating context switching between viewing and editing
+
 - **Enhanced Few Shot Example Support in Pattern-2**
   - Added comprehensive few shot learning capabilities to improve classification and extraction accuracy
   - Support for example-based prompting with concrete document examples and expected outputs
@@ -45,6 +60,12 @@ SPDX-License-Identifier: MIT-0
   - Refactored IsSummarizationEnabled conditions in all pattern templates to use the new parameter
   - Maintained backward compatibility while significantly reducing parameter complexity
 
+- **Documentation Restructure**
+  - Simplified and condensed README
+  - Added new ./docs folder with detailed documentation
+  - New Contribution Guidelines
+  - GitHub Issue Templates
+  - Added documentation clarifying the separation between GenAIIDP solution issues and underlying AWS service concerns
 
 ## [0.2.20]
 ### Added
