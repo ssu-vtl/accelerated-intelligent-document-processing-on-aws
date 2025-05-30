@@ -554,14 +554,7 @@ class ClassificationService:
             )
         except Exception as e:
             logger.error(f"Error classifying page {page_id}: {str(e)}")
-            # Return unclassified result with error
-            return self._create_unclassified_result(
-                page_id=page_id,
-                image_uri=image_uri,
-                text_uri=text_uri,
-                raw_text_uri=raw_text_uri,
-                error_message=str(e),
-            )
+            raise
 
     def classify_page_sagemaker(
         self,
