@@ -12,6 +12,7 @@
             "Retry": [
                 {
                     "ErrorEquals": [
+                        "Sandbox.Timedout",
                         "Lambda.ServiceException",
                         "Lambda.AWSLambdaException",
                         "Lambda.SdkClientException",
@@ -39,6 +40,7 @@
             "Retry": [
                 {
                     "ErrorEquals": [
+                        "Sandbox.Timedout",
                         "Lambda.ServiceException",
                         "Lambda.AWSLambdaException",
                         "Lambda.SdkClientException",
@@ -73,6 +75,7 @@
                         "Retry": [
                             {
                                 "ErrorEquals": [
+                                    "Sandbox.Timedout",
                                     "Lambda.ServiceException",
                                     "Lambda.AWSLambdaException",
                                     "Lambda.SdkClientException",
@@ -106,6 +109,7 @@
             "Retry": [
                 {
                     "ErrorEquals": [
+                        "Sandbox.Timedout",
                         "Lambda.ServiceException",
                         "Lambda.AWSLambdaException",
                         "Lambda.SdkClientException",
@@ -144,6 +148,7 @@
             "Retry": [
                 {
                     "ErrorEquals": [
+                        "Sandbox.Timedout",
                         "Lambda.ServiceException",
                         "Lambda.AWSLambdaException",
                         "Lambda.SdkClientException",
