@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types, react/destructuring-assignment, no-nested-ternary, no-use-before-define */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import {
   Box,
   SpaceBetween,
@@ -14,7 +14,8 @@ import { API, Logger } from 'aws-amplify';
 import { Editor } from '@monaco-editor/react';
 import getFileContents from '../../graphql/queries/getFileContents';
 import uploadDocument from '../../graphql/queries/uploadDocument';
-import VisualEditorModal from './VisualEditorModal';
+// Lazy load VisualEditorModal for better performance
+const VisualEditorModal = React.lazy(() => import('./VisualEditorModal'));
 
 const logger = new Logger('FileEditor');
 
@@ -305,6 +306,15 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
   const [viewMode, setViewMode] = useState(fileType === 'markdown' ? 'markdown' : 'form');
   const [showVisualEditor, setShowVisualEditor] = useState(false);
 
+  // Memoize expensive props for better performance
+  const memoizedSectionData = useMemo(
+    () => ({
+      ...sectionData,
+      documentItem: sectionData?.documentItem || sectionData?.item,
+    }),
+    [sectionData],
+  );
+
   useEffect(() => {
     if (fileType === 'json') {
       try {
@@ -412,19 +422,18 @@ const FileEditorView = ({ fileContent, onChange, isReadOnly = true, fileType = '
         />
       )}
 
-      {/* Visual Editor Modal - Only render when needed */}
+      {/* Visual Editor Modal - Lazy loaded with Suspense for better performance */}
       {showVisualEditor && (
-        <VisualEditorModal
-          visible={showVisualEditor}
-          onDismiss={() => setShowVisualEditor(false)}
-          jsonData={jsonData}
-          onChange={handleFormChange}
-          isReadOnly={isReadOnly}
-          sectionData={{
-            ...sectionData,
-            documentItem: sectionData?.documentItem || sectionData?.item,
-          }}
-        />
+        <Suspense fallback={<Box padding="s">Loading Visual Editor...</Box>}>
+          <VisualEditorModal
+            visible={showVisualEditor}
+            onDismiss={() => setShowVisualEditor(false)}
+            jsonData={jsonData}
+            onChange={handleFormChange}
+            isReadOnly={isReadOnly}
+            sectionData={memoizedSectionData}
+          />
+        </Suspense>
       )}
     </Box>
   );
