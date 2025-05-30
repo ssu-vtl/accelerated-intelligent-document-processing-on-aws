@@ -132,7 +132,28 @@ Familiarize yourself with the project structure:
 
 ## Reporting Bugs/Feature Requests
 
-We welcome you to use the GitHub issue tracker to report bugs or suggest features.
+We welcome you to use the GitHub issue tracker to report bugs or suggest features for the GenAIIDP solution.
+
+### Distinguishing Between Solution Issues and AWS Service Issues
+
+**Important:** This repository is specifically for issues related to the GenAIIDP accelerator solution, not the underlying AWS services it uses (such as Amazon Bedrock Data Automation (BDA), Amazon Bedrock Foundational Models, Amazon Bedrock Knowledge Bases, Amazon Textract, etc.).
+
+- **For GenAIIDP Solution Issues:** Use this GitHub repository
+  - Deployment issues with the CloudFormation templates
+  - Bugs in the Step Functions workflows
+  - Issues with the Web UI
+  - Requests for new document processing features specific to this solution
+
+- **For AWS Service Issues:** Contact AWS Support or relevant AWS forums
+  - Performance of Amazon Bedrock models
+  - Amazon Textract extraction quality
+  - Service quotas or throttling issues
+  - Feature requests for AWS services
+
+We provide issue templates to make this process easier:
+
+- [Bug Report Template](/.github/ISSUE_TEMPLATE/bug_report.md) - Use this template when reporting a bug
+- [Feature Request Template](/.github/ISSUE_TEMPLATE/feature_request.md) - Use this template when suggesting new functionality
 
 When filing an issue, please check existing open, or recently closed, issues to make sure somebody else hasn't already
 reported the issue. Please try to include as much information as you can. Details like these are incredibly useful:
