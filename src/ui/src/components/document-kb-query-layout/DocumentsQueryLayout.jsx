@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 /* eslint-disable max-len */
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';

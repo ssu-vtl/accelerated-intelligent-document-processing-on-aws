@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 /* eslint-disable react/prop-types */
 import React, { useState } from 'react';
 import { Box } from '@awsui/components-react';

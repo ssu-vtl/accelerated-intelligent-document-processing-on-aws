@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+
 if [ "$#" -lt 1 ]; then
     echo "Usage: $0 <stack-name>"
     exit 1

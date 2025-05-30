@@ -1,8 +1,12 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 /* eslint-disable indent */
 import * as XLSX from 'xlsx';
 
 // eslint-disable-next-line prettier/prettier
-export const onImportExcelAsync = (file) => new Promise((resolve, reject) => {
+export const onImportExcelAsync = (file) =>
+  new Promise((resolve, reject) => {
     // Obtener el objeto del archivo cargado
     const { files } = file.target;
     // Leer el archivo a través del objeto FileReader

@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 """
 AppSync integration module for IDP Common package.
 
@@ -10,9 +13,9 @@ from idp_common.appsync.mutations import CREATE_DOCUMENT, UPDATE_DOCUMENT
 from idp_common.appsync.service import DocumentAppSyncService
 
 __all__ = [
-    'AppSyncClient', 
-    'AppSyncError',
-    'CREATE_DOCUMENT',
-    'UPDATE_DOCUMENT',
-    'DocumentAppSyncService'
+    "AppSyncClient",
+    "AppSyncError",
+    "CREATE_DOCUMENT",
+    "UPDATE_DOCUMENT",
+    "DocumentAppSyncService",
 ]

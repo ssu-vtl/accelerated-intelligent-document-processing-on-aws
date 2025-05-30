@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # OCR Service for IDP Accelerator
 
 This module provides OCR (Optical Character Recognition) capabilities for processing documents within the IDP Accelerator project.

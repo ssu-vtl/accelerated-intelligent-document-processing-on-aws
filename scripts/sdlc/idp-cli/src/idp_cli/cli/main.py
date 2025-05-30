@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 import os
 import sys
 from idp_cli.service.install_service import InstallService
@@ -25,7 +28,7 @@ def install(
     account_id: str = typer.Option(..., "--account-id", help="AWS Account ID"),
     cfn_prefix: str = typer.Option("idp-dev", "--cfn-prefix", help="An identifier to prefix the stack"),
     admin_email: str = typer.Option(..., "--admin-email", help="The admin email"),
-    idp_pattern: str = typer.Option("Pattern2 - Packet processing with Textract and Bedrock", "--idp-pattern", help="The IDP Pattern to install"),
+    idp_pattern: str = typer.Option("Pattern1 - Packet or Media processing with Bedrock Data Automation (BDA)", "--idp-pattern", help="The IDP Pattern to install"),
     cwd: str = typer.Option("./", "--cwd", help="Current working directory"),
     debug: bool = typer.Option(False, "--debug", help="Enable debug mode"),
     publish: bool = typer.Option(True, "--publish", help="Control publishing"),
@@ -70,8 +73,8 @@ def uninstall(
 @app.command()
 def smoketest(
     stack_name: str = typer.Option("idp-Stack", "--stack-name", help="Name of the deployed stack to test"),
-    file_path: str = typer.Option("../../../samples/rvl_cdip_package.pdf", "--file-path", help="Path to the test file"),
-    verify_string: str = typer.Option("WESTERN DARK FIRED TOBACCO GROWERS", "--verify-string", help="String to verify in the processed output")
+    file_path: str = typer.Option("../../../samples/lending_package.pdf", "--file-path", help="Path to the test file"),
+    verify_string: str = typer.Option("475 ANY AVENUE ANYTOWN, USA", "--verify-string", help="String to verify in the processed output")
 ):
     """
     Run a smoke test on the deployed IDP Accelerator
