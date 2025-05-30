@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 """
 OCR function that processes PDFs and extracts text using AWS Textract.
 Uses the idp_common.ocr package for OCR functionality.

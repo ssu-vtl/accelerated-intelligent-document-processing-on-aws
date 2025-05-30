@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # GenAI IDP Accelerator Configuration Library
 
 This directory serves as a centralized repository for configuration files used with the GenAI Intelligent Document Processing (IDP) Accelerator. It contains various configuration examples for different use cases, allowing users to quickly adapt the accelerator to their specific needs.

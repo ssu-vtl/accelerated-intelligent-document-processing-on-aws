@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Customizing Extraction
 
 Information extraction is a central capability of the GenAIIDP solution, transforming unstructured document content into structured data. This guide explains how to customize extraction for your specific use cases, including few-shot prompting and CachePoint optimization.

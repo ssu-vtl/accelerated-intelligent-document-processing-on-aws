@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # AppSync Integration Module
 
 This module provides integration between the `idp_common` Document model and AWS AppSync. It allows for seamless conversion between Document objects and the GraphQL schema used in the IDP Accelerator's AppSync API.

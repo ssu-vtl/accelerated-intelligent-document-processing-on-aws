@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Configuration example using few-shot multimodal prompts for classification and extraction
 
 This directory contains a comprehensive configuration example for the GenAI IDP Accelerator demonstrating few-shot example prompting for both classification and extraction tasks. This configuration showcases how to use concrete document examples with images and expected outputs to improve processing accuracy.

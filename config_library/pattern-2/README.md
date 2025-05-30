@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Pattern 2 Configurations
 
 This directory contains configurations for Pattern 2 of the GenAI IDP Accelerator, which uses Amazon Bedrock with Nova or Claude models for both page classification/grouping and information extraction.

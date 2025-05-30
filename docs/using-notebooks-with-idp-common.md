@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Using Notebooks with IDP Common Library
 
 This guide provides detailed instructions on how to use existing notebooks and create new notebooks for experimentation with the IDP Common Library.

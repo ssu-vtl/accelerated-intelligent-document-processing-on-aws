@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 """Bedrock integration module for IDP Common package."""
 
 from .client import BedrockClient, invoke_model, default_client
