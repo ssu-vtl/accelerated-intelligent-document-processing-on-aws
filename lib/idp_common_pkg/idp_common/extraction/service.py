@@ -579,6 +579,7 @@ class ExtractionService:
             error_msg = f"Error processing section {section_id}: {str(e)}"
             logger.error(error_msg)
             document.errors.append(error_msg)
+            raise
 
         return document
 
