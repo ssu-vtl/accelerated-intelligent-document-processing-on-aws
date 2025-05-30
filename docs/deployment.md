@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # GenAIIDP Deployment Guide
 
 This guide covers how to deploy, build, publish, and test the GenAI Intelligent Document Processing solution.

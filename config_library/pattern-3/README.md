@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Pattern 3 Configurations
 
 This directory contains configurations for Pattern 3 of the GenAI IDP Accelerator, which uses UDOP (Unified Document Processing) for page classification and grouping, followed by Claude for information extraction.

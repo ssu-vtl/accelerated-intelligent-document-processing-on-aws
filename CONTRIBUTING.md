@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # Contributing to GenAI Intelligent Document Processing (GenAIIDP)
 
 Thank you for your interest in contributing to the GenAI Intelligent Document Processing accelerator! This document provides guidelines and instructions for contributing to this project.

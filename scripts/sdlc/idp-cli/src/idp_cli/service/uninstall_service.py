@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 import os
 from typing import Any, Dict, Optional
 from idp_cli.util.cfn_util import CfnUtil

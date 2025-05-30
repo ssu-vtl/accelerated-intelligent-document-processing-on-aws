@@ -1,3 +1,6 @@
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0
+
 # IDP Accelerator CLI
 * The IDP CLI is a command line utility that allows for gratuitously complext ci/cd operations bound only by the limitations of Python and of course your imagination.
 

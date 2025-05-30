@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 import { useState, useEffect } from 'react';
 import { API, graphqlOperation, Logger } from 'aws-amplify';
 import getConfigurationQuery from '../graphql/queries/getConfiguration';
