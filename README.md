@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT-0
 - [Architecture Overview](#architecture-overview)
 - [Quick Start](#quick-start)
   - [Processing Your First Document](#processing-your-first-document)
-  - [Updating an Existing Deployment](#updating-an-existing-deployment)
+- [Updating an Existing Deployment](#updating-an-existing-deployment)
 - [Detailed Documentation](#detailed-documentation)
   - [Core Documentation](#core-documentation)
   - [Processing Patterns](#processing-patterns)
@@ -84,7 +84,7 @@ After deployment, you can quickly process a document and view results:
 
 See the [Deployment Guide](./docs/deployment.md#testing-the-solution) for more detailed testing instructions.
 
-### Updating an Existing Deployment
+## Updating an Existing Deployment
 
 To update an existing GenAIIDP stack to a new version:
 
