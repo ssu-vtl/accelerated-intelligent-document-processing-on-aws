@@ -114,6 +114,7 @@ class Document:
     evaluation_result: Any = None  # Holds the DocumentEvaluationResult object
     summarization_result: Any = None  # Holds the DocumentSummarizationResult object
     errors: List[str] = field(default_factory=list)
+    hitl_metadata: List["HitlMetadata"] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert document to dictionary representation."""
@@ -189,13 +190,15 @@ class Document:
             errors=data.get("errors", []),
         )
 
-        # Convert status from string to enum
-        if "status" in data:
-            try:
-                document.status = Status(data["status"])
-            except ValueError:
-                # If the status isn't a valid enum value, use QUEUED as default
-                document.status = Status.QUEUED
+        # Load HITL metadata if present
+        if "hitl_metadata" in data:
+            if isinstance(data["hitl_metadata"], list):
+                document.hitl_metadata = [
+                    HitlMetadata.from_dict(item) for item in data["hitl_metadata"]
+                ]
+            else:
+                # Handle legacy format (single object)
+                document.hitl_metadata = [HitlMetadata.from_dict(data["hitl_metadata"])]
 
         # Convert pages
         pages_data = data.get("pages", {})
@@ -405,3 +408,54 @@ class Document:
         except Exception as e:
             logger.error(f"Error building document from S3: {str(e)}")
             raise
+        # Add HITL metadata if it has any values
+        if self.hitl_metadata:
+            result["hitl_metadata"] = [
+                metadata.to_dict() for metadata in self.hitl_metadata
+            ]
+        # Convert status from string to enum
+        if "status" in data:
+            try:
+                document.status = Status(data["status"])
+            except ValueError:
+                # If the status isn't a valid enum value, use QUEUED as default
+                document.status = Status.QUEUED
+@dataclass
+class HitlMetadata:
+    """Represents HITL (Human-In-The-Loop) metadata for a document."""
+
+    execution_id: Optional[str] = None
+    record_number: Optional[int] = None
+    bp_match: Optional[bool] = None
+    extraction_bp_name: Optional[str] = None
+    hitl_bp_change: Optional[str] = None
+    hitl_triggered: bool = False
+    page_array: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert HITL metadata to dictionary representation."""
+        return {
+            "execution_id": self.execution_id,
+            "record_number": self.record_number,
+            "bp_match": self.bp_match,
+            "extraction_bp_name": self.extraction_bp_name,
+            "hitl_bp_change": self.hitl_bp_change,
+            "hitl_triggered": self.hitl_triggered,
+            "page_array": self.page_array,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "HitlMetadata":
+        """Create a HitlMetadata from a dictionary representation."""
+        if not data:
+            return cls()
+
+        return cls(
+            execution_id=data.get("execution_id"),
+            record_number=data.get("record_number"),
+            bp_match=data.get("bp_match"),
+            extraction_bp_name=data.get("extraction_bp_name"),
+            hitl_bp_change=data.get("hitl_bp_change"),
+            hitl_triggered=data.get("hitl_triggered", False),
+            page_array=data.get("page_array", []),
+        )
