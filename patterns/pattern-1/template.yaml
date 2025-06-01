@@ -91,6 +91,16 @@ Parameters:
   ConfigLibraryHash:
     Type: String
     Description: "Hash token from config library to force updates when config library changes"
+    
+  EnableHITL:
+    Type: String
+    Default: "true"
+    Description: "Enable Human In The Loop?"
+   
+  ConfidenceThreshold:
+    Type: String
+    Default: ""
+    Description: "Confidence Threshold for Document extraction keys and classification mapping"
 
 Conditions:
   IsSummarizationEnabled: !Equals [!Ref IsSummarizationEnabled, "true"]
@@ -306,8 +316,13 @@ Resources:
       DefinitionSubstitutions:
         InvokeBDALambdaArn: !GetAtt InvokeBDAFunction.Arn
         ProcessResultsLambdaArn: !GetAtt ProcessResultsFunction.Arn
+        HITLWaitFunctionArn: !GetAtt HITLWaitFunction.Arn
+        # HITLWaitTaskTokenFunctionArn: !GetAtt HITLWaitTaskTokenFunction.Arn
+        HITLProcessIntegratedFunctionArn: !GetAtt HITLProcessIntegratedFunction.Arn
+        # BlueprintChangeIntegratedArn: !GetAtt BlueprintChangeIntegratedFunction.Arn
         IsSummarizationEnabled: !If [IsSummarizationEnabled, "true", "false"]
         SummarizationLambdaArn: !GetAtt SummarizationFunction.Arn
+        EnableHITL: !Ref EnableHITL
         OutputBucket: !Ref OutputBucket
         WorkingBucket: !Ref WorkingBucket
         BDAProjectArn: !Ref BDAProjectArn
@@ -323,6 +338,14 @@ Resources:
             FunctionName: !Ref ProcessResultsFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref SummarizationFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref HITLWaitFunction
+        # - LambdaInvokePolicy:
+        #     FunctionName: !Ref HITLWaitTaskTokenFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref HITLProcessIntegratedFunction
+        # - LambdaInvokePolicy:
+        #     FunctionName: !Ref BlueprintChangeIntegratedFunction
         - CloudWatchLogsFullAccess
 
   StateMachineLogGroup:
@@ -425,6 +448,10 @@ Resources:
           METRIC_NAMESPACE: !Ref StackName
           LOG_LEVEL: !Ref LogLevel
           APPSYNC_API_URL: !Ref AppSyncApiUrl
+          ENABLE_HITL: !Ref EnableHITL
+          CONFIDENCE_THRESHOLD: !Ref ConfidenceThreshold
+          DB_NAME: !Ref BDAMetadataTable
+          BDA_PROJECT_ARN: !Ref BDAProjectArn
       LoggingConfig:
         LogGroup: !Ref ProcessResultsFunctionLogGroup
       Policies:
@@ -435,6 +462,8 @@ Resources:
             BucketName: !Ref WorkingBucket
         - S3CrudPolicy:
             BucketName: !Ref OutputBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BDAMetadataTable
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
@@ -453,6 +482,23 @@ Resources:
               - appsync:GraphQL
             Resource: 
               - !Sub "${AppSyncApiArn}/types/Mutation/*"
+          - Effect: Allow
+            Action:
+              - sagemaker:StartHumanLoop
+            Resource: 'arn:aws:sagemaker:*:*:flow-definition/*'
+          - Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:PutParameter
+              - ssm:GetParametersByPath
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - bedrock:GetDataAutomationProject
+              - bedrock:ListDataAutomationProjects
+              - bedrock:GetBlueprint
+              - bedrock:GetBlueprintRecommendation
+            Resource: '*'
 
   
   ProcessResultsFunctionLogGroup:
@@ -628,6 +674,337 @@ Resources:
       FunctionName: !Ref BDACompletionFunction
       Principal: events.amazonaws.com
       SourceArn: !GetAtt BDAEventRule.Arn
+
+  # DynamoDB Table for BDA process records metadata
+  BDAMetadataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: execution_id
+          AttributeType: S
+        - AttributeName: record_number
+          AttributeType: N
+      KeySchema:
+        - AttributeName: execution_id
+          KeyType: HASH
+        - AttributeName: record_number
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ExpiresAfter
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref CustomerManagedEncryptionKeyArn
+  
+  #EventBridge Rule to check Human In the Loop Status change
+  HITLEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: 'Rule for SageMaker A2I HumanLoop Status Change'
+      EventPattern:
+        detail-type:
+          - 'SageMaker A2I HumanLoop Status Change'
+        source:
+          - 'aws.sagemaker'
+        detail:
+          humanLoopStatus:
+            - 'Completed'
+      State: 'ENABLED'
+      Targets:
+        - Arn: !GetAtt HITLProcessLambdaFunction.Arn
+          Id: 'HITLProcessLambdaTarget'
+
+  HITLProcessLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/HITLProcessLambdaFunction"
+      RetentionInDays: !Ref LogRetentionDays
+
+  HITLProcessLambdaFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for Cfn Custom Resource function"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
+    Properties:
+      Handler: index.lambda_handler
+      LoggingConfig:
+        LogGroup: !Ref HITLProcessLambdaLogGroup
+      Runtime: python3.12
+      Timeout: 300
+      CodeUri: src/hitl-process-function/
+      Role: !GetAtt HITLProcessLambdaRole.Arn
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref BDAMetadataTable
+          TRACKING_TABLE: !Ref TrackingTable
+          SQS_QUEUE_URL: !Ref SQSQueue
+          LOG_LEVEL: !Ref LogLevel
+
+  HITLProcessLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: HITLProcessLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:GetRecords
+                  - dynamodb:UpdateItem
+                  - dynamodb:UpdateTable
+                  - dynamodb:DeleteItem
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${BDAMetadataTable}'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub "arn:aws:s3:::${InputBucket}"
+                  - !Sub "arn:aws:s3:::${InputBucket}/*"
+                  - !Sub "arn:aws:s3:::${WorkingBucket}"
+                  - !Sub "arn:aws:s3:::${WorkingBucket}/*"
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                Resource:
+                  - !Sub "arn:aws:s3:::${OutputBucket}"
+                  - !Sub "arn:aws:s3:::${OutputBucket}/*"
+              - Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:Decrypt
+                  - kms:ReEncrypt*
+                  - kms:GenerateDataKey*
+                  - kms:DescribeKey
+                Resource: !Ref CustomerManagedEncryptionKeyArn
+
+  # HITLWaitTaskTokenFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     CodeUri: src/hitl-wait-task-token-function/
+  #     Handler: index.lambda_handler
+  #     Runtime: python3.12
+  #     Timeout: 60
+  #     MemorySize: 256
+  #     Environment:
+  #       Variables:
+  #         TRACKING_TABLE: !Ref TrackingTable
+  #         DYNAMODB_TABLE: !Ref BDAMetadataTable
+  #         LOG_LEVEL: !Ref LogLevel
+  #     LoggingConfig:
+  #       LogGroup: !Ref HITLWaitTaskTokenLogGroup
+  #     Policies:
+  #       - AWSLambdaBasicExecutionRole
+  #       - DynamoDBCrudPolicy:
+  #           TableName: !Ref TrackingTable
+  #       - DynamoDBCrudPolicy:
+  #           TableName: !Ref BDAMetadataTable
+  #       - Statement:
+  #         - Effect: Allow
+  #           Action:
+  #             - kms:Decrypt
+  #           Resource: !Ref CustomerManagedEncryptionKeyArn
+  #         - Effect: Allow
+  #           Action: cloudwatch:PutMetricData
+  #           Resource: '*'
+  
+  # HITLWaitTaskTokenLogGroup:
+  #   Type: AWS::Logs::LogGroup
+  #   Properties:
+  #     KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
+  #     LogGroupName: !Sub "/${AWS::StackName}/lambda/HITLWaitTaskTokenFunction"
+  #     RetentionInDays: !Ref LogRetentionDays
+
+  HITLWaitFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/hitl-wait-function/
+      Handler: index.lambda_handler
+      Runtime: python3.12
+      Timeout: 60
+      MemorySize: 256
+      Environment:
+        Variables:
+          TRACKING_TABLE: !Ref TrackingTable
+          DYNAMODB_TABLE: !Ref BDAMetadataTable
+          LOG_LEVEL: !Ref LogLevel
+      LoggingConfig:
+        LogGroup: !Ref HITLWaitFunctionLogGroup
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TrackingTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BDAMetadataTable
+        - Statement:
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+            Resource: !Ref CustomerManagedEncryptionKeyArn
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: '*'
+  
+  HITLWaitFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/HITLWaitFunction"
+      RetentionInDays: !Ref LogRetentionDays
+
+  # HITLProcessIntegratedFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     CodeUri: src/hitl-process-integrated/
+  #     Handler: index.lambda_handler
+  #     Runtime: python3.12
+  #     Timeout: 60
+  #     MemorySize: 256
+  #     Environment:
+  #       Variables:
+  #         DYNAMODB_TABLE: !Ref BDAMetadataTable
+  #         TRACKING_TABLE: !Ref TrackingTable
+  #         LOG_LEVEL: !Ref LogLevel
+  #     LoggingConfig:
+  #       LogGroup: !Ref HITLProcessIntegratedFunctionLogGroup
+  #     Policies:
+  #       - AWSLambdaBasicExecutionRole
+  #       - DynamoDBCrudPolicy:
+  #           TableName: !Ref BDAMetadataTable
+  #       - DynamoDBCrudPolicy:
+  #           TableName: !Ref TrackingTable
+  #       - Statement:
+  #         - Effect: Allow
+  #           Action:
+  #             - states:SendTaskSuccess
+  #             - states:SendTaskFailure
+  #           Resource: "*"
+  #         - Effect: Allow
+  #           Action: cloudwatch:PutMetricData
+  #           Resource: '*'
+  #         - Effect: Allow
+  #           Action:
+  #             - kms:Decrypt
+  #           Resource: !Ref CustomerManagedEncryptionKeyArn
+
+  # HITLProcessIntegratedFunctionLogGroup:
+  #   Type: AWS::Logs::LogGroup
+  #   Properties:
+  #     KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
+  #     LogGroupName: !Sub "/${AWS::StackName}/lambda/HITLProcessIntegratedFunction"
+  #     RetentionInDays: !Ref LogRetentionDays
+  
+  # SQSQueue:
+  #   Type: AWS::SQS::Queue
+  #   Properties:
+  #     QueueName: !Sub '${AWS::StackName}-hitl-bp-change'
+  #     VisibilityTimeout: 300
+
+  # SQSQueuePolicy:
+  #   Type: AWS::SQS::QueuePolicy
+  #   Properties:
+  #     Queues:
+  #       - !Ref SQSQueue
+  #     PolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Sid: Allow-Lambda-SendMessage
+  #           Effect: Allow
+  #           Principal:
+  #             Service: lambda.amazonaws.com
+  #           Action:
+  #             - sqs:*
+  #           Resource: !GetAtt SQSQueue.Arn
+
+  # BlueprintChangeIntegratedFunctionLogGroup:
+  #   Type: AWS::Logs::LogGroup
+  #   Properties:
+  #     KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
+  #     LogGroupName: !Sub "/${AWS::StackName}/lambda/BlueprintChangeIntegratedFunction"
+  #     RetentionInDays: !Ref LogRetentionDays
+
+  # BlueprintChangeIntegratedFunction:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     CodeUri: src/blueprint-change-integrated/
+  #     Handler: index.lambda_handler
+  #     Runtime: python3.12
+  #     Timeout: 300
+  #     MemorySize: 512
+  #     Environment:
+  #       Variables:
+  #         DYNAMODB_TABLE: !Ref BDAMetadataTable
+  #         TRACKING_TABLE: !Ref TrackingTable
+  #         WORKING_BUCKET: !Ref WorkingBucket
+  #         BDA_PROJECT_ARN: !Ref BDAProjectArn
+  #         DATA_AUTOMATION_PROFILE_ARN: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
+  #         METRIC_NAMESPACE: !Ref StackName
+  #         LOG_LEVEL: !Ref LogLevel
+  #     LoggingConfig:
+  #       LogGroup: !Ref BlueprintChangeIntegratedFunctionLogGroup
+  #     Policies:
+  #       - AWSLambdaBasicExecutionRole
+  #       - DynamoDBCrudPolicy:
+  #           TableName: !Ref BDAMetadataTable
+  #       - DynamoDBCrudPolicy:
+  #           TableName: !Ref TrackingTable
+  #       - S3ReadPolicy:
+  #           BucketName: !Ref InputBucket
+  #       - S3CrudPolicy:
+  #           BucketName: !Ref WorkingBucket
+  #       - S3ReadPolicy:
+  #           BucketName: !Ref OutputBucket
+  #       - S3CrudPolicy:
+  #           BucketName: !Ref OutputBucket
+  #       - Statement:
+  #         - Effect: Allow
+  #           Action:
+  #             - bedrock-data-automation-runtime:InvokeDataAutomationAsync
+  #             - bedrock-data-automation-runtime:GetDataAutomationJob
+  #           Resource: "*"
+  #         - Effect: Allow
+  #           Action: cloudwatch:PutMetricData
+  #           Resource: '*'
+  #         - Effect: Allow
+  #           Action:
+  #             - kms:Decrypt
+  #             - kms:GenerateDataKey
+  #           Resource: !Ref CustomerManagedEncryptionKeyArn
+
+  #Event Bridge permissions to invoke Lambda function during HITL change 
+  EventBridgeInvokeLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref HITLProcessLambdaFunction
+      Action: 'lambda:InvokeFunction'
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt HITLEventRule.Arn
 
 
   Dashboard:
@@ -880,4 +1257,3 @@ Outputs:
   DashboardArn:
     Description: ARN of the Pattern 1 (BDA) CloudWatch Dashboard
     Value: !Sub "arn:aws:cloudwatch::${AWS::AccountId}:dashboard/${Dashboard}"
-
