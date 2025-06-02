@@ -441,6 +441,7 @@ extraction:
   top_k: '5'
   task_prompt: >-
     <background>
+    
     You are an expert in document analysis and information extraction. 
     You can understand and extract key information from documents classified as type 
 
@@ -450,8 +451,10 @@ extraction:
 
 
     <task>
+
     Your task is to take the unstructured text provided and convert it into a well-organized table format using JSON. Identify the main entities, attributes, or categories mentioned in the attributes list below and use them as keys in the JSON object. 
-    Then, extract the relevant information from the text and populate the corresponding values in the JSON object. 
+    Then, extract the relevant information from the text and populate the corresponding values in the JSON object.
+
     </task>
 
 
@@ -491,6 +494,7 @@ extraction:
 
 
     <<CACHEPOINT>>
+
 
     <document-text>
 
