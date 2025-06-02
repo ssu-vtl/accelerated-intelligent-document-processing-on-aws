@@ -5,6 +5,12 @@ SPDX-License-Identifier: MIT-0
 
 ## [Unreleased]
 
+## [0.3.1]
+
+### Fixed
+- When encountering excessive Bedrock throttling, service returned 'unclassified' instead of retrying, when using multi-modal page level classification method.
+- Minor documentation issues.
+
 ## [0.3.0]
 
 ### Added

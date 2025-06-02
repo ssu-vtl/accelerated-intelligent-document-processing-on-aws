@@ -940,11 +940,12 @@ class ClassificationService:
                         logger.error(error_msg)
                         with errors_lock:
                             document.errors.append(error_msg)
-
                         # Mark page as unclassified on error
                         if page_id in document.pages:
                             document.pages[page_id].classification = "unclassified"
                             document.pages[page_id].confidence = 0.0
+                        # raise exception to enable client retries
+                        raise
 
             # Group pages into sections only if we have results
             document.sections = []
