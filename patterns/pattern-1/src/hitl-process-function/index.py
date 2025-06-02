@@ -295,7 +295,7 @@ def lambda_handler(event, context):
     # sqs_client = boto3.client('sqs')  # Initialize SQS client
     table = dynamodb.Table(os.environ['DYNAMODB_TABLE'])
     tracking_table = dynamodb.Table(os.environ['TRACKING_TABLE'])
-    sqs_queue_url = os.environ['SQS_QUEUE_URL']  # Get SQS queue URL from env
+    # sqs_queue_url = os.environ['SQS_QUEUE_URL']  # Get SQS queue URL from env
 
     try:
         detail = event.get('detail', {})
@@ -329,7 +329,7 @@ def lambda_handler(event, context):
         document_id = db_item.get('object_key', {})
 
         # If blueprint matches, update inference result in DynamoDB
-        if answer_bp is not None and input_bp is not None and answer_bp == input_bp:
+        if (answer_bp is not None and input_bp is not None and answer_bp == input_bp) or (answer_bp is None):
             existing_result = db_item.get('hitl_corrected_result', {})
             output_bucket = db_item.get('output_bucket', {})
             object_key = db_item.get('object_key', {})

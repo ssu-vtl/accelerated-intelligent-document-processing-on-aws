@@ -318,7 +318,7 @@ Resources:
         ProcessResultsLambdaArn: !GetAtt ProcessResultsFunction.Arn
         HITLWaitFunctionArn: !GetAtt HITLWaitFunction.Arn
         # HITLWaitTaskTokenFunctionArn: !GetAtt HITLWaitTaskTokenFunction.Arn
-        HITLProcessIntegratedFunctionArn: !GetAtt HITLProcessIntegratedFunction.Arn
+        HITLProcessIntegratedFunctionArn: !GetAtt HITLProcessLambdaFunction.Arn
         # BlueprintChangeIntegratedArn: !GetAtt BlueprintChangeIntegratedFunction.Arn
         IsSummarizationEnabled: !If [IsSummarizationEnabled, "true", "false"]
         SummarizationLambdaArn: !GetAtt SummarizationFunction.Arn
@@ -343,7 +343,7 @@ Resources:
         # - LambdaInvokePolicy:
         #     FunctionName: !Ref HITLWaitTaskTokenFunction
         - LambdaInvokePolicy:
-            FunctionName: !Ref HITLProcessIntegratedFunction
+            FunctionName: !Ref HITLProcessLambdaFunction
         # - LambdaInvokePolicy:
         #     FunctionName: !Ref BlueprintChangeIntegratedFunction
         - CloudWatchLogsFullAccess
@@ -750,7 +750,7 @@ Resources:
         Variables:
           DYNAMODB_TABLE: !Ref BDAMetadataTable
           TRACKING_TABLE: !Ref TrackingTable
-          SQS_QUEUE_URL: !Ref SQSQueue
+          # SQS_QUEUE_URL: !Ref SQSQueue
           LOG_LEVEL: !Ref LogLevel
 
   HITLProcessLambdaRole:
@@ -778,7 +778,20 @@ Resources:
                   - dynamodb:UpdateItem
                   - dynamodb:UpdateTable
                   - dynamodb:DeleteItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
                 Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${BDAMetadataTable}'
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:GetRecords
+                  - dynamodb:UpdateItem
+                  - dynamodb:UpdateTable
+                  - dynamodb:DeleteItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TrackingTable}'
               - Effect: Allow
                 Action:
                   - s3:GetObject
