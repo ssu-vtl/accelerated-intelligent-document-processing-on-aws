@@ -27,6 +27,7 @@ This pattern implements an intelligent document processing workflow using Amazon
   - [Invocation Step](#invocation-step)
   - [Processing Step](#processing-step)
   - [Results Processing](#results-processing)
+  - [Human-in-the-Loop (HITL)](#human-in-the-loop-hitl)
 
 ## Architecture Overview
 
@@ -68,6 +69,8 @@ InvokeDataAutomation (with waitForTaskToken)
 **Stack Deployment Parameters:**
 - `BDAProjectArn`: ARN of your Bedrock Data Automation project
 - `IsSummarizationEnabled`: Boolean to enable/disable summarization functionality (true|false)
+- `EnableHITL`: Boolean to enable/disable Human-in-the-Loop review (true|false)
+- `ConfidenceThreshold`: Numeric value (0-100) that determines when human review is triggered
 - `ConfigurationDefaultS3Uri`: Optional S3 URI to custom configuration (uses default configuration if not specified)
 - `InputBucket`: S3 bucket for input documents
 - `WorkingBucket`: S3 bucket for temporary BDA job output
@@ -76,6 +79,9 @@ InvokeDataAutomation (with waitForTaskToken)
 - `CustomerManagedEncryptionKeyArn`: KMS key ARN for encryption
 - `LogRetentionDays`: CloudWatch log retention period
 - `ExecutionTimeThresholdMs`: Latency threshold for alerts
+
+**Stack Outputs:**
+- `SageMakerA2IReviewPortalURL`: URL for the SageMaker A2I human review portal (when HITL is enabled)
 
 **Configuration Management:**
 - Configuration now supports multiple presets per pattern (e.g., default, checkboxed_attributes_extraction, medical_records_summarization)
@@ -188,6 +194,35 @@ payload = {
 - Produces standardized output format for UI consumption
 - Updates execution status with job result information
 
+### Human-in-the-Loop (HITL)
+
+Pattern-1 supports Human-in-the-Loop (HITL) review capabilities using Amazon SageMaker Augmented AI (A2I). This feature allows human reviewers to validate and correct extracted information when the system's confidence falls below a specified threshold.
+
+#### HITL Workflow
+1. **Automatic Triggering**: 
+   - HITL is triggered when the feature is enabled in your configuration
+   - Extraction confidence score falls below your configured confidence threshold
+   - The system creates a human review task in SageMaker A2I
+
+2. **Review Process**:
+   - Reviewers access the SageMaker A2I Review Portal (URL available in CloudFormation output `SageMakerA2IReviewPortalURL`)
+   - Login credentials are the same as those used for the GenAI IDP portal
+   - Extracted key-value pairs are presented for validation and correction
+   - Reviewers validate correct extractions or make necessary corrections
+   - After review, corrections are submitted with the "Submit" button
+
+3. **Result Integration**:
+   - Corrected key-value pairs automatically update the source results
+   - The document processing workflow continues with the human-verified data
+
+#### Configuration
+- `EnableHITL`: Boolean parameter to enable/disable the HITL feature
+- `ConfidenceThreshold`: Numeric value (0-100) that determines when human review is triggered
+
+#### Best Practices
+- Regularly check the Review Portal for pending tasks to avoid processing delays
+- Establish consistent correction guidelines if multiple reviewers are involved
+
 ## Best Practices
 1. **BDA Project Configuration**:
    - Configure classification and extraction within the BDA project using BDA Blueprints
@@ -216,3 +251,8 @@ payload = {
    - Configure alerts for unusual throttling or error patterns
    - Use appropriate IAM roles with least privilege principles
    - Implement proper error handling for BDA job failures
+
+6. **HITL Management**:
+   - Set appropriate confidence thresholds based on business requirements
+   - Regularly check the Review Portal for pending tasks to avoid processing delays
+   - Establish consistent correction guidelines if multiple reviewers are involved
