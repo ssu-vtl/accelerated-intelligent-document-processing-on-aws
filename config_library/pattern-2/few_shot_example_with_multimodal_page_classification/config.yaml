@@ -676,7 +676,7 @@ classification:
 
     {FEW_SHOT_EXAMPLES}
 
-     </few_shot_examples>
+    </few_shot_examples>
 
     <<CACHEPOINT>>
 
