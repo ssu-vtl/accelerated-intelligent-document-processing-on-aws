@@ -612,6 +612,21 @@ classes:
     description: >-
       A bank statement document containing account information, transactions,
       and financial details
+    attributes:
+      - name: account_holder_name
+        description: >-
+          The name of the account holder.
+      - name: account_name
+        description: >-
+          The name or type of the bank account.
+      - name: account_number
+        description: >-
+          The unique identifier for the bank account. Look for text following
+          'account number', 'account id', or 'account identifier'.
+      - name: transactions
+        description: >-
+          The list of transactions on the account. Look for text following
+          'transactions', 'transaction history', or 'transaction details'.
     examples:
       - classPrompt: Here are example images for each page of a 3 page 'bank-statement '
         name: BankStatement1
