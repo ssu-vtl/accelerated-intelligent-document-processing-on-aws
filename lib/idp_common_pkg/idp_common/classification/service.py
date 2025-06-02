@@ -292,7 +292,7 @@ class ClassificationService:
                     "DOCUMENT_TEXT": document_text,
                     "CLASS_NAMES_AND_DESCRIPTIONS": class_names_and_descriptions,
                 },
-                required_placeholders=[],  # Don't enforce required placeholders for partial templates
+                required_placeholders=[],
             )
 
             after_image = self._prepare_prompt_from_template(
@@ -301,7 +301,7 @@ class ClassificationService:
                     "DOCUMENT_TEXT": document_text,
                     "CLASS_NAMES_AND_DESCRIPTIONS": class_names_and_descriptions,
                 },
-                required_placeholders=[],  # Don't enforce required placeholders for partial templates
+                required_placeholders=[],
             )
 
             # Build content array with image in the middle
@@ -355,7 +355,7 @@ class ClassificationService:
                 "DOCUMENT_TEXT": document_text,
                 "CLASS_NAMES_AND_DESCRIPTIONS": class_names_and_descriptions,
             },
-            required_placeholders=["DOCUMENT_TEXT", "CLASS_NAMES_AND_DESCRIPTIONS"],
+            required_placeholders=[],
         )
 
         content = [{"text": task_prompt}]
@@ -1406,7 +1406,7 @@ class ClassificationService:
                     "DOCUMENT_TEXT": doc_text,
                     "CLASS_NAMES_AND_DESCRIPTIONS": classes_table,
                 },
-                required_placeholders=["DOCUMENT_TEXT", "CLASS_NAMES_AND_DESCRIPTIONS"],
+                required_placeholders=[],
             )
 
             # Invoke Bedrock to get the holistic classification
