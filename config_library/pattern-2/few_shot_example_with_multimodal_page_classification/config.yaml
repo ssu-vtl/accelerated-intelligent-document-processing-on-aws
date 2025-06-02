@@ -678,6 +678,7 @@ classification:
 
     </few_shot_examples>
 
+
     <<CACHEPOINT>>
 
 
@@ -708,7 +709,7 @@ extraction:
     only provide data found in the document being provided.
   task_prompt: >
     <background>
-    
+
     You are an expert in document analysis and information extraction. 
     You can understand and extract key information from documents classified as type 
 
