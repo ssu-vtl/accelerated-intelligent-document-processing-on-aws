@@ -215,6 +215,8 @@ Pattern-1 supports Human-in-the-Loop (HITL) review capabilities using Amazon Sag
    - Corrected key-value pairs automatically update the source results
    - The document processing workflow continues with the human-verified data
 
+<img src="../../images/hitl_a2i_workflow.png" alt="HITL Flow diagram" width="800">
+
 #### Configuration
 - `EnableHITL`: Boolean parameter to enable/disable the HITL feature
 - `ConfidenceThreshold`: Numeric value (0-100) that determines when human review is triggered
