@@ -257,11 +257,7 @@ class ExtractionService:
                 "DOCUMENT_CLASS": class_label,
                 "ATTRIBUTE_NAMES_AND_DESCRIPTIONS": attribute_descriptions,
             },
-            required_placeholders=[
-                "DOCUMENT_TEXT",
-                "DOCUMENT_CLASS",
-                "ATTRIBUTE_NAMES_AND_DESCRIPTIONS",
-            ],
+            required_placeholders=[],
         )
 
         content = [{"text": task_prompt}]
