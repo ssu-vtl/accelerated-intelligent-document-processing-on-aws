@@ -11,7 +11,7 @@ The solution supports multiple classification approaches that vary by pattern:
 
 ### Pattern 1: BDA-Based Classification
 
-- Classification is performed by the BDA (Business Document Analysis) project configuration
+- Classification is performed by the BDA (Bedrock Data Automation) project configuration
 - Uses BDA blueprints to define classification rules
 - Not configurable inside the GenAIIDP solution itself
 - Configuration happens at the BDA project level
