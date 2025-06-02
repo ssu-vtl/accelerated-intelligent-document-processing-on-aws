@@ -485,6 +485,10 @@ extraction:
     <document-text>
     {DOCUMENT_TEXT}
     </document-text>
+  
+    <document_image>
+    {DOCUMENT_IMAGE}
+    </document_image>
 
     <final-instructions>
     Extract key information from the document and return a JSON object with the following key steps:
