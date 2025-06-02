@@ -367,6 +367,8 @@ Metadata:
         Parameters:
           - Pattern1Configuration
           - Pattern1BDAProjectArn
+          - Pattern1EnableHITL
+          - Pattern1BDAConfidenceThreshold
       - Label:
           default: "Pattern 2 Configuration"
         Parameters:

@@ -85,7 +85,7 @@
             "Type": "Task",
             "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
             "Parameters": {
-                "FunctionName": "${HITLWaitTaskTokenFunctionArn}",
+                "FunctionName": "${HITLWaitFunctionArn}",
                 "Payload": {
                     "taskToken.$": "$$.Task.Token",
                     "Payload.$": "$"
