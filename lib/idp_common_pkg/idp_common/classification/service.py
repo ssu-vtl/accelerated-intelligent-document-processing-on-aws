@@ -1124,6 +1124,8 @@ class ClassificationService:
             document = self._update_document_status(
                 document, success=False, error_message=error_msg
             )
+            # raise exception to enable client retries
+            raise
 
         return document
 
