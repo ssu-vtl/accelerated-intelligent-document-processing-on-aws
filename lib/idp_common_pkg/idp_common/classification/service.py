@@ -15,8 +15,8 @@ import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set, Union
-from datetime import datetime, timezone, timedelta
 
 import boto3
 from botocore.exceptions import ClientError
@@ -74,12 +74,15 @@ class ClassificationService:
         self.backend = backend.lower()
 
         # Initialize caching
-        self.cache_table = cache_table or os.environ.get("CLASSIFICATION_CACHE_TABLE")
-        self.dynamodb_client = None
-        if self.cache_table:
-            self.dynamodb_client = boto3.client("dynamodb", region_name=self.region)
+        self.cache_table_name = cache_table or os.environ.get(
+            "CLASSIFICATION_CACHE_TABLE"
+        )
+        self.cache_table = None
+        if self.cache_table_name:
+            dynamodb = boto3.resource("dynamodb", region_name=self.region)
+            self.cache_table = dynamodb.Table(self.cache_table_name)
             logger.info(
-                f"Classification caching enabled using table: {self.cache_table}"
+                f"Classification caching enabled using table: {self.cache_table_name}"
             )
         else:
             logger.info("Classification caching disabled")
@@ -1014,16 +1017,13 @@ class ClassificationService:
         Returns:
             Dictionary mapping page_id to cached PageClassification, empty dict if no cache
         """
-        if not self.dynamodb_client or not self.cache_table:
+        if not self.cache_table:
             return {}
 
         cache_key = self._get_cache_key(document)
 
         try:
-            response = self.dynamodb_client.get_item(
-                TableName=self.cache_table,
-                Key={"PK": {"S": cache_key}, "SK": {"S": "none"}},
-            )
+            response = self.cache_table.get_item(Key={"PK": cache_key, "SK": "none"})
 
             if "Item" not in response:
                 logger.debug(f"No cache entry found for document {document.id}")
@@ -1035,7 +1035,7 @@ class ClassificationService:
 
             # Extract page classifications from the cached data
             if "page_classifications" in cached_data:
-                pages_data = json.loads(cached_data["page_classifications"]["S"])
+                pages_data = json.loads(cached_data["page_classifications"])
                 for page_id, page_data in pages_data.items():
                     page_classifications[page_id] = PageClassification(
                         page_id=page_id,
@@ -1071,7 +1071,7 @@ class ClassificationService:
             document: Document object
             page_classifications: List of successful page classifications
         """
-        if not self.dynamodb_client or not self.cache_table or not page_classifications:
+        if not self.cache_table or not page_classifications:
             return
 
         cache_key = self._get_cache_key(document)
@@ -1097,20 +1097,19 @@ class ClassificationService:
                 )
                 return
 
-            # Store in DynamoDB
-            self.dynamodb_client.put_item(
-                TableName=self.cache_table,
+            # Store in DynamoDB using Table resource
+            self.cache_table.put_item(
                 Item={
-                    "PK": {"S": cache_key},
-                    "SK": {"S": "none"},
-                    "page_classifications": {"S": json.dumps(successful_pages)},
-                    "cached_at": {"S": str(int(time.time()))},
-                    "document_id": {"S": document.id},
-                    "workflow_execution_arn": {"S": document.workflow_execution_arn},
+                    "PK": cache_key,
+                    "SK": "none",
+                    "page_classifications": json.dumps(successful_pages),
+                    "cached_at": str(int(time.time())),
+                    "document_id": document.id,
+                    "workflow_execution_arn": document.workflow_execution_arn,
                     "ExpiresAfter": int(
                         (datetime.now(timezone.utc) + timedelta(days=1)).timestamp()
                     ),
-                },
+                }
             )
 
             logger.info(
