@@ -997,9 +997,17 @@ def handler(event, context):
         }
     }
     
-    # Update document status to COMPLETED
-    document.status = Status.COMPLETED
-    document.completion_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    # Update document status based on HITL requirement
+    if hitl_triggered == "true":
+        # Keep as RUNNING until HITL completes
+        document.status = Status.RUNNING
+        logger.info(f"Document requires human review, setting status to {document.status}")
+    else:
+        # Only mark as COMPLETED if no human review is needed
+        document.status = Status.COMPLETED
+        document.completion_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        logger.info(f"Document processing complete, setting status to {document.status}")
+    
     appsync_service.update_document(document)
     
     # Prepare response

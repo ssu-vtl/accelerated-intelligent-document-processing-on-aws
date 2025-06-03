@@ -23,6 +23,8 @@ const mapDocumentsAttributes = (documents) => {
       SummaryReportUri: summaryReportUri,
       ListPK: listPK,
       ListSK: listSK,
+      HITLStatus: hitlStatus,
+      HITLReviewURL: hitlReviewURL,
     } = item;
 
     const formatDate = (timestamp) => {
@@ -64,6 +66,8 @@ const mapDocumentsAttributes = (documents) => {
       summaryReportUri,
       listPK,
       listSK,
+      hitlStatus,
+      hitlReviewURL,
     };
 
     console.log('mapped-document-attributes', mapping);

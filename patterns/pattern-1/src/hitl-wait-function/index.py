@@ -15,6 +15,7 @@ dynamodb = boto3.resource('dynamodb')
 # Get environment variables
 TRACKING_TABLE = os.environ.get('TRACKING_TABLE')
 BDA_METADATA_TABLE = os.environ.get('DYNAMODB_TABLE')
+SAGEMAKER_A2I_REVIEW_PORTAL_URL = os.environ.get('SAGEMAKER_A2I_REVIEW_PORTAL_URL', '')
 
 def lambda_handler(event, context):
     """
@@ -106,15 +107,32 @@ def lambda_handler(event, context):
     
     # Update the document tracking record with HITL status
     try:
+        # Update the HITL metadata record
         tracking_table.update_item(
             Key={
                 'PK': f"document#{document_id}",
                 'SK': 'metadata'
             },
-            UpdateExpression="SET HITLStatus = :status, HITLStartTime = :time",
+            UpdateExpression="SET HITLStatus = :status, HITLStartTime = :time, HITLReviewURL = :url",
             ExpressionAttributeValues={
-                ':status': "InProgress",
-                ':time': datetime.now(timezone.utc).isoformat()
+                ':status': "IN_PROGRESS",
+                ':time': datetime.now(timezone.utc).isoformat(),
+                ':url': SAGEMAKER_A2I_REVIEW_PORTAL_URL
+            }
+        )
+        
+        # Also update the main document record to show it's in HITL review
+        # and include the HITL metadata fields in the main record
+        tracking_table.update_item(
+            Key={
+                'PK': f"doc#{document_id}",
+                'SK': 'none'
+            },
+            UpdateExpression="SET ObjectStatus = :status, HITLStatus = :hitlStatus, HITLReviewURL = :url",
+            ExpressionAttributeValues={
+                ':status': "HITL_IN_PROGRESS",
+                ':hitlStatus': "IN_PROGRESS",
+                ':url': SAGEMAKER_A2I_REVIEW_PORTAL_URL
             }
         )
     except Exception as e:
