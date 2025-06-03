@@ -59,7 +59,7 @@ def handler(event, context):
     config_with_endpoint["sagemaker_endpoint_name"] = os.environ['SAGEMAKER_ENDPOINT_NAME']
     
     # Initialize classification service with SageMaker backend and DynamoDB caching
-    cache_table = os.environ.get('CONFIGURATION_TABLE_NAME')
+    cache_table = os.environ.get('TRACKING_TABLE')
     service = classification.ClassificationService(
         region=region,
         max_workers=MAX_WORKERS,
