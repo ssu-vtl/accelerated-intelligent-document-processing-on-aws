@@ -35,6 +35,7 @@ def handler(event, context):
     
     # Update document status to CLASSIFYING
     document.status = Status.CLASSIFYING
+    document.workflow_execution_arn = event.get("execution_arn")
     appsync_service = DocumentAppSyncService()
     logger.info(f"Updating document status to {document.status}")
     appsync_service.update_document(document)
