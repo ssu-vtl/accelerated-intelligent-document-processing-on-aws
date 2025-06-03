@@ -16,6 +16,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Set, Union
+from datetime import datetime, timezone, timedelta
 
 import boto3
 from botocore.exceptions import ClientError
@@ -51,6 +52,7 @@ class ClassificationService:
         max_workers: int = 20,
         config: Dict[str, Any] = None,
         backend: str = "bedrock",
+        cache_table: str = None,
     ):
         """
         Initialize the classification service.
@@ -60,6 +62,7 @@ class ClassificationService:
             max_workers: Maximum number of concurrent workers
             config: Configuration dictionary
             backend: Classification backend to use ('bedrock' or 'sagemaker')
+            cache_table: Optional DynamoDB table name for caching classification results
         """
         self.config = config or {}
         self.region = (
@@ -69,6 +72,17 @@ class ClassificationService:
         self.document_types = self._load_document_types()
         self.valid_doc_types: Set[str] = {dt.type_name for dt in self.document_types}
         self.backend = backend.lower()
+
+        # Initialize caching
+        self.cache_table = cache_table or os.environ.get("CLASSIFICATION_CACHE_TABLE")
+        self.dynamodb_client = None
+        if self.cache_table:
+            self.dynamodb_client = boto3.client("dynamodb", region_name=self.region)
+            logger.info(
+                f"Classification caching enabled using table: {self.cache_table}"
+            )
+        else:
+            logger.info("Classification caching disabled")
 
         # Validate backend choice
         if self.backend not in ["bedrock", "sagemaker"]:
@@ -976,6 +990,138 @@ class ClassificationService:
 
         return ""
 
+    def _get_cache_key(self, document: Document) -> str:
+        """
+        Generate cache key for a document.
+
+        Args:
+            document: Document object
+
+        Returns:
+            Cache key string
+        """
+        return f"classcache#{document.id}#{document.workflow_execution_arn}"
+
+    def _get_cached_page_classifications(
+        self, document: Document
+    ) -> Dict[str, PageClassification]:
+        """
+        Retrieve cached page classifications for a document.
+
+        Args:
+            document: Document object
+
+        Returns:
+            Dictionary mapping page_id to cached PageClassification, empty dict if no cache
+        """
+        if not self.dynamodb_client or not self.cache_table:
+            return {}
+
+        cache_key = self._get_cache_key(document)
+
+        try:
+            response = self.dynamodb_client.get_item(
+                TableName=self.cache_table,
+                Key={"PK": {"S": cache_key}, "SK": {"S": "none"}},
+            )
+
+            if "Item" not in response:
+                logger.debug(f"No cache entry found for document {document.id}")
+                return {}
+
+            # Parse cached data
+            cached_data = response["Item"]
+            page_classifications = {}
+
+            # Extract page classifications from the cached data
+            if "page_classifications" in cached_data:
+                pages_data = json.loads(cached_data["page_classifications"]["S"])
+                for page_id, page_data in pages_data.items():
+                    page_classifications[page_id] = PageClassification(
+                        page_id=page_id,
+                        classification=DocumentClassification(
+                            doc_type=page_data["doc_type"],
+                            confidence=page_data.get("confidence", 1.0),
+                            metadata=page_data.get("metadata", {}),
+                        ),
+                        image_uri=page_data.get("image_uri"),
+                        text_uri=page_data.get("text_uri"),
+                        raw_text_uri=page_data.get("raw_text_uri"),
+                    )
+
+                logger.info(
+                    f"Retrieved {len(page_classifications)} cached page classifications for document {document.id}"
+                )
+
+            return page_classifications
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to retrieve cached classifications for document {document.id}: {e}"
+            )
+            return {}
+
+    def _cache_successful_page_classifications(
+        self, document: Document, page_classifications: List[PageClassification]
+    ) -> None:
+        """
+        Cache successful page classifications to DynamoDB.
+
+        Args:
+            document: Document object
+            page_classifications: List of successful page classifications
+        """
+        if not self.dynamodb_client or not self.cache_table or not page_classifications:
+            return
+
+        cache_key = self._get_cache_key(document)
+
+        try:
+            # Filter out failed classifications
+            successful_pages = {}
+            for page_result in page_classifications:
+                # Only cache if there's no error in the metadata
+                if "error" not in page_result.classification.metadata:
+                    successful_pages[page_result.page_id] = {
+                        "doc_type": page_result.classification.doc_type,
+                        "confidence": page_result.classification.confidence,
+                        "metadata": page_result.classification.metadata,
+                        "image_uri": page_result.image_uri,
+                        "text_uri": page_result.text_uri,
+                        "raw_text_uri": page_result.raw_text_uri,
+                    }
+
+            if not successful_pages:
+                logger.debug(
+                    f"No successful page classifications to cache for document {document.id}"
+                )
+                return
+
+            # Store in DynamoDB
+            self.dynamodb_client.put_item(
+                TableName=self.cache_table,
+                Item={
+                    "PK": {"S": cache_key},
+                    "SK": {"S": "none"},
+                    "page_classifications": {"S": json.dumps(successful_pages)},
+                    "cached_at": {"S": str(int(time.time()))},
+                    "document_id": {"S": document.id},
+                    "workflow_execution_arn": {"S": document.workflow_execution_arn},
+                    "ExpiresAfter": int(
+                        (datetime.now(timezone.utc) + timedelta(days=1)).timestamp()
+                    ),
+                },
+            )
+
+            logger.info(
+                f"Cached {len(successful_pages)} successful page classifications for document {document.id}"
+            )
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to cache page classifications for document {document.id}: {e}"
+            )
+
     def classify_document(self, document: Document) -> Document:
         """
         Classify a document's pages and update the Document object with sections.
@@ -1015,64 +1161,111 @@ class ClassificationService:
         )
 
         try:
-            # Process pages concurrently
-            all_page_results = []
+            # Check for cached page classifications
+            cached_page_classifications = self._get_cached_page_classifications(
+                document
+            )
+            all_page_results = list(cached_page_classifications.values())
             combined_metering = {}
             errors_lock = threading.Lock()  # Thread safety for error collection
 
-            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                futures = {}
+            # Determine which pages need classification
+            pages_to_classify = {}
+            for page_id, page in document.pages.items():
+                if page_id not in cached_page_classifications:
+                    pages_to_classify[page_id] = page
+                else:
+                    # Update document with cached classification
+                    cached_result = cached_page_classifications[page_id]
+                    document.pages[
+                        page_id
+                    ].classification = cached_result.classification.doc_type
+                    document.pages[
+                        page_id
+                    ].confidence = cached_result.classification.confidence
 
-                # Start processing all pages
-                for page_id, page in document.pages.items():
-                    future = executor.submit(
-                        self.classify_page,
-                        page_id=page_id,
-                        text_uri=page.parsed_text_uri,
-                        image_uri=page.image_uri,
-                        raw_text_uri=page.raw_text_uri,
+                    # Merge cached metering data
+                    page_metering = cached_result.classification.metadata.get(
+                        "metering", {}
                     )
-                    futures[future] = page_id
+                    combined_metering = utils.merge_metering_data(
+                        combined_metering, page_metering
+                    )
 
-                # Process results as they complete
-                for future in as_completed(futures):
-                    page_id = futures[future]
-                    try:
-                        page_result = future.result()
-                        all_page_results.append(page_result)
+            if pages_to_classify:
+                logger.info(
+                    f"Found {len(cached_page_classifications)} cached page classifications, classifying {len(pages_to_classify)} remaining pages"
+                )
 
-                        # Check if there was an error in the classification
-                        if "error" in page_result.classification.metadata:
+                with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                    futures = {}
+
+                    # Start processing only uncached pages
+                    for page_id, page in pages_to_classify.items():
+                        future = executor.submit(
+                            self.classify_page,
+                            page_id=page_id,
+                            text_uri=page.parsed_text_uri,
+                            image_uri=page.image_uri,
+                            raw_text_uri=page.raw_text_uri,
+                        )
+                        futures[future] = page_id
+
+                    # Process results as they complete
+                    for future in as_completed(futures):
+                        page_id = futures[future]
+                        try:
+                            page_result = future.result()
+                            all_page_results.append(page_result)
+
+                            # Check if there was an error in the classification
+                            if "error" in page_result.classification.metadata:
+                                with errors_lock:
+                                    error_msg = f"Error classifying page {page_id}: {page_result.classification.metadata['error']}"
+                                    document.errors.append(error_msg)
+
+                            # Update the page in the document
+                            document.pages[
+                                page_id
+                            ].classification = page_result.classification.doc_type
+                            document.pages[
+                                page_id
+                            ].confidence = page_result.classification.confidence
+
+                            # Merge metering data
+                            page_metering = page_result.classification.metadata.get(
+                                "metering", {}
+                            )
+                            combined_metering = utils.merge_metering_data(
+                                combined_metering, page_metering
+                            )
+                        except Exception as e:
+                            error_msg = f"Error classifying page {page_id}: {str(e)}"
+                            logger.error(error_msg)
                             with errors_lock:
-                                error_msg = f"Error classifying page {page_id}: {page_result.classification.metadata['error']}"
                                 document.errors.append(error_msg)
+                            # Mark page as unclassified on error
+                            if page_id in document.pages:
+                                document.pages[page_id].classification = "unclassified"
+                                document.pages[page_id].confidence = 0.0
 
-                        # Update the page in the document
-                        document.pages[
-                            page_id
-                        ].classification = page_result.classification.doc_type
-                        document.pages[
-                            page_id
-                        ].confidence = page_result.classification.confidence
+                            # Cache successful page classifications before raising exception
+                            successful_results = [
+                                r
+                                for r in all_page_results
+                                if "error" not in r.classification.metadata
+                            ]
+                            if successful_results:
+                                self._cache_successful_page_classifications(
+                                    document, successful_results
+                                )
 
-                        # Merge metering data
-                        page_metering = page_result.classification.metadata.get(
-                            "metering", {}
-                        )
-                        combined_metering = utils.merge_metering_data(
-                            combined_metering, page_metering
-                        )
-                    except Exception as e:
-                        error_msg = f"Error classifying page {page_id}: {str(e)}"
-                        logger.error(error_msg)
-                        with errors_lock:
-                            document.errors.append(error_msg)
-                        # Mark page as unclassified on error
-                        if page_id in document.pages:
-                            document.pages[page_id].classification = "unclassified"
-                            document.pages[page_id].confidence = 0.0
-                        # raise exception to enable client retries
-                        raise
+                            # raise exception to enable client retries
+                            raise
+            else:
+                logger.info(
+                    f"All {len(cached_page_classifications)} page classifications found in cache"
+                )
 
             # Group pages into sections only if we have results
             document.sections = []
@@ -1120,7 +1313,19 @@ class ClassificationService:
             )
 
         except Exception as e:
-            error_msg = f"Error classifying document: {str(e)}"
+            # Cache successful page classifications before raising exception
+            if pages_to_classify:
+                successful_results = [
+                    r
+                    for r in all_page_results
+                    if "error" not in r.classification.metadata
+                ]
+                if successful_results:
+                    self._cache_successful_page_classifications(
+                        document, successful_results
+                    )
+
+            error_msg = f"Error classifying document - cached partial results: {str(e)}"
             document = self._update_document_status(
                 document, success=False, error_message=error_msg
             )

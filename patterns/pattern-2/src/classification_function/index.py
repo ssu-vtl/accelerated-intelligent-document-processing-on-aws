@@ -53,11 +53,13 @@ def handler(event, context):
     total_pages = len(document.pages)
     metrics.put_metric('BedrockRequestsTotal', total_pages)
     
-    # Initialize classification service
+    # Initialize classification service with DynamoDB caching
+    cache_table = os.environ.get('CONFIGURATION_TABLE_NAME')
     service = classification.ClassificationService(
         region=region,
         max_workers=MAX_WORKERS,
-        config=config
+        config=config,
+        cache_table=cache_table
     )
     
     # Classify the document - the service will update the Document directly

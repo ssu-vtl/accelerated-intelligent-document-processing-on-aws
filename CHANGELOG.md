@@ -5,6 +5,16 @@ SPDX-License-Identifier: MIT-0
 
 ## [Unreleased]
 
+### Added
+
+- **DynamoDB Caching for Resilient Classification**
+  - Added optional DynamoDB caching to the multimodal page-level classification service to improve efficiency and resilience
+  - Cache successful page classification results to avoid redundant processing during retries when some pages fail due to throttling
+  - Exception-safe caching preserves successful work even when individual threads or the overall process fails
+  - Configurable via `cache_table` parameter or `CLASSIFICATION_CACHE_TABLE` environment variable
+  - Cache entries scoped to document ID and workflow execution ARN with automatic TTL cleanup (24 hours)
+  - Significant cost reduction and improved retry performance for large multi-page documents
+
 ## [0.3.1]
 
 ### Added
