@@ -314,6 +314,33 @@ const DocumentAttributes = ({ item }) => {
             <div>{item.summaryReportUri ? 'Available' : 'N/A'}</div>
           </div>
         </SpaceBetween>
+
+        {/* HITL Information */}
+        {item.hitlStatus && (
+          <SpaceBetween size="xs">
+            <div>
+              <Box margin={{ bottom: 'xxxs' }} color="text-label">
+                <strong>HITL Status</strong>
+              </Box>
+              <div>
+                {item.hitlStatus}
+                {item.hitlStatus === 'IN_PROGRESS' && item.hitlReviewURL && (
+                  <div style={{ marginTop: '5px' }}>
+                    <Button
+                      href={item.hitlReviewURL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      iconName="external"
+                      variant="link"
+                    >
+                      Review Document
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </SpaceBetween>
+        )}
       </ColumnLayout>
     </Container>
   );

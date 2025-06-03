@@ -733,6 +733,7 @@ Resources:
         EnableHITL: !Ref Pattern1EnableHITL
         ConfigurationDefaultS3Uri: !Sub "s3://${ConfigurationBucket}/config_library/pattern-1/${Pattern1Configuration}/config.yaml"
         ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
+        SageMakerA2IReviewPortalURL: !GetAtt WorkforceURLResource.PortalURL
 
   PATTERN2STACK:
     DependsOn:

@@ -28,6 +28,29 @@ export const COLUMN_DEFINITIONS_MAIN = [
     width: 150,
   },
   {
+    id: 'hitlStatus',
+    header: <span style={{ color: 'inherit' }}>HITL Status</span>,
+    cell: (item) => item.hitlStatus || 'N/A',
+    sortingField: 'hitlStatus',
+    width: 150,
+  },
+  {
+    id: 'hitlReview',
+    header: <span style={{ color: 'inherit' }}>HITL Review</span>,
+    cell: (item) => {
+      if (item.hitlStatus === 'IN_PROGRESS' && item.hitlReviewURL) {
+        return (
+          <Link href={item.hitlReviewURL} external externalIconAriaLabel="Opens in a new tab">
+            Review Document
+          </Link>
+        );
+      }
+      return 'N/A';
+    },
+    sortingField: 'hitlReviewURL',
+    width: 150,
+  },
+  {
     id: 'initialEventTime',
     header: 'Submitted',
     cell: (item) => item.initialEventTime,
@@ -78,6 +101,8 @@ const VISIBLE_CONTENT_OPTIONS = [
     options: [
       { id: 'objectKey', label: 'Document ID', editable: false },
       { id: 'objectStatus', label: 'Status' },
+      { id: 'hitlStatus', label: 'HITL Status' },
+      { id: 'hitlReview', label: 'HITL Review' },
       { id: 'initialEventTime', label: 'Submitted' },
       { id: 'completionTime', label: 'Completed' },
       { id: 'duration', label: 'Duration' },
@@ -89,6 +114,8 @@ const VISIBLE_CONTENT_OPTIONS = [
 const VISIBLE_CONTENT = [
   'objectKey',
   'objectStatus',
+  'hitlStatus',
+  'hitlReview',
   'initialEventTime',
   'completionTime',
   'duration',

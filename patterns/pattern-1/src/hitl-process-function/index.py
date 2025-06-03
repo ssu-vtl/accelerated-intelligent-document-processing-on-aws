@@ -470,6 +470,35 @@ def lambda_handler(event, context):
                                 })
                             )
                             logger.info(f"Sent task success for execution {execution_id}")
+                            
+                            # Update document tracking record to clear HITL review URL
+                            tracking_table.update_item(
+                                Key={
+                                    'PK': f"document#{document_id}",
+                                    'SK': 'metadata'
+                                },
+                                UpdateExpression="SET HITLStatus = :status, HITLCompletionTime = :time, HITLReviewURL = :url",
+                                ExpressionAttributeValues={
+                                    ':status': "COMPLETED",
+                                    ':time': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                                    ':url': None  # Clear the URL when HITL is complete
+                                }
+                            )
+                            
+                            # Update main document status back to COMPLETED
+                            # Also update the HITL metadata fields in the main record
+                            tracking_table.update_item(
+                                Key={
+                                    'PK': f"doc#{document_id}",
+                                    'SK': 'none'
+                                },
+                                UpdateExpression="SET ObjectStatus = :status, HITLStatus = :hitlStatus, HITLReviewURL = :url",
+                                ExpressionAttributeValues={
+                                    ':status': "COMPLETED",
+                                    ':hitlStatus': "COMPLETED",
+                                    ':url': None  # Clear the URL when HITL is complete
+                                }
+                            )
                         except Exception as e:
                             logger.error(f"Error sending task success: {str(e)}")
 
