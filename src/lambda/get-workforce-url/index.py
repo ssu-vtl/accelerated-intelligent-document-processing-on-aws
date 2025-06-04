@@ -62,6 +62,8 @@ def handler(event, context):
         
         # Get the workteam name from the event
         workteam_name = event['ResourceProperties']['WorkteamName']
+        # Ignore the SourceCodeHash property as it's only used to force updates
+        _ = event['ResourceProperties'].get('SourceCodeHash')
         logger.info(f"Getting portal URL for workteam: {workteam_name}")
         
         # Initialize SageMaker client

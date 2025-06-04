@@ -360,6 +360,8 @@ def handler(event, context):
         # Handle CloudFormation lifecycle events
         if event.get('RequestType') == 'Create':
             print("Creating A2I Resources...")
+            # Ignore the SourceCodeHash property as it's only used to force updates
+            _ = event['ResourceProperties'].get('SourceCodeHash')
             human_task_ui_arn = create_human_task_ui(stack_name)
             if human_task_ui_arn:
                 flow_definition_arn = create_flow_definition(stack_name, human_task_ui_arn, a2i_workteam_arn,flow_definition_name)
@@ -385,6 +387,8 @@ def handler(event, context):
         
         elif event.get('RequestType') == 'Update':
             print("Updating A2I Resources...")
+            # Ignore the SourceCodeHash property as it's only used to force updates
+            _ = event['ResourceProperties'].get('SourceCodeHash')
             delete_flow_definition(flow_definition_name)
             delete_human_task_ui(human_task_ui_name)
             
