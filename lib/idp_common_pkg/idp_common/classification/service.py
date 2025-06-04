@@ -1034,14 +1034,17 @@ class ClassificationService:
             cached_data = response["Item"]
             page_classifications = {}
 
-            # Extract page classifications from the cached data
-            if "page_classifications" in cached_data:
-                pages_data = json.loads(cached_data["page_classifications"])
-                for page_id, page_data in pages_data.items():
+            # Extract page classifications from separate page attributes
+            for attr_name, attr_value in cached_data.items():
+                if attr_name.startswith("page_"):
+                    page_id = attr_name[5:]  # Remove "page_" prefix
+
+                    # Extract page data from DynamoDB item
+                    page_data = attr_value
                     page_classifications[page_id] = PageClassification(
                         page_id=page_id,
                         classification=DocumentClassification(
-                            doc_type=page_data["doc_type"],
+                            doc_type=page_data.get("doc_type", "unclassified"),
                             confidence=page_data.get("confidence", 1.0),
                             metadata=page_data.get("metadata", {}),
                         ),
@@ -1050,8 +1053,9 @@ class ClassificationService:
                         raw_text_uri=page_data.get("raw_text_uri"),
                     )
 
+            if page_classifications:
                 logger.info(
-                    f"Retrieved {len(page_classifications)} cached page classifications for document {document.id}"
+                    f"Retrieved {len(page_classifications)} cached page classifications for document {document.id} (PK: {cache_key})"
                 )
 
             return page_classifications
@@ -1066,7 +1070,7 @@ class ClassificationService:
         self, document: Document, page_classifications: List[PageClassification]
     ) -> None:
         """
-        Cache successful page classifications to DynamoDB.
+        Cache successful page classifications to DynamoDB as separate attributes.
 
         Args:
             document: Document object
@@ -1078,12 +1082,25 @@ class ClassificationService:
         cache_key = self._get_cache_key(document)
 
         try:
-            # Filter out failed classifications
-            successful_pages = {}
+            # Filter out failed classifications and prepare item structure
+            item = {
+                "PK": cache_key,
+                "SK": "none",
+                "cached_at": str(int(time.time())),
+                "document_id": document.id,
+                "workflow_execution_arn": document.workflow_execution_arn,
+                "ExpiresAfter": int(
+                    (datetime.now(timezone.utc) + timedelta(days=1)).timestamp()
+                ),
+            }
+
+            successful_count = 0
             for page_result in page_classifications:
                 # Only cache if there's no error in the metadata
                 if "error" not in page_result.classification.metadata:
-                    successful_pages[page_result.page_id] = {
+                    # Store each page as a separate attribute with "page_" prefix
+                    page_attr_name = f"page_{page_result.page_id}"
+                    item[page_attr_name] = {
                         "doc_type": page_result.classification.doc_type,
                         "confidence": page_result.classification.confidence,
                         "metadata": page_result.classification.metadata,
@@ -1091,30 +1108,19 @@ class ClassificationService:
                         "text_uri": page_result.text_uri,
                         "raw_text_uri": page_result.raw_text_uri,
                     }
+                    successful_count += 1
 
-            if not successful_pages:
+            if successful_count == 0:
                 logger.debug(
                     f"No successful page classifications to cache for document {document.id}"
                 )
                 return
 
-            # Store in DynamoDB using Table resource
-            self.cache_table.put_item(
-                Item={
-                    "PK": cache_key,
-                    "SK": "none",
-                    "page_classifications": json.dumps(successful_pages),
-                    "cached_at": str(int(time.time())),
-                    "document_id": document.id,
-                    "workflow_execution_arn": document.workflow_execution_arn,
-                    "ExpiresAfter": int(
-                        (datetime.now(timezone.utc) + timedelta(days=1)).timestamp()
-                    ),
-                }
-            )
+            # Store in DynamoDB using Table resource with separate page attributes
+            self.cache_table.put_item(Item=item)
 
             logger.info(
-                f"Cached {len(successful_pages)} successful page classifications for document {document.id}"
+                f"Cached {successful_count} successful page classifications for document {document.id} (PK: {cache_key})"
             )
 
         except Exception as e:
@@ -1333,6 +1339,10 @@ class ClassificationService:
                     self._cache_successful_page_classifications(
                         document, successful_results
                     )
+                else:
+                    logger.warning("No successful page classifications to cache")
+            else:
+                logger.warning("No pages to classify, nothing to cache")
 
             error_msg = f"Error classifying document - cached partial results: {str(e)}"
             document = self._update_document_status(
