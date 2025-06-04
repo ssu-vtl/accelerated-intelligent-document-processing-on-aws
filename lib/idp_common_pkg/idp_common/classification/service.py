@@ -1003,7 +1003,8 @@ class ClassificationService:
         Returns:
             Cache key string
         """
-        return f"classcache#{document.id}#{document.workflow_execution_arn}"
+        workflow_id = document.workflow_execution_arn.split(":")[-1]
+        return f"classcache#{document.id}#{workflow_id}"
 
     def _get_cached_page_classifications(
         self, document: Document
@@ -1247,18 +1248,6 @@ class ClassificationService:
                             if page_id in document.pages:
                                 document.pages[page_id].classification = "unclassified"
                                 document.pages[page_id].confidence = 0.0
-
-                            # Cache successful page classifications before raising exception
-                            successful_results = [
-                                r
-                                for r in all_page_results
-                                if "error" not in r.classification.metadata
-                            ]
-                            if successful_results:
-                                self._cache_successful_page_classifications(
-                                    document, successful_results
-                                )
-
                             # raise exception to enable client retries
                             raise
             else:
