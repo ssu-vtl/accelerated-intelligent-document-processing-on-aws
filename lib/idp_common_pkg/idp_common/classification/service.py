@@ -1168,6 +1168,7 @@ class ClassificationService:
             all_page_results = list(cached_page_classifications.values())
             combined_metering = {}
             errors_lock = threading.Lock()  # Thread safety for error collection
+            failed_page_exceptions = {}  # Store original exceptions for failed pages
 
             # Determine which pages need classification
             pages_to_classify = {}
@@ -1240,16 +1241,36 @@ class ClassificationService:
                                 combined_metering, page_metering
                             )
                         except Exception as e:
+                            # Capture exception details in the document object instead of raising
                             error_msg = f"Error classifying page {page_id}: {str(e)}"
                             logger.error(error_msg)
                             with errors_lock:
                                 document.errors.append(error_msg)
+                                # Store the original exception for later use
+                                failed_page_exceptions[page_id] = e
+
                             # Mark page as unclassified on error
                             if page_id in document.pages:
                                 document.pages[page_id].classification = "unclassified"
                                 document.pages[page_id].confidence = 0.0
-                            # raise exception to enable client retries
-                            raise
+
+            # Store failed page exceptions in document metadata for caller to access
+            if failed_page_exceptions:
+                # Store the first encountered exception as the primary failure cause
+                first_exception = next(iter(failed_page_exceptions.values()))
+                document.metadata = document.metadata or {}
+                document.metadata["failed_page_exceptions"] = {
+                    page_id: {
+                        "exception_type": type(exc).__name__,
+                        "exception_message": str(exc),
+                        "exception_class": exc.__class__.__module__
+                        + "."
+                        + exc.__class__.__name__,
+                    }
+                    for page_id, exc in failed_page_exceptions.items()
+                }
+                # Store the primary exception for easy access by caller
+                document.metadata["primary_exception"] = first_exception
             else:
                 logger.info(
                     f"All {len(cached_page_classifications)} page classifications found in cache"
@@ -1301,7 +1322,7 @@ class ClassificationService:
             )
 
         except Exception as e:
-            # Cache successful page classifications before raising exception
+            # Cache successful page classifications before handling exception
             if pages_to_classify:
                 successful_results = [
                     r
@@ -1317,6 +1338,9 @@ class ClassificationService:
             document = self._update_document_status(
                 document, success=False, error_message=error_msg
             )
+            # Store the exception in metadata for caller to access
+            document.metadata = document.metadata or {}
+            document.metadata["primary_exception"] = e
             # raise exception to enable client retries
             raise
 
