@@ -172,7 +172,7 @@ def store_token_in_tracking_table(table, token_id, task_token, document_id, exec
         'TokenType': token_type,
         'Status': 'WAITING',
         'CreatedAt': datetime.now(timezone.utc).isoformat(),
-        'ExpiresAfter': int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp())
+        'ExpiresAfter': int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp())
     }
     
     if task_token:
