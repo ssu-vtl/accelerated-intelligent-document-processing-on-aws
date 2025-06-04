@@ -62,6 +62,9 @@ def handler(event, context):
             send(event, context, SUCCESS, response_data)
             return
         
+        # Ignore the SourceCodeHash property as it's only used to force updates
+        _ = event['ResourceProperties'].get('SourceCodeHash')
+        
         # Get workteam details to find the subdomain
         sagemaker = boto3.client('sagemaker')
         workteam_response = sagemaker.describe_workteam(

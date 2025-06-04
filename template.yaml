@@ -3033,6 +3033,7 @@ Resources:
     Type: Custom::CognitoClientUpdater
     Properties:
       ServiceToken: !GetAtt CognitoClientUpdaterFunction.Arn
+      SourceCodeHash: <COGNITO_CLIENT_HASH_TOKEN>
     DependsOn:
       - UserPoolClienta2i
       - PrivateWorkteam
@@ -3146,6 +3147,7 @@ Resources:
     Properties:
       ServiceToken: 
         Fn::GetAtt: CreateA2IResourcesLambda.Arn
+      SourceCodeHash: <A2I_RESOURCES_HASH_TOKEN>
   
   GetWorkforceURLFunction:
     Type: AWS::Serverless::Function
@@ -3182,6 +3184,7 @@ Resources:
         Fn::GetAtt:
         - PrivateWorkteam
         - WorkteamName
+      SourceCodeHash: <WORKFORCE_URL_HASH_TOKEN>
         
   ##########################################################################
   # AppSync GraphQL API 
