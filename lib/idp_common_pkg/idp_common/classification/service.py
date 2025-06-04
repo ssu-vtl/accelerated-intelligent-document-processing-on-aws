@@ -1018,6 +1018,11 @@ class ClassificationService:
         Returns:
             Dictionary mapping page_id to cached PageClassification, empty dict if no cache
         """
+
+        logger.info(
+            f"Attempting to retrieve cached page classifications for document {document.id}"
+        )
+
         if not self.cache_table:
             return {}
 
@@ -1027,11 +1032,12 @@ class ClassificationService:
             response = self.cache_table.get_item(Key={"PK": cache_key, "SK": "none"})
 
             if "Item" not in response:
-                logger.debug(f"No cache entry found for document {document.id}")
+                logger.info(f"No cache entry found for document {document.id}")
                 return {}
 
             # Parse cached data
             cached_data = response["Item"]
+            logger.debug(f"Cached data: {cached_data}")
             page_classifications = {}
 
             # Extract page classifications from separate page attributes
