@@ -15,6 +15,10 @@ SPDX-License-Identifier: MIT-0
   - Cache entries scoped to document ID and workflow execution ARN with automatic TTL cleanup (24 hours)
   - Significant cost reduction and improved retry performance for large multi-page documents
 
+### Fixed
+- "Use as Evaluation Baseline" incorrectly sets document status back to QUEUED. It should remain as COMPLETED.
+
+
 ## [0.3.1]
 
 ### Added
