@@ -1274,7 +1274,7 @@ class ClassificationService:
                             if page_id in document.pages:
                                 document.pages[
                                     page_id
-                                ].classification = "error (retrying)"
+                                ].classification = "error (backoff/retry)"
                                 document.pages[page_id].confidence = 0.0
 
                 # Store failed page exceptions in document metadata for caller to access
