@@ -143,7 +143,7 @@ const MeteringTable = ({ meteringData, preCalculatedTotals }) => {
   });
 
   // Sort contexts in specific order: OCR, Classification, Extraction, Summarization
-  const contextOrder = ['OCR', 'Classification', 'Extraction', 'Summarization'];
+  const contextOrder = ['BDAProject', 'OCR', 'Classification', 'Extraction', 'Summarization'];
   const sortedContexts = Object.keys(contextGroups).sort((a, b) => {
     const aIndex = contextOrder.indexOf(a);
     const bIndex = contextOrder.indexOf(b);
