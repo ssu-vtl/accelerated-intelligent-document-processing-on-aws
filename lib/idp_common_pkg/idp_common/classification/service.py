@@ -16,6 +16,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Any, Dict, List, Optional, Set, Union
 
 import boto3
@@ -1035,34 +1036,39 @@ class ClassificationService:
                 logger.info(f"No cache entry found for document {document.id}")
                 return {}
 
-            # Parse cached data
+            # Parse cached data from JSON
             cached_data = response["Item"]
-            logger.debug(f"Cached data: {cached_data}")
+            logger.debug(f"Cached data keys: {list(cached_data.keys())}")
             page_classifications = {}
 
-            # Extract page classifications from separate page attributes
-            for attr_name, attr_value in cached_data.items():
-                if attr_name.startswith("page_"):
-                    page_id = attr_name[5:]  # Remove "page_" prefix
+            # Extract page classifications from JSON attribute
+            if "page_classifications" in cached_data:
+                try:
+                    page_data_list = json.loads(cached_data["page_classifications"])
 
-                    # Extract page data from DynamoDB item
-                    page_data = attr_value
-                    page_classifications[page_id] = PageClassification(
-                        page_id=page_id,
-                        classification=DocumentClassification(
-                            doc_type=page_data.get("doc_type", "unclassified"),
-                            confidence=page_data.get("confidence", 1.0),
-                            metadata=page_data.get("metadata", {}),
-                        ),
-                        image_uri=page_data.get("image_uri"),
-                        text_uri=page_data.get("text_uri"),
-                        raw_text_uri=page_data.get("raw_text_uri"),
+                    for page_data in page_data_list:
+                        page_id = page_data["page_id"]
+                        page_classifications[page_id] = PageClassification(
+                            page_id=page_id,
+                            classification=DocumentClassification(
+                                doc_type=page_data["classification"]["doc_type"],
+                                confidence=page_data["classification"]["confidence"],
+                                metadata=page_data["classification"]["metadata"],
+                            ),
+                            image_uri=page_data.get("image_uri"),
+                            text_uri=page_data.get("text_uri"),
+                            raw_text_uri=page_data.get("raw_text_uri"),
+                        )
+
+                    if page_classifications:
+                        logger.info(
+                            f"Retrieved {len(page_classifications)} cached page classifications for document {document.id} (PK: {cache_key})"
+                        )
+
+                except json.JSONDecodeError as e:
+                    logger.warning(
+                        f"Failed to parse cached page classifications JSON for document {document.id}: {e}"
                     )
-
-            if page_classifications:
-                logger.info(
-                    f"Retrieved {len(page_classifications)} cached page classifications for document {document.id} (PK: {cache_key})"
-                )
 
             return page_classifications
 
@@ -1076,7 +1082,7 @@ class ClassificationService:
         self, document: Document, page_classifications: List[PageClassification]
     ) -> None:
         """
-        Cache successful page classifications to DynamoDB as separate attributes.
+        Cache successful page classifications to DynamoDB as a JSON-serialized list.
 
         Args:
             document: Document object
@@ -1088,45 +1094,48 @@ class ClassificationService:
         cache_key = self._get_cache_key(document)
 
         try:
-            # Filter out failed classifications and prepare item structure
+            # Filter out failed classifications and prepare data for JSON serialization
+            successful_pages = []
+            for page_result in page_classifications:
+                # Only cache if there's no error in the metadata
+                if "error" not in page_result.classification.metadata:
+                    page_data = {
+                        "page_id": page_result.page_id,
+                        "classification": {
+                            "doc_type": page_result.classification.doc_type,
+                            "confidence": page_result.classification.confidence,
+                            "metadata": page_result.classification.metadata,
+                        },
+                        "image_uri": page_result.image_uri,
+                        "text_uri": page_result.text_uri,
+                        "raw_text_uri": page_result.raw_text_uri,
+                    }
+                    successful_pages.append(page_data)
+
+            if len(successful_pages) == 0:
+                logger.debug(
+                    f"No successful page classifications to cache for document {document.id}"
+                )
+                return
+
+            # Prepare item structure with JSON-serialized page classifications
             item = {
                 "PK": cache_key,
                 "SK": "none",
                 "cached_at": str(int(time.time())),
                 "document_id": document.id,
                 "workflow_execution_arn": document.workflow_execution_arn,
+                "page_classifications": json.dumps(successful_pages),
                 "ExpiresAfter": int(
                     (datetime.now(timezone.utc) + timedelta(days=1)).timestamp()
                 ),
             }
 
-            successful_count = 0
-            for page_result in page_classifications:
-                # Only cache if there's no error in the metadata
-                if "error" not in page_result.classification.metadata:
-                    # Store each page as a separate attribute with "page_" prefix
-                    page_attr_name = f"page_{page_result.page_id}"
-                    item[page_attr_name] = {
-                        "doc_type": page_result.classification.doc_type,
-                        "confidence": page_result.classification.confidence,
-                        "metadata": page_result.classification.metadata,
-                        "image_uri": page_result.image_uri,
-                        "text_uri": page_result.text_uri,
-                        "raw_text_uri": page_result.raw_text_uri,
-                    }
-                    successful_count += 1
-
-            if successful_count == 0:
-                logger.debug(
-                    f"No successful page classifications to cache for document {document.id}"
-                )
-                return
-
-            # Store in DynamoDB using Table resource with separate page attributes
+            # Store in DynamoDB using Table resource with JSON serialization
             self.cache_table.put_item(Item=item)
 
             logger.info(
-                f"Cached {successful_count} successful page classifications for document {document.id} (PK: {cache_key})"
+                f"Cached {len(successful_pages)} successful page classifications for document {document.id} (PK: {cache_key})"
             )
 
         except Exception as e:
@@ -1263,26 +1272,55 @@ class ClassificationService:
 
                             # Mark page as unclassified on error
                             if page_id in document.pages:
-                                document.pages[page_id].classification = "unclassified"
+                                document.pages[
+                                    page_id
+                                ].classification = "error (retrying)"
                                 document.pages[page_id].confidence = 0.0
 
-            # Store failed page exceptions in document metadata for caller to access
-            if failed_page_exceptions:
-                # Store the first encountered exception as the primary failure cause
-                first_exception = next(iter(failed_page_exceptions.values()))
-                document.metadata = document.metadata or {}
-                document.metadata["failed_page_exceptions"] = {
-                    page_id: {
-                        "exception_type": type(exc).__name__,
-                        "exception_message": str(exc),
-                        "exception_class": exc.__class__.__module__
-                        + "."
-                        + exc.__class__.__name__,
+                # Store failed page exceptions in document metadata for caller to access
+                if failed_page_exceptions:
+                    logger.info(
+                        f"Processing {len(failed_page_exceptions)} failed page exceptions for document {document.id}"
+                    )
+
+                    # Store the first encountered exception as the primary failure cause
+                    first_exception = next(iter(failed_page_exceptions.values()))
+                    document.metadata = document.metadata or {}
+                    document.metadata["failed_page_exceptions"] = {
+                        page_id: {
+                            "exception_type": type(exc).__name__,
+                            "exception_message": str(exc),
+                            "exception_class": exc.__class__.__module__
+                            + "."
+                            + exc.__class__.__name__,
+                        }
+                        for page_id, exc in failed_page_exceptions.items()
                     }
-                    for page_id, exc in failed_page_exceptions.items()
-                }
-                # Store the primary exception for easy access by caller
-                document.metadata["primary_exception"] = first_exception
+                    # Store the primary exception for easy access by caller
+                    document.metadata["primary_exception"] = first_exception
+
+                    # Cache successful page classifications (only when some pages fail - for retry scenarios)
+                    successful_results = [
+                        r
+                        for r in all_page_results
+                        if "error" not in r.classification.metadata
+                    ]
+                    if successful_results:
+                        logger.info(
+                            f"Caching {len(successful_results)} successful page classifications for document {document.id} due to {len(failed_page_exceptions)} failed pages (retry scenario)"
+                        )
+                        self._cache_successful_page_classifications(
+                            document, successful_results
+                        )
+                    else:
+                        logger.warning(
+                            f"No successful page classifications to cache for document {document.id} - all {len(failed_page_exceptions)} pages failed"
+                        )
+                else:
+                    # All pages succeeded - no need to cache since there won't be retries
+                    logger.info(
+                        f"All pages succeeded for document {document.id} - skipping cache (no retry needed)"
+                    )
             else:
                 logger.info(
                     f"All {len(cached_page_classifications)} page classifications found in cache"
@@ -1334,23 +1372,7 @@ class ClassificationService:
             )
 
         except Exception as e:
-            # Cache successful page classifications before handling exception
-            if pages_to_classify:
-                successful_results = [
-                    r
-                    for r in all_page_results
-                    if "error" not in r.classification.metadata
-                ]
-                if successful_results:
-                    self._cache_successful_page_classifications(
-                        document, successful_results
-                    )
-                else:
-                    logger.warning("No successful page classifications to cache")
-            else:
-                logger.warning("No pages to classify, nothing to cache")
-
-            error_msg = f"Error classifying document - cached partial results: {str(e)}"
+            error_msg = f"Error classifying all document pages: {str(e)}"
             document = self._update_document_status(
                 document, success=False, error_message=error_msg
             )
