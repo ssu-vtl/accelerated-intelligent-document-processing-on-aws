@@ -331,13 +331,7 @@ class TestExtractionService:
         mock_invoke_model.return_value = {
             "response": {
                 "output": {
-                    "message": {
-                        "content": [
-                            {
-                                "text": '{"invoice_number": "INV-123"}'
-                            }
-                        ]
-                    }
+                    "message": {"content": [{"text": '{"invoice_number": "INV-123"}'}]}
                 }
             },
             "metering": {"input_tokens": 100, "output_tokens": 50},
