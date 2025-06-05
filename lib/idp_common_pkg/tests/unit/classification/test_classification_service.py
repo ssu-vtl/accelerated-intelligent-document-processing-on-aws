@@ -274,9 +274,7 @@ class TestClassificationService:
 
         # Call the method and expect exception to be raised
         with pytest.raises(Exception, match="Model error"):
-            service.classify_page_bedrock(
-                page_id="1", text_uri="s3://bucket/text.txt"
-            )
+            service.classify_page_bedrock(page_id="1", text_uri="s3://bucket/text.txt")
 
     @patch("boto3.client")
     def test_classify_page_sagemaker_success(self, mock_boto_client, mock_config):
