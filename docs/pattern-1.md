@@ -225,6 +225,10 @@ Pattern-1 supports Human-in-the-Loop (HITL) review capabilities using Amazon Sag
 - Regularly check the Review Portal for pending tasks to avoid processing delays
 - Establish consistent correction guidelines if multiple reviewers are involved
 
+#### Known Limitations
+  - Current version of SageMaker A2I cannot provide direct hyperlink to respective document tasks. When reviewer clicks on review document URL and start working, review portal will start displating all review tasks. Reviewer cannot pick specific task and start working. 
+  - Updating SageMaker A2I Template and workflow performs deletion on A2I flow definition, A2I custom template and recreate the resources via lambda function. Update A2I resources through Python SDK is not allowed. 
+
 ## Best Practices
 1. **BDA Project Configuration**:
    - Configure classification and extraction within the BDA project using BDA Blueprints

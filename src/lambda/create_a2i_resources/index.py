@@ -50,8 +50,8 @@ def send_cfn_response(event, context, response_status, response_data, physical_r
         print(f"Error sending response to CloudFormation: {str(e)}")
         return False
 
-def create_human_task_ui(stack_name):
-    human_task_ui_name = f'{stack_name}-bda-hitl-template'
+def create_human_task_ui(human_task_ui_name):
+    # human_task_ui_name = f'{stack_name}-bda-hitl-template'
     ui_template_content = """
     <!DOCTYPE html>
     <html>
@@ -347,7 +347,7 @@ def delete_flow_definition(flow_definition_name):
 def handler(event, context):
     stack_name = os.environ['STACK_NAME']
     a2i_workteam_arn = os.environ['A2I_WORKTEAM_ARN']
-    human_task_ui_name = f'{stack_name}-bda-hitl-task'
+    human_task_ui_name = f'{stack_name}-bda-hitl-template'
     flow_definition_name = f'{stack_name}-bda-hitl-fd'
     ssm = boto3.client('ssm')
     
