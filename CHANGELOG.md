@@ -5,6 +5,8 @@ SPDX-License-Identifier: MIT-0
 
 ## [Unreleased]
 
+## [0.3.2]
+
 ### Added
 
 - **Cost Estimator UI Feature for Context Grouping and Subtotals**
