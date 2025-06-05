@@ -70,7 +70,7 @@ Parameters:
 
   Pattern1BDAConfidenceThreshold:
     Type: Number
-    Default: 99
+    Default: 80
     Description: Confidence Threshold to invoke Human In the Loop for verification of extraction and classification
 
   Pattern1Configuration:
