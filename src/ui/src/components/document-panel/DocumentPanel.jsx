@@ -142,8 +142,24 @@ const MeteringTable = ({ meteringData, preCalculatedTotals }) => {
     contextGroups[item.context].push(item);
   });
 
-  // Sort contexts alphabetically and add items with subtotals
-  const sortedContexts = Object.keys(contextGroups).sort();
+  // Sort contexts in specific order: OCR, Classification, Extraction, Summarization
+  const contextOrder = ['OCR', 'Classification', 'Extraction', 'Summarization'];
+  const sortedContexts = Object.keys(contextGroups).sort((a, b) => {
+    const aIndex = contextOrder.indexOf(a);
+    const bIndex = contextOrder.indexOf(b);
+
+    // If both contexts are in the predefined order, sort by their position
+    if (aIndex !== -1 && bIndex !== -1) {
+      return aIndex - bIndex;
+    }
+
+    // If only one context is in the predefined order, it comes first
+    if (aIndex !== -1) return -1;
+    if (bIndex !== -1) return 1;
+
+    // If neither context is in the predefined order, sort alphabetically
+    return a.localeCompare(b);
+  });
 
   sortedContexts.forEach((context) => {
     // Add all items for this context
