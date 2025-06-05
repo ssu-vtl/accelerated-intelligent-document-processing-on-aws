@@ -7,6 +7,10 @@ SPDX-License-Identifier: MIT-0
 
 ### Added
 
+- **Cost Estimator UI Feature for Context Grouping and Subtotals**
+  - Added context grouping functionality to organize cost estimates by logical categories (e.g. OCR, Classification, etc.)
+  - Implemented subtotal calculations for better cost breakdown visualization
+
 - **DynamoDB Caching for Resilient Classification**
   - Added optional DynamoDB caching to the multimodal page-level classification service to improve efficiency and resilience
   - Cache successful page classification results to avoid redundant processing during retries when some pages fail due to throttling
