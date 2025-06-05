@@ -770,7 +770,7 @@ class ClassificationService:
 
                 # Add some metering data for consistency with Bedrock
                 metering = {
-                    "sagemaker/invoke_endpoint": {
+                    "Classification/sagemaker/invoke_endpoint": {
                         "invocations": 1,
                     }
                 }
@@ -910,6 +910,7 @@ class ClassificationService:
             top_k=config["top_k"],
             top_p=config["top_p"],
             max_tokens=config["max_tokens"],
+            context="Classification",
         )
 
     def _create_unclassified_result(
