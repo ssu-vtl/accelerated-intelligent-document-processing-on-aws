@@ -307,7 +307,7 @@ def create_human_task_ui(human_task_ui_name):
 
 
 def create_flow_definition(stack_name, human_task_ui_arn, a2i_workteam_arn, flow_definition_name):
-    role_arn = os.environ.get('LAMBDA_EXECUTION_ROLE_ARN') #This needs to be explicitly passed
+    role_arn = os.environ.get('A2I_FLOW_DEFINITION_ROLE_ARN')  # Use dedicated Flow Definition role
     try:
         response = sagemaker.create_flow_definition(
             FlowDefinitionName=flow_definition_name,

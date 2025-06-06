@@ -73,6 +73,16 @@ Parameters:
     Default: 80
     Description: Confidence Threshold to invoke Human In the Loop for verification of extraction and classification
 
+  ExistingPrivateWorkforceArn:
+    Type: String
+    Default: ""
+    AllowedPattern: "^(|arn:aws:sagemaker:[a-z0-9-]+:[0-9]{12}:workteam/private-crowd/.+)$"
+    Description: >-
+      (Optional) ARN of an existing SageMaker private workforce workteam to use for Human In The Loop (HITL).
+      If provided, the template will use this existing workteam instead of creating a new one.
+      Format: arn:aws:sagemaker:region:account-id:workteam/private-crowd/workteam-name
+      Leave blank to create a new private workteam.
+
   Pattern1Configuration:
     Type: String
     Default: "default"
@@ -303,6 +313,16 @@ Rules:
       - Assert: !Not [!Equals [!Ref Pattern1BDAConfidenceThreshold, ""]]
         AssertDescription: Pattern1BDAConfidenceThreshold is required when Pattern1EnableHITL is true.
 
+  ValidateExistingPrivateWorkforceArn:
+    RuleCondition:
+      !And [
+        !Equals [!Ref Pattern1EnableHITL, "true"],
+        !Not [!Equals [!Ref ExistingPrivateWorkforceArn, ""]]
+      ]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref ExistingPrivateWorkforceArn, ""]]
+        AssertDescription: ExistingPrivateWorkforceArn must be a valid ARN when provided and HITL is enabled.
+
   Pattern3UDOPModelArtifactPath:
     RuleCondition:
       !Equals [
@@ -337,6 +357,11 @@ Conditions:
       !Equals [!Ref Pattern1BDAProjectArn, ""]
     ]
   HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
+  
+  # HITL and Private Workforce conditions
+  IsPattern1HITLEnabled: !And [!Condition IsPattern1, !Equals [!Ref Pattern1EnableHITL, "true"]]
+  ShouldCreatePrivateWorkteam: !And [!Condition IsPattern1HITLEnabled, !Equals [!Ref ExistingPrivateWorkforceArn, ""]]
+  ShouldUseExistingPrivateWorkteam: !And [!Condition IsPattern1HITLEnabled, !Not [!Equals [!Ref ExistingPrivateWorkforceArn, ""]]]
 
   # General rules
   ShouldAllowSignUpEmailDomain:
@@ -369,6 +394,7 @@ Metadata:
           - Pattern1BDAProjectArn
           - Pattern1EnableHITL
           - Pattern1BDAConfidenceThreshold
+          - ExistingPrivateWorkforceArn
       - Label:
           default: "Pattern 2 Configuration"
         Parameters:
@@ -435,6 +461,8 @@ Metadata:
         default: "Pattern1 - Enable Human In The Loop"
       Pattern1BDAConfidenceThreshold:
         default: "Pattern1 - BDA Confidence Threshold"
+      ExistingPrivateWorkforceArn:
+        default: "Pattern1 - Existing Private Workforce ARN (Optional)"
       Pattern2Configuration:
         default: "Pattern2 - Configuration Preset"
       Pattern3UDOPModelArtifactPath:
@@ -733,7 +761,10 @@ Resources:
         EnableHITL: !Ref Pattern1EnableHITL
         ConfigurationDefaultS3Uri: !Sub "s3://${ConfigurationBucket}/config_library/pattern-1/${Pattern1Configuration}/config.yaml"
         ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
-        SageMakerA2IReviewPortalURL: !GetAtt WorkforceURLResource.PortalURL
+        SageMakerA2IReviewPortalURL: !If
+          - IsPattern1HITLEnabled
+          - !GetAtt WorkforceURLResource.PortalURL
+          - ""
 
   PATTERN2STACK:
     DependsOn:
@@ -2939,6 +2970,7 @@ Resources:
   # Cognito user pool client with generate secret as true (HITL)
   UserPoolClienta2i:
     Type: AWS::Cognito::UserPoolClient
+    Condition: IsPattern1HITLEnabled
     Properties:
       ClientName:
         Fn::Sub: ${AWS::StackName}-A2I-Client
@@ -2949,6 +2981,7 @@ Resources:
   #SageMaker A2I (HITL) Labelling workforce Private Work Team
   PrivateWorkteam:
     Type: AWS::SageMaker::Workteam
+    Condition: ShouldCreatePrivateWorkteam
     Properties:
       WorkteamName: 
         Fn::Sub: ${AWS::StackName}-Private-WorkTeam
@@ -2965,6 +2998,7 @@ Resources:
   # Cognito Client Update with lambda function to resolve circular dependency with SageMaker A2I resources
   CognitoClientUpdaterRole:
     Type: AWS::IAM::Role
+    Condition: ShouldCreatePrivateWorkteam
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -2989,6 +3023,7 @@ Resources:
 
   CognitoClientUpdaterFunctionLogGroup:
     Type: AWS::Logs::LogGroup
+    Condition: ShouldCreatePrivateWorkteam
     Properties:
       KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
       LogGroupName:
@@ -3000,6 +3035,7 @@ Resources:
     DependsOn:
       - UserPoolClienta2i
     Type: AWS::Serverless::Function
+    Condition: ShouldCreatePrivateWorkteam
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -3031,6 +3067,7 @@ Resources:
   
   CognitoClientCustomResource:
     Type: Custom::CognitoClientUpdater
+    Condition: ShouldCreatePrivateWorkteam
     Properties:
       ServiceToken: !GetAtt CognitoClientUpdaterFunction.Arn
       SourceCodeHash: <COGNITO_CLIENT_HASH_TOKEN>
@@ -3039,17 +3076,61 @@ Resources:
       - PrivateWorkteam
       - CognitoClientUpdaterFunction
 
-  A2IHumanTaskUILambdaRole:
+  # Separate role for SageMaker Flow Definition with minimal permissions
+  A2IFlowDefinitionRole:
     Type: AWS::IAM::Role
+    Condition: IsPattern1HITLEnabled
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
-              Service: 
-                - lambda.amazonaws.com
-                - sagemaker.amazonaws.com
+              Service: sagemaker.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: A2IFlowDefinitionAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub '${OutputBucket.Arn}/*'
+                  - !Sub '${InputBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                Resource:
+                  - !GetAtt OutputBucket.Arn
+                  - !GetAtt InputBucket.Arn
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/sagemaker/*'
+              - Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:Decrypt
+                  - kms:ReEncrypt*
+                  - kms:GenerateDataKey*
+                  - kms:DescribeKey
+                Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+
+  A2IHumanTaskUILambdaRole:
+    Type: AWS::IAM::Role
+    Condition: IsPattern1HITLEnabled
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
@@ -3066,8 +3147,11 @@ Resources:
                   - sagemaker:CreateFlowDefinition
                   - sagemaker:DeleteFlowDefinition
                   - sagemaker:DescribeFlowDefinition
-                  - iam:PassRole
                 Resource: '*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt A2IFlowDefinitionRole.Arn
         - PolicyName: S3Access
           PolicyDocument:
             Version: '2012-10-17'
@@ -3088,11 +3172,8 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - ssm:GetParameter
                   - ssm:PutParameter
-                  - ssm:GetParametersByPath
-                  - ssm:DeleteParameter
-                Resource: '*'
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/FlowDefinitionArn'
         - PolicyName: KMSAccess
           PolicyDocument:
             Version: '2012-10-17'
@@ -3118,6 +3199,7 @@ Resources:
   
   CreateA2IResourcesLambda:
     Type: AWS::Serverless::Function
+    Condition: IsPattern1HITLEnabled
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -3128,7 +3210,6 @@ Resources:
     # checkov:skip=CKV_AWS_116: "DLQ not required for Cfn Custom Resource function"
     # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
     # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
-    DependsOn: PrivateWorkteam
     Properties:
       CodeUri: src/lambda/create_a2i_resources
       Handler: index.handler
@@ -3138,12 +3219,16 @@ Resources:
       Environment:
         Variables:
           STACK_NAME: !Ref AWS::StackName
-          A2I_WORKTEAM_ARN: !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:workteam/private-crowd/${PrivateWorkteam.WorkteamName}'
-          LAMBDA_EXECUTION_ROLE_ARN: !GetAtt A2IHumanTaskUILambdaRole.Arn #Pass the lambda role ARN
+          A2I_WORKTEAM_ARN: !If
+            - ShouldCreatePrivateWorkteam
+            - !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:workteam/private-crowd/${PrivateWorkteam.WorkteamName}'
+            - !Ref ExistingPrivateWorkforceArn
+          A2I_FLOW_DEFINITION_ROLE_ARN: !GetAtt A2IFlowDefinitionRole.Arn
           BDA_OUTPUT_BUCKET: !Ref OutputBucket #Pass the IDP Output Bucket
       
   A2IResourcesCustomResource:
     Type: Custom::A2IResources
+    Condition: IsPattern1HITLEnabled
     Properties:
       ServiceToken: 
         Fn::GetAtt: CreateA2IResourcesLambda.Arn
@@ -3151,6 +3236,7 @@ Resources:
   
   GetWorkforceURLFunction:
     Type: AWS::Serverless::Function
+    Condition: IsPattern1HITLEnabled
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -3169,21 +3255,23 @@ Resources:
         - Effect: Allow
           Action:
           - sagemaker:DescribeWorkteam
-          Resource:
-            Fn::Sub: arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:workteam/private-crowd/${PrivateWorkteam.WorkteamName}
+          Resource: !If
+            - ShouldCreatePrivateWorkteam
+            - !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:workteam/private-crowd/${PrivateWorkteam.WorkteamName}'
+            - !Ref ExistingPrivateWorkforceArn
   
   WorkforceURLResource:
     Type: Custom::WorkforceURL
-    DependsOn: PrivateWorkteam
+    Condition: IsPattern1HITLEnabled
     Properties:
       ServiceToken:
         Fn::GetAtt:
         - GetWorkforceURLFunction
         - Arn
-      WorkteamName:
-        Fn::GetAtt:
-        - PrivateWorkteam
-        - WorkteamName
+      WorkteamName: !If
+        - ShouldCreatePrivateWorkteam
+        - !GetAtt PrivateWorkteam.WorkteamName
+        - !Select [2, !Split ['/', !Ref ExistingPrivateWorkforceArn]]
       SourceCodeHash: <WORKFORCE_URL_HASH_TOKEN>
         
   ##########################################################################
@@ -4577,12 +4665,14 @@ Outputs:
     Value: !Sub "https://${CloudFrontDistribution.DomainName}/"
   SageMakerA2IReviewPortalURL:
     Description: SageMaker HITL Review portal URL
+    Condition: IsPattern1HITLEnabled
     Value:
       Fn::GetAtt:
       - WorkforceURLResource
       - PortalURL
   LabelingConsoleURL:
     Description: SageMaker Ground Truth console URL
+    Condition: IsPattern1HITLEnabled
     Value:
       Fn::GetAtt:
       - WorkforceURLResource
