@@ -272,16 +272,9 @@ class TestClassificationService:
         mock_get_text.return_value = "This is an invoice for $100"
         mock_invoke.side_effect = Exception("Model error")
 
-        # Call the method
-        result = service.classify_page_bedrock(
-            page_id="1", text_uri="s3://bucket/text.txt"
-        )
-
-        # Verify results
-        assert result.page_id == "1"
-        assert result.classification.doc_type == "unclassified"
-        assert result.classification.confidence == 0.0
-        assert result.classification.metadata["error"] == "Model error"
+        # Call the method and expect exception to be raised
+        with pytest.raises(Exception, match="Model error"):
+            service.classify_page_bedrock(page_id="1", text_uri="s3://bucket/text.txt")
 
     @patch("boto3.client")
     def test_classify_page_sagemaker_success(self, mock_boto_client, mock_config):
@@ -315,7 +308,7 @@ class TestClassificationService:
             assert result.classification.doc_type == "invoice"
             assert result.classification.confidence == 1.0
             assert (
-                "sagemaker/invoke_endpoint"
+                "Classification/sagemaker/invoke_endpoint"
                 in result.classification.metadata["metering"]
             )
 

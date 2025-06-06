@@ -271,6 +271,7 @@ class TestSummarizationService:
             top_k=config["top_k"],
             top_p=config["top_p"],
             max_tokens=config["max_tokens"],
+            context="Summarization",
         )
 
         # Verify result
@@ -327,11 +328,9 @@ class TestSummarizationService:
         # Configure mock to raise exception
         mock_invoke_model.side_effect = Exception("Test error")
 
-        result = service.process_text("Test document text")
-
-        # Verify result
-        assert result.content["error"] == "Error generating summary"
-        assert result.metadata["error"] == "Test error"
+        # Expect exception to be raised
+        with pytest.raises(Exception, match="Test error"):
+            service.process_text("Test document text")
 
     @patch("idp_common.s3.get_text_content")
     @patch("idp_common.s3.write_content")
