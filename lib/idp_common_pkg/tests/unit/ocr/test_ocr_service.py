@@ -319,8 +319,8 @@ class TestOcrService:
             )
 
             # Verify metering data
-            assert "textract/detect_document_text" in metering
-            assert metering["textract/detect_document_text"]["pages"] == 1
+            assert "OCR/textract/detect_document_text" in metering
+            assert metering["OCR/textract/detect_document_text"]["pages"] == 1
 
             # Verify Textract client was called with detect_document_text
             service.textract_client.detect_document_text.assert_called_once()
@@ -365,8 +365,8 @@ class TestOcrService:
             )
 
             # Verify metering data
-            assert "textract/analyze_document-Tables+Forms" in metering
-            assert metering["textract/analyze_document-Tables+Forms"]["pages"] == 1
+            assert "OCR/textract/analyze_document-Tables+Forms" in metering
+            assert metering["OCR/textract/analyze_document-Tables+Forms"]["pages"] == 1
 
             # Verify Textract client was called with analyze_document
             service.textract_client.analyze_document.assert_called_once_with(
