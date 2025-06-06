@@ -54,13 +54,13 @@ def save_evaluation_to_reporting_bucket(document, reporting_bucket: str) -> None
             'day': day
         }
         
-        # Save document metrics
-        doc_key = f"evaluation_metrics/document_metrics/year={year}/month={month}/day={day}/document={escaped_doc_id}/results.json"
+        # Save document metrics in JSON Lines format
+        doc_key = f"evaluation_metrics/document_metrics/year={year}/month={month}/day={day}/document={escaped_doc_id}/results.jsonl"
         s3_client.put_object(
             Bucket=reporting_bucket,
             Key=doc_key,
             Body=json.dumps(document_record),
-            ContentType='application/json'
+            ContentType='application/x-ndjson'
         )
         logger.info(f"Saved document metrics to s3://{reporting_bucket}/{doc_key}")
         
@@ -110,47 +110,49 @@ def save_evaluation_to_reporting_bucket(document, reporting_bucket: str) -> None
                     attribute_record = {
                         'document_id': document.id,
                         'section_id': section_id,
-                        'attribute_name': attr.get('name', ''),
-                        'expected': attr.get('expected', ''),
-                        'actual': attr.get('actual', ''),
-                        'matched': attr.get('matched', False),
-                        'score': attr.get('score', 0.0),
-                        'reason': attr.get('reason', ''),
-                        'evaluation_method': attr.get('evaluation_method', ''),
+                        'attribute_name': getattr(attr, 'name', ''),
+                        'expected': getattr(attr, 'expected', ''),
+                        'actual': getattr(attr, 'actual', ''),
+                        'matched': getattr(attr, 'matched', False),
+                        'score': getattr(attr, 'score', 0.0),
+                        'reason': getattr(attr, 'reason', ''),
+                        'evaluation_method': getattr(attr, 'evaluation_method', ''),
                         'evaluation_date': now.isoformat(),
                         'year': year,
                         'month': month,
                         'day': day
                     }
                     attribute_records.append(attribute_record)
-                    logger.debug(f"Added attribute record for attribute_name={attr.get('name', '')}")
+                    logger.debug(f"Added attribute record for attribute_name={getattr(attr, 'name', '')}")
         
         # Log counts
         logger.info(f"Collected {len(section_records)} section records and {len(attribute_records)} attribute records")
         
-        # Save section metrics
+        # Save section metrics in JSON Lines format
         if section_records:
-            section_key = f"evaluation_metrics/section_metrics/year={year}/month={month}/day={day}/document={escaped_doc_id}/results.json"
+            section_key = f"evaluation_metrics/section_metrics/year={year}/month={month}/day={day}/document={escaped_doc_id}/results.jsonl"
+            section_lines = '\n'.join(json.dumps(record) for record in section_records)
             s3_client.put_object(
                 Bucket=reporting_bucket,
                 Key=section_key,
-                Body=json.dumps(section_records),
-                ContentType='application/json'
+                Body=section_lines,
+                ContentType='application/x-ndjson'
             )
-            logger.info(f"Saved section metrics to s3://{reporting_bucket}/{section_key}")
+            logger.info(f"Saved {len(section_records)} section metrics to s3://{reporting_bucket}/{section_key}")
         else:
             logger.warning("No section records to save")
         
-        # Save attribute metrics
+        # Save attribute metrics in JSON Lines format
         if attribute_records:
-            attr_key = f"evaluation_metrics/attribute_metrics/year={year}/month={month}/day={day}/document={escaped_doc_id}/results.json"
+            attr_key = f"evaluation_metrics/attribute_metrics/year={year}/month={month}/day={day}/document={escaped_doc_id}/results.jsonl"
+            attribute_lines = '\n'.join(json.dumps(record) for record in attribute_records)
             s3_client.put_object(
                 Bucket=reporting_bucket,
                 Key=attr_key,
-                Body=json.dumps(attribute_records),
-                ContentType='application/json'
+                Body=attribute_lines,
+                ContentType='application/x-ndjson'
             )
-            logger.info(f"Saved attribute metrics to s3://{reporting_bucket}/{attr_key}")
+            logger.info(f"Saved {len(attribute_records)} attribute metrics to s3://{reporting_bucket}/{attr_key}")
         else:
             logger.warning("No attribute records to save")
         
