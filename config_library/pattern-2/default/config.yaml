@@ -680,8 +680,7 @@ assessment:
 
     Analyze the extraction results against the source document and provide confidence assessments. Return a JSON object with the following structure:
 
-    {
-      "explainability_info": {
+      {
         "attribute_name_1": {
           "confidence_score": 0.85,
           "confidence_reason": "Clear text evidence found in document header with high OCR confidence (0.98). Value matches exactly."
@@ -691,7 +690,6 @@ assessment:
           "confidence_reason": "Text is partially unclear due to poor scan quality. OCR confidence low (0.72) in this region."
         }
       }
-    }
 
     Include assessments for ALL attributes present in the extraction results.
 

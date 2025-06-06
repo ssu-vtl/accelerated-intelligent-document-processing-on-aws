@@ -456,7 +456,7 @@ class AssessmentService:
                 text_confidence_data_str = self._get_text_confidence_data(page)
                 if text_confidence_data_str:
                     ocr_text_confidence += f"\n--- Page {page_id} Text Confidence Data ---\n"
-                    ocr_text_confidence += condensed_ocr_data_str
+                    ocr_text_confidence += text_confidence_data_str
 
             t4 = time.time()
             logger.info(f"Time taken to read raw OCR results: {t4 - t3:.2f} seconds")
@@ -592,8 +592,7 @@ class AssessmentService:
 
             try:
                 # Try to parse the assessment text as JSON
-                assessment_response = json.loads(self._extract_json(assessment_text))
-                assessment_data = assessment_response.get("explainability_info", assessment_response)
+                assessment_data = json.loads(self._extract_json(assessment_text))
             except Exception as e:
                 # Handle parsing error
                 logger.error(
@@ -610,7 +609,7 @@ class AssessmentService:
                 parsing_succeeded = False  # Mark that parsing failed
 
             # Update the existing extraction result with assessment data
-            extraction_data["explainability_info"] = assessment_data
+            extraction_data["explainability_info"] = [assessment_data]
             extraction_data["metadata"] = extraction_data.get("metadata", {})
             extraction_data["metadata"]["assessment_time_seconds"] = total_duration
             extraction_data["metadata"]["assessment_parsing_succeeded"] = parsing_succeeded
