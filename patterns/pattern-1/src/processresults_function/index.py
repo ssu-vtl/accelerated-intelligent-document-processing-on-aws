@@ -989,10 +989,10 @@ def handler(event, context):
     
     # Add metering information
     document.metering = {
-        "bda/documents-custom": {
+        "BDAProject/bda/documents-custom": {
             "pages": custom_pages_count
         },
-        "bda/documents-standard": {
+        "BDAProject/bda/documents-standard": {
             "pages": standard_pages_count
         }
     }
