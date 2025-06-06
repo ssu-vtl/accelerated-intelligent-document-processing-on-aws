@@ -49,9 +49,6 @@ def save_evaluation_to_reporting_bucket(document, reporting_bucket: str) -> None
             'false_alarm_rate': eval_result.overall_metrics.get('false_alarm_rate', 0.0),
             'false_discovery_rate': eval_result.overall_metrics.get('false_discovery_rate', 0.0),
             'execution_time': eval_result.execution_time,
-            'year': year,
-            'month': month,
-            'day': day
         }
         
         # Save document metrics in JSON Lines format
@@ -74,7 +71,7 @@ def save_evaluation_to_reporting_bucket(document, reporting_bucket: str) -> None
         
         for section_result in eval_result.section_results:
             section_id = section_result.section_id
-            section_type = getattr(section_result, 'section_type', '')
+            section_type = getattr(section_result, 'classification', '')
             
             # Section record
             section_record = {
@@ -88,9 +85,6 @@ def save_evaluation_to_reporting_bucket(document, reporting_bucket: str) -> None
                 'false_alarm_rate': section_result.metrics.get('false_alarm_rate', 0.0),
                 'false_discovery_rate': section_result.metrics.get('false_discovery_rate', 0.0),
                 'evaluation_date': now.isoformat(),
-                'year': year,
-                'month': month,
-                'day': day
             }
             section_records.append(section_record)
             
@@ -110,6 +104,7 @@ def save_evaluation_to_reporting_bucket(document, reporting_bucket: str) -> None
                     attribute_record = {
                         'document_id': document.id,
                         'section_id': section_id,
+                        'section_type': section_type,
                         'attribute_name': getattr(attr, 'name', ''),
                         'expected': getattr(attr, 'expected', ''),
                         'actual': getattr(attr, 'actual', ''),
@@ -118,9 +113,6 @@ def save_evaluation_to_reporting_bucket(document, reporting_bucket: str) -> None
                         'reason': getattr(attr, 'reason', ''),
                         'evaluation_method': getattr(attr, 'evaluation_method', ''),
                         'evaluation_date': now.isoformat(),
-                        'year': year,
-                        'month': month,
-                        'day': day
                     }
                     attribute_records.append(attribute_record)
                     logger.debug(f"Added attribute record for attribute_name={getattr(attr, 'name', '')}")
