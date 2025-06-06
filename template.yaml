@@ -1241,13 +1241,13 @@ Resources:
         Name: !Sub "${GetLowercase.Lowercase}-evaluation-db"
         Description: "Database for evaluation results"
 
-  DocumentMetricsGlueTable:
+  DocumentMetricsTable:
     Type: AWS::Glue::Table
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseName: !Ref EvaluationGlueDatabase
       TableInput:
-        Name: "document_metrics"
+        Name: "document_eval_metrics"
         Description: "Table for document-level evaluation metrics"
         TableType: "EXTERNAL_TABLE"
         Parameters: {
@@ -1294,14 +1294,16 @@ Resources:
             Type: string
           - Name: day
             Type: string
+          - Name: document
+            Type: string
 
-  SectionMetricsGlueTable:
+  SectionMetricsTable:
     Type: AWS::Glue::Table
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseName: !Ref EvaluationGlueDatabase
       TableInput:
-        Name: "section_metrics"
+        Name: "section_eval_metrics"
         Description: "Table for section-level evaluation metrics"
         TableType: "EXTERNAL_TABLE"
         Parameters: {
@@ -1348,14 +1350,16 @@ Resources:
             Type: string
           - Name: day
             Type: string
+          - Name: document
+            Type: string
 
-  AttributeMetricsGlueTable:
+  AttributeMetricsTable:
     Type: AWS::Glue::Table
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseName: !Ref EvaluationGlueDatabase
       TableInput:
-        Name: "attribute_metrics"
+        Name: "attribute_eval_metrics"
         Description: "Table for attribute-level evaluation metrics"
         TableType: "EXTERNAL_TABLE"
         Parameters: {
@@ -1372,11 +1376,13 @@ Resources:
           InputFormat: "org.apache.hadoop.mapred.TextInputFormat"
           OutputFormat: "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
           SerdeInfo:
-            SerializationLibrary: "org.apache.hadoop.hive.serde2.JsonSerDe"
+            SerializationLibrary: "org.openx.data.jsonserde.JsonSerDe"
           Columns:
             - Name: document_id
               Type: string
             - Name: section_id
+              Type: string
+            - Name: section_type
               Type: string
             - Name: attribute_name
               Type: string
@@ -1401,6 +1407,8 @@ Resources:
           - Name: month
             Type: string
           - Name: day
+            Type: string
+          - Name: document
             Type: string
 
   EvaluationBaselineBucket:
