@@ -17,7 +17,6 @@ from typing import Any, Dict, List
 
 from idp_common import bedrock, image, metrics, s3, utils
 from idp_common.models import Document
-from .models import AssessmentResult, AttributeAssessment, DocumentAssessmentResult
 
 logger = logging.getLogger(__name__)
 
@@ -308,32 +307,39 @@ class AssessmentService:
     def _get_text_confidence_data(self, page) -> str:
         """
         Get text confidence data for a page from pre-generated text confidence files.
-        
+
         Args:
             page: Page object containing OCR URIs
-            
+
         Returns:
             JSON string of text confidence data, or empty string if unavailable
         """
         # First try to use the pre-generated text confidence file
-        if hasattr(page, 'text_confidence_uri') and page.text_confidence_uri:
+        if hasattr(page, "text_confidence_uri") and page.text_confidence_uri:
             try:
                 text_confidence_data = s3.get_json_content(page.text_confidence_uri)
                 return json.dumps(text_confidence_data, indent=2)
             except Exception as e:
-                logger.warning(f"Failed to read text confidence data for page {page.page_id}: {str(e)}")
-                
+                logger.warning(
+                    f"Failed to read text confidence data for page {page.page_id}: {str(e)}"
+                )
+
         # Fallback: use raw OCR data if text confidence is not available (for backward compatibility)
         if page.raw_text_uri:
             try:
                 from idp_common.ocr.service import OcrService
+
                 ocr_service = OcrService()
                 raw_ocr_data = s3.get_json_content(page.raw_text_uri)
-                text_confidence_data = ocr_service._generate_text_confidence_data(raw_ocr_data)
+                text_confidence_data = ocr_service._generate_text_confidence_data(
+                    raw_ocr_data
+                )
                 return json.dumps(text_confidence_data, indent=2)
             except Exception as e:
-                logger.warning(f"Failed to generate text confidence data for page {page.page_id}: {str(e)}")
-                
+                logger.warning(
+                    f"Failed to generate text confidence data for page {page.page_id}: {str(e)}"
+                )
+
         return ""
 
     def process_document_section(self, document: Document, section_id: str) -> Document:
@@ -379,8 +385,7 @@ class AssessmentService:
 
         # Extract information about the section
         class_label = section.classification
-        output_bucket = document.output_bucket
-        
+
         # Check if the section has required pages
         if not section.page_ids:
             error_msg = f"Section {section_id} has no page IDs"
@@ -405,12 +410,12 @@ class AssessmentService:
             t0 = time.time()
             extraction_data = s3.get_json_content(section.extraction_result_uri)
             extraction_results = extraction_data.get("inference_result", {})
-            
+
             # Skip assessment if no extraction results found
             if not extraction_results:
                 logger.warning(f"No extraction results found for section {section_id}")
                 return document
-            
+
             t1 = time.time()
             logger.info(f"Time taken to read extraction results: {t1 - t0:.2f} seconds")
 
@@ -455,7 +460,9 @@ class AssessmentService:
                 page = document.pages[page_id]
                 text_confidence_data_str = self._get_text_confidence_data(page)
                 if text_confidence_data_str:
-                    ocr_text_confidence += f"\n--- Page {page_id} Text Confidence Data ---\n"
+                    ocr_text_confidence += (
+                        f"\n--- Page {page_id} Text Confidence Data ---\n"
+                    )
                     ocr_text_confidence += text_confidence_data_str
 
             t4 = time.time()
@@ -556,9 +563,7 @@ class AssessmentService:
                         )
                         # Limit to 20 images as per Bedrock constraints
                         for img in page_images[:20]:
-                            content.append(
-                                image.prepare_bedrock_image_attachment(img)
-                            )
+                            content.append(image.prepare_bedrock_image_attachment(img))
 
             logger.info(
                 f"Assessing extraction confidence for {class_label} document, section {section_id}"
@@ -604,7 +609,7 @@ class AssessmentService:
                 for attr_name in extraction_results.keys():
                     assessment_data[attr_name] = {
                         "confidence_score": 0.5,
-                        "confidence_reason": "Unable to parse assessment response - default score assigned"
+                        "confidence_reason": "Unable to parse assessment response - default score assigned",
                     }
                 parsing_succeeded = False  # Mark that parsing failed
 
@@ -612,7 +617,9 @@ class AssessmentService:
             extraction_data["explainability_info"] = [assessment_data]
             extraction_data["metadata"] = extraction_data.get("metadata", {})
             extraction_data["metadata"]["assessment_time_seconds"] = total_duration
-            extraction_data["metadata"]["assessment_parsing_succeeded"] = parsing_succeeded
+            extraction_data["metadata"]["assessment_parsing_succeeded"] = (
+                parsing_succeeded
+            )
 
             # Write the updated result back to S3
             bucket, key = utils.parse_s3_uri(section.extraction_result_uri)
@@ -631,7 +638,9 @@ class AssessmentService:
             )
 
         except Exception as e:
-            error_msg = f"Error processing assessment for section {section_id}: {str(e)}"
+            error_msg = (
+                f"Error processing assessment for section {section_id}: {str(e)}"
+            )
             logger.error(error_msg)
             document.errors.append(error_msg)
             raise
@@ -693,7 +702,9 @@ class AssessmentService:
                 logger.info(f"Assessing section {section.section_id}")
                 document = self.process_document_section(document, section.section_id)
             else:
-                logger.warning(f"Section {section.section_id} has no extraction results to assess")
+                logger.warning(
+                    f"Section {section.section_id} has no extraction results to assess"
+                )
 
         logger.info(f"Completed assessment for document {document.id}")
         return document
