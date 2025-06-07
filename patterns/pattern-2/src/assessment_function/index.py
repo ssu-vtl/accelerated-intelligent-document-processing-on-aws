@@ -16,7 +16,7 @@ logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
 logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_LOG_LEVEL", "INFO"))
 
-def handler(event: Dict[str, Any], context) -> Dict[str, Any]:
+def handler(event, context):
     """
     Lambda handler for document assessment.
     This function assesses the confidence of extraction results for a document section
@@ -47,6 +47,7 @@ def handler(event: Dict[str, Any], context) -> Dict[str, Any]:
     # Update document status to ASSESSING
     status = Document(
         id=document.id,
+        input_key=document.input_key,
         status=Status.ASSESSING,
     )
     appsync_service = DocumentAppSyncService()
