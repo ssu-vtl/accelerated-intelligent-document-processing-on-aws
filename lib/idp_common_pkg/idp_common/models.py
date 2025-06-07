@@ -22,6 +22,7 @@ class Status(Enum):
     OCR = "OCR"  # OCR processing
     CLASSIFYING = "CLASSIFYING"  # Document classification
     EXTRACTING = "EXTRACTING"  # Information extraction
+    ASSESSING = "ASSESSING"  # Document assessment
     POSTPROCESSING = "POSTPROCESSING"  # Document summarization
     SUMMARIZING = "SUMMARIZING"  # Document summarization
     COMPLETED = "COMPLETED"  # All processing completed

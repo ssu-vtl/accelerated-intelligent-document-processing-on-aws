@@ -8,7 +8,7 @@ This module provides services for assessing the confidence and accuracy
 of extraction results by analyzing them against source documents.
 """
 
-from .service import AssessmentService
 from .models import AssessmentResult, AttributeAssessment
+from .service import AssessmentService
 
 __all__ = ["AssessmentService", "AssessmentResult", "AttributeAssessment"]
