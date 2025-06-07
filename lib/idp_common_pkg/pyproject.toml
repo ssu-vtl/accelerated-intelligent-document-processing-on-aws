@@ -44,7 +44,9 @@ image = [
 ocr = [
     "Pillow>=11.1.0",
     "PyMuPDF>=1.25.5",
-    "amazon-textract-textractor[pandas]>=1.9.2"
+    "amazon-textract-textractor[pandas]>=1.9.2",
+    "numpy>=1.24.0,<2.0.0",
+    "pandas>=1.5.0,<2.3.0"
 ]
 
 # Classification module dependencies
@@ -65,7 +67,7 @@ assessment = [
 # Evaluation module dependencies
 evaluation = [
     "munkres>=1.1.4",  # For Hungarian algorithm
-    "numpy>=1.24.0",   # For numeric operations
+    "numpy>=1.24.0,<2.0.0",   # For numeric operations
 ]
 
 # Appsync module dependencies
@@ -87,7 +89,8 @@ all = [
     "PyMuPDF>=1.25.5",
     "amazon-textract-textractor[pandas]>=1.9.2",
     "munkres>=1.1.4",
-    "numpy>=1.24.0",
+    "numpy>=1.24.0,<2.0.0",
+    "pandas>=1.5.0,<2.3.0",
     "requests>=2.32.3",
 ]
 
