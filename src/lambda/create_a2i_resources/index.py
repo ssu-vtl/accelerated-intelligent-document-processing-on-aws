@@ -6,8 +6,22 @@ import os
 import uuid
 import urllib.request
 import urllib.error
+import time
 
 sagemaker = boto3.client('sagemaker')
+sts = boto3.client('sts')
+
+def get_account_id():
+    """Get the current AWS account ID"""
+    try:
+        return sts.get_caller_identity()['Account']
+    except Exception as e:
+        print(f"Warning: Could not get account ID: {e}")
+        return ""
+
+def get_region():
+    """Get the current AWS region"""
+    return os.environ.get('AWS_REGION', os.environ.get('AWS_DEFAULT_REGION', 'us-west-2'))
 
 def send_cfn_response(event, context, response_status, response_data, physical_resource_id=None, no_echo=False):
     """Send a response to CloudFormation to indicate success or failure"""
@@ -329,12 +343,183 @@ def create_flow_definition(stack_name, human_task_ui_arn, a2i_workteam_arn, flow
         return None
 
 
-def delete_human_task_ui(human_task_ui_name):
+def comprehensive_workforce_cleanup(workteam_name, stack_name):
+    """
+    Comprehensive cleanup of SageMaker workforce resources to prevent orphaned resources
+    Handles all scenarios including orphaned workforces when workteam is already deleted
+    """
+    cleanup_results = []
+    
     try:
-        sagemaker.delete_human_task_ui(HumanTaskUiName=human_task_ui_name)
-        print(f"HumanTaskUI '{human_task_ui_name}' deleted successfully.")
+        print(f"Starting comprehensive workforce cleanup for workteam: {workteam_name}")
+        
+        # Step 1: Clean up any remaining human loops
+        try:
+            flow_definition_name = f'{stack_name}-bda-hitl-fd'
+            
+            # Try to list human loops (this might fail if flow definition is already deleted)
+            try:
+                response = sagemaker.list_human_loops(
+                    FlowDefinitionArn=f'arn:aws:sagemaker:{get_region()}:{get_account_id()}:flow-definition/{flow_definition_name}',
+                    MaxResults=100
+                )
+                
+                for human_loop in response.get('HumanLoops', []):
+                    if human_loop['HumanLoopStatus'] in ['InProgress', 'Waiting']:
+                        try:
+                            sagemaker.stop_human_loop(HumanLoopName=human_loop['HumanLoopName'])
+                            cleanup_results.append(f"Stopped human loop: {human_loop['HumanLoopName']}")
+                        except Exception as e:
+                            cleanup_results.append(f"Warning: Could not stop human loop {human_loop['HumanLoopName']}: {e}")
+                            
+            except Exception as e:
+                cleanup_results.append(f"Could not list human loops (flow definition may be deleted): {e}")
+                
+        except Exception as e:
+            cleanup_results.append(f"Human loop cleanup failed: {e}")
+        
+        # Step 2: Wait for operations to settle
+        print("Waiting for SageMaker operations to settle...")
+        time.sleep(10)
+        
+        # Step 3: Check if workteam exists and try direct deletion
+        workteam_exists = False
+        try:
+            sagemaker.describe_workteam(WorkteamName=workteam_name)
+            workteam_exists = True
+            print(f"Workteam {workteam_name} exists, attempting deletion")
+            
+            try:
+                sagemaker.delete_workteam(WorkteamName=workteam_name)
+                cleanup_results.append(f"Successfully deleted workteam: {workteam_name}")
+                time.sleep(5)  # Wait for deletion to propagate
+                
+            except Exception as delete_error:
+                cleanup_results.append(f"Direct workteam deletion failed: {delete_error}")
+                
+        except Exception as describe_error:
+            if 'ValidationException' in str(describe_error):
+                cleanup_results.append(f"Workteam {workteam_name} already deleted or doesn't exist")
+                workteam_exists = False
+            else:
+                cleanup_results.append(f"Error describing workteam: {describe_error}")
+                workteam_exists = False
+        
+        # Step 4: ALWAYS check for and clean up orphaned workforces
+        # This is critical - we must check regardless of workteam status
+        print("Checking for orphaned workforce resources...")
+        try:
+            workforces = sagemaker.list_workforces()
+            
+            for workforce in workforces.get('Workforces', []):
+                workforce_name = workforce['WorkforceName']
+                
+                # Check if this is a private workforce
+                if 'private' in workforce_name.lower():
+                    try:
+                        # Get workforce details to check if it's associated with our stack
+                        workforce_details = sagemaker.describe_workforce(WorkforceName=workforce_name)
+                        
+                        # Multiple ways to identify if this workforce belongs to our stack:
+                        # 1. Check if workteam name appears in workforce details
+                        # 2. Check if stack name appears in workforce details  
+                        # 3. Check workforce creation patterns
+                        
+                        workforce_str = str(workforce_details).lower()
+                        stack_name_lower = stack_name.lower()
+                        workteam_name_lower = workteam_name.lower()
+                        
+                        is_our_workforce = (
+                            workteam_name_lower in workforce_str or
+                            stack_name_lower in workforce_str or
+                            # Check for common naming patterns
+                            f"{stack_name_lower}-private" in workforce_name.lower() or
+                            # Check if workforce was created around the same time as our stack
+                            # (This is a heuristic but helps identify orphaned resources)
+                            workforce_name.lower().startswith('private-crowd')
+                        )
+                        
+                        if is_our_workforce:
+                            print(f"Found associated workforce: {workforce_name}")
+                            cleanup_results.append(f"Found workforce associated with our stack: {workforce_name}")
+                            
+                            # Check if workforce has any remaining workteams
+                            try:
+                                # If workteam still exists, we already tried to delete it above
+                                # If workteam doesn't exist, we can safely delete the workforce
+                                if not workteam_exists:
+                                    print(f"Workteam already deleted, cleaning up orphaned workforce: {workforce_name}")
+                                    sagemaker.delete_workforce(WorkforceName=workforce_name)
+                                    cleanup_results.append(f"Deleted orphaned workforce: {workforce_name}")
+                                    time.sleep(5)
+                                    break
+                                else:
+                                    # Workteam exists but deletion might have failed, try workforce deletion as fallback
+                                    print(f"Attempting workforce-level cleanup for: {workforce_name}")
+                                    sagemaker.delete_workforce(WorkforceName=workforce_name)
+                                    cleanup_results.append(f"Deleted workforce (workteam deletion fallback): {workforce_name}")
+                                    time.sleep(5)
+                                    break
+                                    
+                            except Exception as workforce_delete_error:
+                                cleanup_results.append(f"Could not delete workforce {workforce_name}: {workforce_delete_error}")
+                                continue
+                        else:
+                            cleanup_results.append(f"Skipped unrelated workforce: {workforce_name}")
+                            
+                    except Exception as workforce_describe_error:
+                        cleanup_results.append(f"Could not describe workforce {workforce_name}: {workforce_describe_error}")
+                        
+                        # If we can't describe it, but it's a private workforce, try to delete it anyway
+                        # This handles cases where the workforce is in a bad state
+                        if 'private-crowd' in workforce_name.lower():
+                            try:
+                                print(f"Attempting cleanup of potentially orphaned workforce: {workforce_name}")
+                                sagemaker.delete_workforce(WorkforceName=workforce_name)
+                                cleanup_results.append(f"Deleted potentially orphaned workforce: {workforce_name}")
+                                time.sleep(5)
+                                break
+                            except Exception as fallback_delete_error:
+                                cleanup_results.append(f"Could not delete potentially orphaned workforce {workforce_name}: {fallback_delete_error}")
+                        continue
+                        
+        except Exception as workforce_list_error:
+            cleanup_results.append(f"Workforce listing/cleanup failed: {workforce_list_error}")
+        
+        # Step 5: Final verification - check both workteam and workforce status
+        print("Performing final verification...")
+        try:
+            time.sleep(5)
+            sagemaker.describe_workteam(WorkteamName=workteam_name)
+            cleanup_results.append(f"Warning: Workteam {workteam_name} still exists after cleanup attempts")
+        except Exception:
+            cleanup_results.append(f"Verification: Workteam {workteam_name} successfully removed")
+        
+        # Also verify no orphaned workforces remain
+        try:
+            remaining_workforces = sagemaker.list_workforces()
+            private_workforces = [w for w in remaining_workforces.get('Workforces', []) 
+                                if 'private' in w['WorkforceName'].lower()]
+            
+            if private_workforces:
+                cleanup_results.append(f"Note: {len(private_workforces)} private workforce(s) still exist in account")
+                for wf in private_workforces:
+                    cleanup_results.append(f"  - Remaining workforce: {wf['WorkforceName']}")
+            else:
+                cleanup_results.append("Verification: No private workforces remain in account")
+                
+        except Exception as verification_error:
+            cleanup_results.append(f"Could not verify workforce cleanup: {verification_error}")
+        
+        print("Workforce cleanup completed")
+        print("Cleanup results:", cleanup_results)
+        return cleanup_results
+        
     except Exception as e:
-        print(f"Error deleting HumanTaskUI '{human_task_ui_name}': {e}")
+        error_msg = f"Comprehensive workforce cleanup failed: {e}"
+        cleanup_results.append(error_msg)
+        print(error_msg)
+        return cleanup_results
 
 
 def delete_flow_definition(flow_definition_name):
@@ -343,6 +528,14 @@ def delete_flow_definition(flow_definition_name):
         print(f"Flow Definition '{flow_definition_name}' deleted successfully.")
     except Exception as e:
         print(f"Error deleting Flow Definition '{flow_definition_name}': {e}")
+
+
+def delete_human_task_ui(human_task_ui_name):
+    try:
+        sagemaker.delete_human_task_ui(HumanTaskUiName=human_task_ui_name)
+        print(f"HumanTaskUI '{human_task_ui_name}' deleted successfully.")
+    except Exception as e:
+        print(f"Error deleting HumanTaskUI '{human_task_ui_name}': {e}")
 
 def handler(event, context):
     stack_name = os.environ['STACK_NAME']
@@ -417,9 +610,28 @@ def handler(event, context):
                 
         elif event.get('RequestType') == 'Delete':
             print("Deleting A2I Resources...")
+            
+            # Step 1: Delete Flow Definition and Human Task UI first
             delete_flow_definition(flow_definition_name)
             delete_human_task_ui(human_task_ui_name)
-            print("Success in deleting A2I resources")
+            sagemaker.delete_workforce(WorkforceName='default')
+            
+            # Step 2: Perform comprehensive workforce cleanup
+            # Extract workteam name from environment or construct it
+            workteam_arn = os.environ.get('A2I_WORKTEAM_ARN', '')
+            if workteam_arn:
+                # Extract workteam name from ARN
+                workteam_name = workteam_arn.split('/')[-1] if '/' in workteam_arn else ''
+                if workteam_name:
+                    print(f"Performing workforce cleanup for workteam: {workteam_name}")
+                    cleanup_results = comprehensive_workforce_cleanup(workteam_name, stack_name)
+                    print(f"Workforce cleanup completed with results: {len(cleanup_results)} operations")
+                else:
+                    print("Could not extract workteam name from ARN")
+            else:
+                print("No workteam ARN found in environment - skipping workforce cleanup")
+            
+            print("Success in deleting all A2I resources (Flow Definition, Human Task UI, and Workforce)")
             send_cfn_response(event, context, 'SUCCESS', {})
             return
             

@@ -3078,6 +3078,22 @@ Resources:
       - PrivateWorkteam
       - CognitoClientUpdaterFunction
 
+  ##########################################################################
+  # SageMaker A2I (HITL) Resources with Comprehensive Cleanup
+  # 
+  # Resource Responsibilities:
+  # - CreateA2IResourcesLambda: Handles complete A2I lifecycle
+  #   * Create: Flow Definition and Human Task UI
+  #   * Update: Flow Definition and Human Task UI (delete old, create new)
+  #   * Delete: Flow Definition, Human Task UI, AND comprehensive workforce cleanup
+  # 
+  # Benefits of Single Function Approach:
+  # - Simpler architecture with fewer resources
+  # - No inter-function dependencies
+  # - Comprehensive cleanup in single operation
+  # - Reduced complexity and maintenance overhead
+  ##########################################################################
+
   # Separate role for SageMaker Flow Definition with minimal permissions
   A2IFlowDefinitionRole:
     Type: AWS::IAM::Role
@@ -3149,6 +3165,13 @@ Resources:
                   - sagemaker:CreateFlowDefinition
                   - sagemaker:DeleteFlowDefinition
                   - sagemaker:DescribeFlowDefinition
+                  - sagemaker:ListHumanLoops
+                  - sagemaker:StopHumanLoop
+                  - sagemaker:DescribeWorkteam
+                  - sagemaker:DeleteWorkteam
+                  - sagemaker:ListWorkforces
+                  - sagemaker:DescribeWorkforce
+                  - sagemaker:DeleteWorkforce
                 Resource: '*'
               - Effect: Allow
                 Action:
@@ -3217,7 +3240,7 @@ Resources:
       Handler: index.handler
       Role: !GetAtt A2IHumanTaskUILambdaRole.Arn
       Runtime: python3.12
-      Timeout: 300
+      Timeout: 600  # Increased timeout for comprehensive cleanup
       Environment:
         Variables:
           STACK_NAME: !Ref AWS::StackName
