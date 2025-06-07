@@ -391,45 +391,47 @@ class OcrService:
             else "detect_document_text"
         )
 
-    def _generate_text_confidence_data(self, raw_ocr_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_text_confidence_data(
+        self, raw_ocr_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Generate text confidence data from raw OCR to reduce token usage while preserving essential information.
-        
+
         This method transforms verbose Textract output into a minimal format containing:
         - Essential text content (LINE blocks only)
         - OCR confidence scores
-        - Text type (PRINTED/HANDWRITING) 
+        - Text type (PRINTED/HANDWRITING)
         - Page count
-        
+
         Removes geometric data, relationships, block IDs, and other verbose metadata
         that aren't needed for assessment purposes.
-        
+
         Args:
             raw_ocr_data: Raw Textract API response
-            
+
         Returns:
             Text confidence data with ~80-90% token reduction
         """
         text_confidence_data = {
             "page_count": raw_ocr_data.get("DocumentMetadata", {}).get("Pages", 1),
-            "text_blocks": []
+            "text_blocks": [],
         }
-        
+
         blocks = raw_ocr_data.get("Blocks", [])
-        
+
         for block in blocks:
             if block.get("BlockType") == "LINE" and block.get("Text"):
                 text_block = {
                     "text": block.get("Text", ""),
-                    "confidence": block.get("Confidence")
+                    "confidence": block.get("Confidence"),
                 }
-                
+
                 # Include text type if available (PRINTED vs HANDWRITING)
                 if "TextType" in block:
                     text_block["type"] = block["TextType"]
-                    
+
                 text_confidence_data["text_blocks"].append(text_block)
-                
+
         return text_confidence_data
 
     def _parse_textract_response(

@@ -637,14 +637,6 @@ assessment:
 
     </assessment-guidelines>
 
-
-    <extraction-results>
-
-    {EXTRACTION_RESULTS}
-
-    </extraction-results>
-
-
     <attributes-definitions>
 
     {ATTRIBUTE_NAMES_AND_DESCRIPTIONS}
@@ -655,11 +647,11 @@ assessment:
     <<CACHEPOINT>>
 
 
-    <document-text>
+    <extraction-results>
 
-    {DOCUMENT_TEXT}
+    {EXTRACTION_RESULTS}
 
-    </document-text>
+    </extraction-results>
 
 
     <document-image>
@@ -669,11 +661,11 @@ assessment:
     </document-image>
 
 
-    <ocr-raw-results>
+    <ocr-text-confidence-results>
 
     {OCR_TEXT_CONFIDENCE}
 
-    </ocr-raw-results>
+    </ocr-text-confidence-results>
 
 
     <final-instructions>
