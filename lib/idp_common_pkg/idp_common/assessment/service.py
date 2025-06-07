@@ -180,18 +180,9 @@ class AssessmentService:
         parts = prompt_template.split("{DOCUMENT_IMAGE}")
 
         if len(parts) != 2:
-            logger.warning(
-                "Invalid DOCUMENT_IMAGE placeholder usage, falling back to standard processing"
-            )
-            # Fallback to standard processing
-            return self._build_content_without_image_placeholder(
-                prompt_template,
-                document_text,
-                class_label,
-                attribute_descriptions,
-                extraction_results,
-                ocr_text_confidence,
-                image_content,
+            raise ValueError(
+                f"Invalid DOCUMENT_IMAGE placeholder usage: found {len(parts) - 1} occurrences, "
+                f"but exactly 1 is required. The DOCUMENT_IMAGE placeholder must appear exactly once in the template."
             )
 
         # Process the parts before and after the image placeholder
@@ -258,7 +249,7 @@ class AssessmentService:
         image_content: Any = None,
     ) -> List[Dict[str, Any]]:
         """
-        Build content array without DOCUMENT_IMAGE placeholder (standard processing).
+        Build content array without DOCUMENT_IMAGE placeholder (text-only processing).
 
         Args:
             prompt_template: The prompt template
@@ -267,10 +258,10 @@ class AssessmentService:
             attribute_descriptions: Formatted attribute names and descriptions
             extraction_results: JSON string of extraction results to assess
             ocr_text_confidence: Raw OCR results with confidence scores
-            image_content: Optional image content to append at the end
+            image_content: Ignored - images are only attached when DOCUMENT_IMAGE placeholder is present
 
         Returns:
-            List of content items with text and image content
+            List of content items with text content only
         """
         # Prepare the full prompt
         task_prompt = self._prepare_prompt_from_template(
@@ -285,24 +276,8 @@ class AssessmentService:
             required_placeholders=[],
         )
 
-        content = [{"text": task_prompt}]
-
-        # Add image at the end if available
-        if image_content:
-            if isinstance(image_content, list):
-                # Multiple images (limit to 20 as per Bedrock constraints)
-                if len(image_content) > 20:
-                    logger.warning(
-                        f"Found {len(image_content)} images, truncating to 20 due to Bedrock constraints. "
-                        f"{len(image_content) - 20} images will be dropped."
-                    )
-                for img in image_content[:20]:
-                    content.append(image.prepare_bedrock_image_attachment(img))
-            else:
-                # Single image
-                content.append(image.prepare_bedrock_image_attachment(image_content))
-
-        return content
+        # Return text content only - no images unless DOCUMENT_IMAGE placeholder is used
+        return [{"text": task_prompt}]
 
     def _get_text_confidence_data(self, page) -> str:
         """
@@ -490,39 +465,9 @@ class AssessmentService:
             extraction_results_str = json.dumps(extraction_results, indent=2)
 
             if not prompt_template:
-                # Default prompt if template not found
-                task_prompt = f"""
-                Assess the confidence of extraction results for this {class_label} document:
-                
-                Extraction Results:
-                {extraction_results_str}
-                
-                Attributes Definition:
-                {attribute_descriptions}
-                
-                Document text:
-                {document_text}
-                
-                Respond with a JSON object containing confidence assessments in the format:
-                {{
-                  "explainability_info": {{
-                    "attribute_name": {{
-                      "confidence_score": 0.85,
-                      "confidence_reason": "Explanation of confidence level"
-                    }}
-                  }}
-                }}
-                """
-                content = [{"text": task_prompt}]
-
-                # Add image attachments to the content (limit to 20 images as per Bedrock constraints)
-                if page_images:
-                    logger.info(
-                        f"Attaching images to prompt, for {len(page_images)} pages."
-                    )
-                    # Limit to 20 images as per Bedrock constraints
-                    for img in page_images[:20]:
-                        content.append(image.prepare_bedrock_image_attachment(img))
+                raise ValueError(
+                    "Assessment task_prompt is required in configuration but not found"
+                )
             else:
                 # Use the unified content builder for DOCUMENT_IMAGE placeholder support
                 try:
@@ -536,34 +481,10 @@ class AssessmentService:
                         page_images,  # Pass images to the content builder
                     )
                 except ValueError as e:
-                    logger.warning(
-                        f"Error formatting prompt template: {str(e)}. Using default prompt."
+                    logger.error(f"Error formatting prompt template: {str(e)}")
+                    raise ValueError(
+                        f"Assessment prompt template formatting failed: {str(e)}"
                     )
-                    # Fall back to default prompt if template validation fails
-                    task_prompt = f"""
-                    Assess the confidence of extraction results for this {class_label} document:
-                    
-                    Extraction Results:
-                    {extraction_results_str}
-                    
-                    Attributes Definition:
-                    {attribute_descriptions}
-                    
-                    Document text:
-                    {document_text}
-                    
-                    Respond with a JSON object containing confidence assessments.
-                    """
-                    content = [{"text": task_prompt}]
-
-                    # Add image attachments for fallback case
-                    if page_images:
-                        logger.info(
-                            f"Attaching images to prompt, for {len(page_images)} pages."
-                        )
-                        # Limit to 20 images as per Bedrock constraints
-                        for img in page_images[:20]:
-                            content.append(image.prepare_bedrock_image_attachment(img))
 
             logger.info(
                 f"Assessing extraction confidence for {class_label} document, section {section_id}"
