@@ -142,6 +142,15 @@ Parameters:
       - false
     Description: Enable or disable document summarization functionality across all patterns.
 
+  # Assessment
+  IsAssessmentEnabled:
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+    Description: Enable or disable extraction confidence assessment functionality (except pattern-1 BDA, which always includes confidence scores).
+
   # Optional Knowledge Base Configuration
   DocumentKnowledgeBase:
     Default: "BEDROCK_KNOWLEDGE_BASE (Create)"
@@ -370,6 +379,10 @@ Metadata:
         Parameters:
           - IsSummarizationEnabled
       - Label:
+          default: "Assessment / Confidence Scoring"
+        Parameters:
+          - IsAssessmentEnabled
+      - Label:
           default: "Evaluation"
         Parameters:
           - EvaluationBaselineBucketName
@@ -433,6 +446,8 @@ Metadata:
         default: "Evaluation Auto Enabled"
       IsSummarizationEnabled:
         default: "Summarization Enabled"
+      IsAssessmentEnabled:
+        default: "Assessment / Confidence Scoring Enabled"
       DocumentKnowledgeBase:
         default: "Document Knowledge Base Configuration"
       KnowledgeBaseModelId:
@@ -740,6 +755,7 @@ Resources:
         CustomClassificationModelARN: !Ref Pattern2CustomClassificationModelARN
         CustomExtractionModelARN: !Ref Pattern2CustomExtractionModelARN
         IsSummarizationEnabled: !Ref IsSummarizationEnabled
+        IsAssessmentEnabled: !Ref IsAssessmentEnabled
         UpdateConfigurationFunctionArn: !GetAtt UpdateConfigurationFunction.Arn
         AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
