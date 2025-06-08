@@ -97,7 +97,7 @@ assessment:
     Provide a confidence assessment for each extracted attribute as a JSON object with this format:
     {
       "attribute_name": {
-        "confidence_score": 0.85,
+        "confidence": 0.85,
         "confidence_reason": "Clear text match found in document with high OCR confidence"
       }
     }
