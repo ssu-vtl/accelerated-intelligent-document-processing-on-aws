@@ -238,6 +238,109 @@ The evaluation also tracks different evaluation statuses:
 - **BASELINE_AVAILABLE**: Document is available in the baseline
 - **BASELINE_ERROR**: Error occurred during the baseline copy operation
 
+## Aggregate Evaluation Analytics and Reporting
+
+The solution includes a comprehensive analytics system that stores evaluation metrics in a structured database for advanced reporting and trend analysis.
+
+### ReportingDatabase Overview
+
+The evaluation framework automatically saves detailed metrics to an AWS Glue database (available from CloudFormation stack outputs as `ReportingDatabase`) containing three main tables:
+
+#### 1. document_evaluations
+Stores document-level metrics including:
+- Document ID, input key, evaluation date
+- Overall accuracy, precision, recall, F1 score
+- False alarm rate, false discovery rate
+- Execution time performance metrics
+
+#### 2. section_evaluations  
+Stores section-level metrics including:
+- Document ID, section ID, section type
+- Section-specific accuracy, precision, recall, F1 score
+- Section classification performance
+- Evaluation timestamps
+
+#### 3. attribute_evaluations
+Stores detailed attribute-level metrics including:
+- Document ID, section context, attribute name
+- Expected vs actual values, match results
+- Individual attribute scores and evaluation methods
+- Detailed reasoning for matches/mismatches
+
+### Querying with Amazon Athena
+
+All evaluation data is partitioned by date and document for efficient querying:
+
+```sql
+-- Example: Find documents with low accuracy in the last 7 days
+SELECT document_id, accuracy, evaluation_date 
+FROM "your-database-name".document_evaluations 
+WHERE evaluation_date >= current_date - interval '7' day 
+  AND accuracy < 0.8
+ORDER BY accuracy ASC;
+
+-- Example: Analyze attribute-level performance trends
+SELECT attribute_name, 
+       COUNT(*) as total_evaluations,
+       AVG(CASE WHEN matched THEN 1.0 ELSE 0.0 END) as match_rate,
+       AVG(score) as avg_score
+FROM "your-database-name".attribute_evaluations 
+WHERE evaluation_date >= current_date - interval '30' day
+GROUP BY attribute_name
+ORDER BY match_rate ASC;
+
+-- Example: Section type performance analysis
+SELECT section_type,
+       COUNT(*) as total_sections,
+       AVG(accuracy) as avg_accuracy,
+       AVG(f1_score) as avg_f1_score
+FROM "your-database-name".section_evaluations
+GROUP BY section_type
+ORDER BY avg_accuracy DESC;
+```
+
+### Analytics Notebook
+
+The solution includes a comprehensive Jupyter notebook (`notebooks/evaluation_analytics.ipynb`) that provides:
+
+- **Automated Data Loading**: Connects to Athena and loads partitions automatically
+- **Multi-level Analysis**: Document, section, and attribute-level performance insights
+- **Visual Analytics**: Charts and graphs showing accuracy trends, problem areas, and performance distributions
+- **Problem Identification**: Automatically flags low-performing documents, sections, and attributes
+- **Trend Analysis**: Historical accuracy tracking and performance monitoring
+- **Configurable Filters**: Filter by date ranges, document types, or specific patterns
+
+#### Key Analytics Features:
+
+1. **Performance Dashboards**: Visual representations of accuracy distributions and trends
+2. **Problem Detection**: Identification of consistently problematic document types or attributes
+3. **Method Comparison**: Analysis of different evaluation methods and their effectiveness
+4. **Temporal Analysis**: Tracking accuracy improvements or degradations over time
+5. **Granular Insights**: Drill-down from document-level to attribute-level performance
+
+#### Using the Analytics Notebook:
+
+1. Configure database connection parameters (from your CloudFormation stack outputs)
+2. Set analysis filters and thresholds
+3. Run automated partition loading and data extraction
+4. Generate comprehensive reports with visualizations
+5. Export insights for stakeholder reporting
+
+### Data Retention and Partitioning
+
+- Evaluation data is automatically partitioned by year/month/day/document for efficient querying
+- Data retention follows the stack's `DataRetentionInDays` parameter
+- Partitions are automatically loaded when using the analytics notebook
+- Historical data enables long-term trend analysis and accuracy monitoring
+
+### Best Practices for Analytics
+
+1. **Regular Monitoring**: Use the analytics notebook weekly to identify accuracy trends
+2. **Threshold Tuning**: Adjust accuracy thresholds based on your use case requirements
+3. **Pattern Recognition**: Look for patterns in low-performing document types or sections
+4. **Comparative Analysis**: Compare performance across different prompt configurations
+5. **Automated Alerts**: Set up CloudWatch alarms based on accuracy metrics stored in the database
+
 ## Troubleshooting Evaluation Issues
 
 Common issues and resolutions:
@@ -256,3 +359,9 @@ Common issues and resolutions:
    - Review document quality and OCR results
    - Examine prompt configurations for classification and extraction
    - Check for processing errors in the workflow execution
+
+4. **Analytics Database Issues**
+   - Ensure the ReportingDatabase is accessible from your AWS account
+   - Check that evaluation results are being written to the reporting bucket
+   - Verify Athena permissions for querying Glue tables
+   - Use "MSCK REPAIR TABLE" in Athena to refresh partitions if needed
