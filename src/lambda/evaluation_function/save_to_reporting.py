@@ -113,6 +113,8 @@ def save_evaluation_to_reporting_bucket(document, reporting_bucket: str) -> None
                         'score': getattr(attr, 'score', 0.0),
                         'reason': getattr(attr, 'reason', ''),
                         'evaluation_method': getattr(attr, 'evaluation_method', ''),
+                        'expected_confidence': getattr(attr, 'expected_confidence', None),
+                        'actual_confidence': getattr(attr, 'actual_confidence', None),
                         'evaluation_date': now.isoformat(),
                     }
                     attribute_records.append(attribute_record)
