@@ -375,3 +375,9 @@ Common issues and resolutions:
    - Review document quality and OCR results
    - Examine prompt configurations for classification and extraction
    - Check for processing errors in the workflow execution
+
+4. **Analytics Database Issues**
+   - Ensure the ReportingDatabase is accessible from your AWS account
+   - Check that evaluation results are being written to the reporting bucket
+   - Verify Athena permissions for querying Glue tables
+   - Use "MSCK REPAIR TABLE" in Athena to refresh partitions if needed
