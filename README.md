@@ -115,7 +115,7 @@ For detailed deployment and testing instructions, see the [Deployment Guide](./d
 - [Classification](./docs/classification.md) - Customizing document classification
 - [Extraction](./docs/extraction.md) - Customizing information extraction
 - [Assessment](./docs/assessment.md) - Extraction confidence evaluation using LLMs
-- [Evaluation Framework](./docs/evaluation.md) - Accuracy assessment system
+- [Evaluation Framework](./docs/evaluation.md) - Accuracy assessment system with analytics database and reporting
 - [Knowledge Base](./docs/knowledge-base.md) - Document knowledge base query feature
 - [Monitoring](./docs/monitoring.md) - Monitoring and logging capabilities
 - [Troubleshooting](./docs/troubleshooting.md) - Troubleshooting and performance guides
