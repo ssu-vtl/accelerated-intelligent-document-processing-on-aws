@@ -47,11 +47,11 @@ assessment_info = extraction_data.get("explainability_info", {})
 # Example assessment output:
 # {
 #   "vendor_name": {
-#     "confidence_score": 0.95,
+#     "confidence": 0.95,
 #     "confidence_reason": "Vendor name clearly visible in header with high OCR confidence"
 #   },
 #   "total_amount": {
-#     "confidence_score": 0.87,
+#     "confidence": 0.87,
 #     "confidence_reason": "Amount visible but OCR confidence slightly lower due to formatting"
 #   }
 # }
@@ -180,15 +180,15 @@ The service appends assessment results to existing extraction results:
   },
   "explainability_info": {
     "vendor_name": {
-      "confidence_score": 0.95,
+      "confidence": 0.95,
       "confidence_reason": "Vendor name clearly visible in document header with high OCR confidence (98.7%). Text format and positioning consistent with standard invoice layout."
     },
     "invoice_number": {
-      "confidence_score": 0.92,
+      "confidence": 0.92,
       "confidence_reason": "Invoice number clearly extracted with good OCR confidence (96.1%). Standard format and location confirmed."
     },
     "total_amount": {
-      "confidence_score": 0.87,
+      "confidence": 0.87,
       "confidence_reason": "Amount visible and extracted correctly, though OCR confidence slightly lower (89.3%) due to formatting complexity in table structure."
     }
   },
@@ -287,7 +287,7 @@ Data models for structured assessment results:
 ```python
 @dataclass
 class AttributeAssessment:
-    confidence_score: float
+    confidence: float
     confidence_reason: str
 
 @dataclass 

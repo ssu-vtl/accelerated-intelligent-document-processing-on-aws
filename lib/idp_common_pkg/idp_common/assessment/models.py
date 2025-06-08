@@ -17,7 +17,7 @@ class AttributeAssessment:
     """Assessment result for a single extracted attribute"""
 
     attribute_name: str
-    confidence_score: float
+    confidence: float
     confidence_reason: str
     extracted_value: Any = None
 
