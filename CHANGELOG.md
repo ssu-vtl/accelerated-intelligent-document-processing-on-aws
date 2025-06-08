@@ -5,6 +5,8 @@ SPDX-License-Identifier: MIT-0
 
 ## [Unreleased]
 
+## [0.3.3]
+
 ### Added
 
 - **Assessment Feature for Extraction Confidence Evaluation (EXPERIMENTAL)**
