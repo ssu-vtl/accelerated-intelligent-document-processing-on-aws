@@ -529,7 +529,7 @@ class AssessmentService:
                 assessment_data = {}
                 for attr_name in extraction_results.keys():
                     assessment_data[attr_name] = {
-                        "confidence_score": 0.5,
+                        "confidence": 0.5,
                         "confidence_reason": "Unable to parse assessment response - default score assigned",
                     }
                 parsing_succeeded = False  # Mark that parsing failed

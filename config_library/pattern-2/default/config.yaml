@@ -674,11 +674,11 @@ assessment:
 
       {
         "attribute_name_1": {
-          "confidence_score": 0.85,
+          "confidence": 0.85,
           "confidence_reason": "Clear text evidence found in document header with high OCR confidence (0.98). Value matches exactly."
         },
         "attribute_name_2": {
-          "confidence_score": 0.65,
+          "confidence": 0.65,
           "confidence_reason": "Text is partially unclear due to poor scan quality. OCR confidence low (0.72) in this region."
         }
       }

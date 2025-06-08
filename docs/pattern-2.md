@@ -490,7 +490,7 @@ assessment:
     Provide confidence assessment as JSON:
     {
       "attribute_name": {
-        "confidence_score": 0.85,
+        "confidence": 0.85,
         "confidence_reason": "Clear text match with high OCR confidence"
       }
     }
