@@ -1254,7 +1254,7 @@ Resources:
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
-        Name: !Sub "${GetLowercase.Lowercase}-evaluation-db"
+        Name: !Sub "${GetLowercase.Lowercase}-reporting-db"
         Description: "Database for evaluation results"
 
   DocumentEvaluationsTable:
