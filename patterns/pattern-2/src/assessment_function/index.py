@@ -31,7 +31,6 @@ def handler(event, context):
     # Extract input from event
     document_dict = event.get('document', {})
     section_id = event.get('section_id')
-    config = event.get('config', {})
     
     # Validate inputs
     if not document_dict:
@@ -55,10 +54,7 @@ def handler(event, context):
     appsync_service.update_document(status)
 
     # Initialize assessment service
-    assessment_service = assessment.AssessmentService(
-        region=os.environ.get('AWS_REGION'),
-        config=config
-    )
+    assessment_service = assessment.AssessmentService(config=config)
 
     # Process the document section for assessment
     t0 = time.time()
