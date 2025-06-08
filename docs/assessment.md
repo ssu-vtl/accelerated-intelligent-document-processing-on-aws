@@ -112,7 +112,7 @@ The assessment prompts support the following placeholders:
 | `{DOCUMENT_CLASS}` | The classified document type |
 | `{EXTRACTION_RESULTS}` | JSON string of extraction results to assess |
 | `{ATTRIBUTE_NAMES_AND_DESCRIPTIONS}` | Formatted list of attribute names and descriptions |
-| `{DOCUMENT_TEXT}` | Full document text from OCR |
+| `{DOCUMENT_TEXT}` | Full document text (markdown) from OCR |
 | `{OCR_TEXT_CONFIDENCE}` | Condensed OCR confidence data (80-90% token reduction) |
 | `{DOCUMENT_IMAGE}` | **Optional** - Inserts document images at specified position |
 
@@ -158,15 +158,12 @@ Assessment results are appended to extraction results in the `explainability_inf
   "explainability_info": [
     {
       "YTDNetPay": {
-        "success": true,
         "confidence": 0.88671875,
-        "type": "number",
-        "value": "75000"
+        "confidence_reason": "Clear match found in document text with high OCR confidence in financial section"
       },
       "PayPeriodStartDate": {
         "confidence": 0.8125,
-        "type": "string",
-        "value": "2024-01-01"
+        "confidence_reason": "Date format clearly visible in pay period section, OCR confidence moderate"
       }
     }
   ],
