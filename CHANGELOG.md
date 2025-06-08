@@ -20,6 +20,18 @@ SPDX-License-Identifier: MIT-0
   - Enhanced JSON and Markdown evaluation reports with confidence columns
   - Backward compatible integration - shows "N/A" when confidence data unavailable
 
+- **Evaluation Analytics Database and Reporting System**
+  - Added comprehensive ReportingDatabase (AWS Glue) with structured evaluation metrics storage
+  - Three-tier analytics tables: document_evaluations, section_evaluations, and attribute_evaluations
+  - Automatic partitioning by date and document for efficient querying with Amazon Athena
+  - Detailed metrics tracking including accuracy, precision, recall, F1 score, execution time, and evaluation methods
+  - Added evaluation_analytics.ipynb notebook for comprehensive performance analysis and visualization
+  - Multi-level analytics with document, section, and attribute-level insights
+  - Visual dashboards showing accuracy distributions, performance trends, and problematic patterns
+  - Configurable filters for date ranges, document types, and evaluation thresholds
+  - Integration with existing evaluation framework - metrics automatically saved to database
+  - ReportingDatabase output added to CloudFormation template for easy reference
+
 ### Fixed
 - Fixed build failure related to pandas and numpy dependency conflicts in the idp_common_pkg package
 
