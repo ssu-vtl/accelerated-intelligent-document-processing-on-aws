@@ -1233,7 +1233,7 @@ Resources:
       ServiceToken: !GetAtt GetDomainLambda.Arn
       InputString: !Ref AWS::StackName
 
-  EvaluationGlueDatabase:
+  ReportingDatabase:
     Type: AWS::Glue::Database
     Properties:
       CatalogId: !Ref AWS::AccountId
@@ -1241,13 +1241,13 @@ Resources:
         Name: !Sub "${GetLowercase.Lowercase}-evaluation-db"
         Description: "Database for evaluation results"
 
-  DocumentMetricsTable:
+  DocumentEvaluationsTable:
     Type: AWS::Glue::Table
     Properties:
       CatalogId: !Ref AWS::AccountId
-      DatabaseName: !Ref EvaluationGlueDatabase
+      DatabaseName: !Ref ReportingDatabase
       TableInput:
-        Name: "document_eval_metrics"
+        Name: "document_evaluations"
         Description: "Table for document-level evaluation metrics"
         TableType: "EXTERNAL_TABLE"
         Parameters: {
@@ -1297,13 +1297,13 @@ Resources:
           - Name: document
             Type: string
 
-  SectionMetricsTable:
+  SectionEvaluationsTable:
     Type: AWS::Glue::Table
     Properties:
       CatalogId: !Ref AWS::AccountId
-      DatabaseName: !Ref EvaluationGlueDatabase
+      DatabaseName: !Ref ReportingDatabase
       TableInput:
-        Name: "section_eval_metrics"
+        Name: "section_evaluations"
         Description: "Table for section-level evaluation metrics"
         TableType: "EXTERNAL_TABLE"
         Parameters: {
@@ -1353,13 +1353,13 @@ Resources:
           - Name: document
             Type: string
 
-  AttributeMetricsTable:
+  AttributeEvaluationsTable:
     Type: AWS::Glue::Table
     Properties:
       CatalogId: !Ref AWS::AccountId
-      DatabaseName: !Ref EvaluationGlueDatabase
+      DatabaseName: !Ref ReportingDatabase
       TableInput:
-        Name: "attribute_eval_metrics"
+        Name: "attribute_evaluations"
         Description: "Table for attribute-level evaluation metrics"
         TableType: "EXTERNAL_TABLE"
         Parameters: {
@@ -4689,3 +4689,6 @@ Outputs:
       REACT_APP_APPSYNC_GRAPHQL_URL=${GraphQLApi.GraphQLUrl}
       REACT_APP_AWS_REGION=${AWS::Region}
       REACT_APP_SETTINGS_PARAMETER=${SettingsParameter}
+  ReportingDatabase:
+    Description: AWS Glue database containing evaluation metrics tables (document_evaluations, section_evaluations, attribute_evaluations) that can be queried with Amazon Athena for analytics and reporting
+    Value: !Ref ReportingDatabase
