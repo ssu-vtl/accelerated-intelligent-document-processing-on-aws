@@ -23,6 +23,7 @@ def save_evaluation_to_reporting_bucket(document, reporting_bucket: str) -> None
         document: Document with evaluation results
         reporting_bucket: S3 bucket for reporting data
     """
+    logger.info(f"Writing evaluation results to ReportingBucket s3://{reporting_bucket}/evaluation_metrics/document_metrics")
     try:
         if not document.evaluation_result:
             logger.warning(f"No evaluation results to save for document {document.id}")
@@ -71,7 +72,7 @@ def save_evaluation_to_reporting_bucket(document, reporting_bucket: str) -> None
         
         for section_result in eval_result.section_results:
             section_id = section_result.section_id
-            section_type = getattr(section_result, 'classification', '')
+            section_type = getattr(section_result, 'document_class', '')
             
             # Section record
             section_record = {
