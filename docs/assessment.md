@@ -179,9 +179,6 @@ Assessment results are appended to extraction results in the `explainability_inf
 Assessment results automatically appear in the web interface:
 
 1. **Visual Editor Modal**: Confidence scores and explanations display alongside extraction results
-2. **Color-Coded Confidence**: Different colors indicate confidence levels (high/medium/low)
-3. **Hover Details**: Explanatory text appears on hover over confidence indicators
-4. **No UI Changes Required**: Existing VisualEditorModal components automatically handle assessment data
 
 ## Cost Optimization
 
