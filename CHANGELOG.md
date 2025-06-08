@@ -14,6 +14,12 @@ SPDX-License-Identifier: MIT-0
   - Optional deployment controlled by `IsAssessmentEnabled` parameter (defaults to false)
   - Added e2e-example-with-assessment.ipynb notebook for testing assessment workflow
 
+- **Enhanced Evaluation Framework with Confidence Integration**
+  - Added expected_confidence and actual_confidence fields to evaluation reports for quality analysis
+  - Automatic extraction and display of confidence scores from assessment explainability_info
+  - Enhanced JSON and Markdown evaluation reports with confidence columns
+  - Backward compatible integration - shows "N/A" when confidence data unavailable
+
 ### Fixed
 - Fixed build failure related to pandas and numpy dependency conflicts in the idp_common_pkg package
 
