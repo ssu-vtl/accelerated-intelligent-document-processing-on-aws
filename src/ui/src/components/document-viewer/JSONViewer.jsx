@@ -27,7 +27,7 @@ const EDITOR_DEFAULT_HEIGHT = '600px';
 // A simplified form-based JSON editor
 const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
   // Render primitive values like strings, numbers, booleans, null
-  function renderPrimitiveValue(value, onChangeValue) {
+  function renderPrimitiveValue(value, onChangeValue, fieldPath) {
     if (value === null || value === undefined) {
       return (
         <FormField>
@@ -50,6 +50,62 @@ const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
       );
     }
 
+    // Handle numeric values with proper input configuration
+    if (typeof value === 'number') {
+      const isConfidenceField =
+        fieldPath &&
+        (fieldPath.includes('confidence') ||
+          fieldPath.includes('Confidence') ||
+          fieldPath.endsWith('_confidence') ||
+          fieldPath.endsWith('_Confidence'));
+
+      const inputProps = {
+        value: String(value),
+        disabled: isReadOnly,
+        type: 'number',
+        step: isConfidenceField ? '0.01' : 'any',
+        onChange: ({ detail }) => {
+          if (isReadOnly) return;
+
+          const newValue = detail.value;
+          const parsed = Number(newValue);
+          if (!Number.isNaN(parsed)) {
+            // For confidence fields, clamp between 0 and 1
+            if (isConfidenceField) {
+              const clampedValue = Math.max(0, Math.min(1, parsed));
+              onChangeValue(clampedValue);
+            } else {
+              onChangeValue(parsed);
+            }
+          } else if (newValue === '') {
+            // Allow empty value for editing
+            onChangeValue(0);
+          }
+        },
+      };
+
+      // Add min/max for confidence fields
+      if (isConfidenceField) {
+        inputProps.min = '0';
+        inputProps.max = '1';
+      }
+
+      return (
+        <FormField>
+          <Input
+            value={inputProps.value}
+            disabled={inputProps.disabled}
+            type={inputProps.type}
+            step={inputProps.step}
+            min={inputProps.min}
+            max={inputProps.max}
+            onChange={inputProps.onChange}
+          />
+        </FormField>
+      );
+    }
+
+    // Handle string values
     return (
       <FormField>
         <Input
@@ -57,17 +113,7 @@ const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
           disabled={isReadOnly}
           onChange={({ detail }) => {
             if (isReadOnly) return;
-
-            const newValue = detail.value;
-            // Try to convert back to number if it was a number
-            if (typeof value === 'number') {
-              const parsed = Number(newValue);
-              if (!Number.isNaN(parsed)) {
-                onChangeValue(parsed);
-                return;
-              }
-            }
-            onChangeValue(newValue);
+            onChangeValue(detail.value);
           }}
         />
       </FormField>
@@ -75,7 +121,8 @@ const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
   }
 
   // Render a key-value pair with the key on the left
-  function renderKeyValuePair(key, value, onChangeValue) {
+  function renderKeyValuePair(key, value, onChangeValue, parentPath = '') {
+    const currentPath = parentPath ? `${parentPath}.${key}` : key;
     return (
       <Box padding="xxxs" borderBottom="divider-light">
         <Box display="flex" alignItems="center">
@@ -83,10 +130,14 @@ const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
             {key}:
           </Box>
           <Box width="70%">
-            {renderJsonValue(value, (newValue) => {
-              if (isReadOnly) return;
-              onChangeValue(newValue);
-            })}
+            {renderJsonValue(
+              value,
+              (newValue) => {
+                if (isReadOnly) return;
+                onChangeValue(newValue);
+              },
+              currentPath,
+            )}
           </Box>
         </Box>
       </Box>
@@ -94,7 +145,7 @@ const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
   }
 
   // The main recursive renderer for JSON values
-  function renderJsonValue(value, onChangeValue) {
+  function renderJsonValue(value, onChangeValue, fieldPath = '') {
     // Handle primitive values
     if (
       value === null ||
@@ -103,7 +154,7 @@ const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
       typeof value === 'number' ||
       typeof value === 'string'
     ) {
-      return renderPrimitiveValue(value, onChangeValue);
+      return renderPrimitiveValue(value, onChangeValue, fieldPath);
     }
 
     // Handle arrays
@@ -123,11 +174,16 @@ const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
                     : `array-item-${index}`;
                 return (
                   <Box key={itemKey}>
-                    {renderKeyValuePair(`[${index}]`, item, (newValue) => {
-                      const newArray = [...value];
-                      newArray[index] = newValue;
-                      onChangeValue(newArray);
-                    })}
+                    {renderKeyValuePair(
+                      `[${index}]`,
+                      item,
+                      (newValue) => {
+                        const newArray = [...value];
+                        newArray[index] = newValue;
+                        onChangeValue(newArray);
+                      },
+                      fieldPath,
+                    )}
                   </Box>
                 );
               })}
@@ -155,11 +211,16 @@ const FormEditorView = ({ jsonData, onChange, isReadOnly }) => {
           <SpaceBetween size="xxxs">
             {Object.entries(value).map(([key, propValue]) => (
               <Box key={`prop-${key}`}>
-                {renderKeyValuePair(key, propValue, (newValue) => {
-                  const newObj = { ...value };
-                  newObj[key] = newValue;
-                  onChangeValue(newObj);
-                })}
+                {renderKeyValuePair(
+                  key,
+                  propValue,
+                  (newValue) => {
+                    const newObj = { ...value };
+                    newObj[key] = newValue;
+                    onChangeValue(newObj);
+                  },
+                  fieldPath,
+                )}
               </Box>
             ))}
             {!isReadOnly && (
