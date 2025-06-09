@@ -11,37 +11,48 @@ import time
 sagemaker = boto3.client('sagemaker')
 sts = boto3.client('sts')
 
-def sanitize_name(name):
+def sanitize_name(name, max_length=63):
     """
     Convert a name to AWS-compliant format for HumanTaskUI
-    AWS pattern: [a-z0-9](-*[a-z0-9])*
-    - Must start and end with alphanumeric
-    - Can contain hyphens between alphanumeric characters
-    - Must be lowercase
+    Requirements:
+    - Must be lowercase alphanumeric
+    - Can contain hyphens only between alphanumeric characters
+    - Maximum length of 63 characters
     """
     # Convert to lowercase
     name = name.lower()
     
-    # Remove underscores and replace with hyphens
+    # Convert underscores to hyphens
     name = name.replace('_', '-')
     
-    # Keep only alphanumeric and hyphens
-    name = ''.join(c for c in name if c.isalnum() or c == '-')
+    # Process the string character by character to ensure hyphens are only between alphanumeric
+    result = []
+    for i, char in enumerate(name):
+        if char.isalnum():
+            result.append(char)
+        elif char == '-' and i > 0 and i < len(name) - 1:
+            # Only add hyphen if it's between alphanumeric characters
+            if name[i-1].isalnum() and name[i+1].isalnum():
+                result.append(char)
     
-    # Remove leading/trailing hyphens
-    name = name.strip('-')
-    
-    # Remove consecutive hyphens
-    while '--' in name:
-        name = name.replace('--', '-')
-    
-    # Ensure it starts with alphanumeric (required by AWS)
-    if name and not name[0].isalnum():
-        name = 'a' + name
+    name = ''.join(result)
     
     # Ensure it's not empty
     if not name:
         name = 'default'
+    
+    # Ensure it starts with alphanumeric
+    if not name[0].isalnum():
+        name = 'a' + name
+    
+    # Truncate to max length while preserving word boundaries
+    if len(name) > max_length:
+        # Try to truncate at last hyphen before max_length
+        last_hyphen = name.rfind('-', 0, max_length)
+        if last_hyphen > 0:
+            name = name[:last_hyphen]
+        else:
+            name = name[:max_length]
     
     return name
 
