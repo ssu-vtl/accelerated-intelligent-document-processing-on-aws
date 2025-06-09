@@ -23,7 +23,9 @@ extras_require = {
     "ocr": [
         "Pillow>=11.1.0",
         "PyMuPDF>=1.25.5",
-        "amazon-textract-textractor[pandas]>=1.9.2",
+        "amazon-textract-textractor[pandas]>=1.9.2,<2.0.0",  # Pin textractor version
+        "numpy>=1.24.0,<2.0.0",  # Pin numpy to stable version compatible with Lambda
+        "pandas>=1.5.0,<3.0.0",  # Pin pandas to stable version compatible with numpy
     ],
     # Classification module dependencies
     "classification": [
@@ -41,8 +43,10 @@ extras_require = {
     "all": [
         "Pillow>=11.1.0",
         "PyMuPDF>=1.25.5",
-        "amazon-textract-textractor[pandas]>=1.9.2",
+        "amazon-textract-textractor[pandas]>=1.9.2,<2.0.0",  # Pin textractor version
         "requests>=2.32.3",
+        "numpy>=1.24.0,<2.0.0",  # Pin numpy to stable version compatible with Lambda
+        "pandas>=1.5.0,<3.0.0",  # Pin pandas to stable version compatible with numpy
     ],
 }
 

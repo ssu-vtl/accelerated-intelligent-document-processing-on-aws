@@ -11,6 +11,29 @@ import time
 sagemaker = boto3.client('sagemaker')
 sts = boto3.client('sts')
 
+def sanitize_name(name):
+    """
+    Convert a name to AWS-compliant format (lowercase alphanumeric)
+    """
+    # Convert to lowercase
+    name = name.lower()
+    # Replace non-alphanumeric characters with numbers
+    name = ''.join(c if c.isalnum() else str(ord(c) % 10) for c in name)
+    # Ensure it starts with a letter (AWS requirement)
+    if name[0].isdigit():
+        name = 'a' + name
+    return name
+
+def generate_resource_names(stack_name):
+    """
+    Generate AWS-compliant names for A2I resources
+    """
+    base_name = sanitize_name(stack_name)
+    return {
+        'human_task_ui': f'{base_name}hitlui',  # Shorter, compliant name
+        'flow_definition': f'{base_name}hitlfd'  # Shorter, compliant name
+    }
+
 def get_account_id():
     """Get the current AWS account ID"""
     try:
@@ -355,7 +378,9 @@ def comprehensive_workforce_cleanup(workteam_name, stack_name):
         
         # Step 1: Clean up any remaining human loops
         try:
-            flow_definition_name = f'{stack_name}-bda-hitl-fd'
+            # Use the sanitized flow definition name
+            resource_names = generate_resource_names(stack_name)
+            flow_definition_name = resource_names['flow_definition']
             
             # Try to list human loops (this might fail if flow definition is already deleted)
             try:
@@ -540,12 +565,17 @@ def delete_human_task_ui(human_task_ui_name):
 def handler(event, context):
     stack_name = os.environ['STACK_NAME']
     a2i_workteam_arn = os.environ['A2I_WORKTEAM_ARN']
-    human_task_ui_name = f'{stack_name}-bda-hitl-template'
-    flow_definition_name = f'{stack_name}-bda-hitl-fd'
+    
+    # Generate AWS-compliant resource names
+    resource_names = generate_resource_names(stack_name)
+    human_task_ui_name = resource_names['human_task_ui']
+    flow_definition_name = resource_names['flow_definition']
+    
     ssm = boto3.client('ssm')
     
     # For debugging
     print(f"Event received: {json.dumps(event)}")
+    print(f"Using AWS-compliant names: HumanTaskUI={human_task_ui_name}, FlowDefinition={flow_definition_name}")
     
     response_data = {}
     
