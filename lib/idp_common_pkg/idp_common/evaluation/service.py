@@ -143,7 +143,9 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
         logger.warning(f"No attribute configuration found for class: {class_name}")
         return []
 
-    def _load_extraction_results(self, uri: str) -> Dict[str, Any]:
+    def _load_extraction_results(
+        self, uri: str
+    ) -> Tuple[Dict[str, Any], Dict[str, float]]:
         """
         Load extraction results from S3.
 
@@ -151,18 +153,42 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             uri: S3 URI to the extraction results
 
         Returns:
-            Extraction results as dictionary
+            Tuple of (extraction_results, confidence_scores)
         """
         try:
             content = s3.get_json_content(uri)
+            extraction_results = {}
+            confidence_scores = {}
 
             # Check if results are wrapped in inference_result key
             if isinstance(content, dict) and "inference_result" in content:
-                return content["inference_result"]
-            return content
+                extraction_results = content["inference_result"]
+            else:
+                extraction_results = content
+
+            # Extract confidence scores from explainability_info if present
+            if isinstance(content, dict) and "explainability_info" in content:
+                explainability_info = content["explainability_info"]
+                if (
+                    isinstance(explainability_info, list)
+                    and len(explainability_info) > 0
+                ):
+                    # Get the first explainability entry (should be the main one)
+                    confidence_data = explainability_info[0]
+                    if isinstance(confidence_data, dict):
+                        for attr_name, attr_info in confidence_data.items():
+                            if (
+                                isinstance(attr_info, dict)
+                                and "confidence" in attr_info
+                            ):
+                                confidence_scores[attr_name] = float(
+                                    attr_info["confidence"]
+                                )
+
+            return extraction_results, confidence_scores
         except Exception as e:
             logger.error(f"Error loading extraction results from {uri}: {str(e)}")
-            return {}
+            return {}, {}
 
     def _count_classifications(
         self,
@@ -360,6 +386,8 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
         section: Section,
         expected_results: Dict[str, Any],
         actual_results: Dict[str, Any],
+        expected_confidence_scores: Dict[str, float] = None,
+        actual_confidence_scores: Dict[str, float] = None,
     ) -> SectionEvaluationResult:
         """
         Evaluate extraction results for a document section.
@@ -368,6 +396,8 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             section: Document section
             expected_results: Expected extraction results
             actual_results: Actual extraction results
+            expected_confidence_scores: Confidence scores for expected values from assessment
+            actual_confidence_scores: Confidence scores for actual values from assessment
 
         Returns:
             Evaluation results for the section
@@ -468,6 +498,16 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                     task["is_unconfigured"],
                 )
 
+                # Set confidence scores if available
+                if expected_confidence_scores:
+                    attribute_result.expected_confidence = (
+                        expected_confidence_scores.get(task["attr_name"])
+                    )
+                if actual_confidence_scores:
+                    attribute_result.actual_confidence = actual_confidence_scores.get(
+                        task["attr_name"]
+                    )
+
                 # Add to attribute results
                 attribute_results.append(attribute_result)
 
@@ -512,6 +552,22 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                     attr_name = future_to_attr[future]
                     try:
                         attribute_result, metrics = future.result()
+
+                        # Set confidence scores if available
+                        # Find the corresponding task for this attribute
+                        task = next(
+                            (t for t in parallel_tasks if t["attr_name"] == attr_name),
+                            None,
+                        )
+                        if task:
+                            if expected_confidence_scores:
+                                attribute_result.expected_confidence = (
+                                    expected_confidence_scores.get(task["attr_name"])
+                                )
+                            if actual_confidence_scores:
+                                attribute_result.actual_confidence = (
+                                    actual_confidence_scores.get(task["attr_name"])
+                                )
 
                         # Add to attribute results
                         attribute_results.append(attribute_result)
@@ -571,14 +627,20 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             # Return empty result
             return None, {}
 
-        actual_results = self._load_extraction_results(actual_uri)
-        expected_results = self._load_extraction_results(expected_uri)
+        actual_results, actual_confidence_scores = self._load_extraction_results(
+            actual_uri
+        )
+        expected_results, expected_confidence_scores = self._load_extraction_results(
+            expected_uri
+        )
 
         # Evaluate section
         section_result = self.evaluate_section(
             section=actual_section,
             expected_results=expected_results,
             actual_results=actual_results,
+            expected_confidence_scores=expected_confidence_scores,
+            actual_confidence_scores=actual_confidence_scores,
         )
 
         # Count matches and mismatches in the attributes
