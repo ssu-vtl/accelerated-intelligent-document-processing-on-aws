@@ -426,19 +426,7 @@ const FormFieldRenderer = memo(({
                     }
                   }
                 }
-                
-                // Also check legacy format within the value itself
-                if (!fieldConfidence) {
-                  fieldConfidence =
-                    value.explainability_info?.confidence_scores?.[key] ||
-                    value.explainability_info?.confidenceScores?.[key];
-                }
-                
-                if (!fieldGeometry) {
-                  fieldGeometry =
-                    value.explainability_info?.geometry?.[key] || value.explainability_info?.geometries?.[key];
-                }
-
+                                
                 return (
                   <FormFieldRenderer
                     key={`obj-${fieldKey}-${path.join('.')}-${key}`}
