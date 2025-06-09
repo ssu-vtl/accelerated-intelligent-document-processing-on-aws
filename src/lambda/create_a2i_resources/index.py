@@ -13,15 +13,36 @@ sts = boto3.client('sts')
 
 def sanitize_name(name):
     """
-    Convert a name to AWS-compliant format (lowercase alphanumeric)
+    Convert a name to AWS-compliant format for HumanTaskUI
+    AWS pattern: [a-z0-9](-*[a-z0-9])*
+    - Must start and end with alphanumeric
+    - Can contain hyphens between alphanumeric characters
+    - Must be lowercase
     """
     # Convert to lowercase
     name = name.lower()
-    # Replace non-alphanumeric characters with numbers
-    name = ''.join(c if c.isalnum() else str(ord(c) % 10) for c in name)
-    # Ensure it starts with a letter (AWS requirement)
-    if name[0].isdigit():
+    
+    # Remove underscores and replace with hyphens
+    name = name.replace('_', '-')
+    
+    # Keep only alphanumeric and hyphens
+    name = ''.join(c for c in name if c.isalnum() or c == '-')
+    
+    # Remove leading/trailing hyphens
+    name = name.strip('-')
+    
+    # Remove consecutive hyphens
+    while '--' in name:
+        name = name.replace('--', '-')
+    
+    # Ensure it starts with alphanumeric (required by AWS)
+    if name and not name[0].isalnum():
         name = 'a' + name
+    
+    # Ensure it's not empty
+    if not name:
+        name = 'default'
+    
     return name
 
 def generate_resource_names(stack_name):
@@ -30,8 +51,8 @@ def generate_resource_names(stack_name):
     """
     base_name = sanitize_name(stack_name)
     return {
-        'human_task_ui': f'{base_name}hitlui',  # Shorter, compliant name
-        'flow_definition': f'{base_name}hitlfd'  # Shorter, compliant name
+        'human_task_ui': f'{base_name}-hitl-ui',  # Keep hyphens for readability
+        'flow_definition': f'{base_name}-hitl-fd'  # Keep hyphens for readability
     }
 
 def get_account_id():
