@@ -528,7 +528,7 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                 fp1 += metrics["fp1"]
                 fp2 += metrics["fp2"]
 
-            except Exception as e:
+            except Exception:
                 logger.error(
                     f"Error evaluating attribute {task['attr_name']}: {traceback.format_exc()}"
                 )
@@ -589,7 +589,7 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                         fp1 += metrics["fp1"]
                         fp2 += metrics["fp2"]
 
-                    except Exception as e:
+                    except Exception:
                         logger.error(
                             f"Error evaluating attribute {attr_name}: {traceback.format_exc()}"
                         )
