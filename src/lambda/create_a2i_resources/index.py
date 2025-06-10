@@ -676,7 +676,7 @@ def handler(event, context):
             # Step 1: Delete Flow Definition and Human Task UI first
             delete_flow_definition(flow_definition_name)
             delete_human_task_ui(human_task_ui_name)
-            sagemaker.delete_workforce(WorkforceName='default')
+            # sagemaker.delete_workforce(WorkforceName='default')
             
             # Step 2: Perform comprehensive workforce cleanup
             # Extract workteam name from environment or construct it
