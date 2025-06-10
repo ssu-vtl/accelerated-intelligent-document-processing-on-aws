@@ -484,7 +484,7 @@ Metadata:
       Pattern1BDAConfidenceThreshold:
         default: "Pattern1 - BDA Confidence Threshold"
       ExistingPrivateWorkforceArn:
-        default: "Pattern1 - Existing Private Workforce ARN (Optional)"
+        default: "Pattern1 - Existing Private Workforce ARN"
       Pattern2Configuration:
         default: "Pattern2 - Configuration Preset"
       Pattern3UDOPModelArtifactPath:
