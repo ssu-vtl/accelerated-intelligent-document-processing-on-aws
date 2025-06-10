@@ -71,6 +71,7 @@ InvokeDataAutomation (with waitForTaskToken)
 - `IsSummarizationEnabled`: Boolean to enable/disable summarization functionality (true|false)
 - `EnableHITL`: Boolean to enable/disable Human-in-the-Loop review (true|false)
 - `ConfidenceThreshold`: Numeric value (0-100) that determines when human review is triggered
+- `Existing Private Workforce ARN`: ARN of an existing SageMaker private workforce workteam to use for SageMaker A2I portal Login
 - `ConfigurationDefaultS3Uri`: Optional S3 URI to custom configuration (uses default configuration if not specified)
 - `InputBucket`: S3 bucket for input documents
 - `WorkingBucket`: S3 bucket for temporary BDA job output
@@ -206,7 +207,7 @@ Pattern-1 supports Human-in-the-Loop (HITL) review capabilities using Amazon Sag
 
 2. **Review Process**:
    - Reviewers access the SageMaker A2I Review Portal (URL available in CloudFormation output `SageMakerA2IReviewPortalURL`)
-   - Login credentials are the same as those used for the GenAI IDP portal
+   - Login credentials are the same as those used for the GenAI IDP portal (if you want to use your own Private work team, you can provide your existing private workforce work team arn as a input parameter for `Pattern1 - Existing Private Workforce ARN`)
    - Extracted key-value pairs are presented for validation and correction
    - Reviewers validate correct extractions or make necessary corrections
    - After review, corrections are submitted with the "Submit" button
