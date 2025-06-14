@@ -141,8 +141,12 @@ class SaveReportingData:
             result = self.save_evaluation_results(document)
             if result:
                 results.append(result)
-        else:
-            logger.warning("'evaluation_results' not in data_to_save")
+
+        if "metering" in data_to_save:
+            logger.info("Processing metering data")
+            result = self.save_metering_data(document)
+            if result:
+                results.append(result)
 
         # Add more data types here as needed
         # if 'document_metadata' in data_to_save:
@@ -236,7 +240,6 @@ class SaveReportingData:
             ]
         )
 
-        # Extract evaluation data
         # Use document.initial_event_time if available, otherwise use current time
         if document.initial_event_time:
             try:
@@ -265,7 +268,7 @@ class SaveReportingData:
                 )
         else:
             logger.warning(
-                "Document queued_time not available, using current time instead"
+                "Document initial_event_time not available, using current time instead"
             )
             evaluation_date = datetime.datetime.now()
             year, month, day = (
@@ -282,7 +285,7 @@ class SaveReportingData:
         document_record = {
             "document_id": document_id,
             "input_key": document.input_key,
-            "evaluation_date": evaluation_date,  # Use document's queued_time
+            "evaluation_date": evaluation_date,  # Use document's initial_event_time
             "accuracy": eval_result.get("overall_metrics", {}).get("accuracy", 0.0),
             "precision": eval_result.get("overall_metrics", {}).get("precision", 0.0),
             "recall": eval_result.get("overall_metrics", {}).get("recall", 0.0),
@@ -328,7 +331,7 @@ class SaveReportingData:
                 "false_discovery_rate": section_result.get("metrics", {}).get(
                     "false_discovery_rate", 0.0
                 ),
-                "evaluation_date": evaluation_date,  # Use document's queued_time
+                "evaluation_date": evaluation_date,  # Use document's initial_event_time
             }
             section_records.append(section_record)
 
@@ -359,7 +362,7 @@ class SaveReportingData:
                     "confidence_threshold": self._serialize_value(
                         attr.get("confidence_threshold")
                     ),
-                    "evaluation_date": evaluation_date,  # Use document's queued_time
+                    "evaluation_date": evaluation_date,  # Use document's initial_event_time
                 }
                 attribute_records.append(attribute_record)
                 logger.debug(
@@ -394,31 +397,124 @@ class SaveReportingData:
             "body": "Successfully saved evaluation results to reporting bucket",
         }
 
-    # Example of how to add another data processor method
-    # def save_document_metadata(self, document: Document) -> Optional[Dict[str, Any]]:
-    #     """
-    #     Save document metadata to the reporting bucket.
-    #
-    #     Args:
-    #         document: Document object containing metadata
-    #
-    #     Returns:
-    #         Dict with status and message, or None if no metadata
-    #     """
-    #     # Define schema specific to document metadata
-    #     metadata_schema = pa.schema([
-    #         ('document_id', pa.string()),
-    #         ('input_key', pa.string()),
-    #         ('created_at', pa.timestamp('ms')),
-    #         ('page_count', pa.int32()),
-    #         ('file_size', pa.int64()),
-    #         # Add other metadata fields as needed
-    #     ])
-    #
-    #     # Implementation for saving document metadata
-    #     # ...
-    #
-    #     return {
-    #         'statusCode': 200,
-    #         'body': "Successfully saved document metadata"
-    #     }
+    def save_metering_data(self, document: Document) -> Optional[Dict[str, Any]]:
+        """
+        Save metering data for a document to the reporting bucket.
+
+        Args:
+            document: Document object containing metering data
+
+        Returns:
+            Dict with status and message, or None if no metering data
+        """
+        if not document.metering:
+            warning_msg = f"No metering data to save for document {document.id}"
+            logger.warning(warning_msg)
+            return None
+
+        # Define schema for metering data
+        metering_schema = pa.schema(
+            [
+                ("document_id", pa.string()),
+                ("context", pa.string()),
+                ("service_api", pa.string()),
+                ("unit", pa.string()),
+                ("value", pa.float64()),
+                ("number_of_pages", pa.int32()),
+                ("timestamp", pa.timestamp("ms")),
+            ]
+        )
+
+        # Use document.initial_event_time if available, otherwise use current time
+        if document.initial_event_time:
+            try:
+                # Try to parse the initial_event_time string into a datetime object
+                doc_time = datetime.datetime.fromisoformat(
+                    document.initial_event_time.replace("Z", "+00:00")
+                )
+                timestamp = doc_time
+                year, month, day = (
+                    doc_time.strftime("%Y"),
+                    doc_time.strftime("%m"),
+                    doc_time.strftime("%d"),
+                )
+                logger.info(
+                    f"Using document initial_event_time: {document.initial_event_time} for partitioning"
+                )
+            except (ValueError, TypeError) as e:
+                logger.warning(
+                    f"Could not parse document.initial_event_time: {document.initial_event_time}, using current time instead. Error: {str(e)}"
+                )
+                timestamp = datetime.datetime.now()
+                year, month, day = (
+                    timestamp.strftime("%Y"),
+                    timestamp.strftime("%m"),
+                    timestamp.strftime("%d"),
+                )
+        else:
+            logger.warning(
+                "Document initial_event_time not available, using current time instead"
+            )
+            timestamp = datetime.datetime.now()
+            year, month, day = (
+                timestamp.strftime("%Y"),
+                timestamp.strftime("%m"),
+                timestamp.strftime("%d"),
+            )
+
+        # Escape document ID by replacing slashes with underscores
+        document_id = document.id
+        escaped_doc_id = re.sub(r"[/\\]", "_", document_id)
+
+        # Process metering data
+        metering_records = []
+
+        for key, metrics in document.metering.items():
+            # Split the key into context and service_api
+            parts = key.split("/", 1)
+            if len(parts) == 2:
+                context, service_api = parts
+            else:
+                context = ""
+                service_api = key
+
+            # Process each unit and value
+            for unit, value in metrics.items():
+                # Convert value to float if possible
+                try:
+                    float_value = float(value)
+                except (ValueError, TypeError):
+                    # If conversion fails, use 1.0 as default
+                    float_value = 1.0
+                    logger.warning(
+                        f"Could not convert metering value to float: {value}, using 1.0 instead"
+                    )
+
+                # Get the number of pages from the document
+                num_pages = document.num_pages if document.num_pages is not None else 0
+
+                metering_record = {
+                    "document_id": document_id,
+                    "context": context,
+                    "service_api": service_api,
+                    "unit": unit,
+                    "value": float_value,
+                    "number_of_pages": num_pages,
+                    "timestamp": timestamp,
+                }
+                metering_records.append(metering_record)
+
+        # Save metering data in Parquet format
+        if metering_records:
+            metering_key = f"metering/year={year}/month={month}/day={day}/document={escaped_doc_id}/results.parquet"
+            self._save_records_as_parquet(
+                metering_records, metering_key, metering_schema
+            )
+            logger.info(f"Saved {len(metering_records)} metering records")
+        else:
+            logger.warning("No metering records to save")
+
+        return {
+            "statusCode": 200,
+            "body": "Successfully saved metering data to reporting bucket",
+        }
