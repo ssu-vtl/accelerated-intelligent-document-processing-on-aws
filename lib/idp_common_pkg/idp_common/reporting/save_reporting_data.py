@@ -420,6 +420,7 @@ class SaveReportingData:
                 ("service_api", pa.string()),
                 ("unit", pa.string()),
                 ("value", pa.float64()),
+                ("number_of_pages", pa.int32()),
                 ("timestamp", pa.timestamp("ms")),
             ]
         )
@@ -489,12 +490,16 @@ class SaveReportingData:
                         f"Could not convert metering value to float: {value}, using 1.0 instead"
                     )
 
+                # Get the number of pages from the document
+                num_pages = document.num_pages if document.num_pages is not None else 0
+
                 metering_record = {
                     "document_id": document_id,
                     "context": context,
                     "service_api": service_api,
                     "unit": unit,
                     "value": float_value,
+                    "number_of_pages": num_pages,
                     "timestamp": timestamp,
                 }
                 metering_records.append(metering_record)

@@ -1372,6 +1372,68 @@ Resources:
           - Name: document
             Type: string
 
+  AttributeEvaluationsTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref ReportingDatabase
+      TableInput:
+        Name: "attribute_evaluations"
+        Description: "Table for attribute-level evaluation metrics"
+        TableType: "EXTERNAL_TABLE"
+        Parameters: {
+          "classification": "parquet",
+          "typeOfData": "file"
+        }
+        StorageDescriptor:
+          Location: !Sub 
+            - "s3://${Bucket}/evaluation_metrics/attribute_metrics/"
+            - Bucket: !If
+                - ShouldCreateReportingBucket
+                - !Ref ReportingBucket
+                - !Ref ReportingBucketName
+          InputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+          OutputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+          SerdeInfo:
+            SerializationLibrary: "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+          Columns:
+            - Name: document_id
+              Type: string
+            - Name: section_id
+              Type: string
+            - Name: section_type
+              Type: string
+            - Name: attribute_name
+              Type: string
+            - Name: expected
+              Type: string
+            - Name: actual
+              Type: string
+            - Name: matched
+              Type: boolean
+            - Name: score
+              Type: double
+            - Name: reason
+              Type: string
+            - Name: evaluation_method
+              Type: string
+            - Name: confidence
+              Type: string
+            - Name: confidence_threshold
+              Type: string
+            - Name: evaluation_date
+              Type: timestamp
+          Compressed: true
+        PartitionKeys:
+          - Name: year
+            Type: string
+          - Name: month
+            Type: string
+          - Name: day
+            Type: string
+          - Name: document
+            Type: string
+
   MeteringTable:
     Type: AWS::Glue::Table
     Properties:
@@ -1407,6 +1469,8 @@ Resources:
               Type: string
             - Name: value
               Type: double
+            - Name: number_of_pages
+              Type: int
             - Name: timestamp
               Type: timestamp
           Compressed: true
