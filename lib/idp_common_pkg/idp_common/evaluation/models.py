@@ -243,8 +243,8 @@ class DocumentEvaluationResult:
 
             # Attribute results
             sections.append("### Attributes")
-            attr_table = "| Status | Attribute | Expected | Actual | Confidence | Score | Method | Reason |\n"
-            attr_table += "| :----: | --------- | -------- | ------ | :---------------: | ----- | ------ | ------ |\n"
+            attr_table = "| Status | Attribute | Expected | Actual | Confidence | Confidence Threshold | Score | Method | Reason |\n"
+            attr_table += "| :----: | --------- | -------- | ------ | :---------------: | :---------------: | ----- | ------ | ------ |\n"
             for ar in sr.attributes:
                 expected = str(ar.expected).replace("\n", " ")
                 actual = str(ar.actual).replace("\n", " ")
@@ -291,7 +291,14 @@ class DocumentEvaluationResult:
                     f"{ar.confidence:.2f}" if ar.confidence is not None else "N/A"
                 )
 
-                attr_table += f"| {status_symbol} | {ar.name} | {expected} | {actual} | {confidence_str} | {ar.score:.2f} | {method_display} | {reason} |\n"
+                # Format confidence threshold values
+                threshold_str = (
+                    f"{ar.confidence_threshold:.2f}"
+                    if ar.confidence_threshold is not None
+                    else "N/A"
+                )
+
+                attr_table += f"| {status_symbol} | {ar.name} | {expected} | {actual} | {confidence_str} | {threshold_str} | {ar.score:.2f} | {method_display} | {reason} |\n"
             sections.append(attr_table)
             sections.append("")
 

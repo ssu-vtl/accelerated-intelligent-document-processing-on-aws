@@ -2224,7 +2224,19 @@ Resources:
               - !Ref ReportingBucketName
         - S3ReadPolicy:
             BucketName: !Ref OutputBucket
-        - CloudWatchPutMetricPolicy: {}
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cloudwatch:PutMetricData
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - kms:Encrypt
+                - kms:Decrypt
+                - kms:ReEncrypt*
+                - kms:GenerateDataKey*
+                - kms:DescribeKey
+              Resource: !GetAtt CustomerManagedEncryptionKey.Arn
       Environment:
         Variables:
           LOG_LEVEL: !Ref LogLevel
@@ -2778,6 +2790,19 @@ Resources:
                   "query": "SOURCE '${EvaluationFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
                   "region": "${AWS::Region}",
                   "title": "Evaluation Tracker Lambda Errors",
+                  "view": "table"
+                }
+              },
+              {
+                "type": "log",
+                "x": 0,
+                "y": 30,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "query": "SOURCE '${SaveReportingDataFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
+                  "region": "${AWS::Region}",
+                  "title": "Save Reporting Data Tracker Lambda Errors",
                   "view": "table"
                 }
               }
