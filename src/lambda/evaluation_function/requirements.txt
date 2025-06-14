@@ -1,2 +1,1 @@
-./lib/idp_common_pkg[appsync, evaluation]
-pyarrow==17.0.0
+./lib/idp_common_pkg[evaluation,appsync]  # Evaluation module and AppSync with dependencies

@@ -117,6 +117,7 @@ class Document:
     metadata: Dict[str, Any] = field(default_factory=dict)
     evaluation_status: Optional[str] = None
     evaluation_report_uri: Optional[str] = None
+    evaluation_results_uri: Optional[str] = None
     evaluation_result: Any = None  # Holds the DocumentEvaluationResult object
     summarization_result: Any = None  # Holds the DocumentSummarizationResult object
     errors: List[str] = field(default_factory=list)
@@ -139,6 +140,7 @@ class Document:
             "summary_report_uri": self.summary_report_uri,
             "evaluation_status": self.evaluation_status,
             "evaluation_report_uri": self.evaluation_report_uri,
+            "evaluation_results_uri": self.evaluation_results_uri,
             "errors": self.errors,
             "metering": self.metering,
             # We don't include evaluation_result or summarization_result in the dict since they're objects
@@ -192,6 +194,7 @@ class Document:
             workflow_execution_arn=data.get("workflow_execution_arn"),
             evaluation_status=data.get("evaluation_status"),
             evaluation_report_uri=data.get("evaluation_report_uri"),
+            evaluation_results_uri=data.get("evaluation_results_uri"),
             summary_report_uri=data.get("summary_report_uri"),
             metering=data.get("metering", {}),
             errors=data.get("errors", []),

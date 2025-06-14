@@ -188,9 +188,14 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                                 isinstance(attr_info, dict)
                                 and "confidence" in attr_info
                             ):
-                                confidence_scores[attr_name] = float(
-                                    attr_info["confidence"]
-                                )
+                                confidence_scores[attr_name] = {
+                                    "confidence": float(attr_info["confidence"]),
+                                    "confidence_threshold": float(
+                                        attr_info.get("confidence_threshold", None)
+                                    )
+                                    if attr_info.get("confidence_threshold") is not None
+                                    else None,
+                                }
 
             return extraction_results, confidence_scores
         except Exception:
@@ -507,9 +512,12 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
 
                 # Set confidence scores if available
                 if confidence_scores:
-                    attribute_result.confidence = confidence_scores.get(
-                        task["attr_name"]
-                    )
+                    confidence_info = confidence_scores.get(task["attr_name"])
+                    if isinstance(confidence_info, dict):
+                        attribute_result.confidence = confidence_info.get("confidence")
+                        attribute_result.confidence_threshold = confidence_info.get(
+                            "confidence_threshold"
+                        )
 
                 # Add to attribute results
                 attribute_results.append(attribute_result)
@@ -564,9 +572,16 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                         )
                         if task:
                             if confidence_scores:
-                                attribute_result.confidence = confidence_scores.get(
+                                confidence_info = confidence_scores.get(
                                     task["attr_name"]
                                 )
+                                if isinstance(confidence_info, dict):
+                                    attribute_result.confidence = confidence_info.get(
+                                        "confidence"
+                                    )
+                                    attribute_result.confidence_threshold = (
+                                        confidence_info.get("confidence_threshold")
+                                    )
 
                         # Add to attribute results
                         attribute_results.append(attribute_result)
@@ -819,9 +834,12 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                     content_type="text/markdown",
                 )
 
-                # Update document with evaluation report URI
+                # Update document with evaluation report and results URIs
                 actual_document.evaluation_report_uri = (
                     f"s3://{output_bucket}/{report_key}"
+                )
+                actual_document.evaluation_results_uri = (
+                    f"s3://{output_bucket}/{output_key}"
                 )
                 actual_document.status = Status.COMPLETED
 

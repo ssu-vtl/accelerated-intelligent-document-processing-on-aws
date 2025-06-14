@@ -147,7 +147,7 @@ function calculate_hash() {
 # Calculate directory checksum
 function get_dir_checksum() {
   local dir=$1
-  local dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" -o -name "__pycache__" -o -name "*.egg-info" \) -prune -o -type f ! -name ".checksum" -exec $STAT_CMD {} \; | sha256sum | awk '{ print $1 }')
+  local dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" -o -name "dist" -o -name "__pycache__" -o -name "*.egg-info" \) -prune -o -type f \( ! -name ".checksum" -a ! -name "*.pyc" \) -exec $STAT_CMD {} \; | sha256sum | awk '{ print $1 }')
   local combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
   echo -n "$combined_string" | sha256sum | awk '{ print $1 }'
 }
@@ -261,6 +261,31 @@ function set_checksum() {
 # Build and Package Functions
 ############################################################
 
+function clean_and_build() {
+  local template_path=$1
+  local dir_path=$(dirname "$template_path")
+  
+  # Clean previous build artifacts if they exist
+  if [ -d "$dir_path/.aws-sam" ]; then
+    echo "Cleaning previous build artifacts in $dir_path/.aws-sam/build"
+    rm -rf "$dir_path/.aws-sam/build"
+  fi
+  
+  # Run sam build
+  sam build $USE_CONTAINER_FLAG --template-file "$template_path"
+}
+
+function clean_lib() {
+  echo "Cleaning previous build artifacts in ./lib/idp_common_pkg"
+  pushd ./lib/idp_common_pkg
+  rm -rf build/
+  rm -rf dist/
+  rm -rf *.egg-info/
+  find . -name "__pycache__" -type d -exec rm -rf {} +
+  find . -name "*.pyc" -delete
+  popd
+}
+
 # Build and package a template directory
 function build_and_package_template() {
   local dir=$1
@@ -270,7 +295,7 @@ function build_and_package_template() {
     pushd $dir
     
     # Build the template
-    sam build $USE_CONTAINER_FLAG --template-file template.yaml
+    clean_and_build "template.yaml"
     
     # Package the template
     sam package \
@@ -390,7 +415,7 @@ function build_main_template() {
 
   echo "BUILDING main" 
   if needs_rebuild "./src" "./options" "./patterns" "template.yaml"; then
-    sam build $USE_CONTAINER_FLAG --template-file template.yaml
+    clean_and_build "template.yaml"
     echo "PACKAGING main" 
     sam package \
       --template-file .aws-sam/build/template.yaml \
@@ -471,8 +496,8 @@ function print_outputs() {
   local template_url=$1
   
   echo "OUTPUTS"
-  echo "Template URL: $template_url"
-  echo "1-Click Launch URL: https://${REGION}.console.aws.amazon.com/cloudformation/home?region=${REGION}#/stacks/create/review?templateURL=${template_url}&stackName=IDP"
+  echo "Template URL (use to update existing stack): $template_url"
+  echo "1-Click Launch URL (use to launch new stack): https://${REGION}.console.aws.amazon.com/cloudformation/home?region=${REGION}#/stacks/create/review?templateURL=${template_url}&stackName=IDP"
   # Disable CLI Deploy output - most people are better served using CF Launch URL to deploy
   # echo "CLI Deploy: aws cloudformation deploy --region $REGION --template-file .aws-sam/${MAIN_TEMPLATE} --s3-bucket ${BUCKET} --s3-prefix ${PREFIX_AND_VERSION} --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --parameter-overrides IDPPattern=\"Pattern1 - Packet or Media processing with Bedrock Data Automation (BDA)\" Pattern1BDAProjectArn=\"<your-bda-project-arn>\" AdminEmail=\"your-email-address\" \"<other params>\" --stack-name \"<your-stack-name>\""
 }
@@ -493,8 +518,8 @@ check_parameters
 check_prerequisites
 setup_artifacts_bucket
 
-echo "Delete temp files in ./lib"
-rm -fr ./lib/build ./lib/idp_common_pkg/idp_common.egg-info
+# Clean previous files from package common library
+clean_lib
 
 # Build nested templates
 for dir in patterns/* options/*; do

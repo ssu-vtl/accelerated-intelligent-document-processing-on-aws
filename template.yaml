@@ -1419,6 +1419,8 @@ Resources:
               Type: string
             - Name: confidence
               Type: string
+            - Name: confidence_threshold
+              Type: string
             - Name: evaluation_date
               Type: timestamp
           Compressed: true
@@ -2188,6 +2190,65 @@ Resources:
       SourceArn: !GetAtt PostProcessingLambdaHookRule.Arn
 
   ##########################################################################
+  # SaveReportingDataFunction Lambda, writes to ReportingBucket
+  ##########################################################################
+
+  SaveReportingDataFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Role requires * resource access for CloudWatch Metrics and Logs"
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this functions as it is called sychronously"
+    Properties:
+      CodeUri: src/lambda/save_reporting_data/
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 300
+      MemorySize: 1024
+      LoggingConfig:
+        LogGroup: !Ref SaveReportingDataFunctionLogGroup
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !If
+              - ShouldCreateReportingBucket
+              - !Ref ReportingBucket
+              - !Ref ReportingBucketName
+        - S3ReadPolicy:
+            BucketName: !Ref OutputBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cloudwatch:PutMetricData
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - kms:Encrypt
+                - kms:Decrypt
+                - kms:ReEncrypt*
+                - kms:GenerateDataKey*
+                - kms:DescribeKey
+              Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+      Environment:
+        Variables:
+          LOG_LEVEL: !Ref LogLevel
+          METRIC_NAMESPACE: !Ref AWS::StackName
+
+  SaveReportingDataFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
+      RetentionInDays: !Ref LogRetentionDays
+
+  ##########################################################################
   # Evaluation Lambda, optionally triggered on completion of workflow
   ##########################################################################
 
@@ -2237,6 +2298,7 @@ Resources:
             - ShouldCreateEvaluationBaselineBucket
             - !Ref EvaluationBaselineBucket
             - !Ref EvaluationBaselineBucketName
+          SAVE_REPORTING_FUNCTION_NAME: !Ref SaveReportingDataFunction
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
       Policies:
         - DynamoDBCrudPolicy:
@@ -2250,11 +2312,8 @@ Resources:
             - !Ref EvaluationBaselineBucketName
         - S3CrudPolicy:
             BucketName: !Ref OutputBucket
-        - S3CrudPolicy:
-            BucketName: !If
-              - ShouldCreateReportingBucket
-              - !Ref ReportingBucket
-              - !Ref ReportingBucketName
+        - LambdaInvokePolicy:
+            FunctionName: !Ref SaveReportingDataFunction
         - Statement:
             - Effect: Allow
               Action:
@@ -2733,6 +2792,19 @@ Resources:
                   "title": "Evaluation Tracker Lambda Errors",
                   "view": "table"
                 }
+              },
+              {
+                "type": "log",
+                "x": 0,
+                "y": 30,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "query": "SOURCE '${SaveReportingDataFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
+                  "region": "${AWS::Region}",
+                  "title": "Save Reporting Data Tracker Lambda Errors",
+                  "view": "table"
+                }
               }
             ]
           }
@@ -2892,7 +2964,7 @@ Resources:
             <p>When the CloudFormation stack is COMPLETE, use the link below to log in and set your permanent password.
             <p>     https://${CloudFrontDistribution.DomainName}/
             <p>
-            <p>If you have not previously done so, you must request access to the following Amazon Bedrock models: Amazon: Titan Text Embeddings V2, Amazon: Nova models, Anthropic: Claude 3 and 3.x models. (https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
+            <p>If you have not previously done so, you must request access to the following Amazon Bedrock models: Amazon: Titan Text Embeddings V2, Amazon: Nova models, Anthropic: Claude 3, 3.x, and 4.x models. (https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
             <p>
             <p>Thanks,</p>
             <p>AWS GenAIIDP Team</p>

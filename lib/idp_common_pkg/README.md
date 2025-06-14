@@ -19,6 +19,7 @@ This package contains common utilities and services for the GenAI IDP Accelerato
 - **Evaluation**: Compare extraction results against ground truth for accuracy measurement ([README](idp_common/evaluation/README.md))
 - **Summarization**: Generate summaries for each section in a document ([README](idp_common/summarization/README.md))
 - **AppSync**: Integration with AWS AppSync for document storage ([README](idp_common/appsync/README.md))
+- **Reporting**: Save document data to reporting storage for analytics ([README](idp_common/reporting/README.md))
 
 ### AWS Service Clients
 
@@ -149,6 +150,16 @@ Manages document storage and retrieval through AWS AppSync GraphQL API:
 - Provides error handling for GraphQL operations
 - Manages document TTL (time-to-live) for automatic expiration
 
+### Reporting Service (`reporting`)
+
+Saves document data to reporting storage for analytics:
+- Document-based reporting with the `save()` method
+- Saves evaluation results as Parquet files in S3
+- Hierarchical storage structure by year/month/day/document
+- Support for document-level, section-level, and attribute-level metrics
+- Extensible design for adding new data types
+- Compatible with AWS Glue and Amazon Athena for analytics
+
 ## Basic Usage
 
 ```python
@@ -164,7 +175,8 @@ from idp_common import (
     classification, # Classification service and models
     extraction,    # Extraction service and models
     evaluation,    # Evaluation service and models
-    appsync        # AppSync integration
+    appsync,       # AppSync integration
+    reporting      # Reporting services
 )
 from idp_common.models import Document, Status
 
@@ -203,6 +215,10 @@ document = evaluation_service.evaluate_document(document, expected_document)
 report_uri = document.evaluation_report_uri
 # The evaluation result is also available directly
 evaluation_result = document.evaluation_result
+
+# Save evaluation results to reporting storage
+reporter = reporting.SaveReportingData("reporting-bucket")
+reporter.save(document, data_to_save=["evaluation_results"])
 
 # Store document in AppSync
 appsync_service = appsync.DocumentAppSyncService()
@@ -260,6 +276,9 @@ pip install "idp_common[extraction]"
 
 # Install with evaluation support
 pip install "idp_common[evaluation]"
+
+# Install with reporting support
+pip install "idp_common[reporting]"
 
 # Install with AppSync support
 pip install "idp_common[appsync]"
