@@ -8,14 +8,14 @@ SPDX-License-Identifier: MIT-0
 ## [Unreleased]
 
 ### Added
-- Added confidence threshold tracking in evaluation results, evaluation markdown reports, and evaluation reporting tables
+- Added confidence threshold to evaluation outputs to enable prioritizing accuracy results for attributes with higher confidence thersholds.
 
 ### Changed
 - Pin packages to tested versions to avoid vulnerability from incompatible new package versions.
 - Updated reporting data to use document's queued_time for consistent timestamps
 - Create new extensible SaveReportingData class in idp_common package for saving evaluation results to Parquet format
 - Remove save_to_reporting from evaluation_function and replace with Lambda invocation, for smaller Lambda packages and better modularity.
-
+- Harden publish process and avoid package version bloat by purging previous build artifacts before re-building
 
 ## [0.3.3]
 
