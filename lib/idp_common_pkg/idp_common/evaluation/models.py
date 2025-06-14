@@ -51,6 +51,9 @@ class AttributeEvaluationResult:
     confidence: Optional[float] = (
         None  # Confidence score from assessment for actual values
     )
+    confidence_threshold: Optional[float] = (
+        None  # Confidence threshold from assessment for actual values
+    )
 
 
 @dataclass
@@ -102,6 +105,7 @@ class DocumentEvaluationResult:
                             "evaluation_threshold": ar.evaluation_threshold,
                             "comparator_type": ar.comparator_type,
                             "confidence": ar.confidence,
+                            "confidence_threshold": ar.confidence_threshold,
                         }
                         for ar in sr.attributes
                     ],

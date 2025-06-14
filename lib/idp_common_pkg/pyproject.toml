@@ -4,17 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
+exclude = ["build", "build.*", "*build", "*build.*", "*.build", "*.build.*", "**build**"]
 
 [project]
 name = "idp_common"
-version = "0.3.3"
+version = "0.3.4"
 description = "Common utilities for GenAI IDP Accelerator patterns"
 authors = [
     {name = "AWS", email = "noreply@amazon.com"}
 ]
 requires-python = ">=3.9,<3.13"
 dependencies = [
-    "boto3>=1.37.29",  # Core dependency for AWS services
+    "boto3==1.38.36",  # Core dependency for AWS services
 ]
 readme = "README.md"
 classifiers = [
@@ -37,42 +38,47 @@ dev = [
 
 # Image handling dependencies
 image = [
-    "Pillow>=11.1.0",
+    "Pillow==11.2.1",
 ]
 
 # OCR module dependencies
 ocr = [
-    "Pillow>=11.1.0",
+    "Pillow==11.2.1",
     "PyMuPDF==1.25.5",
-    "amazon-textract-textractor[pandas]>=1.9.2",
-    "numpy>=1.24.0,<2.0.0",
-    "pandas>=1.5.0,<2.3.0"
+    "amazon-textract-textractor[pandas]==1.9.2",
+    "numpy==1.26.4",
+    "pandas==2.2.3"
 ]
 
 # Classification module dependencies
 classification = [
-    "Pillow>=11.1.0",  # For image handling
+    "Pillow==11.2.1",  # For image handling
 ]
 
 # Extraction module dependencies
 extraction = [
-    "Pillow>=11.1.0",  # For image handling
+    "Pillow==11.2.1",  # For image handling
 ]
 
 # Assessment module dependencies
 assessment = [
-    "Pillow>=11.1.0",  # For image handling
+    "Pillow==11.2.1",  # For image handling
 ]
 
 # Evaluation module dependencies
 evaluation = [
     "munkres>=1.1.4",  # For Hungarian algorithm
-    "numpy>=1.24.0,<2.0.0",   # For numeric operations
+    "numpy==1.26.4",   # For numeric operations
+]
+
+# Reporting module dependencies
+reporting = [
+    "pyarrow==20.0.0",  # For Parquet conversion
 ]
 
 # Appsync module dependencies
 appsync = [
-    "requests>=2.32.3",
+    "requests==2.32.4",
 ]
 
 # Testing dependencies
@@ -85,13 +91,14 @@ test = [
 
 # Full package with all dependencies
 all = [
-    "Pillow>=11.1.0",
+    "Pillow==11.2.1",
     "PyMuPDF==1.25.5",
-    "amazon-textract-textractor[pandas]>=1.9.2",
+    "amazon-textract-textractor[pandas]==1.9.2",
     "munkres>=1.1.4",
-    "numpy>=1.24.0,<2.0.0",
-    "pandas>=1.5.0,<2.3.0",
-    "requests>=2.32.3",
+    "numpy==1.26.4",
+    "pandas==2.2.3",
+    "requests==2.32.4",
+    "pyarrow==20.0.0"
 ]
 
 [project.urls]
