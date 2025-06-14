@@ -92,7 +92,7 @@ setup(
         ]
     ),
     include_package_data=True,
-    python_requires=">=3.9,<3.13",
+    python_requires=">=3.8",
     install_requires=install_requires,
     extras_require=extras_require,
 )
