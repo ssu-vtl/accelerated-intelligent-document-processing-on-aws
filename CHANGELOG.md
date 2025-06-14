@@ -13,6 +13,7 @@ SPDX-License-Identifier: MIT-0
    • Which services were used (Textract, Bedrock, etc.)
    • What operations were performed (analyze_document, Claude, etc.)
    • How many resources were consumed (pages, tokens, etc.)
+- Add reporting database documentation
 
 ### Changed
 - Pin packages to tested versions to avoid vulnerability from incompatible new package versions.
