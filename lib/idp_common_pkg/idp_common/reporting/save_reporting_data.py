@@ -237,8 +237,42 @@ class SaveReportingData:
         )
 
         # Extract evaluation data
-        now = datetime.datetime.now()
-        year, month, day = now.strftime("%Y"), now.strftime("%m"), now.strftime("%d")
+        # Use document.queued_time if available, otherwise use current time
+        if document.queued_time:
+            try:
+                # Try to parse the queued_time string into a datetime object
+                doc_time = datetime.datetime.fromisoformat(
+                    document.queued_time.replace("Z", "+00:00")
+                )
+                evaluation_date = doc_time
+                year, month, day = (
+                    doc_time.strftime("%Y"),
+                    doc_time.strftime("%m"),
+                    doc_time.strftime("%d"),
+                )
+                logger.info(
+                    f"Using document queued_time: {document.queued_time} for partitioning"
+                )
+            except (ValueError, TypeError) as e:
+                logger.warning(
+                    f"Could not parse document.queued_time: {document.queued_time}, using current time instead. Error: {str(e)}"
+                )
+                evaluation_date = datetime.datetime.now()
+                year, month, day = (
+                    evaluation_date.strftime("%Y"),
+                    evaluation_date.strftime("%m"),
+                    evaluation_date.strftime("%d"),
+                )
+        else:
+            logger.warning(
+                "Document queued_time not available, using current time instead"
+            )
+            evaluation_date = datetime.datetime.now()
+            year, month, day = (
+                evaluation_date.strftime("%Y"),
+                evaluation_date.strftime("%m"),
+                evaluation_date.strftime("%d"),
+            )
 
         # Escape document ID by replacing slashes with underscores
         document_id = document.id
@@ -248,7 +282,7 @@ class SaveReportingData:
         document_record = {
             "document_id": document_id,
             "input_key": document.input_key,
-            "evaluation_date": now,  # Use datetime object directly
+            "evaluation_date": evaluation_date,  # Use document's queued_time
             "accuracy": eval_result.get("overall_metrics", {}).get("accuracy", 0.0),
             "precision": eval_result.get("overall_metrics", {}).get("precision", 0.0),
             "recall": eval_result.get("overall_metrics", {}).get("recall", 0.0),
@@ -294,7 +328,7 @@ class SaveReportingData:
                 "false_discovery_rate": section_result.get("metrics", {}).get(
                     "false_discovery_rate", 0.0
                 ),
-                "evaluation_date": now,  # Use datetime object directly
+                "evaluation_date": evaluation_date,  # Use document's queued_time
             }
             section_records.append(section_record)
 
@@ -325,7 +359,7 @@ class SaveReportingData:
                     "confidence_threshold": self._serialize_value(
                         attr.get("confidence_threshold")
                     ),
-                    "evaluation_date": now,  # Use datetime object directly
+                    "evaluation_date": evaluation_date,  # Use document's queued_time
                 }
                 attribute_records.append(attribute_record)
                 logger.debug(
