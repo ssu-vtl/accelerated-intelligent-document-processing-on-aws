@@ -2217,8 +2217,8 @@ Resources:
       LoggingConfig:
         LogGroup: !Ref SaveReportingDataFunctionLogGroup
       Policies:
-        - S3WritePolicy:
-            BucketName: If
+        - S3CrudPolicy:
+            BucketName: !If
               - ShouldCreateReportingBucket
               - !Ref ReportingBucket
               - !Ref ReportingBucketName
