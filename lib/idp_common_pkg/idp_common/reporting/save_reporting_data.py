@@ -237,12 +237,12 @@ class SaveReportingData:
         )
 
         # Extract evaluation data
-        # Use document.queued_time if available, otherwise use current time
-        if document.queued_time:
+        # Use document.initial_event_time if available, otherwise use current time
+        if document.initial_event_time:
             try:
-                # Try to parse the queued_time string into a datetime object
+                # Try to parse the initial_event_time string into a datetime object
                 doc_time = datetime.datetime.fromisoformat(
-                    document.queued_time.replace("Z", "+00:00")
+                    document.initial_event_time.replace("Z", "+00:00")
                 )
                 evaluation_date = doc_time
                 year, month, day = (
@@ -251,11 +251,11 @@ class SaveReportingData:
                     doc_time.strftime("%d"),
                 )
                 logger.info(
-                    f"Using document queued_time: {document.queued_time} for partitioning"
+                    f"Using document initial_event_time: {document.initial_event_time} for partitioning"
                 )
             except (ValueError, TypeError) as e:
                 logger.warning(
-                    f"Could not parse document.queued_time: {document.queued_time}, using current time instead. Error: {str(e)}"
+                    f"Could not parse document.initial_event_time: {document.initial_event_time}, using current time instead. Error: {str(e)}"
                 )
                 evaluation_date = datetime.datetime.now()
                 year, month, day = (
