@@ -546,6 +546,42 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
   }
 
   function renderListField(key, property, path) {
+    // Check if this field depends on another field's value
+    if (property.dependsOn) {
+      const dependencyField = property.dependsOn.field;
+      const dependencyValues = Array.isArray(property.dependsOn.values)
+        ? property.dependsOn.values
+        : [property.dependsOn.value];
+
+      // Get the parent path (directory containing the current field)
+      const parentPath = path.substring(0, path.lastIndexOf('.'));
+
+      // Get the full path to the dependency field
+      const dependencyPath = parentPath.length > 0 ? `${parentPath}.${dependencyField}` : dependencyField;
+
+      // Get the current value of the dependency field
+      const dependencyValue = getValueAtPath(formValues, dependencyPath);
+
+      // Debug logging for dependency checking
+      if (key === 'groupAttributes') {
+        console.log('DEBUG groupAttributes dependency check:', {
+          key,
+          path,
+          parentPath,
+          dependencyField,
+          dependencyPath,
+          dependencyValue,
+          dependencyValues,
+          shouldHide: dependencyValue === undefined || !dependencyValues.includes(dependencyValue),
+        });
+      }
+
+      // If dependency value doesn't match any required values, hide this field
+      if (dependencyValue === undefined || !dependencyValues.includes(dependencyValue)) {
+        return null; // Don't render this field
+      }
+    }
+
     const values = getValueAtPath(formValues, path) || [];
 
     // Add debug info
@@ -866,6 +902,15 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
   }
 
   function renderInputField(key, property, value, path) {
+    // Special handling for attributeType field to provide default value BEFORE dependency checking
+    let displayValue = value;
+    if (key === 'attributeType' && (value === undefined || value === null || value === '')) {
+      // Set default value to 'simple' for backward compatibility - do this synchronously
+      displayValue = 'simple';
+      // Update the form values immediately to ensure dependency checking works
+      updateValue(path, 'simple');
+    }
+
     // Check if this field depends on another field's value
     if (property.dependsOn) {
       const dependencyField = property.dependsOn.field;
@@ -879,23 +924,25 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       // Get the full path to the dependency field
       const dependencyPath = parentPath.length > 0 ? `${parentPath}.${dependencyField}` : dependencyField;
 
-      // Get the current value of the dependency field
+      // Get the current value of the dependency field - use actual current values from form
       const dependencyValue = getValueAtPath(formValues, dependencyPath);
+
+      // Debug logging for dependency checking
+      console.log(`DEBUG dependency check for ${key}:`, {
+        key,
+        path,
+        parentPath,
+        dependencyField,
+        dependencyPath,
+        dependencyValue,
+        dependencyValues,
+        shouldHide: dependencyValue === undefined || !dependencyValues.includes(dependencyValue),
+      });
 
       // If dependency value doesn't match any required values, hide this field
       if (dependencyValue === undefined || !dependencyValues.includes(dependencyValue)) {
         return null; // Don't render this field
       }
-    }
-
-    // Special handling for attributeType field to provide default value
-    let displayValue = value;
-    if (key === 'attributeType' && (value === undefined || value === null || value === '')) {
-      // Set default value to 'simple' for backward compatibility
-      setTimeout(() => {
-        updateValue(path, 'simple');
-      }, 0);
-      displayValue = 'simple';
     }
 
     // If this is an object type, it should be rendered as an object field, not an input field
