@@ -207,6 +207,7 @@ Resources:
                     required:
                       - name
                       - description
+                      - attributeType
                     properties:
                       name:
                         type: string
@@ -216,17 +217,26 @@ Resources:
                         type: string
                         description: Attribute description
                         order: 1
-                      # Group these fields in a new row with columns for side-by-side display
+                      attributeType:
+                        type: string
+                        description: Type of attribute
+                        enum: ["simple", "group", "list"]
+                        order: 2
+                      # Simple attribute properties (existing fields)
                       evaluation_method:
                         type: string
                         description: Evaluation Method
                         enum: ["", "LLM", "SEMANTIC", "FUZZY", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
-                        order: 2
+                        order: 3
+                        dependsOn: {
+                          field: "attributeType",
+                          value: "simple"
+                        }
                       hungarian_comparator:
                         type: string
                         description: "Comparator type for HUNGARIAN method"
                         enum: ["EXACT", "FUZZY", "NUMERIC"]
-                        order: 3
+                        order: 4
                         dependsOn: {
                           field: "evaluation_method",
                           value: "HUNGARIAN"
@@ -236,7 +246,7 @@ Resources:
                         description: Evaluation Threshold - used for SEMANTIC, FUZZY, and HUNGARIAN_FUZZY methods
                         minimum: 0
                         maximum: 1
-                        order: 4
+                        order: 5
                         dependsOn: {
                           field: "evaluation_method",
                           values: ["SEMANTIC", "FUZZY", "HUNGARIAN_FUZZY"]
@@ -247,6 +257,131 @@ Resources:
                         minimum: 0
                         maximum: 1
                         order: 6
+                        dependsOn: {
+                          field: "attributeType",
+                          value: "simple"
+                        }
+                      # Group-specific properties
+                      groupAttributes:
+                        type: array
+                        listLabel: Group Attributes
+                        itemLabel: Attribute
+                        order: 7
+                        dependsOn: {
+                          field: "attributeType",
+                          value: "group"
+                        }
+                        items:
+                          type: object
+                          required:
+                            - name
+                            - description
+                          properties:
+                            name:
+                              type: string
+                              description: Attribute name
+                              order: 0
+                            description:
+                              type: string
+                              description: Attribute description
+                              order: 1
+                            evaluation_method:
+                              type: string
+                              description: Evaluation Method
+                              enum: ["", "LLM", "SEMANTIC", "FUZZY", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
+                              order: 2
+                            hungarian_comparator:
+                              type: string
+                              description: "Comparator type for HUNGARIAN method"
+                              enum: ["EXACT", "FUZZY", "NUMERIC"]
+                              order: 3
+                              dependsOn: {
+                                field: "evaluation_method",
+                                value: "HUNGARIAN"
+                              }
+                            evaluation_threshold:
+                              type: number
+                              description: Evaluation Threshold - used for SEMANTIC, FUZZY, and HUNGARIAN_FUZZY methods
+                              minimum: 0
+                              maximum: 1
+                              order: 4
+                              dependsOn: {
+                                field: "evaluation_method",
+                                values: ["SEMANTIC", "FUZZY", "HUNGARIAN_FUZZY"]
+                              }
+                            confidence_threshold:
+                              type: number
+                              description: Confidence threshold for this specific attribute (0.0 to 1.0). If not set, the default confidence threshold from assessment section will be used.
+                              minimum: 0
+                              maximum: 1
+                              order: 5
+                          columns: 2
+                      # List-specific properties
+                      listItemTemplate:
+                        type: object
+                        sectionLabel: List Item Template
+                        order: 8
+                        dependsOn: {
+                          field: "attributeType",
+                          value: "list"
+                        }
+                        required:
+                          - itemAttributes
+                        properties:
+                          itemDescription:
+                            type: string
+                            description: Description of each list item
+                            order: 0
+                          itemAttributes:
+                            type: array
+                            listLabel: Item Attributes
+                            itemLabel: Attribute
+                            order: 1
+                            items:
+                              type: object
+                              required:
+                                - name
+                                - description
+                              properties:
+                                name:
+                                  type: string
+                                  description: Attribute name
+                                  order: 0
+                                description:
+                                  type: string
+                                  description: Attribute description
+                                  order: 1
+                                evaluation_method:
+                                  type: string
+                                  description: Evaluation Method
+                                  enum: ["", "LLM", "SEMANTIC", "FUZZY", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
+                                  order: 2
+                                hungarian_comparator:
+                                  type: string
+                                  description: "Comparator type for HUNGARIAN method"
+                                  enum: ["EXACT", "FUZZY", "NUMERIC"]
+                                  order: 3
+                                  dependsOn: {
+                                    field: "evaluation_method",
+                                    value: "HUNGARIAN"
+                                  }
+                                evaluation_threshold:
+                                  type: number
+                                  description: Evaluation Threshold - used for SEMANTIC, FUZZY, and HUNGARIAN_FUZZY methods
+                                  minimum: 0
+                                  maximum: 1
+                                  order: 4
+                                  dependsOn: {
+                                    field: "evaluation_method",
+                                    values: ["SEMANTIC", "FUZZY", "HUNGARIAN_FUZZY"]
+                                  }
+                                confidence_threshold:
+                                  type: number
+                                  description: Confidence threshold for this specific attribute (0.0 to 1.0). If not set, the default confidence threshold from assessment section will be used.
+                                  minimum: 0
+                                  maximum: 1
+                                  order: 5
+                              columns: 2
                     # This controls the layout of the form fields inside each attribute item
                     columns: 2
           classification:

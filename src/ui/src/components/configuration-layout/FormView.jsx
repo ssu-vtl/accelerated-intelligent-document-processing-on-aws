@@ -888,6 +888,16 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       }
     }
 
+    // Special handling for attributeType field to provide default value
+    let displayValue = value;
+    if (key === 'attributeType' && (value === undefined || value === null || value === '')) {
+      // Set default value to 'simple' for backward compatibility
+      setTimeout(() => {
+        updateValue(path, 'simple');
+      }, 0);
+      displayValue = 'simple';
+    }
+
     let input;
 
     // Add debug info
@@ -961,7 +971,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     } else if (property.enum) {
       input = (
         <Select
-          selectedOption={{ value: value || '', label: value || '' }}
+          selectedOption={{ value: displayValue || '', label: displayValue || '' }}
           onChange={({ detail }) => updateValue(path, detail.selectedOption.value)}
           options={property.enum.map((opt) => ({ value: opt, label: opt }))}
         />
@@ -973,14 +983,14 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     ) {
       input = (
         <Textarea
-          value={value !== undefined && value !== null ? String(value) : ''}
+          value={displayValue !== undefined && displayValue !== null ? String(displayValue) : ''}
           onChange={({ detail }) => updateValue(path, detail.value)}
           rows={3}
           className="expandable-textarea"
         />
       );
     } else if (property.type === 'boolean') {
-      input = <Toggle checked={!!value} onChange={({ detail }) => updateValue(path, detail.checked)} />;
+      input = <Toggle checked={!!displayValue} onChange={({ detail }) => updateValue(path, detail.checked)} />;
     } else if (property.type === 'array' || property.type === 'list') {
       // This should not happen if renderField is working correctly
       console.error(`Incorrectly trying to render array as input field: ${path}`);
@@ -988,7 +998,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     } else {
       input = (
         <Input
-          value={value !== undefined && value !== null ? String(value) : ''}
+          value={displayValue !== undefined && displayValue !== null ? String(displayValue) : ''}
           type={property.type === 'number' ? 'number' : 'text'}
           onChange={({ detail }) => {
             let finalValue = detail.value;
