@@ -898,6 +898,12 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       displayValue = 'simple';
     }
 
+    // If this is an object type, it should be rendered as an object field, not an input field
+    if (property.type === 'object') {
+      console.log(`Redirecting object type ${key} to renderObjectField`);
+      return renderObjectField(key, property, path.substring(0, path.lastIndexOf('.')) || '');
+    }
+
     let input;
 
     // Add debug info
