@@ -226,30 +226,21 @@ Resources:
                       evaluation_method:
                         type: string
                         description: Evaluation Method
-                        enum: ["", "LLM", "SEMANTIC", "FUZZY", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
+                        enum: ["", "LLM", "SEMANTIC", "FUZZY", "NUMERIC_EXACT", "EXACT"]
                         order: 3
                         dependsOn: {
                           field: "attributeType",
                           value: "simple"
                         }
-                      hungarian_comparator:
-                        type: string
-                        description: "Comparator type for HUNGARIAN method"
-                        enum: ["EXACT", "FUZZY", "NUMERIC"]
-                        order: 4
-                        dependsOn: {
-                          field: "evaluation_method",
-                          value: "HUNGARIAN"
-                        }
                       evaluation_threshold:
                         type: number
-                        description: Evaluation Threshold - used for SEMANTIC, FUZZY, and HUNGARIAN_FUZZY methods
+                        description: Evaluation Threshold - used for SEMANTIC, and FUZZY methods
                         minimum: 0
                         maximum: 1
                         order: 5
                         dependsOn: {
                           field: "evaluation_method",
-                          values: ["SEMANTIC", "FUZZY", "HUNGARIAN_FUZZY"]
+                          values: ["SEMANTIC", "FUZZY"]
                         }
                       confidence_threshold:
                         type: number
@@ -288,26 +279,17 @@ Resources:
                             evaluation_method:
                               type: string
                               description: Evaluation Method
-                              enum: ["", "LLM", "SEMANTIC", "FUZZY", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
+                              enum: ["", "LLM", "SEMANTIC", "FUZZY", "NUMERIC_EXACT", "EXACT"]
                               order: 2
-                            hungarian_comparator:
-                              type: string
-                              description: "Comparator type for HUNGARIAN method"
-                              enum: ["EXACT", "FUZZY", "NUMERIC"]
-                              order: 3
-                              dependsOn: {
-                                field: "evaluation_method",
-                                value: "HUNGARIAN"
-                              }
                             evaluation_threshold:
                               type: number
-                              description: Evaluation Threshold - used for SEMANTIC, FUZZY, and HUNGARIAN_FUZZY methods
+                              description: Evaluation Threshold - used for SEMANTIC, and FUZZY methods
                               minimum: 0
                               maximum: 1
                               order: 4
                               dependsOn: {
                                 field: "evaluation_method",
-                                values: ["SEMANTIC", "FUZZY", "HUNGARIAN_FUZZY"]
+                                values: ["SEMANTIC", "FUZZY"]
                               }
                             confidence_threshold:
                               type: number
@@ -354,26 +336,17 @@ Resources:
                                 evaluation_method:
                                   type: string
                                   description: Evaluation Method
-                                  enum: ["", "LLM", "SEMANTIC", "FUZZY", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
+                                  enum: ["", "LLM", "SEMANTIC", "FUZZY", "NUMERIC_EXACT", "EXACT"]
                                   order: 2
-                                hungarian_comparator:
-                                  type: string
-                                  description: "Comparator type for HUNGARIAN method"
-                                  enum: ["EXACT", "FUZZY", "NUMERIC"]
-                                  order: 3
-                                  dependsOn: {
-                                    field: "evaluation_method",
-                                    value: "HUNGARIAN"
-                                  }
                                 evaluation_threshold:
                                   type: number
-                                  description: Evaluation Threshold - used for SEMANTIC, FUZZY, and HUNGARIAN_FUZZY methods
+                                  description: Evaluation Threshold - used for SEMANTIC, and FUZZY methods
                                   minimum: 0
                                   maximum: 1
                                   order: 4
                                   dependsOn: {
                                     field: "evaluation_method",
-                                    values: ["SEMANTIC", "FUZZY", "HUNGARIAN_FUZZY"]
+                                    values: ["SEMANTIC", "FUZZY"]
                                   }
                                 confidence_threshold:
                                   type: number
