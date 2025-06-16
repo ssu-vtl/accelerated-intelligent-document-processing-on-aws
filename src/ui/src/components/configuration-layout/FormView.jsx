@@ -472,11 +472,35 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
         ? property.dependsOn.values
         : [property.dependsOn.value];
 
-      // Get the parent path from the currentPath (not the input path)
-      const parentPath = currentPath.substring(0, currentPath.lastIndexOf('.'));
+      let dependencyPath;
 
-      // Get the full path to the dependency field
-      const dependencyPath = parentPath.length > 0 ? `${parentPath}.${dependencyField}` : dependencyField;
+      // Special handling for nested attributes looking for attributeType
+      if (
+        dependencyField === 'attributeType' &&
+        (currentPath.includes('groupAttributes[') || currentPath.includes('listItemTemplate.itemAttributes['))
+      ) {
+        // For nested attributes, attributeType is in the parent attribute, not the nested attribute itself
+        if (currentPath.includes('groupAttributes[')) {
+          // For groupAttributes: classes[0].attributes[1].groupAttributes[0].field
+          // -> classes[0].attributes[1].attributeType
+          const attributeMatch = currentPath.match(/^(.+\.attributes\[\d+\])\.groupAttributes/);
+          dependencyPath = attributeMatch ? `${attributeMatch[1]}.attributeType` : null;
+        } else if (currentPath.includes('listItemTemplate.itemAttributes[')) {
+          // For listItemTemplate: classes[0].attributes[1].listItemTemplate.itemAttributes[0].field
+          // -> classes[0].attributes[1].attributeType
+          const attributeMatch = currentPath.match(/^(.+\.attributes\[\d+\])\.listItemTemplate\.itemAttributes/);
+          dependencyPath = attributeMatch ? `${attributeMatch[1]}.attributeType` : null;
+        }
+
+        if (!dependencyPath) {
+          console.warn(`Could not resolve attributeType dependency path for nested attribute: ${currentPath}`);
+          return null; // Hide field if we can't resolve the dependency
+        }
+      } else {
+        // Normal dependency resolution
+        const parentPath = currentPath.substring(0, currentPath.lastIndexOf('.'));
+        dependencyPath = parentPath.length > 0 ? `${parentPath}.${dependencyField}` : dependencyField;
+      }
 
       // Get the current value of the dependency field
       const dependencyValue = getValueAtPath(formValues, dependencyPath);
@@ -485,11 +509,12 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       console.log(`DEBUG renderField dependency check for ${key}:`, {
         key,
         currentPath,
-        parentPath,
         dependencyField,
         dependencyPath,
         dependencyValue,
         dependencyValues,
+        isNestedAttribute:
+          currentPath.includes('groupAttributes[') || currentPath.includes('listItemTemplate.itemAttributes['),
         shouldHide: dependencyValue === undefined || !dependencyValues.includes(dependencyValue),
       });
 
@@ -838,8 +863,6 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                                           return <td key={`empty-${colIndex}`} aria-hidden="true" />;
 
                                         const { propKey, propSchema } = regularProps[fieldIndex];
-                                        const propPath = `${itemPath}.${propKey}`;
-                                        const propValue = getValueAtPath(formValues, propPath);
 
                                         // Skip rendering the name field since it's already shown in the header
                                         if (propKey === 'name') {
@@ -851,9 +874,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                                             key={propKey}
                                             style={{ verticalAlign: 'top', width: `${100 / columnCount}%` }}
                                           >
-                                            <Box padding="0">
-                                              {renderInputField(propKey, propSchema, propValue, propPath)}
-                                            </Box>
+                                            <Box padding="0">{renderField(propKey, propSchema, itemPath)}</Box>
                                           </td>
                                         );
                                       })}
