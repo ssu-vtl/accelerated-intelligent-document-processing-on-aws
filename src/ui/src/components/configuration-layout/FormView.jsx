@@ -549,17 +549,74 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       );
     }
 
-    // For nested objects with sectionLabel, use container with section header
+    // For nested objects with sectionLabel, use the same styling as list headers
     if (property.sectionLabel && !isTopLevel) {
       const sectionTitle = property.sectionLabel;
-      return (
-        <Container header={<Header variant="h3">{sectionTitle}</Header>}>
+      const objectKey = `object:${fullPath}`;
+
+      // Toggle expansion state
+      const toggleExpand = () => {
+        setExpandedItems((prev) => ({
+          ...prev,
+          [objectKey]: !prev[objectKey],
+        }));
+      };
+
+      // Check if expanded - default to collapsed
+      const isExpanded = expandedItems[objectKey] === true;
+
+      // Object header similar to list header
+      const objectHeader = (
+        <Box
+          padding={{ left: `${nestLevel * 16}px`, top: '0', bottom: '0' }}
+          borderBottom="divider-light"
+          backgroundColor="background-paper-default"
+          borderRadius="xs"
+          style={{ minHeight: '24px', marginBottom: '2px' }}
+        >
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+            onClick={toggleExpand}
+            style={{ cursor: 'pointer', padding: '2px 0' }}
+          >
+            <Box display="flex" alignItems="center" flexDirection="row" className="awsui-box-inline">
+              <Button
+                variant="icon"
+                iconName={isExpanded ? 'caret-down-filled' : 'caret-right-filled'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleExpand();
+                }}
+                ariaLabel={isExpanded ? 'Collapse section' : 'Expand section'}
+                style={{ margin: '0', padding: '0', display: 'inline-flex' }}
+                className="awsui-button-icon"
+              />
+              <Box fontWeight="bold" fontSize="body-m" marginLeft="xxs" display="inline-block">
+                {sectionTitle}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      );
+
+      // Object content - only shown when expanded
+      const objectContent = isExpanded && (
+        <Box padding={{ left: `${nestLevel * 50 + 200}px`, top: '0' }} className="list-content-indented">
           <SpaceBetween size="s">
             {getSortedObjectProperties(property.properties).map(({ propKey, propSchema }) => {
               return <Box key={propKey}>{renderField(propKey, propSchema, fullPath)}</Box>;
             })}
           </SpaceBetween>
-        </Container>
+        </Box>
+      );
+
+      return (
+        <Box margin={{ top: '8px', bottom: '8px' }}>
+          {objectHeader}
+          {objectContent}
+        </Box>
       );
     }
 
