@@ -465,6 +465,40 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     const currentPath = path ? `${path}.${key}` : key;
     const value = getValueAtPath(formValues, currentPath);
 
+    // Check dependencies FIRST, before any rendering - applies to all field types
+    if (property.dependsOn) {
+      const dependencyField = property.dependsOn.field;
+      const dependencyValues = Array.isArray(property.dependsOn.values)
+        ? property.dependsOn.values
+        : [property.dependsOn.value];
+
+      // Get the parent path from the currentPath (not the input path)
+      const parentPath = currentPath.substring(0, currentPath.lastIndexOf('.'));
+
+      // Get the full path to the dependency field
+      const dependencyPath = parentPath.length > 0 ? `${parentPath}.${dependencyField}` : dependencyField;
+
+      // Get the current value of the dependency field
+      const dependencyValue = getValueAtPath(formValues, dependencyPath);
+
+      // Debug logging for dependency checking
+      console.log(`DEBUG renderField dependency check for ${key}:`, {
+        key,
+        currentPath,
+        parentPath,
+        dependencyField,
+        dependencyPath,
+        dependencyValue,
+        dependencyValues,
+        shouldHide: dependencyValue === undefined || !dependencyValues.includes(dependencyValue),
+      });
+
+      // If dependency value doesn't match any required values, hide this field
+      if (dependencyValue === undefined || !dependencyValues.includes(dependencyValue)) {
+        return null; // Don't render this field
+      }
+    }
+
     if (property.type === 'list' || property.type === 'array') {
       return renderListField(key, property, currentPath);
     }
@@ -546,41 +580,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
   }
 
   function renderListField(key, property, path) {
-    // Check if this field depends on another field's value
-    if (property.dependsOn) {
-      const dependencyField = property.dependsOn.field;
-      const dependencyValues = Array.isArray(property.dependsOn.values)
-        ? property.dependsOn.values
-        : [property.dependsOn.value];
-
-      // Get the parent path (directory containing the current field)
-      const parentPath = path.substring(0, path.lastIndexOf('.'));
-
-      // Get the full path to the dependency field
-      const dependencyPath = parentPath.length > 0 ? `${parentPath}.${dependencyField}` : dependencyField;
-
-      // Get the current value of the dependency field
-      const dependencyValue = getValueAtPath(formValues, dependencyPath);
-
-      // Debug logging for dependency checking
-      if (key === 'groupAttributes') {
-        console.log('DEBUG groupAttributes dependency check:', {
-          key,
-          path,
-          parentPath,
-          dependencyField,
-          dependencyPath,
-          dependencyValue,
-          dependencyValues,
-          shouldHide: dependencyValue === undefined || !dependencyValues.includes(dependencyValue),
-        });
-      }
-
-      // If dependency value doesn't match any required values, hide this field
-      if (dependencyValue === undefined || !dependencyValues.includes(dependencyValue)) {
-        return null; // Don't render this field
-      }
-    }
+    // Dependencies are now checked in the main renderField function
 
     const values = getValueAtPath(formValues, path) || [];
 
@@ -747,14 +747,18 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                         // Add debugging to see actual column count
                         console.log(`Rendering ${columnCount} columns for ${propEntries.length} properties`);
 
-                        // Separate regular fields from list fields
+                        // Separate regular fields from special fields (lists, objects with dependencies)
                         const regularProps = [];
-                        const listProps = [];
+                        const specialProps = []; // For lists, objects with dependsOn, or objects with sectionLabel
 
                         // Identify and separate the fields
                         propEntries.forEach(({ propKey, prop: propSchema }) => {
-                          if (propSchema.type === 'list' || propSchema.type === 'array') {
-                            listProps.push({ propKey, propSchema });
+                          if (
+                            propSchema.type === 'list' ||
+                            propSchema.type === 'array' ||
+                            (propSchema.type === 'object' && (propSchema.dependsOn || propSchema.sectionLabel))
+                          ) {
+                            specialProps.push({ propKey, propSchema });
                           } else {
                             regularProps.push({ propKey, propSchema });
                           }
@@ -804,16 +808,14 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                           </Box>
                         );
 
-                        // Render any list fields (like attributes)
-                        const renderedListFields = listProps.map(({ propKey, propSchema }) => {
-                          const propPath = `${itemPath}.${propKey}`;
-
-                          // Configure nested list with proper indentation
-                          const nestedListProps = {
+                        // Render any special fields (lists, objects with dependencies)
+                        const renderedSpecialFields = specialProps.map(({ propKey, propSchema }) => {
+                          // Configure nested field with proper indentation
+                          const nestedProps = {
                             ...propSchema,
                             // Add 1 to nestLevel for each nesting level with higher multiplier
                             nestLevel: nextNestLevel + 1, // Increase nesting level for better visual distinction
-                            // Explicitly set columns for the nested list
+                            // Explicitly set columns for nested fields
                             columns: propSchema.columns || 2,
                           };
 
@@ -824,19 +826,19 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                               width="100%"
                               margin={{ bottom: '4px' }}
                             >
-                              {renderListField(propKey, nestedListProps, propPath)}
+                              {renderField(propKey, nestedProps, itemPath)}
                             </Box>
                           );
                         });
 
-                        // Return both the regular fields and any list fields
+                        // Return both the regular fields and any special fields
                         return (
                           <Box style={{ margin: 0, padding: 0 }}>
                             {renderedRegularFields}
-                            {renderedListFields.length > 0 && (
+                            {renderedSpecialFields.length > 0 && (
                               <>
                                 {regularProps.length > 0 && <Box padding="4px 0" margin="4px 0" />}
-                                <Box padding="0">{renderedListFields}</Box>
+                                <Box padding="0">{renderedSpecialFields}</Box>
                               </>
                             )}
                           </Box>
@@ -911,39 +913,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       updateValue(path, 'simple');
     }
 
-    // Check if this field depends on another field's value
-    if (property.dependsOn) {
-      const dependencyField = property.dependsOn.field;
-      const dependencyValues = Array.isArray(property.dependsOn.values)
-        ? property.dependsOn.values
-        : [property.dependsOn.value];
-
-      // Get the parent path (directory containing the current field)
-      const parentPath = path.substring(0, path.lastIndexOf('.'));
-
-      // Get the full path to the dependency field
-      const dependencyPath = parentPath.length > 0 ? `${parentPath}.${dependencyField}` : dependencyField;
-
-      // Get the current value of the dependency field - use actual current values from form
-      const dependencyValue = getValueAtPath(formValues, dependencyPath);
-
-      // Debug logging for dependency checking
-      console.log(`DEBUG dependency check for ${key}:`, {
-        key,
-        path,
-        parentPath,
-        dependencyField,
-        dependencyPath,
-        dependencyValue,
-        dependencyValues,
-        shouldHide: dependencyValue === undefined || !dependencyValues.includes(dependencyValue),
-      });
-
-      // If dependency value doesn't match any required values, hide this field
-      if (dependencyValue === undefined || !dependencyValues.includes(dependencyValue)) {
-        return null; // Don't render this field
-      }
-    }
+    // Dependencies are now checked in the main renderField function
 
     // If this is an object type, it should be rendered as an object field, not an input field
     if (property.type === 'object') {
