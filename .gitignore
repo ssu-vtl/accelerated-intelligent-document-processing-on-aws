@@ -13,6 +13,10 @@ dist/
 *.egg-info/
 build/
 __pycache__
+<<<<<<< HEAD
 *.code-workspace
 .ruff_cache
 rvl_cdip_*
+=======
+.ruff_cache
+>>>>>>> 46216b5ce2d70b516e2bcf7c4885aa3af6858066
