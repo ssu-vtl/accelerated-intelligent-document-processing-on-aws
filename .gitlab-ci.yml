@@ -1,9 +1,6 @@
-<<<<<<< HEAD
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-=======
->>>>>>> 46216b5ce2d70b516e2bcf7c4885aa3af6858066
 # Any publicly available image
 image: public.ecr.aws/docker/library/python:3.13-bookworm
 
@@ -51,24 +48,14 @@ integration_tests:
   stage: integration_tests
   variables:
     # In order to run tests in another account, add a AWS_CREDS_TARGET_ROLE variable to the Gitlab pipeline variables.
-<<<<<<< HEAD
     AWS_CREDS_TARGET_ROLE: ${AWS_CREDS_TARGET_ROLE}
     AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
     IDP_ACCOUNT_ID: ${IDP_ACCOUNT_ID}
-=======
-    AWS_CREDS_TARGET_ROLE: ${AWS_CREDS_TARGET_ROLE:-"arn:aws:iam::715841340161:role/idp-sdlc-GitLab"}
-    AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-"us-east-1"}
-    IDP_ACCOUNT_ID: ${IDP_ACCOUNT_ID:-"715841340161"}
->>>>>>> 46216b5ce2d70b516e2bcf7c4885aa3af6858066
   
   # Add rules to only run on develop branch
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
-<<<<<<< HEAD
       when: manual # always # When idp-accelerator CICD is reconfigured
-=======
-      when: always
->>>>>>> 46216b5ce2d70b516e2bcf7c4885aa3af6858066
     - if: $CI_COMMIT_BRANCH =~ /^feature\/.*/
       when: manual
     - if: $CI_COMMIT_BRANCH =~ /^fix\/.*/
