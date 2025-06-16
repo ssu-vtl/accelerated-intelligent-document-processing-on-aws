@@ -826,14 +826,50 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                           }))
                           .sort((a, b) => a.order - b.order);
 
-                        // Add debugging to see actual column count
-                        console.log(`Rendering ${columnCount} columns for ${propEntries.length} properties`);
+                        // Function to check if a field should be visible (not hidden by dependencies)
+                        const isFieldVisible = (propKey, propSchema) => {
+                          if (!propSchema.dependsOn) return true;
+
+                          const dependencyField = propSchema.dependsOn.field;
+                          const dependencyValues = Array.isArray(propSchema.dependsOn.values)
+                            ? propSchema.dependsOn.values
+                            : [propSchema.dependsOn.value];
+
+                          let dependencyPath;
+                          const fieldPath = `${itemPath}.${propKey}`;
+
+                          // Special handling for nested attributes looking for attributeType
+                          if (
+                            dependencyField === 'attributeType' &&
+                            (fieldPath.includes('groupAttributes[') ||
+                              fieldPath.includes('listItemTemplate.itemAttributes['))
+                          ) {
+                            if (fieldPath.includes('groupAttributes[')) {
+                              const attributeMatch = fieldPath.match(/^(.+\.attributes\[\d+\])\.groupAttributes/);
+                              dependencyPath = attributeMatch ? `${attributeMatch[1]}.attributeType` : null;
+                            } else if (fieldPath.includes('listItemTemplate.itemAttributes[')) {
+                              const attributeMatch = fieldPath.match(
+                                /^(.+\.attributes\[\d+\])\.listItemTemplate\.itemAttributes/,
+                              );
+                              dependencyPath = attributeMatch ? `${attributeMatch[1]}.attributeType` : null;
+                            }
+                          } else {
+                            const parentPath = fieldPath.substring(0, fieldPath.lastIndexOf('.'));
+                            dependencyPath =
+                              parentPath.length > 0 ? `${parentPath}.${dependencyField}` : dependencyField;
+                          }
+
+                          if (!dependencyPath) return false;
+
+                          const dependencyValue = getValueAtPath(formValues, dependencyPath);
+                          return dependencyValue !== undefined && dependencyValues.includes(dependencyValue);
+                        };
 
                         // Separate regular fields from special fields (lists, objects with dependencies)
                         const regularProps = [];
                         const specialProps = []; // For lists, objects with dependsOn, or objects with sectionLabel
 
-                        // Identify and separate the fields
+                        // Identify and separate the fields, filtering out hidden ones
                         propEntries.forEach(({ propKey, prop: propSchema }) => {
                           if (
                             propSchema.type === 'list' ||
@@ -841,9 +877,65 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                             (propSchema.type === 'object' && (propSchema.dependsOn || propSchema.sectionLabel))
                           ) {
                             specialProps.push({ propKey, propSchema });
-                          } else {
+                          } else if (isFieldVisible(propKey, propSchema)) {
+                            // Only include regular fields that are actually visible
                             regularProps.push({ propKey, propSchema });
                           }
+                        });
+
+                        // Add debugging to see field distribution
+                        console.log(`Field distribution for ${key}:`, {
+                          totalProperties: propEntries.length,
+                          requestedColumns: columnCount,
+                          visibleRegularFields: regularProps.length,
+                          specialFields: specialProps.length,
+                          hiddenByDependencies: propEntries.length - regularProps.length - specialProps.length,
+                        });
+
+                        // Enhanced column distribution algorithm - only for visible fields
+                        const distributeFieldsToColumns = (fields, numColumns) => {
+                          // Create columns array
+                          const columns = Array.from({ length: numColumns }, () => []);
+
+                          // Special handling for description field - it should span full width if it exists
+                          const descriptionField = fields.find(({ propKey }) => propKey === 'description');
+                          const nonDescriptionFields = fields.filter(({ propKey }) => propKey !== 'description');
+
+                          // Calculate optimal column count based on actual field count
+                          const actualColumnCount = Math.min(numColumns, Math.max(1, nonDescriptionFields.length));
+
+                          // Distribute non-description fields evenly across columns using round-robin
+                          nonDescriptionFields.forEach((field, fieldIndex) => {
+                            const targetColumn = fieldIndex % actualColumnCount;
+                            columns[targetColumn].push(field);
+                          });
+
+                          // Return only the columns that have content
+                          const nonEmptyColumns = columns.slice(0, actualColumnCount);
+
+                          return {
+                            columns: nonEmptyColumns,
+                            descriptionField,
+                            actualColumnCount,
+                          };
+                        };
+
+                        const {
+                          columns: fieldColumns,
+                          descriptionField,
+                          actualColumnCount,
+                        } = distributeFieldsToColumns(regularProps, columnCount);
+
+                        // Calculate maximum rows needed
+                        const maxRows = Math.max(...fieldColumns.map((col) => col.length));
+
+                        // Validation and debugging for field distribution
+                        console.log(`Distribution result for ${key}:`, {
+                          actualColumnCount,
+                          maxRows,
+                          columnLengths: fieldColumns.map((col) => col.length),
+                          totalFieldsDistributed: fieldColumns.reduce((sum, col) => sum + col.length, 0),
+                          hasDescription: !!descriptionField,
                         });
 
                         // Render the regular fields using HTML table for guaranteed columns
@@ -853,34 +945,68 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                               style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '4px 0', margin: 0 }}
                             >
                               <tbody style={{ margin: 0, padding: 0 }}>
-                                {/* Split fields into rows based on columnCount */}
-                                {Array.from({ length: Math.ceil(regularProps.length / columnCount) }).map(
-                                  (rowItem, rowIndex) => (
-                                    <tr key={`row-${rowIndex}`}>
-                                      {Array.from({ length: columnCount }).map((colItem, colIndex) => {
-                                        const fieldIndex = rowIndex * columnCount + colIndex;
-                                        if (fieldIndex >= regularProps.length)
-                                          return <td key={`empty-${colIndex}`} aria-hidden="true" />;
-
-                                        const { propKey, propSchema } = regularProps[fieldIndex];
-
-                                        // Skip rendering the name field since it's already shown in the header
-                                        if (propKey === 'name') {
-                                          return <td key={propKey} style={{ display: 'none' }} aria-hidden="true" />;
-                                        }
-
-                                        return (
-                                          <td
-                                            key={propKey}
-                                            style={{ verticalAlign: 'top', width: `${100 / columnCount}%` }}
-                                          >
-                                            <Box padding="0">{renderField(propKey, propSchema, itemPath)}</Box>
-                                          </td>
-                                        );
-                                      })}
-                                    </tr>
-                                  ),
+                                {/* Render description field first if it exists, spanning full width */}
+                                {descriptionField && (
+                                  <tr key="description-row">
+                                    <td colSpan={actualColumnCount} style={{ verticalAlign: 'top' }}>
+                                      <Box padding="0">
+                                        {renderField(descriptionField.propKey, descriptionField.propSchema, itemPath)}
+                                      </Box>
+                                    </td>
+                                  </tr>
                                 )}
+
+                                {/* Render fields in balanced columns - only create rows with content */}
+                                {maxRows > 0 &&
+                                  Array.from({ length: maxRows })
+                                    .map((_, rowIndex) => {
+                                      // Check if this row has any actual content
+                                      const rowHasContent = fieldColumns.some((column) => {
+                                        const field = column[rowIndex];
+                                        return field && field.propKey !== 'name';
+                                      });
+
+                                      // Skip empty rows
+                                      if (!rowHasContent) {
+                                        return null;
+                                      }
+
+                                      return (
+                                        <tr key={`row-${rowIndex}`}>
+                                          {fieldColumns
+                                            .map((column, colIndex) => {
+                                              const field = column[rowIndex];
+
+                                              // Skip name field - already shown in header
+                                              if (field && field.propKey === 'name') {
+                                                return null;
+                                              }
+
+                                              // Only render cells that have actual content
+                                              if (!field) {
+                                                return null;
+                                              }
+
+                                              const { propKey, propSchema } = field;
+
+                                              return (
+                                                <td
+                                                  key={`${propKey}-${colIndex}-${rowIndex}`}
+                                                  style={{
+                                                    verticalAlign: 'top',
+                                                    width: `${100 / actualColumnCount}%`,
+                                                    padding: '0 4px',
+                                                  }}
+                                                >
+                                                  <Box padding="0">{renderField(propKey, propSchema, itemPath)}</Box>
+                                                </td>
+                                              );
+                                            })
+                                            .filter(Boolean)}
+                                        </tr>
+                                      );
+                                    })
+                                    .filter(Boolean)}
                               </tbody>
                             </table>
                           </Box>
