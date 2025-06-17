@@ -1,0 +1,14 @@
+# Evaluation Service Configuration
+evaluation:
+  # Default evaluation settings
+  confidence_threshold: 0.8
+  accuracy_metrics:
+    - "exact_match"
+    - "fuzzy_match"
+    - "semantic_similarity"
+  
+  # Evaluation output settings
+  generate_reports: true
+  detailed_analysis: true
+  
+  # Additional evaluation-specific settings can be added here
