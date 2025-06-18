@@ -419,7 +419,7 @@ const DocumentAttributes = ({ item }) => {
           <SpaceBetween size="xs">
             <div>
               <Box margin={{ bottom: 'xxxs' }} color="text-label">
-                <strong>HITL Status</strong>
+                <strong>HITL A2I Status</strong>
               </Box>
               <div>
                 {item.hitlStatus}
@@ -432,7 +432,7 @@ const DocumentAttributes = ({ item }) => {
                       iconName="external"
                       variant="link"
                     >
-                      Review Document
+                      Review Document in A2I
                     </Button>
                   </div>
                 )}
