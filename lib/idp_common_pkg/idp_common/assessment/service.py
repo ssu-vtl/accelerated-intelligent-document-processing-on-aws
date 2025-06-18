@@ -534,10 +534,6 @@ class AssessmentService:
                     }
                 parsing_succeeded = False  # Mark that parsing failed
 
-<<<<<<< HEAD
-            # Update the existing extraction result with assessment data
-            extraction_data["explainability_info"] = [assessment_data]
-=======
             # Get confidence thresholds
             default_confidence_threshold = assessment_config.get(
                 "default_confidence_threshold", 0.9
@@ -577,7 +573,6 @@ class AssessmentService:
 
             # Update the existing extraction result with enhanced assessment data
             extraction_data["explainability_info"] = [enhanced_assessment_data]
->>>>>>> origin/develop
             extraction_data["metadata"] = extraction_data.get("metadata", {})
             extraction_data["metadata"]["assessment_time_seconds"] = total_duration
             extraction_data["metadata"]["assessment_parsing_succeeded"] = (
@@ -590,8 +585,6 @@ class AssessmentService:
                 extraction_data, bucket, key, content_type="application/json"
             )
 
-<<<<<<< HEAD
-=======
             # Update the section in the document with confidence threshold alerts
             for doc_section in document.sections:
                 if doc_section.section_id == section_id:
@@ -600,7 +593,6 @@ class AssessmentService:
                     )
                     break
 
->>>>>>> origin/develop
             # Update document with metering data
             document.metering = utils.merge_metering_data(
                 document.metering, metering or {}

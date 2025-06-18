@@ -5,37 +5,6 @@ SPDX-License-Identifier: MIT-0
 
 ## [Unreleased]
 
-<<<<<<< HEAD
-=======
-## [Unreleased]
-
-### Added
-- New example notebooks with improved clarity, modularity, and documentation.
-- Added confidence threshold to evaluation outputs to enable prioritizing accuracy results for attributes with higher confidence thersholds.
-- Comprehensive Metering Data: The system now captures and stores detailed metering data for analytics, including:
-   • Which services were used (Textract, Bedrock, etc.)
-   • What operations were performed (analyze_document, Claude, etc.)
-   • How many resources were consumed (pages, tokens, etc.)
-- Add reporting database documentation
-
-### Changed
-- Pin packages to tested versions to avoid vulnerability from incompatible new package versions.
-- Updated reporting data to use document's queued_time for consistent timestamps
-- Create new extensible SaveReportingData class in idp_common package for saving evaluation results to Parquet format
-- Remove save_to_reporting from evaluation_function and replace with Lambda invocation, for smaller Lambda packages and better modularity.
-- Harden publish process and avoid package version bloat by purging previous build artifacts before re-building
-
->>>>>>> origin/develop
-## [0.3.3]
-
-### Added
-
-<<<<<<< HEAD
-- **Assessment Feature for Extraction Confidence Evaluation (EXPERIMENTAL)**
-  - Added new assessment service that evaluates extraction confidence using LLMs to analyze extraction results against source documents
-  - Multi-modal assessment capability combining text analysis with document images for comprehensive confidence scoring
-  - UI integration with explainability_info display showing per-attribute confidence scores and explanations
-=======
 - **Amazon Nova Model Fine-tuning Support**
   - Added comprehensive `ModelFinetuningService` class for managing Nova model fine-tuning workflows
   - Support for fine-tuning Amazon Nova models (Nova Lite, Nova Pro) using Amazon Bedrock
@@ -63,16 +32,11 @@ SPDX-License-Identifier: MIT-0
   - Added new assessment service that evaluates extraction confidence using LLMs to analyze extraction results against source documents
   - Multi-modal assessment capability combining text analysis with document images for comprehensive confidence scoring
   - UI integration with explainability_info display showing per-attribute confidence scores, thresholds, and explanations
->>>>>>> origin/develop
   - Optional deployment controlled by `IsAssessmentEnabled` parameter (defaults to false)
   - Added e2e-example-with-assessment.ipynb notebook for testing assessment workflow
 
 - **Enhanced Evaluation Framework with Confidence Integration**
-<<<<<<< HEAD
-  - Added expected_confidence and actual_confidence fields to evaluation reports for quality analysis
-=======
   - Added confidence fields to evaluation reports for quality analysis
->>>>>>> origin/develop
   - Automatic extraction and display of confidence scores from assessment explainability_info
   - Enhanced JSON and Markdown evaluation reports with confidence columns
   - Backward compatible integration - shows "N/A" when confidence data unavailable
@@ -90,14 +54,10 @@ SPDX-License-Identifier: MIT-0
   - ReportingDatabase output added to CloudFormation template for easy reference
 
 ### Fixed
-<<<<<<< HEAD
-- Fixed build failure related to pandas and numpy dependency conflicts in the idp_common_pkg package
-=======
 - Fixed build failure related to pandas, numpy, and PyMuPDF dependency conflicts in the idp_common_pkg package
 - Fixed deployment failure caused by CodeBuild project timeout, by raising TimeoutInMinutes property
 - Added missing cached token metrics to CloudWatch dashboards
 - Added Bedrock model access prerequisite to README and deployment doc.
->>>>>>> origin/develop
 
 ## [0.3.2]
 

@@ -54,10 +54,7 @@ class Section:
     page_ids: List[str] = field(default_factory=list)
     extraction_result_uri: Optional[str] = None
     attributes: Optional[Dict[str, Any]] = None
-<<<<<<< HEAD
-=======
     confidence_threshold_alerts: List[Dict[str, Any]] = field(default_factory=list)
->>>>>>> origin/develop
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Section":
@@ -72,10 +69,7 @@ class Section:
             page_ids=data.get("page_ids", []),
             extraction_result_uri=data.get("extraction_result_uri"),
             attributes=data.get("attributes"),
-<<<<<<< HEAD
-=======
             confidence_threshold_alerts=data.get("confidence_threshold_alerts", []),
->>>>>>> origin/develop
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -87,10 +81,7 @@ class Section:
             "page_ids": self.page_ids,
             "extraction_result_uri": self.extraction_result_uri,
             "attributes": self.attributes,
-<<<<<<< HEAD
-=======
             "confidence_threshold_alerts": self.confidence_threshold_alerts,
->>>>>>> origin/develop
         }
 
 
@@ -175,10 +166,6 @@ class Document:
     evaluation_result: Any = None  # Holds the DocumentEvaluationResult object
     summarization_result: Any = None  # Holds the DocumentSummarizationResult object
     errors: List[str] = field(default_factory=list)
-<<<<<<< HEAD
-    hitl_metadata: List[HitlMetadata] = field(default_factory=list)
-=======
->>>>>>> origin/develop
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert document to dictionary representation."""
@@ -228,24 +215,20 @@ class Document:
                 "confidence": section.confidence,
                 "page_ids": section.page_ids,
                 "extraction_result_uri": section.extraction_result_uri,
-<<<<<<< HEAD
-=======
                 "confidence_threshold_alerts": section.confidence_threshold_alerts,
->>>>>>> origin/develop
             }
             if section.attributes:
                 section_dict["attributes"] = section.attributes
             result["sections"].append(section_dict)
 
-<<<<<<< HEAD
+
         # Add HITL metadata if it has any values
         if self.hitl_metadata:
             result["hitl_metadata"] = [
                 metadata.to_dict() for metadata in self.hitl_metadata
             ]
 
-=======
->>>>>>> origin/develop
+
         return result
 
     @classmethod
@@ -264,26 +247,12 @@ class Document:
             workflow_execution_arn=data.get("workflow_execution_arn"),
             evaluation_status=data.get("evaluation_status"),
             evaluation_report_uri=data.get("evaluation_report_uri"),
-<<<<<<< HEAD
-=======
             evaluation_results_uri=data.get("evaluation_results_uri"),
->>>>>>> origin/develop
             summary_report_uri=data.get("summary_report_uri"),
             metering=data.get("metering", {}),
             errors=data.get("errors", []),
         )
 
-<<<<<<< HEAD
-        # Load HITL metadata if present
-        if "hitl_metadata" in data:
-            if isinstance(data["hitl_metadata"], list):
-                document.hitl_metadata = [
-                    HitlMetadata.from_dict(item) for item in data["hitl_metadata"]
-                ]
-            else:
-                # Handle legacy format (single object)
-                document.hitl_metadata = [HitlMetadata.from_dict(data["hitl_metadata"])]
-=======
         # Convert status from string to enum
         if "status" in data:
             try:
@@ -291,7 +260,6 @@ class Document:
             except ValueError:
                 # If the status isn't a valid enum value, use QUEUED as default
                 document.status = Status.QUEUED
->>>>>>> origin/develop
 
         # Convert pages
         pages_data = data.get("pages", {})
@@ -319,7 +287,7 @@ class Document:
                     page_ids=section_data.get("page_ids", []),
                     extraction_result_uri=section_data.get("extraction_result_uri"),
                     attributes=section_data.get("attributes"),
-<<<<<<< HEAD
+
                 )
             )
 
@@ -331,14 +299,13 @@ class Document:
                 # If the status isn't a valid enum value, use QUEUED as default
                 document.status = Status.QUEUED
 
-=======
+
                     confidence_threshold_alerts=section_data.get(
                         "confidence_threshold_alerts", []
                     ),
                 )
             )
 
->>>>>>> origin/develop
         return document
 
     @classmethod

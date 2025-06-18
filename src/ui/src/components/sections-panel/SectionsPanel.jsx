@@ -11,10 +11,7 @@ import { getSectionConfidenceAlertCount } from '../common/confidence-alerts-util
 const IdCell = ({ item }) => <span>{item.Id}</span>;
 const ClassCell = ({ item }) => <span>{item.Class}</span>;
 const PageIdsCell = ({ item }) => <span>{item.PageIds.join(', ')}</span>;
-<<<<<<< HEAD
-=======
 const ConfidenceAlertsCell = ({ item }) => <span>{getSectionConfidenceAlertCount(item)}</span>;
->>>>>>> origin/develop
 const ActionsCell = ({ item, pages, documentItem }) => (
   <FileViewer
     fileUri={item.OutputJSONUri}

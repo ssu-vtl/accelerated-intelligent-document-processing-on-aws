@@ -126,8 +126,6 @@ def handler(event: Dict[str, Any], context: Any) -> None:
             # Update Default configuration
             if 'Default' in properties:
                 resolved_default = resolve_content(properties['Default'])
-<<<<<<< HEAD
-=======
                 
                 # Apply custom model ARNs if provided
                 if isinstance(resolved_default, dict):
@@ -143,7 +141,6 @@ def handler(event: Dict[str, Any], context: Any) -> None:
                             resolved_default['extraction']['model'] = properties['CustomExtractionModelARN']
                             logger.info(f"Updated extraction model to: {properties['CustomExtractionModelARN']}")
                 
->>>>>>> origin/develop
                 update_configuration('Default', resolved_default)
             
             # Update Custom configuration if provided and not empty

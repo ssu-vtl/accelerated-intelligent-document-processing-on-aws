@@ -69,12 +69,6 @@ InvokeDataAutomation (with waitForTaskToken)
 **Stack Deployment Parameters:**
 - `BDAProjectArn`: ARN of your Bedrock Data Automation project
 - `IsSummarizationEnabled`: Boolean to enable/disable summarization functionality (true|false)
-<<<<<<< HEAD
-- `EnableHITL`: Boolean to enable/disable Human-in-the-Loop review (true|false)
-- `ConfidenceThreshold`: Numeric value (0-100) that determines when human review is triggered
-- `Existing Private Workforce ARN`: ARN of an existing SageMaker private workforce workteam to use for SageMaker A2I portal Login
-=======
->>>>>>> origin/develop
 - `ConfigurationDefaultS3Uri`: Optional S3 URI to custom configuration (uses default configuration if not specified)
 - `InputBucket`: S3 bucket for input documents
 - `WorkingBucket`: S3 bucket for temporary BDA job output
@@ -84,12 +78,9 @@ InvokeDataAutomation (with waitForTaskToken)
 - `LogRetentionDays`: CloudWatch log retention period
 - `ExecutionTimeThresholdMs`: Latency threshold for alerts
 
-<<<<<<< HEAD
 **Stack Outputs:**
 - `SageMakerA2IReviewPortalURL`: URL for the SageMaker A2I human review portal (when HITL is enabled)
 
-=======
->>>>>>> origin/develop
 **Configuration Management:**
 - Configuration now supports multiple presets per pattern (e.g., default, checkboxed_attributes_extraction, medical_records_summarization)
 - Configuration can be updated through the Web UI without stack redeployment
@@ -264,11 +255,8 @@ Pattern-1 supports Human-in-the-Loop (HITL) review capabilities using Amazon Sag
    - Configure alerts for unusual throttling or error patterns
    - Use appropriate IAM roles with least privilege principles
    - Implement proper error handling for BDA job failures
-<<<<<<< HEAD
 
 6. **HITL Management**:
    - Set appropriate confidence thresholds based on business requirements
    - Regularly check the Review Portal for pending tasks to avoid processing delays
    - Establish consistent correction guidelines if multiple reviewers are involved
-=======
->>>>>>> origin/develop

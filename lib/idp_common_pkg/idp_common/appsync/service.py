@@ -238,8 +238,6 @@ class DocumentAppSyncService:
                 # Convert page IDs to strings
                 page_ids = [str(page_id) for page_id in section_data.get("PageIds", [])]
 
-<<<<<<< HEAD
-=======
                 # Convert confidence threshold alerts
                 confidence_threshold_alerts = []
                 alerts_data = section_data.get("ConfidenceThresholdAlerts", [])
@@ -255,17 +253,13 @@ class DocumentAppSyncService:
                             }
                         )
 
->>>>>>> origin/develop
                 doc.sections.append(
                     Section(
                         section_id=section_data.get("Id", ""),
                         classification=section_data.get("Class", ""),
                         page_ids=page_ids,
                         extraction_result_uri=section_data.get("OutputJSONUri"),
-<<<<<<< HEAD
-=======
                         confidence_threshold_alerts=confidence_threshold_alerts,
->>>>>>> origin/develop
                     )
                 )
 

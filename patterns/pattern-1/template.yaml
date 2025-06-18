@@ -91,7 +91,6 @@ Parameters:
   ConfigLibraryHash:
     Type: String
     Description: "Hash token from config library to force updates when config library changes"
-<<<<<<< HEAD
     
   EnableHITL:
     Type: String
@@ -106,8 +105,6 @@ Parameters:
   SageMakerA2IReviewPortalURL:
     Type: String
     Description: "SageMaker A2I Review Portal URL for HITL tasks"
-=======
->>>>>>> origin/develop
 
 Conditions:
   IsSummarizationEnabled: !Equals [!Ref IsSummarizationEnabled, "true"]

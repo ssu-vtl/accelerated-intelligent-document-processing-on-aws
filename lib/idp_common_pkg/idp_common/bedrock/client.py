@@ -17,10 +17,7 @@ import copy
 import random
 import socket
 from typing import Dict, Any, List, Optional, Union, Tuple
-<<<<<<< HEAD
-=======
 from botocore.config import Config
->>>>>>> origin/develop
 from botocore.exceptions import ClientError, ReadTimeoutError, ConnectTimeoutError, EndpointConnectionError
 from urllib3.exceptions import ReadTimeoutError as Urllib3ReadTimeoutError
 try:
