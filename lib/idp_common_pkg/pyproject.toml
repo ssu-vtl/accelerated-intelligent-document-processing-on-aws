@@ -4,18 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-<<<<<<< HEAD
 
 [project]
 name = "idp_common"
 version = "0.3.3"
-=======
 exclude = ["build", "build.*", "*build", "*build.*", "*.build", "*.build.*", "**build**"]
 
 [project]
 name = "idp_common"
 version = "0.3.4"
->>>>>>> origin/develop
 description = "Common utilities for GenAI IDP Accelerator patterns"
 authors = [
     {name = "AWS", email = "noreply@amazon.com"}
@@ -50,19 +47,16 @@ image = [
 
 # OCR module dependencies
 ocr = [
-<<<<<<< HEAD
     "Pillow>=11.1.0",
     "PyMuPDF>=1.25.5",
     "amazon-textract-textractor[pandas]>=1.9.2",
     "numpy>=1.24.0,<2.0.0",
     "pandas>=1.5.0,<2.3.0"
-=======
     "Pillow==11.2.1",
     "PyMuPDF==1.25.5",
     "amazon-textract-textractor[pandas]==1.9.2",
     "numpy==1.26.4",
     "pandas==2.2.3"
->>>>>>> origin/develop
 ]
 
 # Classification module dependencies
@@ -88,16 +82,13 @@ assessment = [
 # Evaluation module dependencies
 evaluation = [
     "munkres>=1.1.4",  # For Hungarian algorithm
-<<<<<<< HEAD
     "numpy>=1.24.0,<2.0.0",   # For numeric operations
-=======
     "numpy==1.26.4",   # For numeric operations
 ]
 
 # Reporting module dependencies
 reporting = [
     "pyarrow==20.0.0",  # For Parquet conversion
->>>>>>> origin/develop
 ]
 
 # Appsync module dependencies
@@ -111,10 +102,7 @@ test = [
     "pytest-cov>=4.1.0",
     "pytest-xdist>=3.3.1",  # For parallel test execution
     "requests (>=2.32.3,<3.0.0)",
-<<<<<<< HEAD
-=======
     "pyarrow==20.0.0"
->>>>>>> origin/develop
 ]
 
 # Full package with all dependencies
@@ -123,16 +111,13 @@ all = [
     "PyMuPDF==1.25.5",
     "amazon-textract-textractor[pandas]==1.9.2",
     "munkres>=1.1.4",
-<<<<<<< HEAD
     "numpy>=1.24.0,<2.0.0",
     "pandas>=1.5.0,<2.3.0",
     "requests>=2.32.3",
-=======
     "numpy==1.26.4",
     "pandas==2.2.3",
     "requests==2.32.4",
     "pyarrow==20.0.0"
->>>>>>> origin/develop
 ]
 
 [project.urls]
