@@ -3,10 +3,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/develop
 from setuptools import find_packages, setup
 
 # Core dependencies required for all installations
@@ -24,19 +20,11 @@ extras_require = {
     ],
     # OCR module dependencies
     "ocr": [
-<<<<<<< HEAD
-        "Pillow>=11.1.0",
-        "PyMuPDF>=1.25.5",
-        "amazon-textract-textractor[pandas]>=1.9.2,<2.0.0",  # Pin textractor version
-        "numpy>=1.24.0,<2.0.0",  # Pin numpy to stable version compatible with Lambda
-        "pandas>=1.5.0,<3.0.0",  # Pin pandas to stable version compatible with numpy
-=======
         "Pillow==11.2.1",
         "PyMuPDF==1.25.5",
         "amazon-textract-textractor[pandas]==1.9.2",
         "numpy==1.26.4",
         "pandas==2.2.3",
->>>>>>> origin/develop
     ],
     # Classification module dependencies
     "classification": [
@@ -59,17 +47,6 @@ extras_require = {
     "reporting": [
         "pyarrow==20.0.0",  # For Parquet conversion
     ],
-<<<<<<< HEAD
-    # Assessment module dependencies
-    "assessment": [
-        "Pillow>=11.1.0",  # For image handling
-    ],
-    # Evaluation module dependencies
-    "evaluation": [
-        "Pillow>=11.1.0",  # For image handling
-    ],
-=======
->>>>>>> origin/develop
     # Appsync module dependencies
     "appsync": [
         "requests==2.32.4",
@@ -90,14 +67,12 @@ extras_require = {
     ],
     # Full package with all dependencies
     "all": [
-<<<<<<< HEAD
         "Pillow>=11.1.0",
         "PyMuPDF>=1.25.5",
         "amazon-textract-textractor[pandas]>=1.9.2,<2.0.0",  # Pin textractor version
         "requests>=2.32.3",
         "numpy>=1.24.0,<2.0.0",  # Pin numpy to stable version compatible with Lambda
         "pandas>=1.5.0,<3.0.0",  # Pin pandas to stable version compatible with numpy
-=======
         "Pillow==11.2.1",
         "PyMuPDF==1.25.5",
         "amazon-textract-textractor[pandas]==1.9.2",
@@ -106,16 +81,11 @@ extras_require = {
         "pandas==2.2.3",
         "requests==2.32.4",
         "pyarrow==20.0.0",
->>>>>>> origin/develop
     ],
 }
 
 setup(
     name="idp_common",
-<<<<<<< HEAD
-    version="0.3.3",
-    packages=find_packages(),
-=======
     version="0.3.4",
     packages=find_packages(
         exclude=[
@@ -128,7 +98,6 @@ setup(
             "**build**",
         ]
     ),
->>>>>>> origin/develop
     include_package_data=True,
     python_requires=">=3.8",
     install_requires=install_requires,

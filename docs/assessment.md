@@ -13,179 +13,6 @@ The Assessment feature provides automated confidence evaluation of document extr
 - **Per-Attribute Scoring**: Provides individual confidence scores and explanations for each extracted attribute
 - **Token-Optimized Processing**: Uses condensed text confidence data for 80-90% token reduction compared to full OCR results
 - **UI Integration**: Seamlessly displays assessment results in the web interface with explainability information
-<<<<<<< HEAD
-=======
-- **Confidence Threshold Support**: Configurable global and per-attribute confidence thresholds with color-coded visual indicators
-- **Enhanced Visual Feedback**: Real-time confidence assessment with green/red/black color coding in all data viewing interfaces
->>>>>>> origin/develop
-- **Optional Deployment**: Controlled by `IsAssessmentEnabled` parameter (defaults to false for cost optimization)
-- **Flexible Image Usage**: Images only processed when explicitly requested via `{DOCUMENT_IMAGE}` placeholder
-
-## Architecture
-
-### Assessment Workflow
-
-1. **Post-Extraction Processing**: Assessment runs after successful extraction within the same state machine
-2. **Document Analysis**: LLM analyzes extraction results against source document text and optionally images
-3. **Confidence Scoring**: Generates confidence scores (0.0-1.0) with explanatory reasoning for each attribute
-4. **Result Integration**: Appends assessment data to existing extraction results in `explainability_info` format
-5. **UI Display**: Assessment results automatically appear in the web interface visual editor
-
-### State Machine Integration
-
-The assessment step is conditionally integrated into Pattern-2's ProcessSections map state:
-
-```json
-{
-  "AssessSection": {
-    "Type": "Task",
-    "Resource": "arn:aws:states:::lambda:invoke",
-    "Parameters": {
-      "FunctionName": "${AssessmentFunction}",
-      "Payload": {
-        "document.$": "$.document",
-        "section_id.$": "$.section_id"
-      }
-    },
-    "End": true
-  }
-}
-```
-
-## Configuration
-
-### Deployment Parameter
-
-Enable assessment during stack deployment:
-
-```yaml
-Parameters:
-  IsAssessmentEnabled:
-    Type: String
-    Default: "false"
-    AllowedValues: ["true", "false"]
-    Description: Enable assessment functionality for extraction confidence evaluation
-```
-
-### Assessment Configuration Section
-
-Add the assessment section to your configuration YAML:
-
-```yaml
-assessment:
-  model: "anthropic.claude-3-5-sonnet-20241022-v2:0"
-  temperature: 0
-  top_k: 5
-  top_p: 0.1
-  max_tokens: 4096
-  system_prompt: |
-    You are an expert document analyst specializing in assessing the confidence and accuracy of document extraction results.
-  task_prompt: |
-    Assess the confidence of the following extraction results by analyzing them against the source document.
-    
-    Document Class: {DOCUMENT_CLASS}
-    
-    Extraction Results to Assess:
-    {EXTRACTION_RESULTS}
-    
-    Attribute Definitions:
-    {ATTRIBUTE_NAMES_AND_DESCRIPTIONS}
-    
-    Source Document Text:
-    {DOCUMENT_TEXT}
-    
-    OCR Confidence Data:
-    {OCR_TEXT_CONFIDENCE}
-    
-    {DOCUMENT_IMAGE}
-    
-    Provide a confidence assessment for each extracted attribute as a JSON object with this format:
-    {
-      "attribute_name": {
-        "confidence": 0.85,
-        "confidence_reason": "Clear text match found in document with high OCR confidence"
-      }
-    }
-```
-
-### Prompt Placeholders
-
-The assessment prompts support the following placeholders:
-
-| Placeholder | Description |
-|-------------|-------------|
-| `{DOCUMENT_CLASS}` | The classified document type |
-| `{EXTRACTION_RESULTS}` | JSON string of extraction results to assess |
-| `{ATTRIBUTE_NAMES_AND_DESCRIPTIONS}` | Formatted list of attribute names and descriptions |
-| `{DOCUMENT_TEXT}` | Full document text (markdown) from OCR |
-| `{OCR_TEXT_CONFIDENCE}` | Condensed OCR confidence data (80-90% token reduction) |
-| `{DOCUMENT_IMAGE}` | **Optional** - Inserts document images at specified position |
-
-### Image Processing with DOCUMENT_IMAGE
-
-The `{DOCUMENT_IMAGE}` placeholder enables precise control over image inclusion:
-
-#### Text-Only Assessment (Default)
-```yaml
-task_prompt: |
-  Assess extraction results based on document text and OCR confidence data:
-  
-  Document Text: {DOCUMENT_TEXT}
-  OCR Confidence: {OCR_TEXT_CONFIDENCE}
-  Extraction Results: {EXTRACTION_RESULTS}
-```
-
-#### Multimodal Assessment
-```yaml
-task_prompt: |
-  Assess extraction results by analyzing both text and visual document content:
-  
-  Document Text: {DOCUMENT_TEXT}
-  
-  {DOCUMENT_IMAGE}
-  
-  Based on the above document image and text, assess these extraction results:
-  {EXTRACTION_RESULTS}
-```
-
-**Important**: Images are only processed when the `{DOCUMENT_IMAGE}` placeholder is explicitly present in the prompt template.
-
-## Output Format
-
-Assessment results are appended to extraction results in the `explainability_info` format expected by the UI:
-
-```json
-{
-  "inference_result": {
-    "YTDNetPay": "75000",
-    "PayPeriodStartDate": "2024-01-01"
-  },
-  "explainability_info": [
-    {
-      "YTDNetPay": {
-        "confidence": 0.88671875,
-        "confidence_reason": "Clear match found in document text with high OCR confidence in financial section"
-      },
-      "PayPeriodStartDate": {
-        "confidence": 0.8125,
-        "confidence_reason": "Date format clearly visible in pay period section, OCR confidence moderate"
-      }
-    }
-  ],
-  "metadata": {
-    "assessment_time_seconds": 3.47,
-    "assessment_parsing_succeeded": true
-  }
-}
-```
-
-<<<<<<< HEAD
-## UI Integration
-
-Assessment results automatically appear in the web interface:
-
-1. **Visual Editor Modal**: Confidence scores and explanations display alongside extraction results
-=======
 ## Confidence Thresholds
 
 ### Overview
@@ -341,7 +168,6 @@ StateTaxes[0]:
   ├── YTD: 438.36 [Confidence: 84.4% / Threshold: 80.0% - GREEN]
   └── Period: 8.43 [Confidence: 83.2% / Threshold: 80.0% - GREEN]
 ```
->>>>>>> origin/develop
 
 ## Cost Optimization
 
@@ -354,17 +180,6 @@ The assessment feature implements several cost optimization techniques:
 3. **Optional Deployment**: Assessment infrastructure only deployed when `IsAssessmentEnabled=true`
 4. **Efficient Prompting**: Optimized prompt templates minimize token usage while maintaining accuracy
 
-<<<<<<< HEAD
-### Expected Costs
-
-Cost factors for assessment processing:
-
-- **Text-Only Assessment**: ~500-1,000 tokens per page
-- **Multimodal Assessment**: ~1,500-2,500 tokens per page (including image processing)
-- **Model Choice**: Claude 3.5 Sonnet recommended for balanced cost/performance
-- **Processing Time**: ~2-5 seconds per document section
-=======
->>>>>>> origin/develop
 
 ## Testing and Validation
 
@@ -418,13 +233,6 @@ ValueError: "Assessment prompt template formatting failed: missing required plac
 - **Claude 3 Haiku**: Consider for high-volume, cost-sensitive scenarios
 - **Temperature 0**: Use deterministic output for consistent confidence scoring
 
-<<<<<<< HEAD
-### 4. Integration Patterns
-
-- **Conditional Logic**: Implement business rules based on confidence scores
-- **Human Review**: Route low-confidence extractions for manual review
-- **Quality Metrics**: Track confidence distributions to identify improvement opportunities
-=======
 ### 4. Confidence Threshold Configuration
 
 - **Risk-Based Thresholds**: Set higher thresholds (0.90+) for critical financial or personal data
@@ -438,7 +246,6 @@ ValueError: "Assessment prompt template formatting failed: missing required plac
 - **Human Review**: Route low-confidence extractions (below threshold) for manual review
 - **Quality Metrics**: Track confidence distributions to identify improvement opportunities
 - **Visual Feedback**: Leverage color-coded UI indicators for immediate quality assessment
->>>>>>> origin/develop
 
 ## Troubleshooting
 
@@ -464,15 +271,12 @@ ValueError: "Assessment prompt template formatting failed: missing required plac
    - Consider text-only assessment without images
    - Optimize prompt templates to reduce unnecessary context
 
-<<<<<<< HEAD
-=======
 5. **Confidence Threshold Issues**
    - Verify `confidence_threshold` values are between 0.0 and 1.0
    - Check explainability_info structure includes threshold data
    - Ensure UI displays match expected color coding (green/red/black)
    - Validate nested data confidence display for complex structures
 
->>>>>>> origin/develop
 ### Monitoring
 
 Key metrics to monitor:

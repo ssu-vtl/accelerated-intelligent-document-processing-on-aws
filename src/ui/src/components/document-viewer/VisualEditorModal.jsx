@@ -20,162 +20,6 @@ import {
 import { Logger } from 'aws-amplify';
 import generateS3PresignedUrl from '../common/generate-s3-presigned-url';
 import useAppContext from '../../contexts/app';
-<<<<<<< HEAD
-=======
-import { getFieldConfidenceInfo } from '../common/confidence-alerts-utils';
->>>>>>> origin/develop
-
-const logger = new Logger('VisualEditorModal');
-
-// Memoized component to render a bounding box on an image
-const BoundingBox = memo(({ box, page, currentPage, imageRef, zoomLevel = 1, panOffset = { x: 0, y: 0 } }) => {
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-
-  useEffect(() => {
-    if (imageRef.current && page === currentPage) {
-      const updateDimensions = () => {
-        const img = imageRef.current;
-        const rect = img.getBoundingClientRect();
-        const containerRect = img.parentElement.getBoundingClientRect();
-        
-        // Get the actual displayed dimensions and position after all transforms
-        const transformedWidth = rect.width;
-        const transformedHeight = rect.height;
-        const transformedOffsetX = rect.left - containerRect.left;
-        const transformedOffsetY = rect.top - containerRect.top;
-        
-        setDimensions({
-          transformedWidth,
-          transformedHeight,
-          transformedOffsetX,
-          transformedOffsetY,
-        });
-        
-        logger.debug('VisualEditorModal - BoundingBox dimensions updated:', {
-          imageWidth: img.width,
-          imageHeight: img.height,
-          naturalWidth: img.naturalWidth,
-          naturalHeight: img.naturalHeight,
-          offsetX: rect.left - containerRect.left,
-          offsetY: rect.top - containerRect.top,
-          imageRect: rect,
-          containerRect
-        });
-      };
-
-      // Update dimensions when image loads
-      if (imageRef.current.complete && imageRef.current.naturalWidth > 0) {
-        updateDimensions();
-      } else {
-        imageRef.current.addEventListener('load', updateDimensions);
-      }
-
-      return () => {
-        if (imageRef.current) {
-          imageRef.current.removeEventListener('load', updateDimensions);
-        }
-      };
-    }
-    return undefined;
-  }, [imageRef, page, currentPage]);
-
-  // Update dimensions when zoom or pan changes
-  useEffect(() => {
-    if (imageRef.current && page === currentPage) {
-      const updateDimensions = () => {
-        const img = imageRef.current;
-        const rect = img.getBoundingClientRect();
-        const containerRect = img.parentElement.getBoundingClientRect();
-        
-        // Get the actual displayed dimensions and position after all transforms
-        const transformedWidth = rect.width;
-        const transformedHeight = rect.height;
-        const transformedOffsetX = rect.left - containerRect.left;
-        const transformedOffsetY = rect.top - containerRect.top;
-        
-        setDimensions({
-          transformedWidth,
-          transformedHeight,
-          transformedOffsetX,
-          transformedOffsetY,
-        });
-      };
-      
-      // Small delay to allow transforms to complete
-      const timeoutId = setTimeout(updateDimensions, 50);
-      
-      return () => clearTimeout(timeoutId);
-    }
-    return undefined;
-  }, [zoomLevel, panOffset, imageRef, page, currentPage]);
-
-  if (page !== currentPage || !box || !dimensions.transformedWidth) {
-    return null;
-  }
-
-  // Calculate position based on image dimensions with proper zoom and pan handling
-  if (!box.boundingBox) {
-    return null;
-  }
-
-  const bbox = box.boundingBox;
-  
-  // Calculate position and size directly on the transformed image
-  const finalLeft = bbox.left * dimensions.transformedWidth + dimensions.transformedOffsetX;
-  const finalTop = bbox.top * dimensions.transformedHeight + dimensions.transformedOffsetY;
-  const finalWidth = bbox.width * dimensions.transformedWidth;
-  const finalHeight = bbox.height * dimensions.transformedHeight;
-  
-  // Position the bounding box directly without additional transforms
-  const style = {
-    position: 'absolute',
-    left: `${finalLeft}px`,
-    top: `${finalTop}px`,
-    width: `${finalWidth}px`,
-    height: `${finalHeight}px`,
-    border: '2px solid red',
-    pointerEvents: 'none',
-    zIndex: 10,
-    transition: 'all 0.1s ease-out'
-  };
-  
-  logger.debug('VisualEditorModal - BoundingBox style calculated:', {
-    bbox,
-    dimensions,
-    finalLeft,
-    finalTop,
-    finalWidth,
-    finalHeight,
-    style
-  });
-
-  return <div style={style} />;
-});
-
-// Memoized component to render a form field based on its type
-const FormFieldRenderer = memo(({
-  fieldKey,
-  value,
-  onChange,
-  isReadOnly,
-  confidence,
-  geometry,
-  onFieldFocus,
-  onFieldDoubleClick,
-  path = [],
-  explainabilityInfo = null,
-}) => {
-  // Determine field type
-  let fieldType = typeof value;
-  if (Array.isArray(value)) {
-    fieldType = 'array';
-  } else if (value === null || value === undefined) {
-    fieldType = 'null';
-  }
-
-<<<<<<< HEAD
-  // Create label with confidence score if available
-=======
   // Get confidence information from explainability data (for all fields)
   // Filter out structural keys from the path for explainability lookup
   // We need to remove top-level keys like 'inference_result', 'explainability_info', etc.
@@ -206,7 +50,6 @@ const FormFieldRenderer = memo(({
   }
 
   // Create label with confidence score if available (legacy support)
->>>>>>> origin/develop
   const label = confidence !== undefined ? `${fieldKey} (${(confidence * 100).toFixed(1)}%)` : fieldKey;
 
   // Handle field focus - pass geometry info if available
@@ -320,9 +163,6 @@ const FormFieldRenderer = memo(({
           tabIndex={0}
           style={{ cursor: geometry ? 'pointer' : 'default' }}
         >
-<<<<<<< HEAD
-          <FormField label={label}>
-=======
           <FormField label={
             <Box>
               {fieldKey}:
@@ -341,7 +181,6 @@ const FormFieldRenderer = memo(({
               )}
             </Box>
           }>
->>>>>>> origin/develop
             <Input
               value={value || ''}
               disabled={isReadOnly}
@@ -383,9 +222,6 @@ const FormFieldRenderer = memo(({
           tabIndex={0}
           style={{ cursor: geometry ? 'pointer' : 'default' }}
         >
-<<<<<<< HEAD
-          <FormField label={label}>
-=======
           <FormField label={
             <Box>
               {fieldKey}:
@@ -404,7 +240,6 @@ const FormFieldRenderer = memo(({
               )}
             </Box>
           }>
->>>>>>> origin/develop
             <Input
               type="number"
               value={String(value)}
@@ -436,9 +271,6 @@ const FormFieldRenderer = memo(({
           tabIndex={0}
           style={{ cursor: geometry ? 'pointer' : 'default' }}
         >
-<<<<<<< HEAD
-          <FormField label={label}>
-=======
           <FormField label={
             <Box>
               {fieldKey}:
@@ -457,7 +289,6 @@ const FormFieldRenderer = memo(({
               )}
             </Box>
           }>
->>>>>>> origin/develop
             <Checkbox
               checked={Boolean(value)}
               disabled={isReadOnly}
@@ -649,9 +480,6 @@ const FormFieldRenderer = memo(({
           tabIndex={0}
           style={{ cursor: geometry ? 'pointer' : 'default' }}
         >
-<<<<<<< HEAD
-          <FormField label={label}>
-=======
           <FormField label={
             <Box>
               {fieldKey}:
@@ -670,7 +498,6 @@ const FormFieldRenderer = memo(({
               )}
             </Box>
           }>
->>>>>>> origin/develop
             <Input
               value={String(value)}
               disabled={isReadOnly}
@@ -1413,10 +1240,7 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
                     isReadOnly={isReadOnly}
                     onFieldFocus={handleFieldFocus}
                     onFieldDoubleClick={handleFieldDoubleClick}
-<<<<<<< HEAD
-=======
                     path={[]}
->>>>>>> origin/develop
                     explainabilityInfo={jsonData?.explainability_info}
                   />
                 ) : (
