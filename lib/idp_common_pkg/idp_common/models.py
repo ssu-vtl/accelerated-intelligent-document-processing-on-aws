@@ -299,13 +299,6 @@ class Document:
                 # If the status isn't a valid enum value, use QUEUED as default
                 document.status = Status.QUEUED
 
-
-                    confidence_threshold_alerts=section_data.get(
-                        "confidence_threshold_alerts", []
-                    ),
-                )
-            )
-
         return document
 
     @classmethod
