@@ -6,8 +6,6 @@ GREEN := \033[0;32m
 YELLOW := \033[1;33m
 NC := \033[0m  # No Color
 
-<<<<<<< HEAD
-=======
 # Default target - run both lint and test
 all: lint test
 
@@ -15,7 +13,6 @@ all: lint test
 test:
 	$(MAKE) -C lib/idp_common_pkg test
 
->>>>>>> origin/develop
 # Run both linting and formatting in one command
 lint: ruff-lint format
 
@@ -41,9 +38,6 @@ lint-cicd:
 		echo "$(YELLOW)Please run 'make format' locally to fix these issues.$(NC)"; \
 		exit 1; \
 	fi
-<<<<<<< HEAD
-	@echo "$(GREEN)All code quality checks passed!$(NC)"
-=======
 	@echo "$(GREEN)All code quality checks passed!$(NC)"
 
 # A convenience Makefile target that runs 
@@ -53,4 +47,3 @@ commit: lint test
 	git add . && \
 	git commit -am "$${COMMIT_MESSAGE}" && \
 	git push
->>>>>>> origin/develop
