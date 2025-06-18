@@ -12,6 +12,10 @@ import json
 import os
 import logging
 import time
+<<<<<<< HEAD
+=======
+import boto3
+>>>>>>> origin/develop
 from typing import Dict, Any, Optional, List
 from enum import Enum
 
@@ -33,6 +37,10 @@ logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_
 METRIC_NAMESPACE = os.environ.get('METRIC_NAMESPACE', 'GENAIDP')
 BASELINE_BUCKET = os.environ['BASELINE_BUCKET']
 REPORTING_BUCKET = os.environ['REPORTING_BUCKET']
+<<<<<<< HEAD
+=======
+SAVE_REPORTING_FUNCTION_NAME = os.environ.get('SAVE_REPORTING_FUNCTION_NAME', 'SaveReportingData')
+>>>>>>> origin/develop
 
 # Configuration will be loaded in handler function
 
@@ -120,7 +128,7 @@ def load_baseline_document(document_key: str) -> Optional[Document]:
         )
         
         # Check if the expected document has meaningful data
-        if not expected_document.pages or not expected_document.sections:
+        if not expected_document.sections:
             logger.warning(f"No baseline data found for {document_key} in {BASELINE_BUCKET} (empty document)")
             return None
             
@@ -209,8 +217,34 @@ def handler(event, context):
             update_document_evaluation_status(evaluated_document, EvaluationStatus.FAILED)
             return create_response(500, 'Evaluation failed', {'error': error_msg})
        
+<<<<<<< HEAD
         # Save evaluation results to reporting bucket for analytics
         save_evaluation_to_reporting_bucket(evaluated_document, REPORTING_BUCKET)
+=======
+        # Save evaluation results to reporting bucket for analytics using the SaveReportingData Lambda
+        try:
+            logger.info(f"Saving evaluation results to {REPORTING_BUCKET} by calling Lambda {SAVE_REPORTING_FUNCTION_NAME}")
+            lambda_client = boto3.client('lambda')
+            lambda_response = lambda_client.invoke(
+                FunctionName=SAVE_REPORTING_FUNCTION_NAME,
+                InvocationType='RequestResponse',
+                Payload=json.dumps({
+                    'document': evaluated_document.to_dict(),
+                    'reporting_bucket': REPORTING_BUCKET,
+                    'data_to_save': ['evaluation_results']
+                })
+            )
+            
+            # Check the response
+            response_payload = json.loads(lambda_response['Payload'].read().decode('utf-8'))
+            if response_payload.get('statusCode') != 200:
+                logger.warning(f"SaveReportingData Lambda returned non-200 status: {response_payload}")
+            else:
+                logger.info("SaveReportingData Lambda executed successfully")
+        except Exception as e:
+            logger.error(f"Error invoking SaveReportingData Lambda: {str(e)}")
+            # Continue execution - don't fail the entire function if reporting fails
+>>>>>>> origin/develop
         
         # Update document evaluation status to COMPLETED
         update_document_evaluation_status(evaluated_document, EvaluationStatus.COMPLETED)

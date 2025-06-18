@@ -4,7 +4,7 @@
 
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (v<VERSION>)
+Description: AWS GenAI IDP Accelerator (uksb-r8evguc4p9) (SO9027) (v<VERSION>)
 
 Mappings:
   AppSyncLogLevelMap:
@@ -60,6 +60,7 @@ Parameters:
     AllowedPattern: "^(|^arn:aws:bedrock:[a-z0-9-]+:.+:data-automation-project/.+)$"
     Description: For Pattern-1, provide a Bedrock Data Automation (BDA) project ARN, or leave blank to create a sample project for processing the sample lending package.
 
+<<<<<<< HEAD
   Pattern1EnableHITL:
     Type: String
     AllowedValues:
@@ -87,6 +88,13 @@ Parameters:
     Type: String
     Default: "default"
     AllowedValues:
+=======
+
+  Pattern1Configuration:
+    Type: String
+    Default: "default"
+    AllowedValues:
+>>>>>>> origin/develop
       - "default"
     Description: Select the configuration preset for Pattern 1. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md.
 
@@ -104,12 +112,20 @@ Parameters:
   Pattern2CustomClassificationModelARN:
     Type: String
     Default: ""
+<<<<<<< HEAD
     Description: (NOT YET SUPPORTED) Specify Custom Fine Tuned Classification Model ARN. Leave blank to use pretrained model specified in the selected configuration.
+=======
+    Description: Specify Custom Fine Tuned Classification Model ARN. Leave blank to use pretrained model specified in the selected configuration.
+>>>>>>> origin/develop
 
   Pattern2CustomExtractionModelARN:
     Type: String
     Default: ""
+<<<<<<< HEAD
     Description: (NOT YET SUPPORTED) Specify Custom Fine Tuned Extraction Model ARN. Leave blank to use pretrained model specified in the selected configuration.
+=======
+    Description: Specify Custom Fine Tuned Extraction Model ARN. Leave blank to use pretrained model specified in the selected configuration.
+>>>>>>> origin/develop
 
   # Pattern 3 Parameters
 
@@ -141,7 +157,11 @@ Parameters:
     Type: String
     Default: ""
     Description: >-
+<<<<<<< HEAD
       (Optional) Existing bucket used for storing evaluation results in JSON format for analytics.
+=======
+      (Optional) Existing bucket used for analytics. (Currently used for evaluation analytics)
+>>>>>>> origin/develop
       Provide the name of an existing bucket here or leave blank to automatically create a new bucket.
 
   EvaluationAutoEnabled:
@@ -240,8 +260,8 @@ Parameters:
 
   ExecutionTimeThresholdMs:
     Type: Number
-    Default: 30000
-    Description: Maximum acceptable execution time in milliseconds before alerting (default 30000 = 30 seconds)
+    Default: 300000
+    Description: Maximum acceptable execution time in milliseconds before alerting (default 300000 = 300 seconds)
     MinValue: 1000
 
   # Logging configuration
@@ -349,8 +369,11 @@ Rules:
       - Assert: !Not [!Equals [!Ref Pattern3UDOPModelArtifactPath, ""]]
         AssertDescription: UDOP Model Artifact Path is required when IDPPattern is 'Pattern1'
 
+<<<<<<< HEAD
   # Pattern 2 rules - Custom model validation now handled in pattern templates
 
+=======
+>>>>>>> origin/develop
 Conditions:
   IsPattern1:
     !Equals [
@@ -409,9 +432,12 @@ Metadata:
         Parameters:
           - Pattern1Configuration
           - Pattern1BDAProjectArn
+<<<<<<< HEAD
           - Pattern1EnableHITL
           - Pattern1BDAConfidenceThreshold
           - ExistingPrivateWorkforceArn
+=======
+>>>>>>> origin/develop
       - Label:
           default: "Pattern 2 Configuration"
         Parameters:
@@ -438,6 +464,13 @@ Metadata:
           - ReportingBucketName
           - EvaluationAutoEnabled
       - Label:
+<<<<<<< HEAD
+=======
+          default: "Reporting"
+        Parameters:
+          - ReportingBucketName
+      - Label:
+>>>>>>> origin/develop
           default: "Document Knowledge Base"
         Parameters:
           - DocumentKnowledgeBase
@@ -479,12 +512,15 @@ Metadata:
         default: "Pattern2 - Custom Extraction Model ARN"
       Pattern1Configuration:
         default: "Pattern1 - Configuration Preset"
+<<<<<<< HEAD
       Pattern1EnableHITL:
         default: "Pattern1 - Enable Human In The Loop"
       Pattern1BDAConfidenceThreshold:
         default: "Pattern1 - BDA Confidence Threshold"
       ExistingPrivateWorkforceArn:
         default: "Pattern1 - Existing Private Workforce ARN"
+=======
+>>>>>>> origin/develop
       Pattern2Configuration:
         default: "Pattern2 - Configuration Preset"
       Pattern3UDOPModelArtifactPath:
@@ -499,6 +535,11 @@ Metadata:
         default: "Reporting Bucket Name"
       EvaluationAutoEnabled:
         default: "Evaluation Auto Enabled"
+<<<<<<< HEAD
+=======
+      ReportingBucketName:
+        default: "Reporting Bucket Name"
+>>>>>>> origin/develop
       IsSummarizationEnabled:
         default: "Summarization Enabled"
       IsAssessmentEnabled:
@@ -545,6 +586,7 @@ Resources:
     # checkov:skip=CKV_AWS_116: "DLQ not required for Cfn Custom Resource function"
     # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
     # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -602,6 +644,10 @@ Resources:
     # checkov:skip=CKV_AWS_116: "DLQ not required for Cfn Custom Resource function"
     # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
     # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+<<<<<<< HEAD
+=======
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
+>>>>>>> origin/develop
     Properties:
       Handler: index.handler
       Runtime: python3.12
@@ -783,6 +829,7 @@ Resources:
         ConfigurationTable: !Ref ConfigurationTable
         AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
+<<<<<<< HEAD
         ConfidenceThreshold: !Ref Pattern1BDAConfidenceThreshold
         EnableHITL: !Ref Pattern1EnableHITL
         ConfigurationDefaultS3Uri: !Sub "s3://${ConfigurationBucket}/config_library/pattern-1/${Pattern1Configuration}/config.yaml"
@@ -791,6 +838,10 @@ Resources:
           - IsPattern1HITLEnabled
           - !GetAtt WorkforceURLResource.PortalURL
           - ""
+=======
+        ConfigurationDefaultS3Uri: !Sub "s3://${ConfigurationBucket}/config_library/pattern-1/${Pattern1Configuration}/config.yaml"
+        ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
+>>>>>>> origin/develop
 
   PATTERN2STACK:
     DependsOn:
@@ -1063,7 +1114,11 @@ Resources:
 
   ConfigurationBucket:
     Type: AWS::S3::Bucket
+<<<<<<< HEAD
     DeletionPolicy: RetainExceptOnCreate
+=======
+    DeletionPolicy: Retain
+>>>>>>> origin/develop
     Properties:
       NotificationConfiguration:
         EventBridgeConfiguration:
@@ -1328,7 +1383,11 @@ Resources:
         Description: "Table for document-level evaluation metrics"
         TableType: "EXTERNAL_TABLE"
         Parameters: {
+<<<<<<< HEAD
           "classification": "json",
+=======
+          "classification": "parquet",
+>>>>>>> origin/develop
           "typeOfData": "file"
         }
         StorageDescriptor:
@@ -1338,10 +1397,17 @@ Resources:
                 - ShouldCreateReportingBucket
                 - !Ref ReportingBucket
                 - !Ref ReportingBucketName
+<<<<<<< HEAD
           InputFormat: "org.apache.hadoop.mapred.TextInputFormat"
           OutputFormat: "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
           SerdeInfo:
             SerializationLibrary: "org.apache.hadoop.hive.serde2.JsonSerDe"
+=======
+          InputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+          OutputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+          SerdeInfo:
+            SerializationLibrary: "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+>>>>>>> origin/develop
           Columns:
             - Name: document_id
               Type: string
@@ -1384,7 +1450,11 @@ Resources:
         Description: "Table for section-level evaluation metrics"
         TableType: "EXTERNAL_TABLE"
         Parameters: {
+<<<<<<< HEAD
           "classification": "json",
+=======
+          "classification": "parquet",
+>>>>>>> origin/develop
           "typeOfData": "file"
         }
         StorageDescriptor:
@@ -1394,10 +1464,17 @@ Resources:
                 - ShouldCreateReportingBucket
                 - !Ref ReportingBucket
                 - !Ref ReportingBucketName
+<<<<<<< HEAD
           InputFormat: "org.apache.hadoop.mapred.TextInputFormat"
           OutputFormat: "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
           SerdeInfo:
             SerializationLibrary: "org.apache.hadoop.hive.serde2.JsonSerDe"
+=======
+          InputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+          OutputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+          SerdeInfo:
+            SerializationLibrary: "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+>>>>>>> origin/develop
           Columns:
             - Name: document_id
               Type: string
@@ -1440,7 +1517,11 @@ Resources:
         Description: "Table for attribute-level evaluation metrics"
         TableType: "EXTERNAL_TABLE"
         Parameters: {
+<<<<<<< HEAD
           "classification": "json",
+=======
+          "classification": "parquet",
+>>>>>>> origin/develop
           "typeOfData": "file"
         }
         StorageDescriptor:
@@ -1450,10 +1531,17 @@ Resources:
                 - ShouldCreateReportingBucket
                 - !Ref ReportingBucket
                 - !Ref ReportingBucketName
+<<<<<<< HEAD
           InputFormat: "org.apache.hadoop.mapred.TextInputFormat"
           OutputFormat: "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"
           SerdeInfo:
             SerializationLibrary: "org.openx.data.jsonserde.JsonSerDe"
+=======
+          InputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+          OutputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+          SerdeInfo:
+            SerializationLibrary: "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+>>>>>>> origin/develop
           Columns:
             - Name: document_id
               Type: string
@@ -1475,6 +1563,13 @@ Resources:
               Type: string
             - Name: evaluation_method
               Type: string
+<<<<<<< HEAD
+=======
+            - Name: confidence
+              Type: string
+            - Name: confidence_threshold
+              Type: string
+>>>>>>> origin/develop
             - Name: evaluation_date
               Type: timestamp
           Compressed: true
@@ -1487,6 +1582,59 @@ Resources:
             Type: string
           - Name: document
             Type: string
+<<<<<<< HEAD
+=======
+
+  MeteringTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref ReportingDatabase
+      TableInput:
+        Name: "metering"
+        Description: "Table for document metering data"
+        TableType: "EXTERNAL_TABLE"
+        Parameters: {
+          "classification": "parquet",
+          "typeOfData": "file"
+        }
+        StorageDescriptor:
+          Location: !Sub 
+            - "s3://${Bucket}/metering/"
+            - Bucket: !If
+                - ShouldCreateReportingBucket
+                - !Ref ReportingBucket
+                - !Ref ReportingBucketName
+          InputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+          OutputFormat: "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+          SerdeInfo:
+            SerializationLibrary: "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+          Columns:
+            - Name: document_id
+              Type: string
+            - Name: context
+              Type: string
+            - Name: service_api
+              Type: string
+            - Name: unit
+              Type: string
+            - Name: value
+              Type: double
+            - Name: number_of_pages
+              Type: int
+            - Name: timestamp
+              Type: timestamp
+          Compressed: true
+        PartitionKeys:
+          - Name: year
+            Type: string
+          - Name: month
+            Type: string
+          - Name: day
+            Type: string
+          - Name: document
+            Type: string
+>>>>>>> origin/develop
 
   EvaluationBaselineBucket:
     Type: AWS::S3::Bucket
@@ -2137,6 +2285,8 @@ Resources:
           METRIC_NAMESPACE: !Ref AWS::StackName
           APPSYNC_API_URL: !GetAtt GraphQLApi.GraphQLUrl
           OUTPUT_BUCKET: !Ref OutputBucket
+          REPORTING_BUCKET: !If [ShouldCreateReportingBucket, !Ref ReportingBucket, !Ref ReportingBucketName]
+          SAVE_REPORTING_FUNCTION_NAME: !Ref SaveReportingDataFunction
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TrackingTable
@@ -2147,6 +2297,10 @@ Resources:
               Action:
                 - cloudwatch:PutMetricData
               Resource: "*"
+            - Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !GetAtt SaveReportingDataFunction.Arn
             - Effect: Allow
               Action:
                 - appsync:GraphQL
@@ -2244,6 +2398,65 @@ Resources:
       SourceArn: !GetAtt PostProcessingLambdaHookRule.Arn
 
   ##########################################################################
+  # SaveReportingDataFunction Lambda, writes to ReportingBucket
+  ##########################################################################
+
+  SaveReportingDataFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Role requires * resource access for CloudWatch Metrics and Logs"
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this functions as it is called sychronously"
+    Properties:
+      CodeUri: src/lambda/save_reporting_data/
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 300
+      MemorySize: 1024
+      LoggingConfig:
+        LogGroup: !Ref SaveReportingDataFunctionLogGroup
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !If
+              - ShouldCreateReportingBucket
+              - !Ref ReportingBucket
+              - !Ref ReportingBucketName
+        - S3ReadPolicy:
+            BucketName: !Ref OutputBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cloudwatch:PutMetricData
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - kms:Encrypt
+                - kms:Decrypt
+                - kms:ReEncrypt*
+                - kms:GenerateDataKey*
+                - kms:DescribeKey
+              Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+      Environment:
+        Variables:
+          LOG_LEVEL: !Ref LogLevel
+          METRIC_NAMESPACE: !Ref AWS::StackName
+
+  SaveReportingDataFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
+      RetentionInDays: !Ref LogRetentionDays
+
+  ##########################################################################
   # Evaluation Lambda, optionally triggered on completion of workflow
   ##########################################################################
 
@@ -2293,6 +2506,7 @@ Resources:
             - ShouldCreateEvaluationBaselineBucket
             - !Ref EvaluationBaselineBucket
             - !Ref EvaluationBaselineBucketName
+          SAVE_REPORTING_FUNCTION_NAME: !Ref SaveReportingDataFunction
           CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
       Policies:
         - DynamoDBCrudPolicy:
@@ -2306,11 +2520,16 @@ Resources:
             - !Ref EvaluationBaselineBucketName
         - S3CrudPolicy:
             BucketName: !Ref OutputBucket
+<<<<<<< HEAD
         - S3CrudPolicy:
             BucketName: !If
               - ShouldCreateReportingBucket
               - !Ref ReportingBucket
               - !Ref ReportingBucketName
+=======
+        - LambdaInvokePolicy:
+            FunctionName: !Ref SaveReportingDataFunction
+>>>>>>> origin/develop
         - Statement:
             - Effect: Allow
               Action:
@@ -2786,7 +3005,7 @@ Resources:
                 "properties": {
                   "query": "SOURCE '${EvaluationFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
                   "region": "${AWS::Region}",
-                  "title": "Workflow Tracker Lambda Errors",
+                  "title": "Evaluation Tracker Lambda Errors",
                   "view": "table"
                 }
               },
@@ -2797,9 +3016,9 @@ Resources:
                 "width": 12,
                 "height": 6,
                 "properties": {
-                  "query": "SOURCE '${LookupFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
+                  "query": "SOURCE '${SaveReportingDataFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ | sort @timestamp desc | limit 20",
                   "region": "${AWS::Region}",
-                  "title": "Lookup Lambda Errors",
+                  "title": "Save Reporting Data Tracker Lambda Errors",
                   "view": "table"
                 }
               }
@@ -2961,7 +3180,7 @@ Resources:
             <p>When the CloudFormation stack is COMPLETE, use the link below to log in and set your permanent password.
             <p>     https://${CloudFrontDistribution.DomainName}/
             <p>
-            <p>If you have not previously done so, you must request access to the following Amazon Bedrock models: Amazon: Titan Text Embeddings V2, Amazon: Nova models, Anthropic: Claude 3 and 3.x models. (https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
+            <p>If you have not previously done so, you must request access to the following Amazon Bedrock models: Amazon: Titan Text Embeddings V2, Amazon: Nova models, Anthropic: Claude 3, 3.x, and 4.x models. (https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html)
             <p>
             <p>Thanks,</p>
             <p>AWS GenAIIDP Team</p>
@@ -3599,6 +3818,7 @@ Resources:
 
   GraphQLApi:
     Type: AWS::AppSync::GraphQLApi
+    # checkov:skip=CKV_AWS_194: AppSync has Field-Level logging is determined by LogLevel parameter
     Properties:
       Name: !Sub ${AWS::StackName}-api
       AuthenticationType: AMAZON_COGNITO_USER_POOLS
@@ -4881,7 +5101,7 @@ Resources:
               - "true"
           - Name: REACT_APP_CLOUDFRONT_DOMAIN
             Value: !Sub "https://${CloudFrontDistribution.DomainName}/"
-      TimeoutInMinutes: 10
+      TimeoutInMinutes: 30
 
   StartUICodeBuildExecutionRole:
     Type: AWS::IAM::Role

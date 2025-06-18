@@ -23,6 +23,10 @@ def __getattr__(name):
         "evaluation",
         "assessment",
         "models",
+<<<<<<< HEAD
+=======
+        "reporting",
+>>>>>>> origin/develop
     ]:
         if name not in _submodules:
             _submodules[name] = __import__(f"idp_common.{name}", fromlist=["*"])
@@ -54,6 +58,10 @@ __all__ = [
     "evaluation",
     "assessment",
     "models",
+<<<<<<< HEAD
+=======
+    "reporting",
+>>>>>>> origin/develop
     "get_config",
     "Document",
     "Page",

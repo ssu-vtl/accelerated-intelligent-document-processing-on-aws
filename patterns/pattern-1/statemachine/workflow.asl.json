@@ -2,6 +2,7 @@
     "Comment": "Data Automation Async Workflow with Step Functions-managed HITL Integration",
     "StartAt": "InvokeDataAutomation",
     "States": {
+<<<<<<< HEAD
         "InvokeDataAutomation": {
             "Type": "Task",
             "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
@@ -31,6 +32,33 @@
                     "MaxAttempts": 10,
                     "BackoffRate": 2
                 }
+=======
+      "InvokeDataAutomation": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+        "Parameters": {
+          "FunctionName": "${InvokeBDALambdaArn}",
+          "Payload": {
+            "taskToken.$": "$$.Task.Token",
+            "execution_arn.$": "$$.Execution.Id",
+            "working_bucket": "${WorkingBucket}",
+            "BDAProjectArn": "${BDAProjectArn}",
+            "document.$": "$.document"
+          }
+        },
+        "ResultPath": "$.BDAResponse",
+        "Retry": [
+          {
+            "ErrorEquals": [
+              "Sandbox.Timedout",
+              "Lambda.ServiceException",
+              "Lambda.SdkClientException",
+              "Lambda.TooManyRequestsException",
+              "ServiceQuotaExceededException",
+              "ThrottlingException",
+              "ProvisionedThroughputExceededException",
+              "RequestLimitExceeded"
+>>>>>>> origin/develop
             ],
             "Next": "ProcessResultsStep",
             "Catch": [
@@ -42,6 +70,7 @@
                 }
             ]
         },
+<<<<<<< HEAD
         "ProcessResultsStep": {
             "Type": "Task",
             "Resource": "${ProcessResultsLambdaArn}",
@@ -67,6 +96,60 @@
                     "MaxAttempts": 10,
                     "BackoffRate": 2
                 }
+=======
+        "ResultPath": "$.Result",
+        "Retry": [
+            {
+                "ErrorEquals": [
+                    "Sandbox.Timedout",
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException",
+                    "ServiceQuotaExceededException",
+                    "ThrottlingException",
+                    "ProvisionedThroughputExceededException",
+                    "RequestLimitExceeded"
+                ],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 10,
+                "BackoffRate": 2
+            }
+        ],
+        "Next": "SummarizationChoice"
+      },
+      "SummarizationChoice": {
+        "Type": "Choice",
+        "QueryLanguage": "JSONata",
+        "Choices": [
+          {
+            "Condition": "{% ${IsSummarizationEnabled} = true %}",
+            "Next": "SummarizationStep"
+          }
+        ],
+        "Default": "WorkflowComplete"
+      },
+      "SummarizationStep": {
+        "Type": "Task",
+        "Resource": "${SummarizationLambdaArn}",
+        "Parameters": {
+          "execution_arn.$": "$$.Execution.Id",
+          "document.$": "$.Result.document"
+        },
+        "ResultPath": "$.Result",
+        "Retry": [
+          {
+            "ErrorEquals": [
+              "Sandbox.Timedout",
+              "Lambda.ServiceException",
+              "Lambda.AWSLambdaException",
+              "Lambda.SdkClientException",
+              "Lambda.TooManyRequestsException",
+              "ServiceQuotaExceededException",
+              "ThrottlingException",
+              "ProvisionedThroughputExceededException",
+              "RequestLimitExceeded"
+>>>>>>> origin/develop
             ],
             "Next": "CheckHITLRequired"
         },

@@ -7,6 +7,13 @@ This guide covers how to deploy, build, publish, and test the GenAI Intelligent 
 
 ## Deployment Options
 
+<<<<<<< HEAD
+=======
+**IMPORTANT PREREQUISITE:** If you have not previously done so, you must [request access](https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html) to the following Amazon Bedrock models:
+- Amazon: All Nova models, plus Titan Text Embeddings V2
+- Anthropic: Claude 3.x models, Claude 4.x models
+
+>>>>>>> origin/develop
 There are two ways to deploy the GenAIIDP solution:
 
 1. [Quick Start with Pre-built Assets](#option-1-deploy-with-pre-built-assets)
@@ -24,6 +31,10 @@ To quickly deploy the GenAI-IDP solution in your own AWS account:
 | Region name           | Region code | Launch                                                                                                                                                                                                                                                                                                                                                                      |
 | --------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | US West (Oregon)      | us-west-2   | [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.us-west-2.amazonaws.com/aws-ml-blog-us-west-2/artifacts/genai-idp/idp-main.yaml&stackName=IDP) |
+<<<<<<< HEAD
+=======
+| US East (N.Virginia)      | us-east-1   | [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://s3.us-east-1.amazonaws.com/aws-ml-blog-us-east-1/artifacts/genai-idp/idp-main.yaml&stackName=IDP) |
+>>>>>>> origin/develop
 
 3. Review the template parameters and provide values as needed
 4. Check the acknowledgment box and click **Create stack**
@@ -120,7 +131,13 @@ To update an existing GenAIIDP deployment to a new version:
 3. Select your existing GenAIIDP stack
 4. Click on the "Update" button
 5. Select "Replace current template"
+<<<<<<< HEAD
 6. Provide the new template URL: `https://s3.us-west-2.amazonaws.com/aws-ml-blog-us-west-2/artifacts/genai-idp/idp-main.yaml`
+=======
+6. Provide the new template URL: 
+   - us-west-2: `https://s3.us-west-2.amazonaws.com/aws-ml-blog-us-west-2/artifacts/genai-idp/idp-main.yaml`
+   - us-east-1: `https://s3.us-east-1.amazonaws.com/aws-ml-blog-us-east-1/artifacts/genai-idp/idp-main.yaml`
+>>>>>>> origin/develop
 7. Click "Next"
 8. Review the parameters and make any necessary changes
    - The update will preserve your existing parameter values
@@ -140,8 +157,13 @@ To update an existing GenAIIDP deployment to a new version:
 1. Open the `S3InputBucketConsoleURL` and `S3OutputBucketConsoleURL` from the stack Outputs tab
 2. Open the `StateMachineConsoleURL` from the stack Outputs tab
 3. Upload a PDF form to the Input bucket (sample files are in the `./samples` folder):
+<<<<<<< HEAD
    - For Pattern-1 BDA default project: use `samples/lending_package.pdf`
    - For Patterns 2 and 3 default configurations: use `samples/rvl_cdip_package.pdf`
+=======
+   - For Pattern-1 BDA default project: use [samples/lending_package.pdf](../samples/lending_package.pdf)
+   - For Patterns 2 and 3 default configurations: use [samples/rvl_cdip_package.pdf](../samples/rvl_cdip_package.pdf)
+>>>>>>> origin/develop
 4. Monitor the Step Functions execution to observe the workflow
 5. When complete, check the Output bucket for the structured JSON file with extracted fields
 

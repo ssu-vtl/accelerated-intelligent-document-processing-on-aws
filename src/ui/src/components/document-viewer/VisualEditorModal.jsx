@@ -20,6 +20,10 @@ import {
 import { Logger } from 'aws-amplify';
 import generateS3PresignedUrl from '../common/generate-s3-presigned-url';
 import useAppContext from '../../contexts/app';
+<<<<<<< HEAD
+=======
+import { getFieldConfidenceInfo } from '../common/confidence-alerts-utils';
+>>>>>>> origin/develop
 
 const logger = new Logger('VisualEditorModal');
 
@@ -169,7 +173,40 @@ const FormFieldRenderer = memo(({
     fieldType = 'null';
   }
 
+<<<<<<< HEAD
   // Create label with confidence score if available
+=======
+  // Get confidence information from explainability data (for all fields)
+  // Filter out structural keys from the path for explainability lookup
+  // We need to remove top-level keys like 'inference_result', 'explainability_info', etc.
+  const structuralKeys = ['inference_result', 'inferenceResult', 'explainability_info'];
+  let filteredPath = path.filter(
+    (pathSegment) => !structuralKeys.includes(pathSegment) && typeof pathSegment !== 'undefined',
+  );
+  
+  // Remove the field name itself from the path if it's the last element
+  // The path should point to the parent container, not include the field name
+  if (filteredPath.length > 0 && filteredPath[filteredPath.length - 1] === fieldKey) {
+    filteredPath = filteredPath.slice(0, -1);
+  }
+  
+  const confidenceInfo = getFieldConfidenceInfo(fieldKey, explainabilityInfo, filteredPath);
+
+  // Determine color and style for confidence display
+  let confidenceColor;
+  let confidenceStyle;
+  if (confidenceInfo.hasConfidenceInfo) {
+    if (confidenceInfo.displayMode === 'with-threshold') {
+      confidenceColor = confidenceInfo.isAboveThreshold ? 'text-status-success' : 'text-status-error';
+      confidenceStyle = undefined;
+    } else {
+      confidenceColor = undefined;
+      confidenceStyle = { color: confidenceInfo.textColor };
+    }
+  }
+
+  // Create label with confidence score if available (legacy support)
+>>>>>>> origin/develop
   const label = confidence !== undefined ? `${fieldKey} (${(confidence * 100).toFixed(1)}%)` : fieldKey;
 
   // Handle field focus - pass geometry info if available
@@ -283,7 +320,28 @@ const FormFieldRenderer = memo(({
           tabIndex={0}
           style={{ cursor: geometry ? 'pointer' : 'default' }}
         >
+<<<<<<< HEAD
           <FormField label={label}>
+=======
+          <FormField label={
+            <Box>
+              {fieldKey}:
+              {confidenceInfo.hasConfidenceInfo && (
+                <Box
+                  fontSize="body-s"
+                  padding={{ top: 'xxxs' }}
+                  color={confidenceColor}
+                  style={confidenceStyle}
+                >
+                  {confidenceInfo.displayMode === 'with-threshold' 
+                    ? `Confidence: ${(confidenceInfo.confidence * 100).toFixed(1)}% / Threshold: ${(confidenceInfo.confidenceThreshold * 100).toFixed(1)}%`
+                    : `Confidence: ${(confidenceInfo.confidence * 100).toFixed(1)}%`
+                  }
+                </Box>
+              )}
+            </Box>
+          }>
+>>>>>>> origin/develop
             <Input
               value={value || ''}
               disabled={isReadOnly}
@@ -325,7 +383,28 @@ const FormFieldRenderer = memo(({
           tabIndex={0}
           style={{ cursor: geometry ? 'pointer' : 'default' }}
         >
+<<<<<<< HEAD
           <FormField label={label}>
+=======
+          <FormField label={
+            <Box>
+              {fieldKey}:
+              {confidenceInfo.hasConfidenceInfo && (
+                <Box
+                  fontSize="body-s"
+                  padding={{ top: 'xxxs' }}
+                  color={confidenceColor}
+                  style={confidenceStyle}
+                >
+                  {confidenceInfo.displayMode === 'with-threshold' 
+                    ? `Confidence: ${(confidenceInfo.confidence * 100).toFixed(1)}% / Threshold: ${(confidenceInfo.confidenceThreshold * 100).toFixed(1)}%`
+                    : `Confidence: ${(confidenceInfo.confidence * 100).toFixed(1)}%`
+                  }
+                </Box>
+              )}
+            </Box>
+          }>
+>>>>>>> origin/develop
             <Input
               type="number"
               value={String(value)}
@@ -357,7 +436,28 @@ const FormFieldRenderer = memo(({
           tabIndex={0}
           style={{ cursor: geometry ? 'pointer' : 'default' }}
         >
+<<<<<<< HEAD
           <FormField label={label}>
+=======
+          <FormField label={
+            <Box>
+              {fieldKey}:
+              {confidenceInfo.hasConfidenceInfo && (
+                <Box
+                  fontSize="body-s"
+                  padding={{ top: 'xxxs' }}
+                  color={confidenceColor}
+                  style={confidenceStyle}
+                >
+                  {confidenceInfo.displayMode === 'with-threshold' 
+                    ? `Confidence: ${(confidenceInfo.confidence * 100).toFixed(1)}% / Threshold: ${(confidenceInfo.confidenceThreshold * 100).toFixed(1)}%`
+                    : `Confidence: ${(confidenceInfo.confidence * 100).toFixed(1)}%`
+                  }
+                </Box>
+              )}
+            </Box>
+          }>
+>>>>>>> origin/develop
             <Checkbox
               checked={Boolean(value)}
               disabled={isReadOnly}
@@ -549,7 +649,28 @@ const FormFieldRenderer = memo(({
           tabIndex={0}
           style={{ cursor: geometry ? 'pointer' : 'default' }}
         >
+<<<<<<< HEAD
           <FormField label={label}>
+=======
+          <FormField label={
+            <Box>
+              {fieldKey}:
+              {confidenceInfo.hasConfidenceInfo && (
+                <Box
+                  fontSize="body-s"
+                  padding={{ top: 'xxxs' }}
+                  color={confidenceColor}
+                  style={confidenceStyle}
+                >
+                  {confidenceInfo.displayMode === 'with-threshold' 
+                    ? `Confidence: ${(confidenceInfo.confidence * 100).toFixed(1)}% / Threshold: ${(confidenceInfo.confidenceThreshold * 100).toFixed(1)}%`
+                    : `Confidence: ${(confidenceInfo.confidence * 100).toFixed(1)}%`
+                  }
+                </Box>
+              )}
+            </Box>
+          }>
+>>>>>>> origin/develop
             <Input
               value={String(value)}
               disabled={isReadOnly}
@@ -1292,6 +1413,10 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
                     isReadOnly={isReadOnly}
                     onFieldFocus={handleFieldFocus}
                     onFieldDoubleClick={handleFieldDoubleClick}
+<<<<<<< HEAD
+=======
+                    path={[]}
+>>>>>>> origin/develop
                     explainabilityInfo={jsonData?.explainability_info}
                   />
                 ) : (

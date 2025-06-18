@@ -17,10 +17,13 @@ logging.getLogger('idp_common.bedrock.client').setLevel(os.environ.get("BEDROCK_
 # Get LOG_LEVEL from environment variable with INFO as default
 
 METRIC_NAMESPACE = os.environ['METRIC_NAMESPACE']
+REPORTING_BUCKET = os.environ.get('REPORTING_BUCKET')
+SAVE_REPORTING_FUNCTION_NAME = os.environ.get('SAVE_REPORTING_FUNCTION_NAME')
 
 dynamodb = boto3.resource('dynamodb')
 cloudwatch = boto3.client('cloudwatch')
 s3 = boto3.client('s3')
+lambda_client = boto3.client('lambda')
 appsync_service = DocumentAppSyncService()
 concurrency_table = dynamodb.Table(os.environ['CONCURRENCY_TABLE'])
 COUNTER_ID = 'workflow_counter'
@@ -71,6 +74,30 @@ def update_document_completion(object_key: str, workflow_status: str, output_dat
     # Update document in AppSync
     logger.info(f"Updating document via AppSync: {document.to_json()}")
     updated_doc = appsync_service.update_document(document)
+    
+    # Save metering data to reporting bucket if available
+    if REPORTING_BUCKET and SAVE_REPORTING_FUNCTION_NAME and document.metering:
+        try:
+            logger.info(f"Saving metering data to {REPORTING_BUCKET} by calling Lambda {SAVE_REPORTING_FUNCTION_NAME}")
+            lambda_response = lambda_client.invoke(
+                FunctionName=SAVE_REPORTING_FUNCTION_NAME,
+                InvocationType='RequestResponse',
+                Payload=json.dumps({
+                    'document': document.to_dict(),
+                    'reporting_bucket': REPORTING_BUCKET,
+                    'data_to_save': ['metering']
+                })
+            )
+            
+            # Check the response
+            response_payload = json.loads(lambda_response['Payload'].read().decode('utf-8'))
+            if response_payload.get('statusCode') != 200:
+                logger.warning(f"SaveReportingData Lambda returned non-200 status: {response_payload}")
+            else:
+                logger.info("SaveReportingData Lambda executed successfully")
+        except Exception as e:
+            logger.error(f"Error invoking SaveReportingData Lambda: {str(e)}")
+            # Continue execution - don't fail the entire function if reporting fails
     
     return updated_doc
 
