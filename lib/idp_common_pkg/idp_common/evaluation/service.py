@@ -188,9 +188,20 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                                 isinstance(attr_info, dict)
                                 and "confidence" in attr_info
                             ):
+<<<<<<< HEAD
                                 confidence_scores[attr_name] = float(
                                     attr_info["confidence"]
                                 )
+=======
+                                confidence_scores[attr_name] = {
+                                    "confidence": float(attr_info["confidence"]),
+                                    "confidence_threshold": float(
+                                        attr_info.get("confidence_threshold", None)
+                                    )
+                                    if attr_info.get("confidence_threshold") is not None
+                                    else None,
+                                }
+>>>>>>> origin/develop
 
             return extraction_results, confidence_scores
         except Exception:
@@ -395,8 +406,12 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
         section: Section,
         expected_results: Dict[str, Any],
         actual_results: Dict[str, Any],
+<<<<<<< HEAD
         expected_confidence_scores: Dict[str, float] = None,
         actual_confidence_scores: Dict[str, float] = None,
+=======
+        confidence_scores: Dict[str, float] = None,
+>>>>>>> origin/develop
     ) -> SectionEvaluationResult:
         """
         Evaluate extraction results for a document section.
@@ -405,8 +420,12 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             section: Document section
             expected_results: Expected extraction results
             actual_results: Actual extraction results
+<<<<<<< HEAD
             expected_confidence_scores: Confidence scores for expected values from assessment
             actual_confidence_scores: Confidence scores for actual values from assessment
+=======
+            confidence_scores: Confidence scores for actual values from assessment
+>>>>>>> origin/develop
 
         Returns:
             Evaluation results for the section
@@ -508,6 +527,7 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                 )
 
                 # Set confidence scores if available
+<<<<<<< HEAD
                 if expected_confidence_scores:
                     attribute_result.expected_confidence = (
                         expected_confidence_scores.get(task["attr_name"])
@@ -516,6 +536,15 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                     attribute_result.actual_confidence = actual_confidence_scores.get(
                         task["attr_name"]
                     )
+=======
+                if confidence_scores:
+                    confidence_info = confidence_scores.get(task["attr_name"])
+                    if isinstance(confidence_info, dict):
+                        attribute_result.confidence = confidence_info.get("confidence")
+                        attribute_result.confidence_threshold = confidence_info.get(
+                            "confidence_threshold"
+                        )
+>>>>>>> origin/develop
 
                 # Add to attribute results
                 attribute_results.append(attribute_result)
@@ -569,6 +598,7 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                             None,
                         )
                         if task:
+<<<<<<< HEAD
                             if expected_confidence_scores:
                                 attribute_result.expected_confidence = (
                                     expected_confidence_scores.get(task["attr_name"])
@@ -577,6 +607,19 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                                 attribute_result.actual_confidence = (
                                     actual_confidence_scores.get(task["attr_name"])
                                 )
+=======
+                            if confidence_scores:
+                                confidence_info = confidence_scores.get(
+                                    task["attr_name"]
+                                )
+                                if isinstance(confidence_info, dict):
+                                    attribute_result.confidence = confidence_info.get(
+                                        "confidence"
+                                    )
+                                    attribute_result.confidence_threshold = (
+                                        confidence_info.get("confidence_threshold")
+                                    )
+>>>>>>> origin/develop
 
                         # Add to attribute results
                         attribute_results.append(attribute_result)
@@ -636,9 +679,13 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             # Return empty result
             return None, {}
 
+<<<<<<< HEAD
         actual_results, actual_confidence_scores = self._load_extraction_results(
             actual_uri
         )
+=======
+        actual_results, confidence_scores = self._load_extraction_results(actual_uri)
+>>>>>>> origin/develop
         expected_results, expected_confidence_scores = self._load_extraction_results(
             expected_uri
         )
@@ -648,8 +695,12 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
             section=actual_section,
             expected_results=expected_results,
             actual_results=actual_results,
+<<<<<<< HEAD
             expected_confidence_scores=expected_confidence_scores,
             actual_confidence_scores=actual_confidence_scores,
+=======
+            confidence_scores=confidence_scores,
+>>>>>>> origin/develop
         )
 
         # Count matches and mismatches in the attributes
@@ -830,12 +881,24 @@ IMPORTANT: Respond ONLY with a valid JSON object and nothing else. Here's the ex
                     bucket=output_bucket,
                     key=report_key,
                     content_type="text/markdown",
+<<<<<<< HEAD
                 )
 
                 # Update document with evaluation report URI
                 actual_document.evaluation_report_uri = (
                     f"s3://{output_bucket}/{report_key}"
                 )
+=======
+                )
+
+                # Update document with evaluation report and results URIs
+                actual_document.evaluation_report_uri = (
+                    f"s3://{output_bucket}/{report_key}"
+                )
+                actual_document.evaluation_results_uri = (
+                    f"s3://{output_bucket}/{output_key}"
+                )
+>>>>>>> origin/develop
                 actual_document.status = Status.COMPLETED
 
                 logger.info(

@@ -43,6 +43,20 @@ Services for interacting with Amazon Bedrock Data Automation (BDA) for document 
 
 Services for storing and retrieving documents through AWS AppSync GraphQL API, with seamless conversion between Document objects and AppSync schema.
 
+### Reporting
+
+Services for saving document data to reporting storage for analytics:
+
+```python
+from idp_common.reporting import SaveReportingData
+
+# Initialize the reporting service
+reporter = SaveReportingData("reporting-bucket")
+
+# Save evaluation results for a document
+results = reporter.save(document, data_to_save=["evaluation_results"])
+```
+
 ## Key Classes
 
 ### Document

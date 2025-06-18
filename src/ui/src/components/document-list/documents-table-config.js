@@ -79,6 +79,13 @@ export const COLUMN_DEFINITIONS_MAIN = [
     sortingField: 'evaluationStatus',
     width: 150,
   },
+  {
+    id: 'confidenceAlertCount',
+    header: 'Confidence Alerts',
+    cell: (item) => item.confidenceAlertCount || 0,
+    sortingField: 'confidenceAlertCount',
+    width: 150,
+  },
 ];
 
 export const DEFAULT_SORT_COLUMN = COLUMN_DEFINITIONS_MAIN[2];
@@ -107,6 +114,7 @@ const VISIBLE_CONTENT_OPTIONS = [
       { id: 'completionTime', label: 'Completed' },
       { id: 'duration', label: 'Duration' },
       { id: 'evaluationStatus', label: 'Evaluation' },
+      { id: 'confidenceAlertCount', label: 'Confidence Alerts' },
     ],
   },
 ];
@@ -120,6 +128,7 @@ const VISIBLE_CONTENT = [
   'completionTime',
   'duration',
   'evaluationStatus',
+  'confidenceAlertCount',
 ];
 
 export const DEFAULT_PREFERENCES = {

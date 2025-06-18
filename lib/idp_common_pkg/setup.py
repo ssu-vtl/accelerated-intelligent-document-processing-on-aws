@@ -3,12 +3,15 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/develop
 from setuptools import find_packages, setup
 
 # Core dependencies required for all installations
 install_requires = [
-    "boto3>=1.37.29",  # Core dependency for AWS services
+    "boto3==1.38.36",  # Core dependency for AWS services
 ]
 
 # Optional dependencies by component
@@ -17,24 +20,46 @@ extras_require = {
     "core": [],
     # Image handling dependencies
     "image": [
-        "Pillow>=11.1.0",
+        "Pillow==11.2.1",
     ],
     # OCR module dependencies
     "ocr": [
+<<<<<<< HEAD
         "Pillow>=11.1.0",
         "PyMuPDF>=1.25.5",
         "amazon-textract-textractor[pandas]>=1.9.2,<2.0.0",  # Pin textractor version
         "numpy>=1.24.0,<2.0.0",  # Pin numpy to stable version compatible with Lambda
         "pandas>=1.5.0,<3.0.0",  # Pin pandas to stable version compatible with numpy
+=======
+        "Pillow==11.2.1",
+        "PyMuPDF==1.25.5",
+        "amazon-textract-textractor[pandas]==1.9.2",
+        "numpy==1.26.4",
+        "pandas==2.2.3",
+>>>>>>> origin/develop
     ],
     # Classification module dependencies
     "classification": [
-        "Pillow>=11.1.0",  # For image handling
+        "Pillow==11.2.1",  # For image handling
     ],
     # Extraction module dependencies
     "extraction": [
-        "Pillow>=11.1.0",  # For image handling
+        "Pillow==11.2.1",  # For image handling
     ],
+    # Assessment module dependencies
+    "assessment": [
+        "Pillow==11.2.1",  # For image handling
+    ],
+    # Evaluation module dependencies
+    "evaluation": [
+        "munkres>=1.1.4",  # For Hungarian algorithm
+        "numpy==1.26.4",  # For numeric operations
+    ],
+    # Reporting module dependencies
+    "reporting": [
+        "pyarrow==20.0.0",  # For Parquet conversion
+    ],
+<<<<<<< HEAD
     # Assessment module dependencies
     "assessment": [
         "Pillow>=11.1.0",  # For image handling
@@ -43,25 +68,67 @@ extras_require = {
     "evaluation": [
         "Pillow>=11.1.0",  # For image handling
     ],
+=======
+>>>>>>> origin/develop
     # Appsync module dependencies
     "appsync": [
-        "requests>=2.32.3",
+        "requests==2.32.4",
+    ],
+    # Testing dependencies
+    "test": [
+        "pytest>=7.4.0",
+        "pytest-cov>=4.1.0",
+        "pytest-xdist>=3.3.1",  # For parallel test execution
+        "requests>=2.32.3,<3.0.0",
+        "pyarrow==20.0.0",
+    ],
+    # Development dependencies
+    "dev": [
+        "python-dotenv>=1.1.0,<2.0.0",
+        "ipykernel>=6.29.5,<7.0.0",
+        "jupyter>=1.1.1,<2.0.0",
     ],
     # Full package with all dependencies
     "all": [
+<<<<<<< HEAD
         "Pillow>=11.1.0",
         "PyMuPDF>=1.25.5",
         "amazon-textract-textractor[pandas]>=1.9.2,<2.0.0",  # Pin textractor version
         "requests>=2.32.3",
         "numpy>=1.24.0,<2.0.0",  # Pin numpy to stable version compatible with Lambda
         "pandas>=1.5.0,<3.0.0",  # Pin pandas to stable version compatible with numpy
+=======
+        "Pillow==11.2.1",
+        "PyMuPDF==1.25.5",
+        "amazon-textract-textractor[pandas]==1.9.2",
+        "munkres>=1.1.4",
+        "numpy==1.26.4",
+        "pandas==2.2.3",
+        "requests==2.32.4",
+        "pyarrow==20.0.0",
+>>>>>>> origin/develop
     ],
 }
 
 setup(
     name="idp_common",
+<<<<<<< HEAD
     version="0.3.3",
     packages=find_packages(),
+=======
+    version="0.3.4",
+    packages=find_packages(
+        exclude=[
+            "build",
+            "build.*",
+            "*build",
+            "*build.*",
+            "*.build",
+            "*.build.*",
+            "**build**",
+        ]
+    ),
+>>>>>>> origin/develop
     include_package_data=True,
     python_requires=">=3.8",
     install_requires=install_requires,
