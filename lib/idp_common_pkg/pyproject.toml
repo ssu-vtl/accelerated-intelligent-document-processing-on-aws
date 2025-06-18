@@ -7,11 +7,6 @@ where = ["."]
 
 [project]
 name = "idp_common"
-version = "0.3.3"
-exclude = ["build", "build.*", "*build", "*build.*", "*.build", "*.build.*", "**build**"]
-
-[project]
-name = "idp_common"
 version = "0.3.4"
 description = "Common utilities for GenAI IDP Accelerator patterns"
 authors = [
