@@ -24,7 +24,7 @@
   },
   "extraction": {
     "top_p": "0.1",
-    "max_tokens": "4096",
+    "max_tokens": "10000",
     "top_k": "5",
     "temperature": "0.0",
     "model": "us.amazon.nova-pro-v1:0",
@@ -34,12 +34,12 @@
   "assessment": {
     "default_confidence_threshold": "0.9",
     "top_p": "0.1",
-    "max_tokens": "4096",
+    "max_tokens": "10000",
     "top_k": "5",
     "temperature": "0.0",
-    "model": "us.amazon.nova-pro-v1:0",
-    "system_prompt": "You are a document analysis assessment expert. Your task is to evaluate the confidence and accuracy of extraction results by analyzing the source document evidence. Respond only with JSON containing confidence scores and reasoning for each extracted attribute.",
-    "task_prompt": "<background>\nYou are an expert document analysis assessment system. Your task is to evaluate the confidence and accuracy of extraction results for a document of class {DOCUMENT_CLASS}.\n</background>\n\n<task>\nAnalyze the extraction results against the source document and provide confidence assessments for each extracted attribute. Consider factors such as:\n1. Text clarity and OCR quality in the source regions 2. Alignment between extracted values and document content 3. Presence of clear evidence supporting the extraction 4. Potential ambiguity or uncertainty in the source material 5. Completeness and accuracy of the extracted information\n</task>\n\n<assessment-guidelines>\nFor each attribute, provide: 1. A confidence score between 0.0 and 1.0 where:\n   - 1.0 = Very high confidence, clear and unambiguous evidence\n   - 0.8-0.9 = High confidence, strong evidence with minor uncertainty\n   - 0.6-0.7 = Medium confidence, reasonable evidence but some ambiguity\n   - 0.4-0.5 = Low confidence, weak or unclear evidence\n   - 0.0-0.3 = Very low confidence, little to no supporting evidence\n\n2. A clear reason explaining the confidence score, including:\n   - What evidence supports or contradicts the extraction\n   - Any OCR quality issues that affect confidence\n   - Clarity of the source document in relevant areas\n   - Any ambiguity or uncertainty factors\n\nGuidelines: - Base assessments on actual document content and OCR quality - Consider both text-based evidence and visual/layout clues - Account for OCR confidence scores when provided - Be objective and specific in reasoning - If an extraction appears incorrect, score accordingly with explanation\n</assessment-guidelines>\n<attributes-definitions>\n{ATTRIBUTE_NAMES_AND_DESCRIPTIONS}\n</attributes-definitions>\n\n<<CACHEPOINT>>\n\n<extraction-results>\n{EXTRACTION_RESULTS}\n</extraction-results>\n\n<document-image>\n{DOCUMENT_IMAGE}\n</document-image>\n\n<ocr-text-confidence-results>\n{OCR_TEXT_CONFIDENCE}\n</ocr-text-confidence-results>\n\n<final-instructions>\nAnalyze the extraction results against the source document and provide confidence assessments. Return a JSON object with the following structure:\n\n  {\n    \"attribute_name_1\": {\n      \"confidence_score\": 0.85,\n      \"confidence_reason\": \"Clear text evidence found in document header with high OCR confidence (0.98). Value matches exactly.\"\n    },\n    \"attribute_name_2\": {\n      \"confidence_score\": 0.65,\n      \"confidence_reason\": \"Text is partially unclear due to poor scan quality. OCR confidence low (0.72) in this region.\"\n    }\n  }\n\nInclude assessments for ALL attributes present in the extraction results.\n</final-instructions>"
+    "model": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    "system_prompt": "You are a document analysis assessment expert. Your task is to evaluate the confidence of extraction results by analyzing the source document evidence. Respond only with JSON containing confidence scores for each extracted attribute.",
+    "task_prompt": "<background>\nYou are an expert document analysis assessment system. Your task is to evaluate the confidence of extraction results for a document of class {DOCUMENT_CLASS}.\n</background>\n\n<task>\nAnalyze the extraction results against the source document and provide confidence assessments for each extracted attribute. Consider factors such as:\n1. Text clarity and OCR quality in the source regions 2. Alignment between extracted values and document content 3. Presence of clear evidence supporting the extraction 4. Potential ambiguity or uncertainty in the source material 5. Completeness and accuracy of the extracted information\n</task>\n\n<assessment-guidelines>\nFor each attribute, provide: A confidence score between 0.0 and 1.0 where:\n   - 1.0 = Very high confidence, clear and unambiguous evidence\n   - 0.8-0.9 = High confidence, strong evidence with minor uncertainty\n   - 0.6-0.7 = Medium confidence, reasonable evidence but some ambiguity\n   - 0.4-0.5 = Low confidence, weak or unclear evidence\n   - 0.0-0.3 = Very low confidence, little to no supporting evidence\n\nGuidelines: - Base assessments on actual document content and OCR quality - Consider both text-based evidence and visual/layout clues - Account for OCR confidence scores when provided - Be objective and specific in reasoning - If an extraction appears incorrect, score accordingly with explanation\n</assessment-guidelines>\n<attributes-definitions>\n{ATTRIBUTE_NAMES_AND_DESCRIPTIONS}\n</attributes-definitions>\n\n<<CACHEPOINT>>\n\n<extraction-results>\n{EXTRACTION_RESULTS}\n</extraction-results>\n\n<document-image>\n{DOCUMENT_IMAGE}\n</document-image>\n\n<ocr-text-confidence-results>\n{OCR_TEXT_CONFIDENCE}\n</ocr-text-confidence-results>\n\n<final-instructions>\nAnalyze the extraction results against the source document and provide confidence assessments. Return a JSON object with the following structure based on the attribute type:\nFor SIMPLE attributes: {\n  \"simple_attribute_name\": {\n    \"confidence\": 0.85\n  }\n}\nFor GROUP attributes (nested object structure): {\n  \"group_attribute_name\": {\n    \"sub_attribute_1\": {\n      \"confidence\": 0.90\n    },\n    \"sub_attribute_2\": {\n      \"confidence\": 0.75\n    }\n  }\n}\nFor LIST attributes (array of assessed items): {\n  \"list_attribute_name\": [\n    {\n      \"item_attribute_1\": {\n        \"confidence\": 0.95\n      },\n      \"item_attribute_2\": {\n        \"confidence\": 0.88\n      }\n    },\n    {\n      \"item_attribute_1\": {\n        \"confidence\": 0.92\n      },\n      \"item_attribute_2\": {\n        \"confidence\": 0.70\n      }\n    }\n  ]\n}\nIMPORTANT:  - For LIST attributes like \"Transactions\", assess EACH individual item in the list separately - Each transaction should be assessed as a separate object in the array - Do NOT provide aggregate assessments for list items - assess each one individually - Include assessments for ALL attributes present in the extraction results - Match the exact structure of the extracted data\n</final-instructions>"
   },
   "summarization": {
     "top_p": "0.1",
@@ -63,143 +63,83 @@
   },
   "classes": [
     {
-      "name": "letter",
-      "description": "A formal written correspondence with sender/recipient addresses, date, salutation, body, and closing signature",
+      "name": "Bank Statement",
+      "description": "Monthly bank account statement",
       "attributes": [
         {
-          "name": "sender_name",
-          "description": "The name of the person or entity who wrote or sent the letter. Look for text following or near terms like 'from', 'sender', 'authored by', 'written by', or at the end of the letter before a signature.",
-          "confidence_threshold": "0.85"
+          "name": "Account Number",
+          "description": "Primary account identifier",
+          "attributeType": "simple",
+          "evaluation_method": "EXACT"
         },
         {
-          "name": "sender_address",
-          "description": "The physical address of the sender, typically appearing at the top of the letter. May be labeled as 'address', 'location', or 'from address'.",
-          "confidence_threshold": "0.8"
+          "name": "Statement Period",
+          "description": "Statement period (e.g., January 2024)",
+          "evaluation_threshold": "0.8",
+          "attributeType": "simple",
+          "evaluation_method": "FUZZY"
         },
         {
-          "name": "recipient_name",
-          "description": "The name of the person or entity receiving the letter. Look for this after 'to', 'recipient', 'addressee', or at the beginning of the letter.",
-          "confidence_threshold": "0.9"
+          "name": "Account Holder Address",
+          "description": "Complete address information for the account holder",
+          "attributeType": "group",
+          "groupAttributes": [
+            {
+              "name": "Street Number",
+              "description": "House or building number",
+              "evaluation_threshold": "0.9",
+              "evaluation_method": "FUZZY"
+            },
+            {
+              "name": "Street Name",
+              "description": "Name of the street",
+              "evaluation_threshold": "0.8",
+              "evaluation_method": "FUZZY"
+            },
+            {
+              "name": "City",
+              "description": "City name",
+              "evaluation_threshold": "0.9",
+              "evaluation_method": "FUZZY"
+            },
+            {
+              "name": "State",
+              "description": "State abbreviation (e.g., CA, NY)",
+              "evaluation_method": "EXACT"
+            },
+            {
+              "name": "ZIP Code",
+              "description": "5 or 9 digit postal code",
+              "evaluation_method": "EXACT"
+            }
+          ]
         },
         {
-          "name": "recipient_address",
-          "description": "The physical address where the letter is to be delivered. Often labeled as 'to address' or 'delivery address', typically appearing below the recipient name."
-        },
-        {
-          "name": "date",
-          "description": "The date when the letter was written. Look for a standalone date or text following phrases like 'written on' or 'dated'."
-        },
-        {
-          "name": "subject",
-          "description": "The topic or main point of the letter. Often preceded by 'subject', 'RE:', or 'regarding'."
-        },
-        {
-          "name": "letter_type",
-          "description": "The category or classification of the letter, such as 'complaint', 'inquiry', 'invitation', etc. May be indicated by 'type' or 'category'."
-        },
-        {
-          "name": "signature",
-          "description": "The handwritten name or mark of the sender at the end of the letter. May follow terms like 'signed by' or simply appear at the bottom of the document."
-        },
-        {
-          "name": "cc",
-          "description": "Names of people who receive a copy of the letter in addition to the main recipient. Often preceded by 'cc', 'carbon copy', or 'copy to'."
-        },
-        {
-          "name": "reference_number",
-          "description": "An identifying number or code associated with the letter. Look for labels like 'ref', 'reference', or 'our ref'."
-        }
-      ]
-    },
-    {
-      "name": "form",
-      "description": "A structured document with labeled fields, checkboxes, or blanks requiring user input and completion",
-      "attributes": [
-        {
-          "name": "form_type",
-          "description": "The category or purpose of the form, such as 'application', 'registration', 'request', etc. May be identified by 'form name', 'document type', or 'form category'."
-        },
-        {
-          "name": "form_id",
-          "description": "The unique identifier for the form, typically a number or alphanumeric code. Often labeled as 'form number', 'id', or 'reference number'."
-        },
-        {
-          "name": "submission_date",
-          "description": "The date when the form was submitted or filed. Look for text near 'date', 'submitted on', or 'filed on'."
-        },
-        {
-          "name": "submitter_name",
-          "description": "The name of the person who submitted the form. May be labeled as 'name', 'submitted by', or 'filed by'."
-        },
-        {
-          "name": "submitter_id",
-          "description": "An identification number for the person submitting the form, such as social security number, employee ID, etc. Often labeled as 'id number', 'identification', or 'reference'."
-        },
-        {
-          "name": "approval_status",
-          "description": "The current state of approval for the form, such as 'approved', 'pending', 'rejected', etc. Look for terms like 'status', 'approved', or 'pending'."
-        },
-        {
-          "name": "processed_by",
-          "description": "The name of the person or department that processed the form. May be indicated by 'processor', 'handled by', or 'approved by'."
-        },
-        {
-          "name": "processing_date",
-          "description": "The date when the form was processed or completed. Look for labels like 'processed on' or 'completion date'."
-        },
-        {
-          "name": "department",
-          "description": "The organizational unit responsible for the form. Often abbreviated as 'dept' or may appear as 'department' or 'division'."
-        },
-        {
-          "name": "comments",
-          "description": "Additional notes or remarks about the form. Look for sections labeled 'notes', 'remarks', or 'comments'."
-        }
-      ]
-    },
-    {
-      "name": "email",
-      "description": "A digital message with email headers (To/From/Subject), timestamps, and conversational threading",
-      "attributes": [
-        {
-          "name": "from_address",
-          "description": "The email address of the sender. Look for text following 'from', 'sender', or 'sent by', typically at the beginning of the email header."
-        },
-        {
-          "name": "to_address",
-          "description": "The email address of the primary recipient. May be labeled as 'to', 'recipient', or 'sent to'."
-        },
-        {
-          "name": "cc_address",
-          "description": "Email addresses of additional recipients who receive copies. Look for 'cc' or 'carbon copy' followed by one or more email addresses."
-        },
-        {
-          "name": "bcc_address",
-          "description": "Email addresses of hidden recipients. May be labeled as 'bcc' or 'blind copy'."
-        },
-        {
-          "name": "subject",
-          "description": "The topic of the email. Often preceded by 'subject', 'RE:', or 'regarding'."
-        },
-        {
-          "name": "date_sent",
-          "description": "The date and time when the email was sent. Look for 'date', 'sent on', or 'received', typically in the email header."
-        },
-        {
-          "name": "attachments",
-          "description": "Files included with the email. May be indicated by 'attached', 'attachment', or 'enclosed', often with icons or file names."
-        },
-        {
-          "name": "priority",
-          "description": "The urgency level of the email, such as 'high', 'normal', etc. Look for 'priority' or 'importance'."
-        },
-        {
-          "name": "thread_id",
-          "description": "An identifier for the email conversation. May be labeled as 'thread' or 'conversation', typically not visible to regular users."
-        },
-        {
-          "name": "message_id",
-          "description": "A unique identifier for the specific email. Look for 'message id' or 'email id', usually hidden in the email metadata."
+          "name": "Transactions",
+          "listItemTemplate": {
+            "itemAttributes": [
+              {
+                "name": "Date",
+                "description": "Transaction date (MM/DD/YYYY)",
+                "evaluation_threshold": "0.9",
+                "evaluation_method": "FUZZY"
+              },
+              {
+                "name": "Description",
+                "description": "Transaction description or merchant name",
+                "evaluation_threshold": "0.7",
+                "evaluation_method": "SEMANTIC"
+              },
+              {
+                "name": "Amount",
+                "description": "Transaction amount (positive for deposits, negative for withdrawals)",
+                "evaluation_method": "NUMERIC_EXACT"
+              }
+            ],
+            "itemDescription": "Individual transaction record"
+          },
+          "description": "List of all transactions in the statement period",
+          "attributeType": "list"
         }
       ]
     }

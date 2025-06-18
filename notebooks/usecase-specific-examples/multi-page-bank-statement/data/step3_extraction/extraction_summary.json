@@ -6,15 +6,15 @@
     {
       "section_id": "1",
       "classification": "Bank Statement",
-      "processing_time": 79.17185592651367,
-      "extraction_result_uri": "s3://idp-modular-output-912625584728-us-west-2/modular-sample-2025-06-18_12-50-56.pdf/sections/1/result.json"
+      "processing_time": 64.8215057849884,
+      "extraction_result_uri": "s3://idp-modular-output-912625584728-us-west-2/modular-sample-2025-06-18_15-02-12.pdf/sections/1/result.json"
     }
   ],
   "sections_with_extractions": [
     {
       "section_id": "1",
       "classification": "Bank Statement",
-      "extraction_result_uri": "s3://idp-modular-output-912625584728-us-west-2/modular-sample-2025-06-18_12-50-56.pdf/sections/1/result.json",
+      "extraction_result_uri": "s3://idp-modular-output-912625584728-us-west-2/modular-sample-2025-06-18_15-02-12.pdf/sections/1/result.json",
       "has_results": true
     }
   ]

@@ -50,13 +50,6 @@ classes:
                 Transaction amount (positive for deposits, negative for
                 withdrawals)
               evaluation_method: NUMERIC_EXACT
-            - name: Balance
-              description: Account balance after this transaction
-              evaluation_method: NUMERIC_EXACT
-            - name: Category
-              description: Transaction category (if available)
-              evaluation_threshold: '0.8'
-              evaluation_method: SEMANTIC
           itemDescription: Individual transaction record
         description: List of all transactions in the statement period
         attributeType: list

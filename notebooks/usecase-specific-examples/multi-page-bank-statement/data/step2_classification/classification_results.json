@@ -1,5 +1,5 @@
 {
-  "processing_time_seconds": 3.2643401622772217,
+  "processing_time_seconds": 3.1609437465667725,
   "classification_method": "textbasedHolisticClassification",
   "model_used": "us.amazon.nova-pro-v1:0",
   "num_sections": 1,
