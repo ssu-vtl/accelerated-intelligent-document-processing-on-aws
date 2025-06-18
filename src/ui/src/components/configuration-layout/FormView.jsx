@@ -465,6 +465,65 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     const currentPath = path ? `${path}.${key}` : key;
     const value = getValueAtPath(formValues, currentPath);
 
+    // Check dependencies FIRST, before any rendering - applies to all field types
+    if (property.dependsOn) {
+      const dependencyField = property.dependsOn.field;
+      const dependencyValues = Array.isArray(property.dependsOn.values)
+        ? property.dependsOn.values
+        : [property.dependsOn.value];
+
+      let dependencyPath;
+
+      // Special handling for nested attributes looking for attributeType
+      if (
+        dependencyField === 'attributeType' &&
+        (currentPath.includes('groupAttributes[') || currentPath.includes('listItemTemplate.itemAttributes['))
+      ) {
+        // For nested attributes, attributeType is in the parent attribute, not the nested attribute itself
+        if (currentPath.includes('groupAttributes[')) {
+          // For groupAttributes: classes[0].attributes[1].groupAttributes[0].field
+          // -> classes[0].attributes[1].attributeType
+          const attributeMatch = currentPath.match(/^(.+\.attributes\[\d+\])\.groupAttributes/);
+          dependencyPath = attributeMatch ? `${attributeMatch[1]}.attributeType` : null;
+        } else if (currentPath.includes('listItemTemplate.itemAttributes[')) {
+          // For listItemTemplate: classes[0].attributes[1].listItemTemplate.itemAttributes[0].field
+          // -> classes[0].attributes[1].attributeType
+          const attributeMatch = currentPath.match(/^(.+\.attributes\[\d+\])\.listItemTemplate\.itemAttributes/);
+          dependencyPath = attributeMatch ? `${attributeMatch[1]}.attributeType` : null;
+        }
+
+        if (!dependencyPath) {
+          console.warn(`Could not resolve attributeType dependency path for nested attribute: ${currentPath}`);
+          return null; // Hide field if we can't resolve the dependency
+        }
+      } else {
+        // Normal dependency resolution
+        const parentPath = currentPath.substring(0, currentPath.lastIndexOf('.'));
+        dependencyPath = parentPath.length > 0 ? `${parentPath}.${dependencyField}` : dependencyField;
+      }
+
+      // Get the current value of the dependency field
+      const dependencyValue = getValueAtPath(formValues, dependencyPath);
+
+      // Debug logging for dependency checking
+      console.log(`DEBUG renderField dependency check for ${key}:`, {
+        key,
+        currentPath,
+        dependencyField,
+        dependencyPath,
+        dependencyValue,
+        dependencyValues,
+        isNestedAttribute:
+          currentPath.includes('groupAttributes[') || currentPath.includes('listItemTemplate.itemAttributes['),
+        shouldHide: dependencyValue === undefined || !dependencyValues.includes(dependencyValue),
+      });
+
+      // If dependency value doesn't match any required values, hide this field
+      if (dependencyValue === undefined || !dependencyValues.includes(dependencyValue)) {
+        return null; // Don't render this field
+      }
+    }
+
     if (property.type === 'list' || property.type === 'array') {
       return renderListField(key, property, currentPath);
     }
@@ -515,17 +574,74 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
       );
     }
 
-    // For nested objects with sectionLabel, use container with section header
+    // For nested objects with sectionLabel, use the same styling as list headers
     if (property.sectionLabel && !isTopLevel) {
       const sectionTitle = property.sectionLabel;
-      return (
-        <Container header={<Header variant="h3">{sectionTitle}</Header>}>
+      const objectKey = `object:${fullPath}`;
+
+      // Toggle expansion state
+      const toggleExpand = () => {
+        setExpandedItems((prev) => ({
+          ...prev,
+          [objectKey]: !prev[objectKey],
+        }));
+      };
+
+      // Check if expanded - default to collapsed
+      const isExpanded = expandedItems[objectKey] === true;
+
+      // Object header similar to list header
+      const objectHeader = (
+        <Box
+          padding={{ left: `${nestLevel * 16}px`, top: '0', bottom: '0' }}
+          borderBottom="divider-light"
+          backgroundColor="background-paper-default"
+          borderRadius="xs"
+          style={{ minHeight: '24px', marginBottom: '2px' }}
+        >
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+            onClick={toggleExpand}
+            style={{ cursor: 'pointer', padding: '2px 0' }}
+          >
+            <Box display="flex" alignItems="center" flexDirection="row" className="awsui-box-inline">
+              <Button
+                variant="icon"
+                iconName={isExpanded ? 'caret-down-filled' : 'caret-right-filled'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleExpand();
+                }}
+                ariaLabel={isExpanded ? 'Collapse section' : 'Expand section'}
+                style={{ margin: '0', padding: '0', display: 'inline-flex' }}
+                className="awsui-button-icon"
+              />
+              <Box fontWeight="bold" fontSize="body-m" marginLeft="xxs" display="inline-block">
+                {sectionTitle}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      );
+
+      // Object content - only shown when expanded
+      const objectContent = isExpanded && (
+        <Box padding={{ left: `${nestLevel * 50 + 200}px`, top: '0' }} className="list-content-indented">
           <SpaceBetween size="s">
             {getSortedObjectProperties(property.properties).map(({ propKey, propSchema }) => {
               return <Box key={propKey}>{renderField(propKey, propSchema, fullPath)}</Box>;
             })}
           </SpaceBetween>
-        </Container>
+        </Box>
+      );
+
+      return (
+        <Box margin={{ top: '8px', bottom: '8px' }}>
+          {objectHeader}
+          {objectContent}
+        </Box>
       );
     }
 
@@ -546,6 +662,8 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
   }
 
   function renderListField(key, property, path) {
+    // Dependencies are now checked in the main renderField function
+
     const values = getValueAtPath(formValues, path) || [];
 
     // Add debug info
@@ -708,20 +826,116 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                           }))
                           .sort((a, b) => a.order - b.order);
 
-                        // Add debugging to see actual column count
-                        console.log(`Rendering ${columnCount} columns for ${propEntries.length} properties`);
+                        // Function to check if a field should be visible (not hidden by dependencies)
+                        const isFieldVisible = (propKey, propSchema) => {
+                          if (!propSchema.dependsOn) return true;
 
-                        // Separate regular fields from list fields
-                        const regularProps = [];
-                        const listProps = [];
+                          const dependencyField = propSchema.dependsOn.field;
+                          const dependencyValues = Array.isArray(propSchema.dependsOn.values)
+                            ? propSchema.dependsOn.values
+                            : [propSchema.dependsOn.value];
 
-                        // Identify and separate the fields
-                        propEntries.forEach(({ propKey, prop: propSchema }) => {
-                          if (propSchema.type === 'list' || propSchema.type === 'array') {
-                            listProps.push({ propKey, propSchema });
+                          let dependencyPath;
+                          const fieldPath = `${itemPath}.${propKey}`;
+
+                          // Special handling for nested attributes looking for attributeType
+                          if (
+                            dependencyField === 'attributeType' &&
+                            (fieldPath.includes('groupAttributes[') ||
+                              fieldPath.includes('listItemTemplate.itemAttributes['))
+                          ) {
+                            if (fieldPath.includes('groupAttributes[')) {
+                              const attributeMatch = fieldPath.match(/^(.+\.attributes\[\d+\])\.groupAttributes/);
+                              dependencyPath = attributeMatch ? `${attributeMatch[1]}.attributeType` : null;
+                            } else if (fieldPath.includes('listItemTemplate.itemAttributes[')) {
+                              const attributeMatch = fieldPath.match(
+                                /^(.+\.attributes\[\d+\])\.listItemTemplate\.itemAttributes/,
+                              );
+                              dependencyPath = attributeMatch ? `${attributeMatch[1]}.attributeType` : null;
+                            }
                           } else {
+                            const parentPath = fieldPath.substring(0, fieldPath.lastIndexOf('.'));
+                            dependencyPath =
+                              parentPath.length > 0 ? `${parentPath}.${dependencyField}` : dependencyField;
+                          }
+
+                          if (!dependencyPath) return false;
+
+                          const dependencyValue = getValueAtPath(formValues, dependencyPath);
+                          return dependencyValue !== undefined && dependencyValues.includes(dependencyValue);
+                        };
+
+                        // Separate regular fields from special fields (lists, objects with dependencies)
+                        const regularProps = [];
+                        const specialProps = []; // For lists, objects with dependsOn, or objects with sectionLabel
+
+                        // Identify and separate the fields, filtering out hidden ones
+                        propEntries.forEach(({ propKey, prop: propSchema }) => {
+                          if (
+                            propSchema.type === 'list' ||
+                            propSchema.type === 'array' ||
+                            (propSchema.type === 'object' && (propSchema.dependsOn || propSchema.sectionLabel))
+                          ) {
+                            specialProps.push({ propKey, propSchema });
+                          } else if (isFieldVisible(propKey, propSchema)) {
+                            // Only include regular fields that are actually visible
                             regularProps.push({ propKey, propSchema });
                           }
+                        });
+
+                        // Add debugging to see field distribution
+                        console.log(`Field distribution for ${key}:`, {
+                          totalProperties: propEntries.length,
+                          requestedColumns: columnCount,
+                          visibleRegularFields: regularProps.length,
+                          specialFields: specialProps.length,
+                          hiddenByDependencies: propEntries.length - regularProps.length - specialProps.length,
+                        });
+
+                        // Enhanced column distribution algorithm - only for visible fields
+                        const distributeFieldsToColumns = (fields, numColumns) => {
+                          // Create columns array
+                          const columns = Array.from({ length: numColumns }, () => []);
+
+                          // Special handling for description field - it should span full width if it exists
+                          const descriptionField = fields.find(({ propKey }) => propKey === 'description');
+                          const nonDescriptionFields = fields.filter(({ propKey }) => propKey !== 'description');
+
+                          // Calculate optimal column count based on actual field count
+                          const actualColumnCount = Math.min(numColumns, Math.max(1, nonDescriptionFields.length));
+
+                          // Distribute non-description fields evenly across columns using round-robin
+                          nonDescriptionFields.forEach((field, fieldIndex) => {
+                            const targetColumn = fieldIndex % actualColumnCount;
+                            columns[targetColumn].push(field);
+                          });
+
+                          // Return only the columns that have content
+                          const nonEmptyColumns = columns.slice(0, actualColumnCount);
+
+                          return {
+                            columns: nonEmptyColumns,
+                            descriptionField,
+                            actualColumnCount,
+                          };
+                        };
+
+                        const {
+                          columns: fieldColumns,
+                          descriptionField,
+                          actualColumnCount,
+                        } = distributeFieldsToColumns(regularProps, columnCount);
+
+                        // Calculate maximum rows needed
+                        const maxRows = Math.max(...fieldColumns.map((col) => col.length));
+
+                        // Validation and debugging for field distribution
+                        console.log(`Distribution result for ${key}:`, {
+                          actualColumnCount,
+                          maxRows,
+                          columnLengths: fieldColumns.map((col) => col.length),
+                          totalFieldsDistributed: fieldColumns.reduce((sum, col) => sum + col.length, 0),
+                          hasDescription: !!descriptionField,
                         });
 
                         // Render the regular fields using HTML table for guaranteed columns
@@ -731,53 +945,81 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                               style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '4px 0', margin: 0 }}
                             >
                               <tbody style={{ margin: 0, padding: 0 }}>
-                                {/* Split fields into rows based on columnCount */}
-                                {Array.from({ length: Math.ceil(regularProps.length / columnCount) }).map(
-                                  (rowItem, rowIndex) => (
-                                    <tr key={`row-${rowIndex}`}>
-                                      {Array.from({ length: columnCount }).map((colItem, colIndex) => {
-                                        const fieldIndex = rowIndex * columnCount + colIndex;
-                                        if (fieldIndex >= regularProps.length)
-                                          return <td key={`empty-${colIndex}`} aria-hidden="true" />;
-
-                                        const { propKey, propSchema } = regularProps[fieldIndex];
-                                        const propPath = `${itemPath}.${propKey}`;
-                                        const propValue = getValueAtPath(formValues, propPath);
-
-                                        // Skip rendering the name field since it's already shown in the header
-                                        if (propKey === 'name') {
-                                          return <td key={propKey} style={{ display: 'none' }} aria-hidden="true" />;
-                                        }
-
-                                        return (
-                                          <td
-                                            key={propKey}
-                                            style={{ verticalAlign: 'top', width: `${100 / columnCount}%` }}
-                                          >
-                                            <Box padding="0">
-                                              {renderInputField(propKey, propSchema, propValue, propPath)}
-                                            </Box>
-                                          </td>
-                                        );
-                                      })}
-                                    </tr>
-                                  ),
+                                {/* Render description field first if it exists, spanning full width */}
+                                {descriptionField && (
+                                  <tr key="description-row">
+                                    <td colSpan={actualColumnCount} style={{ verticalAlign: 'top' }}>
+                                      <Box padding="0">
+                                        {renderField(descriptionField.propKey, descriptionField.propSchema, itemPath)}
+                                      </Box>
+                                    </td>
+                                  </tr>
                                 )}
+
+                                {/* Render fields in balanced columns - only create rows with content */}
+                                {maxRows > 0 &&
+                                  Array.from({ length: maxRows })
+                                    .map((_, rowIndex) => {
+                                      // Check if this row has any actual content
+                                      const rowHasContent = fieldColumns.some((column) => {
+                                        const field = column[rowIndex];
+                                        return field && field.propKey !== 'name';
+                                      });
+
+                                      // Skip empty rows
+                                      if (!rowHasContent) {
+                                        return null;
+                                      }
+
+                                      return (
+                                        <tr key={`row-${rowIndex}`}>
+                                          {fieldColumns
+                                            .map((column, colIndex) => {
+                                              const field = column[rowIndex];
+
+                                              // Skip name field - already shown in header
+                                              if (field && field.propKey === 'name') {
+                                                return null;
+                                              }
+
+                                              // Only render cells that have actual content
+                                              if (!field) {
+                                                return null;
+                                              }
+
+                                              const { propKey, propSchema } = field;
+
+                                              return (
+                                                <td
+                                                  key={`${propKey}-${colIndex}-${rowIndex}`}
+                                                  style={{
+                                                    verticalAlign: 'top',
+                                                    width: `${100 / actualColumnCount}%`,
+                                                    padding: '0 4px',
+                                                  }}
+                                                >
+                                                  <Box padding="0">{renderField(propKey, propSchema, itemPath)}</Box>
+                                                </td>
+                                              );
+                                            })
+                                            .filter(Boolean)}
+                                        </tr>
+                                      );
+                                    })
+                                    .filter(Boolean)}
                               </tbody>
                             </table>
                           </Box>
                         );
 
-                        // Render any list fields (like attributes)
-                        const renderedListFields = listProps.map(({ propKey, propSchema }) => {
-                          const propPath = `${itemPath}.${propKey}`;
-
-                          // Configure nested list with proper indentation
-                          const nestedListProps = {
+                        // Render any special fields (lists, objects with dependencies)
+                        const renderedSpecialFields = specialProps.map(({ propKey, propSchema }) => {
+                          // Configure nested field with proper indentation
+                          const nestedProps = {
                             ...propSchema,
                             // Add 1 to nestLevel for each nesting level with higher multiplier
                             nestLevel: nextNestLevel + 1, // Increase nesting level for better visual distinction
-                            // Explicitly set columns for the nested list
+                            // Explicitly set columns for nested fields
                             columns: propSchema.columns || 2,
                           };
 
@@ -788,19 +1030,19 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
                               width="100%"
                               margin={{ bottom: '4px' }}
                             >
-                              {renderListField(propKey, nestedListProps, propPath)}
+                              {renderField(propKey, nestedProps, itemPath)}
                             </Box>
                           );
                         });
 
-                        // Return both the regular fields and any list fields
+                        // Return both the regular fields and any special fields
                         return (
                           <Box style={{ margin: 0, padding: 0 }}>
                             {renderedRegularFields}
-                            {renderedListFields.length > 0 && (
+                            {renderedSpecialFields.length > 0 && (
                               <>
                                 {regularProps.length > 0 && <Box padding="4px 0" margin="4px 0" />}
-                                <Box padding="0">{renderedListFields}</Box>
+                                <Box padding="0">{renderedSpecialFields}</Box>
                               </>
                             )}
                           </Box>
@@ -866,26 +1108,21 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
   }
 
   function renderInputField(key, property, value, path) {
-    // Check if this field depends on another field's value
-    if (property.dependsOn) {
-      const dependencyField = property.dependsOn.field;
-      const dependencyValues = Array.isArray(property.dependsOn.values)
-        ? property.dependsOn.values
-        : [property.dependsOn.value];
+    // Special handling for attributeType field to provide default value BEFORE dependency checking
+    let displayValue = value;
+    if (key === 'attributeType' && (value === undefined || value === null || value === '')) {
+      // Set default value to 'simple' for backward compatibility - do this synchronously
+      displayValue = 'simple';
+      // Update the form values immediately to ensure dependency checking works
+      updateValue(path, 'simple');
+    }
 
-      // Get the parent path (directory containing the current field)
-      const parentPath = path.substring(0, path.lastIndexOf('.'));
+    // Dependencies are now checked in the main renderField function
 
-      // Get the full path to the dependency field
-      const dependencyPath = parentPath.length > 0 ? `${parentPath}.${dependencyField}` : dependencyField;
-
-      // Get the current value of the dependency field
-      const dependencyValue = getValueAtPath(formValues, dependencyPath);
-
-      // If dependency value doesn't match any required values, hide this field
-      if (dependencyValue === undefined || !dependencyValues.includes(dependencyValue)) {
-        return null; // Don't render this field
-      }
+    // If this is an object type, it should be rendered as an object field, not an input field
+    if (property.type === 'object') {
+      console.log(`Redirecting object type ${key} to renderObjectField`);
+      return renderObjectField(key, property, path.substring(0, path.lastIndexOf('.')) || '');
     }
 
     let input;
@@ -961,7 +1198,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     } else if (property.enum) {
       input = (
         <Select
-          selectedOption={{ value: value || '', label: value || '' }}
+          selectedOption={{ value: displayValue || '', label: displayValue || '' }}
           onChange={({ detail }) => updateValue(path, detail.selectedOption.value)}
           options={property.enum.map((opt) => ({ value: opt, label: opt }))}
         />
@@ -973,14 +1210,14 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     ) {
       input = (
         <Textarea
-          value={value !== undefined && value !== null ? String(value) : ''}
+          value={displayValue !== undefined && displayValue !== null ? String(displayValue) : ''}
           onChange={({ detail }) => updateValue(path, detail.value)}
           rows={3}
           className="expandable-textarea"
         />
       );
     } else if (property.type === 'boolean') {
-      input = <Toggle checked={!!value} onChange={({ detail }) => updateValue(path, detail.checked)} />;
+      input = <Toggle checked={!!displayValue} onChange={({ detail }) => updateValue(path, detail.checked)} />;
     } else if (property.type === 'array' || property.type === 'list') {
       // This should not happen if renderField is working correctly
       console.error(`Incorrectly trying to render array as input field: ${path}`);
@@ -988,7 +1225,7 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
     } else {
       input = (
         <Input
-          value={value !== undefined && value !== null ? String(value) : ''}
+          value={displayValue !== undefined && displayValue !== null ? String(displayValue) : ''}
           type={property.type === 'number' ? 'number' : 'text'}
           onChange={({ detail }) => {
             let finalValue = detail.value;

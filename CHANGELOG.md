@@ -8,6 +8,7 @@ SPDX-License-Identifier: MIT-0
 ## [Unreleased]
 
 ### Added
+- New example notebooks with improved clarity, modularity, and documentation.
 - Added confidence threshold to evaluation outputs to enable prioritizing accuracy results for attributes with higher confidence thersholds.
 - Comprehensive Metering Data: The system now captures and stores detailed metering data for analytics, including:
    • Which services were used (Textract, Bedrock, etc.)
