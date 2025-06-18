@@ -221,13 +221,11 @@ class Document:
                 section_dict["attributes"] = section.attributes
             result["sections"].append(section_dict)
 
-
         # Add HITL metadata if it has any values
         if self.hitl_metadata:
             result["hitl_metadata"] = [
                 metadata.to_dict() for metadata in self.hitl_metadata
             ]
-
 
         return result
 
@@ -287,7 +285,6 @@ class Document:
                     page_ids=section_data.get("page_ids", []),
                     extraction_result_uri=section_data.get("extraction_result_uri"),
                     attributes=section_data.get("attributes"),
-
                 )
             )
 
