@@ -21,6 +21,45 @@ from idp_common.models import Document
 logger = logging.getLogger(__name__)
 
 
+def _safe_float_conversion(value: Any, default: float = 0.0) -> float:
+    """
+    Safely convert a value to float, handling strings and None values.
+
+    Args:
+        value: Value to convert to float
+        default: Default value if conversion fails
+
+    Returns:
+        Float value or default if conversion fails
+    """
+    if value is None:
+        return default
+
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    if isinstance(value, str):
+        # Handle empty strings
+        if not value.strip():
+            return default
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            logger.warning(
+                f"Could not convert string '{value}' to float, using default {default}"
+            )
+            return default
+
+    # Handle other types by attempting conversion
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        logger.warning(
+            f"Could not convert {type(value)} '{value}' to float, using default {default}"
+        )
+        return default
+
+
 class AssessmentService:
     """Service for assessing extraction result confidence using LLMs."""
 
@@ -127,7 +166,10 @@ class AssessmentService:
         # First check top-level attributes
         for attr in attributes:
             if attr.get("name") == attr_name:
-                return float(attr.get("confidence_threshold", default_threshold))
+                return _safe_float_conversion(
+                    attr.get("confidence_threshold", default_threshold),
+                    default_threshold,
+                )
 
         # Check nested group attributes
         for attr in attributes:
@@ -135,8 +177,9 @@ class AssessmentService:
                 group_attributes = attr.get("groupAttributes", [])
                 for group_attr in group_attributes:
                     if group_attr.get("name") == attr_name:
-                        return float(
-                            group_attr.get("confidence_threshold", default_threshold)
+                        return _safe_float_conversion(
+                            group_attr.get("confidence_threshold", default_threshold),
+                            default_threshold,
                         )
 
         # Check nested list item attributes
@@ -146,8 +189,9 @@ class AssessmentService:
                 item_attributes = list_template.get("itemAttributes", [])
                 for item_attr in item_attributes:
                     if item_attr.get("name") == attr_name:
-                        return float(
-                            item_attr.get("confidence_threshold", default_threshold)
+                        return _safe_float_conversion(
+                            item_attr.get("confidence_threshold", default_threshold),
+                            default_threshold,
                         )
 
         # Return default if not found
@@ -247,7 +291,9 @@ class AssessmentService:
         """
         for sub_attr_name, sub_assessment in assessment_data.items():
             if isinstance(sub_assessment, dict) and "confidence" in sub_assessment:
-                confidence = sub_assessment.get("confidence", 0.0)
+                confidence = _safe_float_conversion(
+                    sub_assessment.get("confidence", 0.0), 0.0
+                )
                 if confidence < threshold:
                     full_attr_name = (
                         f"{attr_name}.{sub_attr_name}"
@@ -627,11 +673,17 @@ class AssessmentService:
             # Get assessment configuration
             assessment_config = self.config.get("assessment", {})
             model_id = self.config.get("model_id") or assessment_config.get("model")
-            temperature = float(assessment_config.get("temperature", 0))
-            top_k = float(assessment_config.get("top_k", 5))
-            top_p = float(assessment_config.get("top_p", 0.1))
+            temperature = _safe_float_conversion(
+                assessment_config.get("temperature", 0), 0.0
+            )
+            top_k = _safe_float_conversion(assessment_config.get("top_k", 5), 5.0)
+            top_p = _safe_float_conversion(assessment_config.get("top_p", 0.1), 0.1)
             max_tokens = (
-                int(assessment_config.get("max_tokens", 4096))
+                int(
+                    _safe_float_conversion(
+                        assessment_config.get("max_tokens", 4096), 4096
+                    )
+                )
                 if assessment_config.get("max_tokens")
                 else None
             )
