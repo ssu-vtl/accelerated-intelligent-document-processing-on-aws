@@ -76,7 +76,7 @@ class BedrockClient:
         """Lazy-loaded Bedrock client."""
         config = Config(
             connect_timeout=10,
-            read_timeout=120
+            read_timeout=300  # allow plenty of time for large extraction or assessment inferences
             )
         if self._client is None:
             self._client = boto3.client('bedrock-runtime', region_name=self.region, config=config)
