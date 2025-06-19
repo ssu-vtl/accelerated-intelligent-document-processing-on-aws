@@ -309,6 +309,21 @@ class AssessmentService:
             )
             return
 
+        # First check if this assessment_data itself is a direct confidence assessment
+        if "confidence" in assessment_data:
+            confidence = _safe_float_conversion(
+                assessment_data.get("confidence", 0.0), 0.0
+            )
+            if confidence < threshold:
+                alerts_list.append(
+                    {
+                        "attribute_name": attr_name,
+                        "confidence": confidence,
+                        "confidence_threshold": threshold,
+                    }
+                )
+
+        # Then check for nested sub-attributes (for group/complex attributes)
         for sub_attr_name, sub_assessment in assessment_data.items():
             if isinstance(sub_assessment, dict) and "confidence" in sub_assessment:
                 confidence = _safe_float_conversion(
