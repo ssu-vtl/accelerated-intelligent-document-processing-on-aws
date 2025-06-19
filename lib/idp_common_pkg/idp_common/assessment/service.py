@@ -309,17 +309,20 @@ class AssessmentService:
             )
             return
 
+        # Safety check: ensure threshold is a valid float
+        safe_threshold = _safe_float_conversion(threshold, 0.9)
+
         # First check if this assessment_data itself is a direct confidence assessment
         if "confidence" in assessment_data:
             confidence = _safe_float_conversion(
                 assessment_data.get("confidence", 0.0), 0.0
             )
-            if confidence < threshold:
+            if confidence < safe_threshold:
                 alerts_list.append(
                     {
                         "attribute_name": attr_name,
                         "confidence": confidence,
-                        "confidence_threshold": threshold,
+                        "confidence_threshold": safe_threshold,
                     }
                 )
 
@@ -329,7 +332,7 @@ class AssessmentService:
                 confidence = _safe_float_conversion(
                     sub_assessment.get("confidence", 0.0), 0.0
                 )
-                if confidence < threshold:
+                if confidence < safe_threshold:
                     full_attr_name = (
                         f"{attr_name}.{sub_attr_name}"
                         if "." not in attr_name
@@ -339,7 +342,7 @@ class AssessmentService:
                         {
                             "attribute_name": full_attr_name,
                             "confidence": confidence,
-                            "confidence_threshold": threshold,
+                            "confidence_threshold": safe_threshold,
                         }
                     )
 
@@ -803,8 +806,8 @@ class AssessmentService:
                 parsing_succeeded = False  # Mark that parsing failed
 
             # Get confidence thresholds
-            default_confidence_threshold = assessment_config.get(
-                "default_confidence_threshold", 0.9
+            default_confidence_threshold = _safe_float_conversion(
+                assessment_config.get("default_confidence_threshold", 0.9), 0.9
             )
 
             # Enhance assessment data with confidence thresholds and create confidence threshold alerts
