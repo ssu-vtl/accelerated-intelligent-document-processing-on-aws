@@ -461,6 +461,9 @@ function build_main_template() {
   # Upload and validate main template
   aws s3 cp .aws-sam/${MAIN_TEMPLATE} s3://${BUCKET}/${PREFIX}/${MAIN_TEMPLATE} || exit 1
   local TEMPLATE_URL="https://s3.${REGION}.amazonaws.com/${BUCKET}/${PREFIX}/${MAIN_TEMPLATE}"
+
+  # Also make a version tagged copy of main template for easy installation of specific versions
+  aws s3 cp .aws-sam/${MAIN_TEMPLATE} s3://${BUCKET}/${PREFIX}/${MAIN_TEMPLATE%.yaml}_${VERSION}.yaml
   
   echo "Validating template: $TEMPLATE_URL"
   aws cloudformation validate-template --template-url $TEMPLATE_URL > /dev/null || exit 1
