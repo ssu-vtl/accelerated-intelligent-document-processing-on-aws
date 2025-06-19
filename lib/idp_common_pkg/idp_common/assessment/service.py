@@ -858,20 +858,11 @@ class AssessmentService:
                         # Create a default assessment structure
                         default_assessment = {
                             "confidence": 0.5,
-                            "confidence_reason": f"LLM returned list format for non-list attribute '{attr_name}'. Using default confidence.",
+                            "confidence_reason": f"LLM returned list format for non-list attribute '{attr_name}'. Using default confidence (0.5) and threshold ({attr_threshold}).",
                             "confidence_threshold": attr_threshold,
                         }
                         enhanced_assessment_data[attr_name] = default_assessment
 
-                        # Add alert since we're using default confidence
-                        if 0.5 < attr_threshold:
-                            confidence_threshold_alerts.append(
-                                {
-                                    "attribute_name": attr_name,
-                                    "confidence": 0.5,
-                                    "confidence_threshold": attr_threshold,
-                                }
-                            )
                 else:
                     # Handle other unexpected types
                     logger.warning(
@@ -882,20 +873,10 @@ class AssessmentService:
                     # Create a default assessment structure
                     default_assessment = {
                         "confidence": 0.5,
-                        "confidence_reason": f"LLM returned unexpected type {type(attr_assessment)} for attribute '{attr_name}'. Using default confidence.",
+                        "confidence_reason": f"LLM returned unexpected type {type(attr_assessment)} for attribute '{attr_name}'. Using default confidence (0.5) and threshold ({attr_threshold}).",
                         "confidence_threshold": attr_threshold,
                     }
                     enhanced_assessment_data[attr_name] = default_assessment
-
-                    # Add alert since we're using default confidence
-                    if 0.5 < attr_threshold:
-                        confidence_threshold_alerts.append(
-                            {
-                                "attribute_name": attr_name,
-                                "confidence": 0.5,
-                                "confidence_threshold": attr_threshold,
-                            }
-                        )
 
             # Update the existing extraction result with enhanced assessment data
             extraction_data["explainability_info"] = [enhanced_assessment_data]
