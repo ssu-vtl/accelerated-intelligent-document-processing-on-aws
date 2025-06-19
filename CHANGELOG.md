@@ -44,6 +44,9 @@ SPDX-License-Identifier: MIT-0
 - Remove save_to_reporting from evaluation_function and replace with Lambda invocation, for smaller Lambda packages and better modularity.
 - Harden publish process and avoid package version bloat by purging previous build artifacts before re-building
 
+### Fixed
+- Defend against non-numeric confidence_threshold values in the configuration - avoid float conversion or numeric comparison exceptions in Assessement step
+
 ## [0.3.3]
 
 ### Added
