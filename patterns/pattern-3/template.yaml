@@ -56,6 +56,14 @@ Parameters:
       - 'false'
     Description: Enable or disable document summarization functionality
 
+  IsAssessmentEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable or disable extraction confidence assessment functionality
+
   UpdateConfigurationFunctionArn:
     Type: String
   
@@ -90,6 +98,7 @@ Parameters:
 
 Conditions:
   IsSummarizationEnabled: !Equals [!Ref IsSummarizationEnabled, "true"]
+  IsAssessmentEnabled: !Equals [!Ref IsAssessmentEnabled, "true"]
   HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
 
 Resources:
@@ -163,6 +172,35 @@ Resources:
                 description:
                   type: string
                   description: Class description
+                examples:
+                  type: array
+                  description: Class few-shot examples
+                  listLabel: Few-shot examples
+                  itemLabel: Few-shot example
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - classPrompt
+                      - attributesPrompt
+                      - imagesPath
+                    properties:
+                      name:
+                        type: string
+                        description: Example name
+                        order: 0
+                      classPrompt:
+                        type: string
+                        description: Classification prompt as few-shot classification example for this class
+                        order: 2
+                      attributesPrompt:
+                        type: string
+                        description: Extraction prompt as few-shot attribute value extraction example for this class.
+                        order: 3
+                      imagePath:
+                        type: string
+                        description: Image(s) Path in the Configuration Bucket. Supports single files, or S3 prefixes for folders with multiple images. Optional but recommended for better visual understanding.
+                        order: 4
                 attributes:
                   type: array
                   listLabel: Attributes
@@ -172,7 +210,7 @@ Resources:
                     required:
                       - name
                       - description
-                    properties:
+                      - attributeType
                     properties:
                       name:
                         type: string
@@ -182,31 +220,144 @@ Resources:
                         type: string
                         description: Attribute description
                         order: 1
-                      # Group these fields in a new row with columns for side-by-side display
+                      attributeType:
+                        type: string
+                        description: Type of attribute
+                        enum: ["simple", "group", "list"]
+                        order: 2
+                      # Simple attribute properties (existing fields)
                       evaluation_method:
                         type: string
                         description: Evaluation Method
-                        enum: ["", "LLM", "SEMANTIC", "FUZZY", "HUNGARIAN", "NUMERIC_EXACT", "EXACT"]
-                        order: 2
-                      hungarian_comparator:
-                        type: string
-                        description: "Comparator type for HUNGARIAN method"
-                        enum: ["EXACT", "FUZZY", "NUMERIC"]
+                        enum: ["", "LLM", "SEMANTIC", "FUZZY", "NUMERIC_EXACT", "EXACT"]
                         order: 3
                         dependsOn: {
-                          field: "evaluation_method",
-                          value: "HUNGARIAN"
+                          field: "attributeType",
+                          value: "simple"
                         }
                       evaluation_threshold:
                         type: number
-                        description: Evaluation Threshold - used for SEMANTIC, FUZZY, and HUNGARIAN_FUZZY methods
+                        description: Evaluation Threshold - used for SEMANTIC, and FUZZY methods
                         minimum: 0
                         maximum: 1
-                        order: 4
+                        order: 5
                         dependsOn: {
                           field: "evaluation_method",
-                          values: ["SEMANTIC", "FUZZY", "HUNGARIAN_FUZZY"]
+                          values: ["SEMANTIC", "FUZZY"]
                         }
+                      confidence_threshold:
+                        type: number
+                        description: Confidence threshold for this specific attribute (0.0 to 1.0). If not set, the default confidence threshold from assessment section will be used.
+                        minimum: 0
+                        maximum: 1
+                        order: 6
+                        dependsOn: {
+                          field: "attributeType",
+                          value: "simple"
+                        }
+                      # Group-specific properties
+                      groupAttributes:
+                        type: array
+                        listLabel: Group Attributes
+                        itemLabel: Attribute
+                        order: 7
+                        dependsOn: {
+                          field: "attributeType",
+                          value: "group"
+                        }
+                        items:
+                          type: object
+                          required:
+                            - name
+                            - description
+                          properties:
+                            name:
+                              type: string
+                              description: Attribute name
+                              order: 0
+                            description:
+                              type: string
+                              description: Attribute description
+                              order: 1
+                            evaluation_method:
+                              type: string
+                              description: Evaluation Method
+                              enum: ["", "LLM", "SEMANTIC", "FUZZY", "NUMERIC_EXACT", "EXACT"]
+                              order: 2
+                            evaluation_threshold:
+                              type: number
+                              description: Evaluation Threshold - used for SEMANTIC, and FUZZY methods
+                              minimum: 0
+                              maximum: 1
+                              order: 4
+                              dependsOn: {
+                                field: "evaluation_method",
+                                values: ["SEMANTIC", "FUZZY"]
+                              }
+                            confidence_threshold:
+                              type: number
+                              description: Confidence threshold for this specific attribute (0.0 to 1.0). If not set, the default confidence threshold from assessment section will be used.
+                              minimum: 0
+                              maximum: 1
+                              order: 5
+                          columns: 2
+                      # List-specific properties
+                      listItemTemplate:
+                        type: object
+                        sectionLabel: List Item Template
+                        order: 8
+                        dependsOn: {
+                          field: "attributeType",
+                          value: "list"
+                        }
+                        required:
+                          - itemAttributes
+                        properties:
+                          itemDescription:
+                            type: string
+                            description: Description of each list item
+                            order: 0
+                          itemAttributes:
+                            type: array
+                            listLabel: Item Attributes
+                            itemLabel: Attribute
+                            order: 1
+                            items:
+                              type: object
+                              required:
+                                - name
+                                - description
+                              properties:
+                                name:
+                                  type: string
+                                  description: Attribute name
+                                  order: 0
+                                description:
+                                  type: string
+                                  description: Attribute description
+                                  order: 1
+                                evaluation_method:
+                                  type: string
+                                  description: Evaluation Method
+                                  enum: ["", "LLM", "SEMANTIC", "FUZZY", "NUMERIC_EXACT", "EXACT"]
+                                  order: 2
+                                evaluation_threshold:
+                                  type: number
+                                  description: Evaluation Threshold - used for SEMANTIC, and FUZZY methods
+                                  minimum: 0
+                                  maximum: 1
+                                  order: 4
+                                  dependsOn: {
+                                    field: "evaluation_method",
+                                    values: ["SEMANTIC", "FUZZY"]
+                                  }
+                                confidence_threshold:
+                                  type: number
+                                  description: Confidence threshold for this specific attribute (0.0 to 1.0). If not set, the default confidence threshold from assessment section will be used.
+                                  minimum: 0
+                                  maximum: 1
+                                  order: 5
+                              columns: 2
                     # This controls the layout of the form fields inside each attribute item
                     columns: 2
           extraction:
@@ -603,6 +754,83 @@ Resources:
       LogGroupName: !Sub "/${AWS::StackName}/lambda/ExtractionFunction"
       RetentionInDays: !Ref LogRetentionDays
 
+  AssessmentFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "This Lambda function does not require VPC access as it only interacts with AWS services via AWS APIs"
+          - id: W92
+            reason: "Function does not require concurrent execution limits as it is designed to scale based on demand"
+          - id: W11
+            reason: "Cloudwatch does not support resource-level permissions, and Bedrock should support any enabled Bedrock model_id or inference profile"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for this function as StepFunctions will handle retries"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    Properties:
+      CodeUri: src/assessment_function/
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 900
+      MemorySize: 512
+      Environment:
+        Variables:
+          METRIC_NAMESPACE: !Ref StackName
+          CONFIGURATION_BUCKET: !Ref ConfigurationBucket
+          CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
+          LOG_LEVEL: !Ref LogLevel
+          APPSYNC_API_URL: !Ref AppSyncApiUrl
+      LoggingConfig:
+        LogGroup: !Ref AssessmentFunctionLogGroup
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3CrudPolicy:
+            BucketName: !Ref OutputBucket
+        - S3ReadPolicy:
+            BucketName: !Ref InputBucket
+        - S3ReadPolicy:
+            BucketName: !Ref ConfigurationBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigurationTable
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: !Ref CustomerManagedEncryptionKeyArn
+          # AppSync permissions for updating document status
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource: 
+              - !Sub "${AppSyncApiArn}/types/Mutation/*"
+          - Effect: Allow
+            Action: bedrock:InvokeModel
+            Resource: 
+                - !Sub "arn:aws:bedrock:*::foundation-model/*"
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          - !If
+            - HasGuardrailConfig
+            - Effect: Allow
+              Action: bedrock:ApplyGuardrail
+              Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
+            - !Ref AWS::NoValue
+
+  AssessmentFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/AssessmentFunction"
+      RetentionInDays: !Ref LogRetentionDays
+
   ProcessResultsFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -748,9 +976,11 @@ Resources:
         OCRFunctionArn: !GetAtt OCRFunction.Arn
         ClassificationFunctionArn: !GetAtt ClassificationFunction.Arn
         ExtractionFunctionArn: !GetAtt ExtractionFunction.Arn
+        AssessmentFunctionArn: !GetAtt AssessmentFunction.Arn
         ProcessResultsLambdaArn: !GetAtt ProcessResultsFunction.Arn
         SummarizationLambdaArn: !GetAtt SummarizationFunction.Arn
         IsSummarizationEnabled: !If [IsSummarizationEnabled, "true", "false"]
+        IsAssessmentEnabled: !If [IsAssessmentEnabled, "true", "false"]
         OutputBucket: !Ref OutputBucket
       Logging:
         Level: ALL
@@ -764,6 +994,8 @@ Resources:
             FunctionName: !Ref ClassificationFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref ExtractionFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref AssessmentFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref ProcessResultsFunction
         - LambdaInvokePolicy:
@@ -1072,6 +1304,30 @@ Resources:
             },
             {
               "type": "metric",
+              "x": 0,
+              "y": 24,
+              "width": 8,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${AssessmentFunction}"]
+                ],
+                "region": "${AWS::Region}",
+                "title": "Assessment Function Duration",
+                "period": 300,
+                "annotations": {
+                  "horizontal": [{
+                    "value": ${ExecutionTimeThresholdMs},
+                    "label": "Threshold (${ExecutionTimeThresholdMs}ms)",
+                    "color": "#ff0000"
+                  }]
+                },
+                "stat": "Average",
+                "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric",
               "x": 8,
               "y": 24,
               "width": 8,
@@ -1169,6 +1425,32 @@ Resources:
                 "query": "SOURCE '${ExtractionFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
                 "region": "${AWS::Region}",
                 "title": "Extraction Lambda Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 0,
+              "y": 42,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${AssessmentFunctionLogGroup}' | filter @type = \"REPORT\" | fields @timestamp, @logStream, @billedDuration, @maxMemoryUsed/1024/1024 as memoryUsedMB | filter @billedDuration > ${ExecutionTimeThresholdMs} | sort by @billedDuration desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Assessment Lambda Long Running Invocations",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "x": 12,
+              "y": 42,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "query": "SOURCE '${AssessmentFunctionLogGroup}' | fields @timestamp, @logStream, @message | filter @message like /ERROR/ or @message like /Task timed out/ | parse @message /RequestId: (?<requestId>[^ ]*)/ | sort @timestamp desc | limit 20",
+                "region": "${AWS::Region}",
+                "title": "Assessment Lambda Errors",
                 "view": "table"
               }
             },
