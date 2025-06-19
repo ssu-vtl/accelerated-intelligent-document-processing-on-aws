@@ -47,6 +47,7 @@ SPDX-License-Identifier: MIT-0
 ### Fixed
 - Defend against non-numeric confidence_threshold values in the configuration - avoid float conversion or numeric comparison exceptions in Assessement step
 - Prevent creation of empty configuration fields in UI
+- Firefox browser issues with signed URLs (PR #14)
 
 ## [0.3.3]
 
