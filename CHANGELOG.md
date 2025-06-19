@@ -5,16 +5,37 @@ SPDX-License-Identifier: MIT-0
 
 ## [Unreleased]
 
-## [Unreleased]
-
 ### Added
-- New example notebooks with improved clarity, modularity, and documentation.
-- Added confidence threshold to evaluation outputs to enable prioritizing accuracy results for attributes with higher confidence thersholds.
-- Comprehensive Metering Data: The system now captures and stores detailed metering data for analytics, including:
-   • Which services were used (Textract, Bedrock, etc.)
-   • What operations were performed (analyze_document, Claude, etc.)
-   • How many resources were consumed (pages, tokens, etc.)
-- Add reporting database documentation
+- **Nested Attribute Groups and Lists Support**
+  - Enhanced document configuration schema to support complex nested attribute structures with three attribute types:
+    - **Simple attributes**: Single-value extractions (existing behavior)
+    - **Group attributes**: Nested object structures with sub-attributes (e.g., address with street, city, state)
+    - **List attributes**: Arrays with item templates containing multiple attributes per item (e.g., transactions with date, amount, description)
+  - **Web UI Enhancements**: Configuration editor now supports viewing and editing nested attribute structures with proper validation
+  - **Extraction Service Updates**: Enhanced `{ATTRIBUTE_NAMES_AND_DESCRIPTIONS}` placeholder processing to generate formatted prompts for nested structures
+  - **Assessment Service Enhancements**: Added support for nested structure confidence evaluation with recursive processing of group and list attributes, including proper confidence threshold application from configuration
+  - **Evaluation Service Improvements**: 
+    - Implemented pattern matching for list attributes (e.g., `Transactions[].Date` maps to `Transactions[0].Date`, `Transactions[1].Date`)
+    - Added data flattening for complex extraction results using dot notation and array indices
+    - Fixed numerical sorting for list items (now sorts 0, 1, 2, ..., 10, 11 instead of alphabetically)
+    - Individual evaluation methods applied per nested attribute (EXACT, FUZZY, SEMANTIC, etc.)
+  - **Documentation**: Comprehensive updates to evaluation docs and README files with nested structure examples and processing explanations
+  - **Use Cases**: Enables complex document processing for bank statements (account details + transactions), invoices (vendor info + line items), and medical records (patient info + procedures)
+
+- **Enhanced Documentation and Examples**
+  - New example notebooks with improved clarity, modularity, and documentation
+
+- **Evaluation Framework Enhancements**
+  - Added confidence threshold to evaluation outputs to enable prioritizing accuracy results for attributes with higher confidence thresholds
+
+- **Comprehensive Metering Data Collection**
+  - The system now captures and stores detailed metering data for analytics, including:
+    - Which services were used (Textract, Bedrock, etc.)
+    - What operations were performed (analyze_document, Claude, etc.)
+    - How many resources were consumed (pages, tokens, etc.)
+
+- **Reporting Database Documentation**
+  - Added comprehensive reporting database documentation
 
 ### Changed
 - Pin packages to tested versions to avoid vulnerability from incompatible new package versions.
@@ -22,6 +43,9 @@ SPDX-License-Identifier: MIT-0
 - Create new extensible SaveReportingData class in idp_common package for saving evaluation results to Parquet format
 - Remove save_to_reporting from evaluation_function and replace with Lambda invocation, for smaller Lambda packages and better modularity.
 - Harden publish process and avoid package version bloat by purging previous build artifacts before re-building
+
+### Fixed
+- Defend against non-numeric confidence_threshold values in the configuration - avoid float conversion or numeric comparison exceptions in Assessement step
 
 ## [0.3.3]
 
