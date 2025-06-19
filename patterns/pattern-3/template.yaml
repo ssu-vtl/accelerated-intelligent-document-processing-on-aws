@@ -378,10 +378,6 @@ Resources:
                 type: string
                 description: Model identifier
                 enum: 
-                  - !If 
-                    - HasCustomExtractionModelARN
-                    - !Ref CustomExtractionModelARN
-                    - !Ref AWS::NoValue
                   - "us.amazon.nova-lite-v1:0"
                   - "us.amazon.nova-pro-v1:0"
                   - "us.amazon.nova-premier-v1:0"
