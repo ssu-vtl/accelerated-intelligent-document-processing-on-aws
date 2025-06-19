@@ -20,7 +20,7 @@ const parseS3Url = (s3Url) => {
   if (firstSlashIndex === -1) {
     return {
       bucket: withoutProtocol,
-      key: ''
+      key: '',
     };
   }
 
@@ -34,7 +34,6 @@ const parseS3Url = (s3Url) => {
   return { bucket, key };
 };
 
-
 const generateS3PresignedUrl = async (url, credentials) => {
   // If it's already a special URL (like detailType), return as is
   if (url.includes('detailType')) {
@@ -43,8 +42,6 @@ const generateS3PresignedUrl = async (url, credentials) => {
 
   try {
     logger.debug('Generating presigned URL for:', url);
-    // Parse the URL into components
-    const urlObj = new URL(url);
 
     let bucketName;
     let key;
@@ -59,7 +56,7 @@ const generateS3PresignedUrl = async (url, credentials) => {
     } else {
       // Handle existing HTTPS URLs
       const urlObj = new URL(url);
-      bucketName = urlObj.hostname.split('.')[0];
+      [bucketName] = urlObj.hostname.split('.');
       key = urlObj.pathname.substring(1); // Remove leading slash
     }
 
