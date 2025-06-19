@@ -248,6 +248,18 @@ class AssessmentService:
         Returns:
             Enhanced assessment dictionary
         """
+        # Safety check: ensure assessment_dict is actually a dictionary
+        if not isinstance(assessment_dict, dict):
+            logger.warning(
+                f"Expected dictionary for assessment enhancement, got {type(assessment_dict)}. "
+                f"Creating default assessment structure."
+            )
+            return {
+                "confidence": 0.5,
+                "confidence_reason": f"LLM returned unexpected type {type(assessment_dict)} instead of dictionary. Using default confidence.",
+                "confidence_threshold": threshold,
+            }
+
         # Check if this dictionary itself is a confidence assessment
         if "confidence" in assessment_dict:
             # This is a direct confidence assessment - add threshold
@@ -289,6 +301,14 @@ class AssessmentService:
             threshold: Confidence threshold to check against
             alerts_list: List to append alerts to (modified in place)
         """
+        # Safety check: ensure assessment_data is actually a dictionary
+        if not isinstance(assessment_data, dict):
+            logger.warning(
+                f"Expected dictionary for confidence alert checking, got {type(assessment_data)} for attribute '{attr_name}'. "
+                f"Skipping confidence alert check."
+            )
+            return
+
         for sub_attr_name, sub_assessment in assessment_data.items():
             if isinstance(sub_assessment, dict) and "confidence" in sub_assessment:
                 confidence = _safe_float_conversion(
