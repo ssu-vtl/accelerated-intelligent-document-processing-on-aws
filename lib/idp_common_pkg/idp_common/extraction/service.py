@@ -638,7 +638,9 @@ class ExtractionService:
                         image_uri, target_width, target_height
                     )
                 else:
-                    image_content = image.prepare_image(image_uri)  # Uses function defaults
+                    image_content = image.prepare_image(
+                        image_uri
+                    )  # Uses function defaults
                 page_images.append(image_content)
 
             t2 = time.time()

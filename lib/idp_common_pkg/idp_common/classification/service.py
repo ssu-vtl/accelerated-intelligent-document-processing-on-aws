@@ -620,7 +620,9 @@ class ClassificationService:
                         image_uri, target_width, target_height
                     )
                 else:
-                    image_content = image.prepare_image(image_uri)  # Uses function defaults
+                    image_content = image.prepare_image(
+                        image_uri
+                    )  # Uses function defaults
             except Exception as e:
                 logger.warning(f"Failed to load image content from {image_uri}: {e}")
                 # Continue without image content

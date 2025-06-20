@@ -690,7 +690,7 @@ class AssessmentService:
 
                 page = document.pages[page_id]
                 image_uri = page.image_uri
-                
+
                 if target_width is not None and target_height is not None:
                     # Cast to int in case config values are strings
                     target_width = int(target_width)
@@ -699,7 +699,9 @@ class AssessmentService:
                         image_uri, target_width, target_height
                     )
                 else:
-                    image_content = image.prepare_image(image_uri)  # Uses function defaults
+                    image_content = image.prepare_image(
+                        image_uri
+                    )  # Uses function defaults
                 page_images.append(image_content)
 
             t3 = time.time()
