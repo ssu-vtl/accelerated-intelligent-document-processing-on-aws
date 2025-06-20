@@ -196,7 +196,12 @@ class TestClassificationService:
     )
     @patch("idp_common.image.prepare_bedrock_image_attachment")
     def test_classify_page_bedrock_success(
-        self, mock_prepare_bedrock_image, mock_invoke, mock_prepare_image, mock_get_text, service
+        self,
+        mock_prepare_bedrock_image,
+        mock_invoke,
+        mock_prepare_image,
+        mock_get_text,
+        service,
     ):
         """Test successful page classification with Bedrock."""
         # Mock responses
