@@ -56,13 +56,15 @@ class OcrService:
         self.max_workers = max_workers
         self.dpi = dpi
         self.resize_config = resize_config
-        
+
         # Log DPI setting for debugging
         logger.info(f"OCR Service initialized with DPI: {self.dpi}")
-        
+
         # Log resize config if provided
         if self.resize_config:
-            logger.info(f"OCR Service initialized with resize config: {self.resize_config}")
+            logger.info(
+                f"OCR Service initialized with resize config: {self.resize_config}"
+            )
 
         # Define valid Textract feature types
         VALID_FEATURES = ["TABLES", "FORMS", "SIGNATURES", "LAYOUT"]
@@ -291,13 +293,18 @@ class OcrService:
         # Resize image for OCR processing if configured
         ocr_img_bytes = img_bytes  # Default to original image
         if self.resize_config:
-            target_width = self.resize_config.get('target_width')
-            target_height = self.resize_config.get('target_height')
-            
+            target_width = self.resize_config.get("target_width")
+            target_height = self.resize_config.get("target_height")
+
             if target_width and target_height:
                 from idp_common import image
-                ocr_img_bytes = image.resize_image(img_bytes, target_width, target_height)
-                logger.debug(f"Resized image for OCR processing (page {page_id}) to {target_width}x{target_height}")
+
+                ocr_img_bytes = image.resize_image(
+                    img_bytes, target_width, target_height
+                )
+                logger.debug(
+                    f"Resized image for OCR processing (page {page_id}) to {target_width}x{target_height}"
+                )
 
         # Process with OCR using potentially resized image
         if isinstance(self.enhanced_features, list) and self.enhanced_features:
