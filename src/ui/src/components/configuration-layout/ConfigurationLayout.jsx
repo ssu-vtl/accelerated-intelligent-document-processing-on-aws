@@ -42,6 +42,7 @@ const ConfigurationLayout = () => {
   const [validationErrors, setValidationErrors] = useState([]);
   const [viewMode, setViewMode] = useState('form'); // Form view as default
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showSaveAsDefaultModal, setShowSaveAsDefaultModal] = useState(false);
 
   const editorRef = useRef(null);
 
@@ -473,7 +474,7 @@ const ConfigurationLayout = () => {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (saveAsDefault = false) => {
     // Validate content before saving
     const currentErrors = validateCurrentContent();
 
@@ -580,95 +581,106 @@ const ConfigurationLayout = () => {
         return newResult;
       };
 
-      // Create our customized config by comparing with defaults
-      const differences = compareWithDefault(formValues, defaultConfig);
+      let configToSave;
 
-      // Flatten path results into a proper object structure - revised to avoid ESLint errors
-      const buildObjectFromPaths = (paths) => {
-        // Create a fresh result object
-        const newResult = {};
+      if (saveAsDefault) {
+        // When saving as default, save the entire current configuration
+        configToSave = { ...formValues, saveAsDefault: true };
+        console.log('Saving entire config as new default:', configToSave);
+      } else {
+        // Create our customized config by comparing with defaults
+        const differences = compareWithDefault(formValues, defaultConfig);
 
-        Object.entries(paths).forEach(([path, value]) => {
-          if (!path) return; // Skip empty paths
+        // Flatten path results into a proper object structure - revised to avoid ESLint errors
+        const buildObjectFromPaths = (paths) => {
+          // Create a fresh result object
+          const newResult = {};
 
-          // For paths with dots, build nested structure
-          if (path.includes('.') || path.includes('[')) {
-            // Handle array notation
-            if (path.includes('[')) {
-              // Arrays need special handling
-              // This is simplified - we'll include the whole array when it's customized
-              const arrayPath = path.split('[')[0];
-              if (!Object.prototype.hasOwnProperty.call(newResult, arrayPath)) {
-                // Find the array in formValues
-                const arrayValue = path.split('.').reduce((acc, part) => {
-                  if (!acc) return undefined;
-                  return acc[part.replace(/\[\d+\]$/, '')];
-                }, formValues);
+          Object.entries(paths).forEach(([path, value]) => {
+            if (!path) return; // Skip empty paths
 
-                if (arrayValue) {
-                  // Create a new object with this property
-                  Object.assign(newResult, { [arrayPath]: arrayValue });
+            // For paths with dots, build nested structure
+            if (path.includes('.') || path.includes('[')) {
+              // Handle array notation
+              if (path.includes('[')) {
+                // Arrays need special handling
+                // This is simplified - we'll include the whole array when it's customized
+                const arrayPath = path.split('[')[0];
+                if (!Object.prototype.hasOwnProperty.call(newResult, arrayPath)) {
+                  // Find the array in formValues
+                  const arrayValue = path.split('.').reduce((acc, part) => {
+                    if (!acc) return undefined;
+                    return acc[part.replace(/\[\d+\]$/, '')];
+                  }, formValues);
+
+                  if (arrayValue) {
+                    // Create a new object with this property
+                    Object.assign(newResult, { [arrayPath]: arrayValue });
+                  }
                 }
+              } else {
+                // Regular object paths
+                const parts = path.split('.');
+
+                // Build an object to merge
+                const objectToMerge = {};
+                let current = objectToMerge;
+
+                // Build nested structure without modifying existing objects
+                for (let i = 0; i < parts.length - 1; i += 1) {
+                  // Use += 1 instead of ++
+                  current[parts[i]] = {};
+                  current = current[parts[i]];
+                }
+
+                // Set the value at the final path
+                current[parts[parts.length - 1]] = value;
+
+                // Deep merge this into result
+                const deepMerge = (target, source) => {
+                  const output = { ...target };
+
+                  Object.keys(source).forEach((key) => {
+                    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                      if (target[key] && typeof target[key] === 'object') {
+                        output[key] = deepMerge(target[key], source[key]);
+                      } else {
+                        output[key] = { ...source[key] };
+                      }
+                    } else {
+                      output[key] = source[key];
+                    }
+                  });
+
+                  return output;
+                };
+
+                // Merge into result without modifying original objects
+                Object.assign(newResult, deepMerge(newResult, objectToMerge));
               }
             } else {
-              // Regular object paths
-              const parts = path.split('.');
-
-              // Build an object to merge
-              const objectToMerge = {};
-              let current = objectToMerge;
-
-              // Build nested structure without modifying existing objects
-              for (let i = 0; i < parts.length - 1; i += 1) {
-                // Use += 1 instead of ++
-                current[parts[i]] = {};
-                current = current[parts[i]];
-              }
-
-              // Set the value at the final path
-              current[parts[parts.length - 1]] = value;
-
-              // Deep merge this into result
-              const deepMerge = (target, source) => {
-                const output = { ...target };
-
-                Object.keys(source).forEach((key) => {
-                  if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-                    if (target[key] && typeof target[key] === 'object') {
-                      output[key] = deepMerge(target[key], source[key]);
-                    } else {
-                      output[key] = { ...source[key] };
-                    }
-                  } else {
-                    output[key] = source[key];
-                  }
-                });
-
-                return output;
-              };
-
-              // Merge into result without modifying original objects
-              Object.assign(newResult, deepMerge(newResult, objectToMerge));
+              // For top-level values, create a new object with the property
+              Object.assign(newResult, { [path]: value });
             }
-          } else {
-            // For top-level values, create a new object with the property
-            Object.assign(newResult, { [path]: value });
-          }
-        });
+          });
 
-        return newResult;
-      };
+          return newResult;
+        };
 
-      // Convert the difference paths to a proper nested structure
-      Object.assign(customConfigToSave, buildObjectFromPaths(differences));
-
-      console.log('Saving customized config:', customConfigToSave);
+        // Convert the difference paths to a proper nested structure
+        Object.assign(customConfigToSave, buildObjectFromPaths(differences));
+        configToSave = customConfigToSave;
+        console.log('Saving customized config:', configToSave);
+      }
 
       // Make sure we send at least the Info field, even if no customizations
-      const success = await updateConfiguration(customConfigToSave);
+      const success = await updateConfiguration(configToSave);
 
       if (success) {
         setSaveSuccess(true);
+        if (saveAsDefault) {
+          setShowSaveAsDefaultModal(false);
+        }
         // Force a refresh of the configuration to ensure UI is in sync with backend
         setTimeout(() => {
           fetchConfiguration();
@@ -810,6 +822,29 @@ const ConfigurationLayout = () => {
         </Box>
       </Modal>
 
+      <Modal
+        visible={showSaveAsDefaultModal}
+        onDismiss={() => setShowSaveAsDefaultModal(false)}
+        header="Save as New Default"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button variant="link" onClick={() => setShowSaveAsDefaultModal(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={() => handleSave(true)} loading={isSaving}>
+                Save as Default
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <Box variant="span">
+          Are you sure you want to save the current configuration as the new default? This will replace the existing
+          default configuration and cannot be undone.
+        </Box>
+      </Modal>
+
       <Container
         header={
           <Header
@@ -838,7 +873,10 @@ const ConfigurationLayout = () => {
                 <Button variant="normal" onClick={() => setShowResetModal(true)}>
                   Restore default (All)
                 </Button>
-                <Button variant="primary" onClick={handleSave} loading={isSaving}>
+                <Button variant="normal" onClick={() => setShowSaveAsDefaultModal(true)}>
+                  Save as default
+                </Button>
+                <Button variant="primary" onClick={() => handleSave(false)} loading={isSaving}>
                   Save changes
                 </Button>
               </SpaceBetween>
