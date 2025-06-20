@@ -6,6 +6,13 @@ SPDX-License-Identifier: MIT-0
 ## [Unreleased]
 
 ### Added
+- **Configurable Image Processing and Enhanced Resizing Logic**
+  - **Improved Image Resizing Algorithm**: Enhanced aspect-ratio preserving scaling that only downsizes when necessary (scale factor < 1.0) to prevent image distortion
+  - **Configurable Image Dimensions**: All processing services (Assessment, Classification, Extraction, OCR) now support configurable image dimensions through configuration with default 951×1268 resolution
+  - **Service-Specific Image Optimization**: Each service can use optimal image dimensions for performance and quality tuning
+  - **Enhanced OCR Service**: Added configurable DPI for PDF-to-image conversion (default: 300) and optional image resizing with dual image strategy (stores original high-DPI images while using resized images for processing)
+  - **Runtime Configuration**: No code changes needed to adjust image processing - all configurable through service configuration
+  - **Backward Compatibility**: Default values maintain existing behavior with no immediate action required for existing deployments
 - **Enhanced Configuration Management**
   - **Save as Default**: New button to save current configuration as the new default baseline with confirmation modal and version upgrade warnings
   - **Export Configuration**: Export current configuration to local files in JSON or YAML format with customizable filename
