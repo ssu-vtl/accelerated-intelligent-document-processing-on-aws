@@ -911,10 +911,17 @@ const ConfigurationLayout = () => {
           </Box>
         }
       >
-        <Box variant="span">
-          Are you sure you want to save the current configuration as the new default? This will replace the existing
-          default configuration and cannot be undone.
-        </Box>
+        <SpaceBetween direction="vertical" size="m">
+          <Box variant="span">
+            Are you sure you want to save the current configuration as the new default? This will replace the existing
+            default configuration and cannot be undone.
+          </Box>
+          <Alert type="warning" header="Important: Version upgrade considerations">
+            The default configuration may be overwritten when you update the solution to a new version. We recommend
+            using the Export button to download and save your configuration so you can easily restore it after an
+            upgrade if needed.
+          </Alert>
+        </SpaceBetween>
       </Modal>
 
       <Modal
