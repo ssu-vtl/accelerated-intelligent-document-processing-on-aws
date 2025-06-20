@@ -13,6 +13,9 @@ import {
   Form,
   SegmentedControl,
   Modal,
+  FormField,
+  Input,
+  RadioGroup,
 } from '@awsui/components-react';
 import Editor from '@monaco-editor/react';
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -43,6 +46,10 @@ const ConfigurationLayout = () => {
   const [viewMode, setViewMode] = useState('form'); // Form view as default
   const [showResetModal, setShowResetModal] = useState(false);
   const [showSaveAsDefaultModal, setShowSaveAsDefaultModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState('json');
+  const [exportFileName, setExportFileName] = useState('configuration');
+  const [importError, setImportError] = useState(null);
 
   const editorRef = useRef(null);
 
@@ -761,6 +768,71 @@ const ConfigurationLayout = () => {
     }
   };
 
+  const handleExport = () => {
+    try {
+      let content;
+      let mimeType;
+      let fileExtension;
+
+      if (exportFormat === 'yaml') {
+        content = yaml.dump(mergedConfig);
+        mimeType = 'text/yaml';
+        fileExtension = 'yaml';
+      } else {
+        content = JSON.stringify(mergedConfig, null, 2);
+        mimeType = 'application/json';
+        fileExtension = 'json';
+      }
+
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${exportFileName}.${fileExtension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setShowExportModal(false);
+    } catch (err) {
+      setSaveError(`Export failed: ${err.message}`);
+    }
+  };
+
+  const handleImport = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        setImportError(null);
+        let importedConfig;
+        const content = e.target.result;
+
+        if (file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
+          importedConfig = yaml.load(content);
+        } else {
+          importedConfig = JSON.parse(content);
+        }
+
+        if (importedConfig && typeof importedConfig === 'object') {
+          handleFormChange(importedConfig);
+          setSaveSuccess(false);
+          setSaveError(null);
+        } else {
+          setImportError('Invalid configuration file format');
+        }
+      } catch (err) {
+        setImportError(`Import failed: ${err.message}`);
+      }
+    };
+    reader.readAsText(file);
+    // Clear the input value to allow re-importing the same file
+    const input = event.target;
+    input.value = '';
+  };
+
   if (loading) {
     return (
       <Container header={<Header variant="h2">Configuration</Header>}>
@@ -845,6 +917,44 @@ const ConfigurationLayout = () => {
         </Box>
       </Modal>
 
+      <Modal
+        visible={showExportModal}
+        onDismiss={() => setShowExportModal(false)}
+        header="Export Configuration"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button variant="link" onClick={() => setShowExportModal(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={handleExport}>
+                Export
+              </Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        <SpaceBetween direction="vertical" size="l">
+          <FormField label="File format">
+            <RadioGroup
+              value={exportFormat}
+              onChange={({ detail }) => setExportFormat(detail.value)}
+              items={[
+                { value: 'json', label: 'JSON' },
+                { value: 'yaml', label: 'YAML' },
+              ]}
+            />
+          </FormField>
+          <FormField label="File name">
+            <Input
+              value={exportFileName}
+              onChange={({ detail }) => setExportFileName(detail.value)}
+              placeholder="configuration"
+            />
+          </FormField>
+        </SpaceBetween>
+      </Modal>
+
       <Container
         header={
           <Header
@@ -870,6 +980,19 @@ const ConfigurationLayout = () => {
                     Format YAML
                   </Button>
                 )}
+                <Button variant="normal" onClick={() => setShowExportModal(true)}>
+                  Export
+                </Button>
+                <Button variant="normal" onClick={() => document.getElementById('import-file').click()}>
+                  Import
+                </Button>
+                <input
+                  id="import-file"
+                  type="file"
+                  accept=".json,.yaml,.yml"
+                  style={{ display: 'none' }}
+                  onChange={handleImport}
+                />
                 <Button variant="normal" onClick={() => setShowResetModal(true)}>
                   Restore default (All)
                 </Button>
@@ -901,6 +1024,12 @@ const ConfigurationLayout = () => {
           {saveError && (
             <Alert type="error" dismissible onDismiss={() => setSaveError(null)} header="Error saving configuration">
               {saveError}
+            </Alert>
+          )}
+
+          {importError && (
+            <Alert type="error" dismissible onDismiss={() => setImportError(null)} header="Import error">
+              {importError}
             </Alert>
           )}
 
