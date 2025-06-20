@@ -144,17 +144,17 @@ Resources:
                 properties:
                   target_width:
                     type: number
-                    description: "Target image width in pixels. Images larger than this will be resized. Default: 1200"
-                    default: 1200
+                    description: "Target image width in pixels. Images larger than this will be resized. Default: 951"
+                    default: 951
                     minimum: 100
-                    maximum: 4096
+                    maximum: 4000
                     order: 0
                   target_height:
                     type: number
-                    description: "Target image height in pixels. Images larger than this will be resized. Default: 1600"
-                    default: 1600
+                    description: "Target image height in pixels. Images larger than this will be resized. Default: 1268"
+                    default: 1268
                     minimum: 100
-                    maximum: 4096
+                    maximum: 4000
                     order: 1
               features:
                   type: array
@@ -399,17 +399,17 @@ Resources:
                 properties:
                   target_width:
                     type: number
-                    description: "Target image width in pixels. Images larger than this will be resized. Default: 800"
-                    default: 800
+                    description: "Target image width in pixels. Images larger than this will be resized. Default: 951"
+                    default: 951
                     minimum: 100
-                    maximum: 4096
+                    maximum: 4000
                     order: 0
                   target_height:
                     type: number
-                    description: "Target image height in pixels. Images larger than this will be resized. Default: 1000"
-                    default: 1000
+                    description: "Target image height in pixels. Images larger than this will be resized. Default: 1268"
+                    default: 1268
                     minimum: 100
-                    maximum: 4096
+                    maximum: 4000
                     order: 1
               model:
                 type: string
@@ -485,14 +485,14 @@ Resources:
                     description: "Target image width in pixels. Images larger than this will be resized. Default: 951"
                     default: 951
                     minimum: 100
-                    maximum: 4096
+                    maximum: 4000
                     order: 0
                   target_height:
                     type: number
                     description: "Target image height in pixels. Images larger than this will be resized. Default: 1268"
                     default: 1268
                     minimum: 100
-                    maximum: 4096
+                    maximum: 4000
                     order: 1
               model:
                 type: string
@@ -551,17 +551,17 @@ Resources:
                 properties:
                   target_width:
                     type: number
-                    description: "Target image width in pixels. Images larger than this will be resized. Default: 800"
-                    default: 800
+                    description: "Target image width in pixels. Images larger than this will be resized. Default: 951"
+                    default: 951
                     minimum: 100
-                    maximum: 4096
+                    maximum: 4000
                     order: 0
                   target_height:
                     type: number
-                    description: "Target image height in pixels. Images larger than this will be resized. Default: 1000"
-                    default: 1000
+                    description: "Target image height in pixels. Images larger than this will be resized. Default: 1268"
+                    default: 1268
                     minimum: 100
-                    maximum: 4096
+                    maximum: 4000
                     order: 1
               default_confidence_threshold:
                 type: number

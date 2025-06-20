@@ -609,12 +609,18 @@ class ClassificationService:
         if image_uri:
             try:
                 image_config = self.config.get("image", {})
-                target_width = image_config.get("target_width", 951)  # Default fallback
-                target_height = image_config.get("target_height", 1268)
+                target_width = image_config.get("target_width")
+                target_height = image_config.get("target_height")
 
-                image_content = image.prepare_image(
-                    image_uri, target_width, target_height
-                )
+                if target_width is not None and target_height is not None:
+                    # Cast to int in case config values are strings
+                    target_width = int(target_width)
+                    target_height = int(target_height)
+                    image_content = image.prepare_image(
+                        image_uri, target_width, target_height
+                    )
+                else:
+                    image_content = image.prepare_image(image_uri)  # Uses function defaults
             except Exception as e:
                 logger.warning(f"Failed to load image content from {image_uri}: {e}")
                 # Continue without image content
