@@ -605,7 +605,7 @@ summarization:
 assessment:
   image:
     target_width: '951'
-    target_height: 1268
+    target_height: '1268'
   default_confidence_threshold: '0.9'
   top_p: '0.1'
   max_tokens: '10000'

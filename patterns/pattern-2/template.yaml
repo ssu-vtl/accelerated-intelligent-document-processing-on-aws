@@ -147,14 +147,14 @@ Resources:
                     description: "Target image width in pixels. Images larger than this will be resized. Default: 951"
                     default: 951
                     minimum: 100
-                    maximum: 4000
+                    maximum: 3500
                     order: 0
                   target_height:
                     type: number
                     description: "Target image height in pixels. Images larger than this will be resized. Default: 1268"
                     default: 1268
                     minimum: 100
-                    maximum: 4000
+                    maximum: 3500
                     order: 1
               features:
                   type: array
@@ -402,14 +402,14 @@ Resources:
                     description: "Target image width in pixels. Images larger than this will be resized. Default: 951"
                     default: 951
                     minimum: 100
-                    maximum: 4000
+                    maximum: 3500
                     order: 0
                   target_height:
                     type: number
                     description: "Target image height in pixels. Images larger than this will be resized. Default: 1268"
                     default: 1268
                     minimum: 100
-                    maximum: 4000
+                    maximum: 3500
                     order: 1
               model:
                 type: string
@@ -485,14 +485,14 @@ Resources:
                     description: "Target image width in pixels. Images larger than this will be resized. Default: 951"
                     default: 951
                     minimum: 100
-                    maximum: 4000
+                    maximum: 3500
                     order: 0
                   target_height:
                     type: number
                     description: "Target image height in pixels. Images larger than this will be resized. Default: 1268"
                     default: 1268
                     minimum: 100
-                    maximum: 4000
+                    maximum: 3500
                     order: 1
               model:
                 type: string
@@ -554,14 +554,14 @@ Resources:
                     description: "Target image width in pixels. Images larger than this will be resized. Default: 951"
                     default: 951
                     minimum: 100
-                    maximum: 4000
+                    maximum: 3500
                     order: 0
                   target_height:
                     type: number
                     description: "Target image height in pixels. Images larger than this will be resized. Default: 1268"
                     default: 1268
                     minimum: 100
-                    maximum: 4000
+                    maximum: 3500
                     order: 1
               default_confidence_threshold:
                 type: number

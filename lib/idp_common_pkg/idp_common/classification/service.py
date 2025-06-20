@@ -608,7 +608,7 @@ class ClassificationService:
         # Load image content from URI with configurable dimensions
         if image_uri:
             try:
-                image_config = self.config.get("image", {})
+                image_config = self.config.get("classification", {}).get("image", {})
                 target_width = image_config.get("target_width")
                 target_height = image_config.get("target_height")
 

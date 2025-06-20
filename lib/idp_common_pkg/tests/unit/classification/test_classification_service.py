@@ -232,7 +232,7 @@ class TestClassificationService:
 
         # Verify calls
         mock_get_text.assert_called_once_with("s3://bucket/text.txt")
-        mock_prepare_image.assert_called_once_with("s3://bucket/image.jpg", 951, 1268)
+        mock_prepare_image.assert_called_once_with("s3://bucket/image.jpg")
         mock_prepare_bedrock_image.assert_called_once_with(b"image_data")
         mock_invoke.assert_called_once()
 
