@@ -61,6 +61,10 @@ SPDX-License-Identifier: MIT-0
 - Defend against non-numeric confidence_threshold values in the configuration - avoid float conversion or numeric comparison exceptions in Assessement step
 - Prevent creation of empty configuration fields in UI
 - Firefox browser issues with signed URLs (PR #14)
+- Improved S3 Partition Key Format for Better Date Range Filtering:
+  - Updated reporting data partition keys to use YYYY-MM format for month and YYYY-MM-DD format for day
+  - Enables easier date range filtering in analytics queries across different months and years
+  - Partition structure now: `year=2024/month=2024-03/day=2024-03-15/` instead of `year=2024/month=03/day=15/`
 
 ## [0.3.3]
 
