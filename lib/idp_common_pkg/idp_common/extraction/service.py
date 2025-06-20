@@ -617,7 +617,11 @@ class ExtractionService:
             t1 = time.time()
             logger.info(f"Time taken to read text content: {t1 - t0:.2f} seconds")
 
-            # Read page images
+            # Read page images with configurable dimensions
+            image_config = self.config.get('image', {})
+            target_width = image_config.get('target_width', 951)   # Default fallback
+            target_height = image_config.get('target_height', 1268)
+            
             page_images = []
             for page_id in sorted_page_ids:
                 if page_id not in document.pages:
@@ -625,7 +629,7 @@ class ExtractionService:
 
                 page = document.pages[page_id]
                 image_uri = page.image_uri
-                image_content = image.prepare_image(image_uri)
+                image_content = image.prepare_image(image_uri, target_width, target_height)
                 page_images.append(image_content)
 
             t2 = time.time()

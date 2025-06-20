@@ -605,10 +605,14 @@ class ClassificationService:
                 logger.warning(f"Failed to load text content from {text_uri}: {e}")
                 # Continue without text content
 
-        # Load image content from URI
+        # Load image content from URI with configurable dimensions
         if image_uri:
             try:
-                image_content = s3.get_binary_content(image_uri)
+                image_config = self.config.get('image', {})
+                target_width = image_config.get('target_width', 951)   # Default fallback
+                target_height = image_config.get('target_height', 1268)
+                
+                image_content = image.prepare_image(image_uri, target_width, target_height)
             except Exception as e:
                 logger.warning(f"Failed to load image content from {image_uri}: {e}")
                 # Continue without image content
