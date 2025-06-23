@@ -67,13 +67,31 @@ def handler(event, context):
             logger.info("No image resize configuration found in ocr.image config")
     else:
         logger.info("No image configuration found in ocr config")
+
+    # Extract Bedrock configuration if present
+    bedrock_config = None
+    # Check if bedrock configuration exists directly in ocr_config
+    if ocr_config.get("model_id") and ocr_config.get("system_prompt") and ocr_config.get("task_prompt"):
+        bedrock_config = {
+            "model_id": ocr_config.get("model_id"),
+            "system_prompt": ocr_config.get("system_prompt"),
+            "task_prompt": ocr_config.get("task_prompt"),
+        }
+        logger.info(f"Bedrock OCR configuration found: model_id={bedrock_config['model_id']}")
+    else:
+        logger.info("No Bedrock configuration found in ocr config (model_id, system_prompt, or task_prompt missing)")
     
-    logger.info(f"Initializing OCR for MAX_WORKERS: {MAX_WORKERS}, enhanced_features: {features}")
+    # Get OCR backend from config (default to "textract" if not specified)
+    backend = ocr_config.get("backend", "textract")
+    
+    logger.info(f"Initializing OCR with backend: {backend}, MAX_WORKERS: {MAX_WORKERS}, enhanced_features: {features}")
     service = ocr.OcrService(
         region=region,
         max_workers=MAX_WORKERS,
         enhanced_features=features,
-        resize_config=resize_config
+        resize_config=resize_config,
+        bedrock_config=bedrock_config,
+        backend=backend,
     )
     
     # Process the document - the service will read the PDF content directly
