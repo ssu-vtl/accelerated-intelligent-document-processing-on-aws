@@ -4,7 +4,7 @@
 """
 Criteria validation service for documents using LLMs.
 
-This module provides a service for validating documents against dynamic 
+This module provides a service for validating documents against dynamic
 business rules/criteria using LLMs, with support for async processing,
 chunking, and cost tracking.
 """
@@ -17,17 +17,13 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import boto3
 import s3fs
-from botocore.config import Config
 
-from idp_common import bedrock, metrics, s3, utils
+from idp_common import bedrock, s3, utils
 from idp_common.criteria_validation.models import (
-    BedrockInput,
     CriteriaValidationResult,
     LLMResponse,
 )
-from idp_common.models import Document
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +52,9 @@ class CriteriaValidationService:
 
         # Initialize token tracking (will be accumulated using utils.merge_metering_data)
         self.token_metrics = {}
-        self.metrics_lock = asyncio.Lock()  # Lock for protecting concurrent token metrics updates
+        self.metrics_lock = (
+            asyncio.Lock()
+        )  # Lock for protecting concurrent token metrics updates
 
         # Initialize timing metrics
         self.timing_metrics = {
@@ -265,19 +263,29 @@ class CriteriaValidationService:
 
                 # Track metering using the same approach as extraction service
                 metering = response.get("metering", {})
-                
+
                 # Add comprehensive logging for debugging
-                logger.info(f"DEBUG: Raw response keys: {list(response.keys()) if response else 'None'}")
+                logger.info(
+                    f"DEBUG: Raw response keys: {list(response.keys()) if response else 'None'}"
+                )
                 logger.info(f"DEBUG: Metering data from response: {metering}")
-                logger.info(f"DEBUG: Current token_metrics before merge: {self.token_metrics}")
-                
+                logger.info(
+                    f"DEBUG: Current token_metrics before merge: {self.token_metrics}"
+                )
+
                 # Merge metering data using the same utility as extraction service with synchronization
                 async with self.metrics_lock:
                     old_metrics = self.token_metrics.copy()
-                    self.token_metrics = utils.merge_metering_data(self.token_metrics, metering or {})
-                    logger.info(f"DEBUG: Token metrics after merge: {self.token_metrics}")
-                    logger.info(f"DEBUG: Metrics changed: {old_metrics != self.token_metrics}")
-                
+                    self.token_metrics = utils.merge_metering_data(
+                        self.token_metrics, metering or {}
+                    )
+                    logger.info(
+                        f"DEBUG: Token metrics after merge: {self.token_metrics}"
+                    )
+                    logger.info(
+                        f"DEBUG: Metrics changed: {old_metrics != self.token_metrics}"
+                    )
+
                 return validated_response.dict()
 
             except Exception as e:
@@ -289,7 +297,6 @@ class CriteriaValidationService:
                     "Recommendation": "Information Not Found",
                     "Reasoning": f"Error during processing: {str(e)}",
                 }
-
 
     async def _process_criteria_type(
         self,
@@ -384,9 +391,7 @@ class CriteriaValidationService:
                             "initial_response": json.dumps(question_responses),
                             "question": question,
                             "criteria_type": criteria_type,
-                            "recommendation_options": config[
-                                "recommendation_options"
-                            ],
+                            "recommendation_options": config["recommendation_options"],
                         },
                     )
 
@@ -441,14 +446,14 @@ class CriteriaValidationService:
             # Get user history files
             request_bucket = config.get("request_bucket")
             request_prefix = config.get("request_history_prefix")
-            data_location = f"s3://{request_bucket}/{request_prefix}-{request_id}/extracted_text"
+            data_location = (
+                f"s3://{request_bucket}/{request_prefix}-{request_id}/extracted_text"
+            )
 
             # List all text files
             fs = s3fs.S3FileSystem()
             txt_files = [
-                f"s3://{file}"
-                for file in fs.ls(data_location)
-                if file.endswith(".txt")
+                f"s3://{file}" for file in fs.ls(data_location) if file.endswith(".txt")
             ]
 
             if not txt_files:
@@ -490,9 +495,7 @@ class CriteriaValidationService:
                         config.get("criteria_types", [])
                     ):
                         if criteria_type not in all_responses:
-                            all_responses[criteria_type] = (
-                                {} if multiple_files else []
-                            )
+                            all_responses[criteria_type] = {} if multiple_files else []
 
                         if multiple_files:
                             # For multiple files, organize by question
@@ -514,12 +517,17 @@ class CriteriaValidationService:
             output_uris = []
 
             for criteria_type, responses in all_responses.items():
-                output_key = f"responses/request_id_{request_id}_{criteria_type}_responses.json"
+                output_key = (
+                    f"responses/request_id_{request_id}_{criteria_type}_responses.json"
+                )
                 output_uri = f"s3://{output_bucket}/{output_key}"
 
                 # Save to S3
                 s3.write_content(
-                    responses, output_bucket, output_key, content_type="application/json"
+                    responses,
+                    output_bucket,
+                    output_key,
+                    content_type="application/json",
                 )
                 output_uris.append(output_uri)
 
@@ -530,8 +538,10 @@ class CriteriaValidationService:
             ).total_seconds()
 
             # Debug logging for final result creation
-            logger.info(f"DEBUG: Final token_metrics before creating result: {self.token_metrics}")
-            
+            logger.info(
+                f"DEBUG: Final token_metrics before creating result: {self.token_metrics}"
+            )
+
             # Create result
             result = CriteriaValidationResult(
                 request_id=request_id,
@@ -544,7 +554,7 @@ class CriteriaValidationService:
                     "output_uris": output_uris,
                 },
             )
-            
+
             logger.info(f"DEBUG: Result metering after creation: {result.metering}")
 
             return result
