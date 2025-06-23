@@ -22,6 +22,12 @@ This pattern implements an intelligent document processing workflow that uses Am
     - [Lambda Function Metrics](#lambda-function-metrics)
   - [Template Outputs](#template-outputs)
   - [Configuration](#configuration)
+- [Bedrock OCR Feature](#bedrock-ocr-feature)
+  - [Overview](#overview)
+  - [Configuration](#configuration-1)
+  - [Enabling Bedrock OCR](#enabling-bedrock-ocr)
+  - [Benefits](#benefits)
+  - [Cost Considerations](#cost-considerations)
 - [Customizing Classification](#customizing-classification)
 - [Few Shot Example Feature](#few-shot-example-feature)
 - [Customizing Extraction](#customizing-extraction)
@@ -55,8 +61,11 @@ Each step includes comprehensive retry logic for handling transient errors:
 ### Lambda Functions
 
 #### OCR Function
-- **Purpose**: Processes input PDFs using Amazon Textract
+- **Purpose**: Processes input PDFs using Amazon Textract or Amazon Bedrock
 - **Key Features**:
+  - Supports two OCR backends:
+    - Amazon Textract (default)
+    - Amazon Bedrock LLMs (Claude, Nova)
   - Concurrent page processing with ThreadPoolExecutor
   - **Configurable Image Processing**: Enhanced image resizing with aspect-ratio preservation
   - **Configurable DPI**: Adjustable DPI for PDF-to-image conversion (default: 300)
@@ -282,6 +291,59 @@ ocr:
    - Monitor processing times and adjust DPI/resize settings accordingly
    - Use concurrent processing for multi-page documents
    - Balance quality requirements with processing costs
+## Bedrock OCR Feature
+
+Pattern 2 now supports using Amazon Bedrock LLMs for OCR (Optical Character Recognition) as an alternative to Amazon Textract. This feature leverages the multimodal capabilities of models like Claude to extract text from document images.
+
+### Overview
+
+The Bedrock OCR feature allows you to:
+- Use Claude or Nova models for OCR processing
+- Customize OCR behavior through system and task prompts
+- Potentially improve OCR quality for complex documents
+- Better handle tables, forms, and structured content
+
+### Configuration
+
+Bedrock OCR is configured through the configuration files. The `bedrock_ocr` configuration demonstrates how to set up this feature:
+
+```yaml
+ocr:
+  backend: "bedrock"  # Use Bedrock for OCR instead of Textract
+  model_id: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"  # Claude 3.5 Sonnet
+  system_prompt: "You are an expert OCR system. Extract all text from the provided image accurately, preserving layout where possible."
+  task_prompt: "Extract all text from this document image. Preserve the layout, including paragraphs, tables, and formatting."
+```
+
+### Enabling Bedrock OCR
+
+To use Bedrock OCR:
+
+1. Deploy Pattern 2 normally
+2. In the Web UI, navigate to the Configuration page
+3. Select the "bedrock_ocr" configuration from the dropdown menu
+4. Click "Apply Configuration"
+
+Alternatively, you can deploy with a custom configuration:
+
+```bash
+aws cloudformation deploy \
+  --template-file template.yaml \
+  --parameter-overrides ConfigurationDefaultS3Uri=s3://your-bucket/config_library/pattern-2/bedrock_ocr/config.yaml
+```
+
+### Benefits
+
+Using Bedrock LLMs for OCR provides several advantages:
+
+1. **Improved OCR quality**: Bedrock LLMs can often extract text more accurately from complex documents, especially those with challenging layouts or poor image quality
+2. **Better handling of tables and forms**: Bedrock LLMs can understand the context and structure of tables and forms, leading to better extraction
+3. **Preservation of document layout**: The LLM can be instructed to preserve the original document layout in the extracted text
+4. **Flexibility with prompting**: You can customize the system and task prompts to optimize OCR for specific document types
+
+### Cost Considerations
+
+Using Bedrock LLMs for OCR will generally be more expensive than using Textract. The pricing section in the configuration file provides detailed cost estimates for the Bedrock models.
 
 ## Customizing Classification
 
