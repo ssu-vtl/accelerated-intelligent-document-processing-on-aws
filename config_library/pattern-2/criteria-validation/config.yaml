@@ -74,6 +74,32 @@ criteria_validation:
     Follow instructions provided inside <instruction></instruction> XML tags. 
     Provide the output in a Json format inside <response></response> XML tags. Do not include any space after <response> tag and before </response> tag.
 
+  # Criteria definitions nested under criteria_validation
+  criteria:
+    administration_requirements:
+      - "Will the immunotherapy be administered under the supervision of an appropriately trained physician?"
+      - "Is the facility equipped to treat anaphylaxis?"
+      - "Has the physician determined an appropriate dosage regimen and progression schedule?"
+      - "Are there adequate safety protocols in place for infusion reactions?"
+    medical_necessity:
+      - "Has the patient failed standard treatments?"
+      - "Is the proposed treatment medically necessary?"
+      - "Does the patient meet the clinical criteria for this treatment?"
+    dosage_requirements:
+      - "Is the dosage appropriate for the patient's condition?"
+      - "Has the physician documented the rationale for the selected dosage?"
+      - "Are dosage adjustments based on patient response documented?"
+    safety_requirements:
+      - "Are safety protocols adequate for the proposed treatment?"
+      - "Has the patient been screened for contraindications?"
+      - "Are monitoring procedures in place during treatment?"
+    
+    # Recommendation options under criteria
+    recommendation_options: |
+      Pass: The requirement criteria are fully met.
+      Fail: The requirement is partially met or requires additional information.
+      Information Not Found: No relevant data exists in the user history.
+
 # Summary configuration for multiple files
 summary:
   system_prompt: |
@@ -141,12 +167,6 @@ summary:
     Follow instructions provided inside <instruction></instruction> XML tags. 
     Let's think step by step to analyze the question/criteria.
     Provide the output in a Json format inside <response></response> XML tags.
-
-# Recommendation options
-recommendation_options: |
-  Pass: The requirement criteria are fully met.
-  Fail: The requirement is partially met or requires additional information.
-  Information Not Found: No relevant data exists in the user history.
 
 # Criteria types to validate
 criteria_types:
