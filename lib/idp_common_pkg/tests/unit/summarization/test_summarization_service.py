@@ -539,7 +539,7 @@ class TestSummarizationService:
         assert "<page-number>2</page-number>" in call_args
         assert "<page-number>3</page-number>" in call_args
 
-        # Verify write_content was called three times (JSON, Full Text, and Markdown)
+        # Verify write_content was called three times (JSON, fulltext, and Markdown)
         assert mock_write_content.call_count == 3
 
         # Verify document has summarization_result
