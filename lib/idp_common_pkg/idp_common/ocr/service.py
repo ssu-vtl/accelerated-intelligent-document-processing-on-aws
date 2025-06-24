@@ -262,7 +262,7 @@ class OcrService:
         prefix: str,
     ) -> Tuple[Dict[str, str], Dict[str, Any]]:
         """
-        Process a single page of a PDF document.
+        Process a single page of a document (PDF or image).
 
         Args:
             page_index: Zero-based index of the page
@@ -276,10 +276,9 @@ class OcrService:
         t0 = time.time()
         page_id = page_index + 1
 
-        # Extract page image at specified DPI
+        # Extract page image - use DPI only for PDF files to prevent upscaling of images
         page = pdf_document.load_page(page_index)
-        pix = page.get_pixmap(dpi=self.dpi)
-        img_bytes = pix.tobytes("jpeg")
+        img_bytes = self._extract_page_image(page, pdf_document.is_pdf, page_id)
 
         # Upload original image to S3
         image_key = f"{prefix}/pages/{page_id}/image.jpg"
@@ -360,6 +359,29 @@ class OcrService:
         }
 
         return result, metering
+
+    def _extract_page_image(self, page: fitz.Page, is_pdf: bool, page_id: int) -> bytes:
+        """
+        Extract image bytes from a page, using DPI only for PDF files.
+        
+        Args:
+            page: PyMuPDF page object
+            is_pdf: Whether the document is a PDF file
+            page_id: Page number for logging
+            
+        Returns:
+            Image bytes in JPEG format
+        """
+        if is_pdf:
+            # For PDF files, use specified DPI for quality rendering
+            pix = page.get_pixmap(dpi=self.dpi)
+            logger.debug(f"Processing PDF page {page_id} at {self.dpi} DPI")
+        else:
+            # For image files (JPEG, PNG, etc.), preserve original dimensions
+            pix = page.get_pixmap()
+            logger.debug(f"Processing image page {page_id} at original dimensions")
+        
+        return pix.tobytes("jpeg")
 
     def _analyze_document(
         self, document_bytes: bytes, page_id: int = None
