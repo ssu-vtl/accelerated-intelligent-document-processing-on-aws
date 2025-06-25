@@ -68,6 +68,19 @@ def handler(event, context):
     else:
         logger.info("No image configuration found in ocr config")
 
+    # Extract preprocessing configuration if present
+    preprocessing_config = None
+    if image_config:
+        preprocessing_value = image_config.get("preprocessing")
+        # Handle both boolean and string values
+        if preprocessing_value is True or (isinstance(preprocessing_value, str) and preprocessing_value.lower() == 'true'):
+            preprocessing_config = {"enabled": True}
+            logger.info("Image preprocessing (adaptive binarization) enabled")
+        else:
+            logger.info("Image preprocessing disabled")
+    else:
+        logger.info("Image preprocessing disabled")
+
     # Extract Bedrock configuration if present
     bedrock_config = None
     # Check if bedrock configuration exists directly in ocr_config
@@ -92,6 +105,7 @@ def handler(event, context):
         resize_config=resize_config,
         bedrock_config=bedrock_config,
         backend=backend,
+        preprocessing_config=preprocessing_config,
     )
     
     # Process the document - the service will read the PDF content directly

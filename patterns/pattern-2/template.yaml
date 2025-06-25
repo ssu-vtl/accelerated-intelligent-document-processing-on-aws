@@ -156,6 +156,11 @@ Resources:
                     minimum: 100
                     maximum: 3500
                     order: 1
+                  preprocessing:
+                    type: boolean
+                    description: "Apply adaptive binarization preprocessing to improve OCR accuracy on documents with uneven lighting or low contrast. Warning: May slightly increase processing time."
+                    default: false
+                    order: 2
               features:
                   type: array
                   listLabel: Features
@@ -609,11 +614,6 @@ Resources:
                     minimum: 100
                     maximum: 4096
                     order: 2
-                  preserve_original:
-                    type: boolean
-                    description: "Skip resizing and use original image resolution for maximum quality. Warning: May increase processing costs significantly."
-                    default: false
-                    order: 3
           assessment:
             order: 5
             type: object
