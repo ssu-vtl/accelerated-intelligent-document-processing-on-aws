@@ -37,6 +37,7 @@ class OcrService:
         resize_config: Optional[Dict[str, Any]] = None,
         bedrock_config: Dict[str, Any] = None,
         backend: str = "textract",  # New parameter: "textract" or "bedrock"
+        preprocessing_config: Optional[Dict[str, Any]] = None,  # New parameter for preprocessing
     ):
         """
         Initialize the OCR service.
@@ -65,6 +66,7 @@ class OcrService:
         self.resize_config = resize_config
         self.backend = backend.lower()
         self.bedrock_config = bedrock_config
+        self.preprocessing_config = preprocessing_config
 
         # Log DPI setting for debugging
         logger.info(f"OCR Service initialized with DPI: {self.dpi}")
@@ -384,6 +386,12 @@ class OcrService:
                 f"Resized image for OCR processing (page {page_id}) to {target_width}x{target_height}"
             )
 
+        # Apply preprocessing if enabled (only for OCR processing, not saved image)
+        if self.preprocessing_config and self.preprocessing_config.get("enabled"):
+            from idp_common.image import apply_adaptive_binarization
+            ocr_img_bytes = apply_adaptive_binarization(ocr_img_bytes)
+            logger.debug(f"Applied adaptive binarization preprocessing for OCR processing (page {page_id})")
+
         # Process with OCR using potentially resized image
         if isinstance(self.enhanced_features, list) and self.enhanced_features:
             textract_result = self._analyze_document(ocr_img_bytes, page_id)
@@ -512,6 +520,12 @@ class OcrService:
             logger.debug(
                 f"Resized image for Bedrock OCR processing (page {page_id}) to {target_width}x{target_height}"
             )
+
+        # Apply preprocessing if enabled (only for OCR processing, not saved image)
+        if self.preprocessing_config and self.preprocessing_config.get("enabled"):
+            from idp_common.image import apply_adaptive_binarization
+            ocr_img_bytes = apply_adaptive_binarization(ocr_img_bytes)
+            logger.debug(f"Applied adaptive binarization preprocessing for Bedrock OCR processing (page {page_id})")
 
         # Prepare image for Bedrock
         image_content = image.prepare_bedrock_image_attachment(ocr_img_bytes)
