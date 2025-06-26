@@ -969,10 +969,11 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
               src={pageImages[pageId]}
               alt={`Page ${pageId}`}
               style={{ 
-                maxWidth: 'none',
-                maxHeight: 'none',
+                maxWidth: '100%',
+                maxHeight: 'min(70vh, 700px)',
                 width: 'auto',
                 height: 'auto',
+                objectFit: 'contain',
                 transform: `scale(${zoomLevel}) translate(${panOffset.x / zoomLevel}px, ${panOffset.y / zoomLevel}px)`,
                 transformOrigin: 'center center',
                 transition: 'transform 0.1s ease-out'
@@ -1050,6 +1051,7 @@ const VisualEditorModal = ({ visible, onDismiss, jsonData, onChange, isReadOnly,
         style={{
           display: 'flex',
           flexDirection: 'row',
+          alignItems: 'flex-start',
           gap: '20px',
           height: 'calc(100vh - 200px)',
           maxHeight: '1000px',
