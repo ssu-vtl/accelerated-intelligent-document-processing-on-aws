@@ -18,7 +18,7 @@ import './DocumentPanel.css';
 import DocumentViewers from '../document-viewers/DocumentViewers';
 import SectionsPanel from '../sections-panel';
 import PagesPanel from '../pages-panel';
-import ChatPanel from '../chat-panel';
+// import ChatPanel from '../chat-panel';
 import useConfiguration from '../../hooks/use-configuration';
 
 const logger = new Logger('DocumentPanel');
@@ -468,7 +468,7 @@ export const DocumentPanel = ({ item, setToolsOpen, getDocumentDetailsFromIds, o
       />
       <SectionsPanel sections={item.sections} pages={item.pages} documentItem={item} />
       <PagesPanel pages={item.pages} />
-      <ChatPanel objectKey={item.objectKey} />
+      {/* <ChatPanel objectKey={item.objectKey} /> */}
     </SpaceBetween>
   );
 };
