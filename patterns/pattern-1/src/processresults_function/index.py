@@ -673,7 +673,7 @@ def start_human_loop(
         FlowDefinitionArn = ssm.get_parameter(Name=f"/{os.environ.get('METRIC_NAMESPACE', 'IDP')}/FlowDefinitionArn")['Parameter']['Value']
         human_review_id = generate_random_string(2)
         response = a2i_runtime_client.start_human_loop(
-            HumanLoopName=f"review-bda-{execution_id}-{record_number}-{page_id_num}",
+            HumanLoopName=f"review-bda-{human_review_id}-{execution_id}-{record_number}-{page_id_num}",
             FlowDefinitionArn=FlowDefinitionArn,
             HumanLoopInput={"InputContent": json.dumps(human_loop_input)}
         )
@@ -825,6 +825,7 @@ def process_segments(
     
     now = datetime.datetime.now().isoformat()
     hitl_triggered = False
+    overall_hitl_triggered = False
 
     for record_number, segment in enumerate(segment_metadata, start=1):
         logger.info(f"Processing segment for execution id: {execution_id}")
@@ -901,6 +902,7 @@ def process_segments(
             if low_confidence:
                 hitl_triggered = low_confidence
                 metrics.put_metric('HITLTriggered', 1)
+                overall_hitl_triggered = True
                 for page_number in page_indices:
                     page_str = str(page_number)
                     key_values = pagespecific_details['key_value_details'].get(page_str, [])
@@ -990,7 +992,7 @@ def process_segments(
             except Exception as e:
                 logger.error(f"Error saving to DynamoDB: {str(e)}")
     
-    return document, hitl_triggered
+    return document, overall_hitl_triggered
 
 def handler(event, context):
     """
