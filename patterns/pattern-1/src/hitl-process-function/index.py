@@ -474,12 +474,12 @@ def lambda_handler(event, context):
                         )
                         logger.info(f"Sent task failure for execution {execution_id}")
                         
-                        # Update document tracking to Failed
+                        # Update document tracking to FAILED
                         tracking_table.update_item(
                             Key={'PK': f"document#{document_id}", 'SK': 'metadata'},
                             UpdateExpression="SET HITLStatus = :status, HITLCompletionTime = :time",
                             ExpressionAttributeValues={
-                                ':status': "Failed",
+                                ':status': "FAILED",
                                 ':time': datetime.datetime.now(datetime.timezone.utc).isoformat()
                             }
                         )
@@ -488,8 +488,8 @@ def lambda_handler(event, context):
                             Key={'PK': f"doc#{document_id}", 'SK': 'none'},
                             UpdateExpression="SET ObjectStatus = :status, HITLStatus = :hitlStatus",
                             ExpressionAttributeValues={
-                                ':status': "HITL_Failed",
-                                ':hitlStatus': "Failed"
+                                ':status': "HITL_FAILED",
+                                ':hitlStatus': "FAILED"
                             }
                         )
                     else:

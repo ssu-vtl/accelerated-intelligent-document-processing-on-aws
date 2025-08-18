@@ -30,25 +30,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Log incoming request
         logger.info(f"Received request: {json.dumps(event)}")
         
-        # Safely extract execution ARN
-        if 'arguments' not in event:
-            logger.error("Missing 'arguments' in event")
-            return {
-                'executionArn': 'Unknown',
-                'status': 'ERROR',
-                'error': "Missing arguments in request",
-                'steps': []
-            }
-        
-        if 'executionArn' not in event['arguments']:
-            logger.error("Missing 'executionArn' in arguments")
-            return {
-                'executionArn': 'Unknown',
-                'status': 'ERROR',
-                'error': "Missing executionArn in arguments",
-                'steps': []
-            }
-        
         execution_arn = event['arguments']['executionArn']
         logger.info(f"Getting execution details for: {execution_arn}")
         
@@ -61,12 +42,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         except Exception as api_error:
             logger.error(f"describe_execution API call failed: {str(api_error)}")
             logger.error(f"Error details: {traceback.format_exc()}")
-            return {
-                'executionArn': execution_arn,
-                'status': 'ERROR',
-                'error': f"Failed to describe execution: {str(api_error)}",
-                'steps': []
-            }
+            raise api_error
         
         api_duration = (datetime.now() - start_time).total_seconds()
         logger.info(f"describe_execution API call took {api_duration:.2f} seconds")
@@ -107,12 +83,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             except Exception as history_error:
                 logger.error(f"Failed to fetch execution history page {page_count}: {str(history_error)}")
                 logger.error(f"Error details: {traceback.format_exc()}")
-                return {
-                    'executionArn': execution_arn,
-                    'status': 'ERROR',
-                    'error': f"Failed to fetch execution history: {str(history_error)}",
-                    'steps': []
-                }
+                raise history_error
         
         history_duration = (datetime.now() - history_start_time).total_seconds()
         logger.info(f"Retrieved {len(all_events)} total events in {page_count} pages, took {history_duration:.2f} seconds")
@@ -188,14 +159,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.error(f"Error getting Step Functions execution: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         # Return error in a format that can be displayed in the UI
-        execution_arn = 'Unknown'
-        try:
-            execution_arn = event.get('arguments', {}).get('executionArn', 'Unknown')
-        except:
-            pass
-        
         return {
-            'executionArn': execution_arn,
+            'executionArn': event['arguments'].get('executionArn', 'Unknown'),
             'status': 'ERROR',
             'error': f"Failed to retrieve execution details: {str(e)}",
             'steps': []
