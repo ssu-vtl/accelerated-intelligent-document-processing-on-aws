@@ -206,15 +206,15 @@ def check_all_sections_complete(document_id, tracking_table):
         if not sections:
             return False, False
         
-        has_Failed_sections = False
+        has_failed_sections = False
         for section in sections:
             status = section.get('Status')
-            if status == 'Failed':
-                has_Failed_sections = True
-            elif status != 'Completed':
+            if status == 'FAILED':
+                has_failed_sections = True
+            elif status != 'COMPLETED':
                 return False, False  # Still has pending sections
         
-        return True, has_Failed_sections
+        return True, has_failed_sections
     except Exception as e:
         logger.error(f"Error checking section completion status: {str(e)}")
         return False, False
@@ -438,28 +438,28 @@ def lambda_handler(event, context):
             update_token_status(section_token_id, section_status, section_failure_reason, tracking_table)
             
             # Check if all sections for this document are complete
-            all_sections_complete, has_Failed_sections = check_all_sections_complete(document_id, tracking_table)
+            all_sections_complete, has_failed_sections = check_all_sections_complete(document_id, tracking_table)
             
             if all_sections_complete:
                 section_task_token = find_doc_task_token(document_id, tracking_table)
                 
                 if section_task_token:
-                    if has_Failed_sections:
-                        # Collect all Failed pages for failure message
-                        all_Failed_pages = []
+                    if has_failed_sections:
+                        # Collect all failed pages for failure message
+                        all_failed_pages = []
                         response = tracking_table.scan(
-                            FilterExpression="begins_with(PK, :prefix) AND TokenType = :type AND (#status = :Failed_status OR #status = :Stopped_status)",
+                            FilterExpression="begins_with(PK, :prefix) AND TokenType = :type AND (#status = :failed_status OR #status = :stopped_status)",
                             ExpressionAttributeNames={'#status': 'Status'},
                             ExpressionAttributeValues={
                                 ':prefix': f"HITL#{document_id}#section#",
                                 ':type': 'HITL_PAGE',
-                                ':Failed_status': 'Failed',
-                                ':Stopped_status': 'Stopped'
+                                ':failed_status': 'FAILED',
+                                ':stopped_status': 'STOPPED'
                             }
                         )
                         
                         for item in response.get('Items', []):
-                            all_Failed_pages.append({
+                            all_failed_pages.append({
                                 'execution_id': execution_id,
                                 'record_id': item.get('SectionId'),
                                 'page_id': item.get('PageId'),
@@ -470,7 +470,7 @@ def lambda_handler(event, context):
                         stepfunctions.send_task_failure(
                             taskToken=section_task_token,
                             error='HITLFailedException',
-                            cause=f"HITL review Failed for {len(all_Failed_pages)} page(s): {json.dumps(all_Failed_pages)}"
+                            cause=f"HITL review failed for {len(all_failed_pages)} page(s): {json.dumps(all_failed_pages)}"
                         )
                         logger.info(f"Sent task failure for execution {execution_id}")
                         
