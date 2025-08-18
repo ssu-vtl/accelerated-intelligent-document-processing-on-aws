@@ -209,9 +209,9 @@ def check_all_sections_complete(document_id, tracking_table):
         has_failed_sections = False
         for section in sections:
             status = section.get('Status')
-            if status == 'FAILED':
+            if status == 'Failed':
                 has_failed_sections = True
-            elif status != 'COMPLETED':
+            elif status != 'Completed':
                 return False, False  # Still has pending sections
         
         return True, has_failed_sections
@@ -439,6 +439,7 @@ def lambda_handler(event, context):
             
             # Check if all sections for this document are complete
             all_sections_complete, has_failed_sections = check_all_sections_complete(document_id, tracking_table)
+            logger.info(f"all_sections_complete: {all_sections_complete}, has_failed_sections: {has_failed_sections}")
             
             if all_sections_complete:
                 section_task_token = find_doc_task_token(document_id, tracking_table)
