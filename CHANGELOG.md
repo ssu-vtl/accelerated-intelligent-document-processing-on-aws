@@ -41,8 +41,9 @@ SPDX-License-Identifier: MIT-0
 - **Action Required**: Review your current CloudFormation parameter settings before updating and update your configuration accordingly to preserve existing behavior
 
 ### Fixed
-**Fixed B615 "Unsafe Hugging Face Hub download without revision pinning" security finding in Pattern-3 fine-tuning module** - Added revision pinning with to prevent supply chain attacks and ensure reproducible deployments
-**Fixed CloudWatch Log Group Missing Retention regression**
+- **Fixed B615 "Unsafe Hugging Face Hub download without revision pinning" security finding in Pattern-3 fine-tuning module** - Added revision pinning with to prevent supply chain attacks and ensure reproducible deployments
+- **Fixed CloudWatch Log Group Missing Retention regression**
+- **Security: Cross-Site Scripting (XSS) Vulnerability in FileViewer Component** - Fixed high-risk XSS vulnerability in `src/ui/src/components/document-viewer/FileViewer.jsx` where `innerHTML` was used with user-controlled data
 
 ## [0.3.11]
 
