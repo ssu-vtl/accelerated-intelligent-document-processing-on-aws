@@ -1,0 +1,47 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "CloudFormation template to deploy a SageMaker inference endpoint for UDOP model",
+    "resourceType": "AWS::SageMaker::EndpointConfig",
+    "resourceName": "UDOPEndpointConfig",
+    "issue": "KMS encryption for endpoint is suppressed rather than implemented, bypassing encryption at rest for SageMaker endpoint configuration",
+    "priority": "HIGH",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "CloudFormation template to deploy a SageMaker inference endpoint for UDOP model",
+    "resourceType": "AWS::SageMaker::Endpoint",
+    "resourceName": "UDOPEndpoint",
+    "issue": "No encryption at rest configured for SageMaker endpoint data",
+    "priority": "HIGH",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "CloudFormation template to deploy a SageMaker inference endpoint for UDOP model",
+    "resourceType": "AWS::IAM::Role",
+    "resourceName": "UDOPExecutionRole",
+    "issue": "AmazonSageMakerFullAccess managed policy provides excessive permissions, violating principle of least privilege",
+    "priority": "HIGH",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "CloudFormation template to deploy a SageMaker inference endpoint for UDOP model",
+    "resourceType": "AWS::SageMaker::Model",
+    "resourceName": "UDOPModel",
+    "issue": "No logging configuration for model execution and inference operations",
+    "priority": "HIGH",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "CloudFormation template to deploy a SageMaker inference endpoint for UDOP model",
+    "resourceType": "AWS::IAM::Role",
+    "resourceName": "UDOPExecutionRole",
+    "issue": "S3 policy allows potentially overly permissive access with S3Bucket/* wildcard resource",
+    "priority": "MEDIUM",
+    "status": "Open"
+  }
+]

@@ -1,0 +1,362 @@
+[
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/patterns/pattern-3/fine-tune-sm-udop-classification/code/train.py",
+    "line": 43,
+    "issue": "If possible, it is better to rely on automatic pinning in PyTorch to avoid undefined behavior and for efficiency",
+    "check_id": "trailofbits.python.automatic-memory-pinning.automatic-memory-pinning",
+    "priority": "LOW",
+    "references": "https://pytorch.org/docs/stable/data.html#memory-pinning",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/patterns/pattern-3/fine-tune-sm-udop-classification/code/train.py",
+    "line": 47,
+    "issue": "If possible, it is better to rely on automatic pinning in PyTorch to avoid undefined behavior and for efficiency",
+    "check_id": "trailofbits.python.automatic-memory-pinning.automatic-memory-pinning",
+    "priority": "LOW",
+    "references": "https://pytorch.org/docs/stable/data.html#memory-pinning",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/lambda/cognito_updater_hitl/index.py",
+    "line": 42,
+    "issue": "Detected a dynamic value being used with urllib. urllib supports 'file://' schemes, so a dynamic value controlled by a malicious actor may allow them to read arbitrary files. Audit uses of urllib calls to ensure user data cannot control the URLs, or consider using the 'requests' library instead.",
+    "check_id": "python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/939.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/lambda/create_a2i_resources/index.py",
+    "line": 145,
+    "issue": "Detected a dynamic value being used with urllib. urllib supports 'file://' schemes, so a dynamic value controlled by a malicious actor may allow them to read arbitrary files. Audit uses of urllib calls to ensure user data cannot control the URLs, or consider using the 'requests' library instead.",
+    "check_id": "python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/939.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/lambda/get-workforce-url/index.py",
+    "line": 40,
+    "issue": "Detected a dynamic value being used with urllib. urllib supports 'file://' schemes, so a dynamic value controlled by a malicious actor may allow them to read arbitrary files. Audit uses of urllib calls to ensure user data cannot control the URLs, or consider using the 'requests' library instead.",
+    "check_id": "python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/939.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/common/confidence-alerts-utils.js",
+    "line": 296,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/common/confidence-alerts-utils.js",
+    "line": 302,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/common/debug-utils.js",
+    "line": 32,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/ConfigurationLayout.jsx",
+    "line": 507,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/ConfigurationLayout.jsx",
+    "line": 596,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/ConfigurationLayout.jsx",
+    "line": 614,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/ConfigurationLayout.jsx",
+    "line": 630,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/ConfigurationLayout.jsx",
+    "line": 702,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 479,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 509,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 532,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 547,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 614,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 662,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 814,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 1031,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 1077,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 1282,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 1286,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 1453,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/configuration-layout/FormView.jsx",
+    "line": 1471,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/document-viewer/FileViewer.jsx",
+    "line": 259,
+    "issue": "User controlled data in methods like `innerHTML`, `outerHTML` or `document.write` is an anti-pattern that can lead to XSS vulnerabilities",
+    "check_id": "javascript.browser.security.insecure-document-method.insecure-document-method",
+    "priority": "LOW",
+    "references": "https://owasp.org/Top10/A03_2021-Injection",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/document-viewer/VisualEditorModal.jsx",
+    "line": 242,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/document-viewer/VisualEditorModal.jsx",
+    "line": 247,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/document-viewer/VisualEditorModal.jsx",
+    "line": 492,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/document-viewer/VisualEditorModal.jsx",
+    "line": 568,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/step-function-flow/StepFunctionFlowViewer.jsx",
+    "line": 116,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/components/upload-document/UploadDocumentPanel.jsx",
+    "line": 126,
+    "issue": "Detected string concatenation with a non-literal variable in a util.format / console.log function. If an attacker injects a format specifier in the string, it will forge the log message. Try to use constant values for the format string.",
+    "check_id": "javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring",
+    "priority": "LOW",
+    "references": "https://cwe.mitre.org/data/definitions/134.html",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/hooks/use-configuration.js",
+    "line": 305,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/hooks/use-configuration.js",
+    "line": 444,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  },
+  {
+    "source": "Semgrep",
+    "path": "/home/ec2-user/projects/genaiic-idp-accelerator-2/src/ui/src/hooks/use-configuration.js",
+    "line": 478,
+    "issue": "Possibility of prototype polluting function detected. By adding or modifying attributes of an object prototype, it is possible to create attributes that exist on every object, or replace critical attributes with malicious ones. This can be problematic if the software depends on existence or non-existence of certain attributes, or uses pre-defined attributes of object prototype (such as hasOwnProperty, toString or valueOf). Possible mitigations might be: freezing the object prototype, using an object without prototypes (via Object.create(null) ), blocking modifications of attributes that resolve to object prototype, using Map instead of object.",
+    "check_id": "javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop",
+    "priority": "LOW",
+    "references": "https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf",
+    "status": "Open"
+  }
+]

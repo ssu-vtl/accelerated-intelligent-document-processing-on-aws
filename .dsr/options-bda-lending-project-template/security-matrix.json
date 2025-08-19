@@ -1,0 +1,47 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Sample BDA lending package project",
+    "resourceType": "IAM Role",
+    "resourceName": "LambdaExecutionRole",
+    "issue": "IAM policy grants overly permissive wildcard (*) resource access to multiple Bedrock services",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Sample BDA lending package project",
+    "resourceType": "Lambda Function",
+    "resourceName": "BDAProjectLambda",
+    "issue": "Lambda function lacks VPC configuration, exposing it to potential network attacks",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Sample BDA lending package project",
+    "resourceType": "Lambda Function",
+    "resourceName": "BDAProjectLambda",
+    "issue": "Lambda function missing Dead Letter Queue (DLQ) for failed execution handling",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Sample BDA lending package project",
+    "resourceType": "Lambda Function",
+    "resourceName": "BDAProjectLambda",
+    "issue": "Lambda function missing X-Ray tracing configuration",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Sample BDA lending package project",
+    "resourceType": "Lambda Function",
+    "resourceName": "BDAProjectLambda",
+    "issue": "Lambda function missing reserved concurrency limits",
+    "priority": "Low",
+    "status": "Open"
+  }
+]

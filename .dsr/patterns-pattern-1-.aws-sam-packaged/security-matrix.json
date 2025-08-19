@@ -1,0 +1,92 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "SQS Queue",
+    "resourceName": "BDACompletionFunctionDLQ",
+    "issue": "No enforced encryption in transit specified for SQS queue (should set enforceSSL to true)",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "DynamoDB Table",
+    "resourceName": "BDAMetadataTable",
+    "issue": "No automatic backup configuration specified for DynamoDB table",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "CloudWatch Dashboard",
+    "resourceName": "Dashboard",
+    "issue": "CloudWatch Dashboard doesn't have appropriate IAM permissions boundary or resource policy to limit access",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "IAM Policy",
+    "resourceName": "HITLProcessLambdaRole",
+    "issue": "Policy contains overly permissive actions (dynamodb:UpdateTable) which violates least privilege principle",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Lambda Function",
+    "resourceName": "HITLStatusUpdateFunction",
+    "issue": "No Dead Letter Queue (DLQ) configured for Lambda function to handle failed executions",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Lambda Function",
+    "resourceName": "InvokeBDAFunction",
+    "issue": "Lambda function has broad cloudwatch:PutMetricData permission with Resource: '*'",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Lambda function has broad ssm:* permissions with Resource: '*' which violates least privilege",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "No Dead Letter Queue (DLQ) configured for Lambda function to handle failed executions",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Lambda Function",
+    "resourceName": "HITLWaitFunction",
+    "issue": "No Dead Letter Queue (DLQ) configured for Lambda function to handle failed executions",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "CloudWatch Logs",
+    "resourceName": "All Log Groups",
+    "issue": "Log Groups have retention policies but no access control policies to limit who can access log data",
+    "priority": "Medium",
+    "status": "Open"
+  }
+]

@@ -1,0 +1,65 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "AWS::Bedrock::Blueprint",
+    "resourceType": "AWS::Bedrock::Blueprint",
+    "resourceName": "BedrockBlueprint",
+    "issue": "Missing encryption configuration for sensitive data in the blueprint schema",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS::Bedrock::DataAutomationProject",
+    "resourceType": "AWS::Bedrock::DataAutomationProject",
+    "resourceName": "BedRockDataAutomationProject",
+    "issue": "Missing encryption configuration for data processing outputs",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS::Bedrock::Blueprint",
+    "resourceType": "AWS::Bedrock::Blueprint",
+    "resourceName": "BedrockBlueprint",
+    "issue": "No IAM policy defined for access control to the blueprint",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS::Bedrock::DataAutomationProject",
+    "resourceType": "AWS::Bedrock::DataAutomationProject",
+    "resourceName": "BedRockDataAutomationProject",
+    "issue": "No IAM policy defined for access control to the data automation project",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS::Bedrock::Blueprint",
+    "resourceType": "AWS::Bedrock::Blueprint",
+    "resourceName": "BedrockBlueprint",
+    "issue": "Processing potentially sensitive medical data without defined privacy controls",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS::Bedrock::DataAutomationProject",
+    "resourceType": "AWS::Bedrock::DataAutomationProject",
+    "resourceName": "BedRockDataAutomationProject",
+    "issue": "No logging configuration for audit and compliance purposes",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS::Bedrock::Blueprint",
+    "resourceType": "AWS::Bedrock::Blueprint",
+    "resourceName": "BedrockBlueprint",
+    "issue": "Inconsistent tagging strategy across resources",
+    "priority": "Medium",
+    "status": "Open"
+  }
+]

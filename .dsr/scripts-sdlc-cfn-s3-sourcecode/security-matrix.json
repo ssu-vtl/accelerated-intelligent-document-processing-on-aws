@@ -1,0 +1,47 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "S3 Bucket for initial deployment",
+    "resourceType": "AWS::S3::Bucket",
+    "resourceName": "InitialInstallBucket",
+    "issue": "S3 bucket is missing server access logging configuration",
+    "priority": "HIGH",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "S3 Bucket for initial deployment",
+    "resourceType": "AWS::S3::Bucket",
+    "resourceName": "InitialInstallBucket",
+    "issue": "S3 bucket is missing removal policy configuration",
+    "priority": "HIGH",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "S3 Bucket for initial deployment",
+    "resourceType": "AWS::S3::Bucket",
+    "resourceName": "InitialInstallBucket",
+    "issue": "S3 bucket is missing enforceSSL configuration",
+    "priority": "HIGH",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "S3 Bucket for initial deployment",
+    "resourceType": "AWS::S3::Bucket",
+    "resourceName": "InitialInstallBucket",
+    "issue": "S3 bucket uses AES256 encryption instead of KMS for potentially sensitive deployment artifacts",
+    "priority": "MEDIUM",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "S3 Bucket for initial deployment",
+    "resourceType": "AWS::S3::Bucket",
+    "resourceName": "InitialInstallBucket",
+    "issue": "S3 bucket is missing lifecycle policies",
+    "priority": "MEDIUM",
+    "status": "Open"
+  }
+]

@@ -1,0 +1,263 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "AWS::IAM::Policy",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda policy contains '*' resource for textract:DetectDocumentText and textract:AnalyzeDocument actions",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "AWS::IAM::Policy",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda policy contains '*' resource for cloudwatch:PutMetricData action",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "AWS::IAM::Policy",
+    "resourceName": "ClassificationFunction",
+    "issue": "Lambda policy contains '*' resource for cloudwatch:PutMetricData action",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "AWS::IAM::Policy",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda policy contains '*' resource for cloudwatch:PutMetricData action",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "AWS::IAM::Policy",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda policy contains '*' resource for cloudwatch:PutMetricData action",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "AWS::IAM::Policy",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Lambda policy contains '*' resource for cloudwatch:PutMetricData action",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "AWS::IAM::Policy",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda policy contains '*' resource for cloudwatch:PutMetricData action",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "AWS::IAM::Policy",
+    "resourceName": "ExtractionFunction",
+    "issue": "Policy grants broad permissions to invoke any Bedrock model with 'arn:aws:bedrock:*::foundation-model/*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "AWS::IAM::Policy",
+    "resourceName": "AssessmentFunction",
+    "issue": "Policy grants broad permissions to invoke any Bedrock model with 'arn:aws:bedrock:*::foundation-model/*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "AWS::IAM::Policy",
+    "resourceName": "SummarizationFunction",
+    "issue": "Policy grants broad permissions to invoke any Bedrock model with 'arn:aws:bedrock:*::foundation-model/*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function does not have a dead-letter queue configured",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Lambda function does not have a dead-letter queue configured",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda function does not have a dead-letter queue configured",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda function does not have a dead-letter queue configured",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Lambda function does not have a dead-letter queue configured",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda function does not have a dead-letter queue configured",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function does not have VPC configuration",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Lambda function does not have VPC configuration",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda function does not have VPC configuration",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda function does not have VPC configuration",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Lambda function does not have VPC configuration",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda function does not have VPC configuration",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "X-Ray tracing not enabled",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "X-Ray tracing not enabled",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "X-Ray tracing not enabled",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "X-Ray tracing not enabled",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "X-Ray tracing not enabled",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "X-Ray tracing not enabled",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "patterns/pattern-3/pattern-resources-udop.yaml",
+    "resourceType": "AWS::Serverless::StateMachine",
+    "resourceName": "DocumentProcessingStateMachine",
+    "issue": "State machine has CloudWatchLogsFullAccess policy which grants overly permissive access",
+    "priority": "High",
+    "status": "Open"
+  }
+]

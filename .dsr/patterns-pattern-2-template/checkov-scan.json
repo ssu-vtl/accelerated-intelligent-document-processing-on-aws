@@ -1,0 +1,1 @@
+{"check_type": "cloudformation", "results": {"failed_checks": []}, "summary": {"passed": 26, "failed": 0, "skipped": 24, "parsing_errors": 0, "resource_count": 17, "checkov_version": "3.2.461"}}

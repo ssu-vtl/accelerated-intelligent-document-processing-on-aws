@@ -1,0 +1,83 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "IAM Role",
+    "resourceName": "OpenSearchLambdaExecutionRole",
+    "issue": "Overly permissive IAM policy - 'aoss:APIAccessAll' on 'Resource: *' in AOSSPermissionsPart2 policy allows access to all AOSSServerless resources",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "IAM Role",
+    "resourceName": "OpenSearchLambdaExecutionRole",
+    "issue": "Broad S3 permissions - Policy allows s3:PutObject*, s3:GetObject*, s3:DeleteObject* on all S3 buckets ('arn:aws:s3:::*')",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "Lambda Function",
+    "resourceName": "GetAdjustedStackNameFunction",
+    "issue": "Missing dead-letter queue configuration for error handling",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "Lambda Function",
+    "resourceName": "GetSeedUrlsFunction",
+    "issue": "Missing dead-letter queue configuration for error handling",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "Lambda Function",
+    "resourceName": "CreateOSSIndexLambdaFunction",
+    "issue": "Missing dead-letter queue configuration for error handling",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "Lambda Function",
+    "resourceName": "StartIngestionJobFunction",
+    "issue": "Missing dead-letter queue configuration for error handling",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "OpenSearch Serverless",
+    "resourceName": "OSSNetworkPolicy",
+    "issue": "OpenSearch collection allows public access (AllowFromPublic: true) which could expose data",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "OpenSearch Serverless",
+    "resourceName": "OSSEncryptionPolicy",
+    "issue": "Uses AWS owned key instead of customer managed key for OpenSearch encryption",
+    "priority": "Low",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "IAM Role",
+    "resourceName": "KnowledgeBaseServiceRole",
+    "issue": "Overly broad permissions - bedrock:InvokeModel allows access to all foundation models",
+    "priority": "Medium",
+    "status": "Open"
+  }
+]

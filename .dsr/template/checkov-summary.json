@@ -1,0 +1,28 @@
+[
+  {
+    "source": "Checkov",
+    "path": "/template.yaml",
+    "line": 1636,
+    "issue": "Ensure Glue Security Configuration Encryption is enabled",
+    "check_id": "CKV_AWS_99",
+    "priority": "High",
+    "references": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-general-policies/bc-aws-general-41",
+    "status": "Open",
+    "stack": "template",
+    "resourceType": "Glue SecurityConfiguration",
+    "resourceName": "DocumentSectionsCrawlerSecurityConfigurationV2"
+  },
+  {
+    "source": "Checkov",
+    "path": "/template.yaml",
+    "line": 3370,
+    "issue": "Ensure that CloudWatch Log Group specifies retention days",
+    "check_id": "CKV_AWS_66",
+    "priority": "High",
+    "references": "https://docs.prismacloud.io/en/enterprise-edition/policy-reference/aws-policies/aws-logging-policies/logging-13",
+    "status": "Open",
+    "stack": "template",
+    "resourceType": "Logs LogGroup",
+    "resourceName": "LookupFunctionLogGroup"
+  }
+]

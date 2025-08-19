@@ -1,0 +1,272 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::StateMachine",
+    "resourceName": "DocumentProcessingStateMachine",
+    "issue": "Insufficient logging configuration - Logging level is set to ALL but there's no error handling defined in the state machine",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "OCRFunction",
+    "issue": "Function has overly permissive Textract policy (textract:DetectDocumentText, textract:AnalyzeDocument) with Resource: '*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "OCRFunction",
+    "issue": "Function has overly permissive CloudWatch policy (cloudwatch:PutMetricData) with Resource: '*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Function has overly permissive CloudWatch policy (cloudwatch:PutMetricData) with Resource: '*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Function has overly permissive CloudWatch policy (cloudwatch:PutMetricData) with Resource: '*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Function has overly permissive Bedrock policy (bedrock:InvokeModel) with Resource: 'arn:aws:bedrock:*::foundation-model/*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Function has overly permissive CloudWatch policy (cloudwatch:PutMetricData) with Resource: '*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Function has overly permissive Bedrock policy (bedrock:InvokeModel) with Resource: 'arn:aws:bedrock:*::foundation-model/*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Function has overly permissive CloudWatch policy (cloudwatch:PutMetricData) with Resource: '*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Function has overly permissive CloudWatch policy (cloudwatch:PutMetricData) with Resource: '*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Function has overly permissive Bedrock policy (bedrock:InvokeModel) with Resource: 'arn:aws:bedrock:*::foundation-model/*'",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "OCRFunction",
+    "issue": "Function does not have X-Ray tracing enabled",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Function does not have X-Ray tracing enabled",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Function does not have X-Ray tracing enabled",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Function does not have X-Ray tracing enabled",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Function does not have X-Ray tracing enabled",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Function does not have X-Ray tracing enabled",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "OCRFunction",
+    "issue": "Function does not implement dead-letter queue for failed executions",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Function does not implement dead-letter queue for failed executions",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Function does not implement dead-letter queue for failed executions",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Function does not implement dead-letter queue for failed executions",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Function does not implement dead-letter queue for failed executions",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Function does not implement dead-letter queue for failed executions",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "OCRFunction",
+    "issue": "Function does not have VPC configuration for network isolation",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Function does not have VPC configuration for network isolation",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Function does not have VPC configuration for network isolation",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Function does not have VPC configuration for network isolation",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Function does not have VPC configuration for network isolation",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Function does not have VPC configuration for network isolation",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "AWS::CloudFormation::Stack",
+    "resourceName": "SAGEMAKERCLASSIFIERSTACK",
+    "issue": "No validation of SageMaker model artifacts or model security posture check",
+    "priority": "High",
+    "status": "Open"
+  }
+]

@@ -1,0 +1,110 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "AWSTemplateFormatVersion: '2010-09-09'",
+    "resourceType": "AWS::Cognito::UserPool",
+    "resourceName": "UserPool",
+    "issue": "MFA configurations not enabled by default, making user accounts potentially vulnerable to unauthorized access",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWSTemplateFormatVersion: '2010-09-09'",
+    "resourceType": "AWS::Lambda::Function",
+    "resourceName": "Multiple Lambda Functions",
+    "issue": "Several Lambda functions are missing dead-letter queues for handling failed executions",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWSTemplateFormatVersion: '2010-09-09'",
+    "resourceType": "IAM Policy",
+    "resourceName": "AppSyncServiceRole",
+    "issue": "IAM policy for AppSyncServiceRole has higher complexity score than recommended (W76 - SPCM > 25)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWSTemplateFormatVersion: '2010-09-09'",
+    "resourceType": "AWS::IAM::Role",
+    "resourceName": "CognitoClientUpdaterRole",
+    "issue": "IAM Role has resource wildcard (*) permissions for Cognito and SageMaker actions",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWSTemplateFormatVersion: '2010-09-09'",
+    "resourceType": "AWS::IAM::Role",
+    "resourceName": "A2IHumanTaskUILambdaRole",
+    "issue": "IAM Role has resource wildcard (*) permissions for SageMaker A2I operations",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWSTemplateFormatVersion: '2010-09-09'",
+    "resourceType": "AWS::CloudFront::Distribution",
+    "resourceName": "CloudFrontDistribution",
+    "issue": "CloudFront distribution uses default TLS version which may not enforce latest security standards",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWSTemplateFormatVersion: '2010-09-09'",
+    "resourceType": "AWS::Lambda::Function",
+    "resourceName": "AnalyticsProcessorFunction",
+    "issue": "Lambda function has broad permissions to bedrock:InvokeModel for all foundation models",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWSTemplateFormatVersion: '2010-09-09'",
+    "resourceType": "AWS::IAM::Role",
+    "resourceName": "DashboardMergerFunction",
+    "issue": "Role has wildcard (*) permissions for CloudWatch dashboard actions",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWSTemplateFormatVersion: '2010-09-09'",
+    "resourceType": "AWS::Logs::LogGroup",
+    "resourceName": "LoggingBucket",
+    "issue": "Logging bucket doesn't require its own access logging (W35 suppression)",
+    "priority": "Low",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWSTemplateFormatVersion: '2010-09-09'",
+    "resourceType": "AWS::Lambda::Function",
+    "resourceName": "Multiple Lambda Functions",
+    "issue": "Several Lambda functions don't specify VPC access (W89 suppression)",
+    "priority": "Low",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWSTemplateFormatVersion: '2010-09-09'",
+    "resourceType": "AWS::DynamoDB::Table",
+    "resourceName": "ConcurrencyTable",
+    "issue": "DynamoDB table missing point-in-time recovery (W78 suppression)",
+    "priority": "Low",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWSTemplateFormatVersion: '2010-09-09'",
+    "resourceType": "WAF Configuration",
+    "resourceName": "WAFAllowedIPv4Ranges",
+    "issue": "WAF is disabled by default (0.0.0.0/0) unless explicitly configured",
+    "priority": "High",
+    "status": "Open"
+  }
+]

@@ -1,0 +1,119 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "AWS::OpenSearchServerless::SecurityPolicy",
+    "resourceName": "OSSNetworkPolicy",
+    "issue": "Allows public access to OpenSearch Serverless collection with AllowFromPublic: true",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "AWS::IAM::Role",
+    "resourceName": "OpenSearchLambdaExecutionRole",
+    "issue": "Overly permissive S3 access with wildcard resources (arn:aws:s3:::*)",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "AWS::IAM::Role",
+    "resourceName": "OpenSearchLambdaExecutionRole",
+    "issue": "Multiple IAM policies with wildcard resources (*) for logs and AOSS permissions",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "AWS::Lambda::Function",
+    "resourceName": "StartIngestionJobFunction",
+    "issue": "Missing VPC configuration for Lambda function",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "AWS::Lambda::Function",
+    "resourceName": "StartIngestionJobFunction",
+    "issue": "Missing reserved concurrency configuration",
+    "priority": "Low",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "AWS::Lambda::Function",
+    "resourceName": "StartIngestionJobFunction",
+    "issue": "Missing X-Ray tracing configuration",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "CreateOSSIndexLambdaFunction",
+    "issue": "Missing VPC configuration for Lambda function",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "CreateOSSIndexLambdaFunction",
+    "issue": "Missing reserved concurrency configuration",
+    "priority": "Low",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "GetAdjustedStackNameFunction",
+    "issue": "Missing VPC configuration for Lambda function",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "AWS::Serverless::Function",
+    "resourceName": "GetSeedUrlsFunction",
+    "issue": "Missing VPC configuration for Lambda function",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "AWS::OpenSearchServerless::Collection",
+    "resourceName": "OSSCollection",
+    "issue": "No explicit multi-AZ deployment configuration specified",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "AWS::IAM::Role",
+    "resourceName": "KnowledgeBaseServiceRole",
+    "issue": "Allows access to all foundation models with wildcard resource pattern (arn:aws:bedrock:${AWS::Region}::foundation-model/*)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Bedrock Knowledge Base setup",
+    "resourceType": "General",
+    "resourceName": "All Resources",
+    "issue": "Lack of consistent resource tagging across resources",
+    "priority": "Medium",
+    "status": "Open"
+  }
+]

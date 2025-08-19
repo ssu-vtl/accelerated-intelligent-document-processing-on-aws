@@ -1,0 +1,164 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "S3 Bucket",
+    "resourceName": "InputBucket",
+    "issue": "No S3 bucket configuration for Block Public Access, server-side encryption, versioning, or access logging is specified",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "S3 Bucket",
+    "resourceName": "ConfigurationBucket",
+    "issue": "No S3 bucket configuration for Block Public Access, server-side encryption, versioning, or access logging is specified",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "S3 Bucket",
+    "resourceName": "WorkingBucket",
+    "issue": "No S3 bucket configuration for Block Public Access, server-side encryption, versioning, or access logging is specified",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "S3 Bucket",
+    "resourceName": "OutputBucket",
+    "issue": "No S3 bucket configuration for Block Public Access, server-side encryption, versioning, or access logging is specified",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Lambda Function",
+    "resourceName": "InvokeBDAFunction",
+    "issue": "No Dead Letter Queue configured for error handling",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "No Dead Letter Queue configured for error handling",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "No Dead Letter Queue configured for error handling",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Lambda Function",
+    "resourceName": "HITLWaitFunction",
+    "issue": "No Dead Letter Queue configured for error handling",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Lambda Function",
+    "resourceName": "HITLStatusUpdateFunction",
+    "issue": "No Dead Letter Queue configured for error handling",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "DynamoDB Table",
+    "resourceName": "BDAMetadataTable",
+    "issue": "Missing automated backup configuration with defined retention period",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "SQS Queue",
+    "resourceName": "BDACompletionFunctionDLQ",
+    "issue": "No IAM policies defined to restrict queue access to only necessary services",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Lambda Function",
+    "resourceName": "HITLProcessLambdaFunction",
+    "issue": "No Dead Letter Queue configured for error handling",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "IAM Role",
+    "resourceName": "HITLProcessLambdaRole",
+    "issue": "Overly permissive S3 permissions - GetObject on entire buckets rather than specific paths",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "IAM Policy",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Overly permissive SSM permissions - ssm:GetParameter, ssm:PutParameter, ssm:GetParametersByPath on all resources (*)",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Lambda Function",
+    "resourceName": "Multiple Lambda Functions",
+    "issue": "No VPC configuration for Lambda functions to restrict network access",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "Infrastructure",
+    "resourceName": "General",
+    "issue": "No multi-AZ configuration specified for high availability",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "CloudFormation Template",
+    "resourceName": "General",
+    "issue": "Inconsistent resource tagging across resources",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 1 (BDA)",
+    "resourceType": "IAM Policy",
+    "resourceName": "Multiple Lambda Functions",
+    "issue": "CloudWatch permissions use wildcard resources for PutMetricData action",
+    "priority": "Medium",
+    "status": "Open"
+  }
+]

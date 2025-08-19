@@ -1,0 +1,47 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "CloudFormation template for GitLab role and permissions",
+    "resourceType": "IAM Role",
+    "resourceName": "GitLabRole",
+    "issue": "Role has broad permissions for logs:DescribeLogGroups on all log groups. This violates the principle of least privilege.",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "CloudFormation template for GitLab role and permissions",
+    "resourceType": "IAM Role",
+    "resourceName": "GitLabRole",
+    "issue": "Role has broad codepipeline:ListPipelines permission that allows access to all pipelines. This violates the principle of least privilege.",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "CloudFormation template for GitLab role and permissions",
+    "resourceType": "S3 Access",
+    "resourceName": "GitLabRole",
+    "issue": "No validation for server-side encryption requirement on S3 upload permissions for the source code bucket.",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "CloudFormation template for GitLab role and permissions",
+    "resourceType": "IAM Role",
+    "resourceName": "GitLabRole",
+    "issue": "Missing resource tagging for the IAM role, violating consistent resource tagging requirement.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "CloudFormation template for GitLab role and permissions",
+    "resourceType": "IAM Role",
+    "resourceName": "GitLabRole",
+    "issue": "Cross-account role assumption from GitLab account introduces potential security risk if GitLab account is compromised.",
+    "priority": "Medium",
+    "status": "Open"
+  }
+]

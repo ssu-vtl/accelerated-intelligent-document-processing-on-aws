@@ -1,0 +1,65 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Sample BDA lending package project",
+    "resourceType": "IAM Policy",
+    "resourceName": "BedrockDataAutomationAccess",
+    "issue": "Policy uses wildcard resource ('*') for Bedrock permissions, violating principle of least privilege",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Sample BDA lending package project",
+    "resourceType": "Lambda Function",
+    "resourceName": "BDAProjectLambda",
+    "issue": "Lambda function doesn't use VPC configuration, exposing it to public network",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Sample BDA lending package project",
+    "resourceType": "Lambda Function",
+    "resourceName": "BDAProjectLambda",
+    "issue": "Lambda function doesn't have dead-letter queue configured for error handling",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Sample BDA lending package project",
+    "resourceType": "Lambda Function",
+    "resourceName": "BDAProjectLambda",
+    "issue": "Lambda function doesn't have X-Ray tracing enabled",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Sample BDA lending package project",
+    "resourceType": "Lambda Function",
+    "resourceName": "BDAProjectLambda",
+    "issue": "Lambda function lacks resource tagging for consistent management",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Sample BDA lending package project",
+    "resourceType": "Lambda Function",
+    "resourceName": "BDAProjectLambda",
+    "issue": "Lambda function doesn't implement proper error handling or logging configuration",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - Sample BDA lending package project",
+    "resourceType": "Lambda Function",
+    "resourceName": "BDAProjectLambda",
+    "issue": "Lambda function doesn't have concurrency limits defined",
+    "priority": "Low",
+    "status": "Open"
+  }
+]

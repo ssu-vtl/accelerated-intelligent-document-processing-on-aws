@@ -1,0 +1,263 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function has broad permissions on AWS Textract service. Policy allows textract:DetectDocumentText and textract:AnalyzeDocument on all resources ('*').",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function has broad CloudWatch permissions. Policy allows cloudwatch:PutMetricData on all resources ('*').",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Lambda function has broad CloudWatch permissions. Policy allows cloudwatch:PutMetricData on all resources ('*').",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda function has broad CloudWatch permissions. Policy allows cloudwatch:PutMetricData on all resources ('*').",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda function has broad Bedrock permissions. Policy allows bedrock:InvokeModel on all foundation models ('arn:aws:bedrock:*::foundation-model/*').",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda function has broad CloudWatch permissions. Policy allows cloudwatch:PutMetricData on all resources ('*').",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda function has broad Bedrock permissions. Policy allows bedrock:InvokeModel on all foundation models ('arn:aws:bedrock:*::foundation-model/*').",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Lambda function has broad CloudWatch permissions. Policy allows cloudwatch:PutMetricData on all resources ('*').",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda function has broad CloudWatch permissions. Policy allows cloudwatch:PutMetricData on all resources ('*').",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda function has broad Bedrock permissions. Policy allows bedrock:InvokeModel on all foundation models ('arn:aws:bedrock:*::foundation-model/*').",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function missing VPC configuration. No VPC access defined which could improve security isolation.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Lambda function missing VPC configuration. No VPC access defined which could improve security isolation.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda function missing VPC configuration. No VPC access defined which could improve security isolation.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda function missing VPC configuration. No VPC access defined which could improve security isolation.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Lambda function missing VPC configuration. No VPC access defined which could improve security isolation.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda function missing VPC configuration. No VPC access defined which could improve security isolation.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function missing dead-letter queue configuration for better error handling and troubleshooting.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Lambda function missing dead-letter queue configuration for better error handling and troubleshooting.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda function missing dead-letter queue configuration for better error handling and troubleshooting.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda function missing dead-letter queue configuration for better error handling and troubleshooting.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Lambda function missing dead-letter queue configuration for better error handling and troubleshooting.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda function missing dead-letter queue configuration for better error handling and troubleshooting.",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function missing X-Ray tracing configuration for better monitoring and debugging.",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Lambda function missing X-Ray tracing configuration for better monitoring and debugging.",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda function missing X-Ray tracing configuration for better monitoring and debugging.",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda function missing X-Ray tracing configuration for better monitoring and debugging.",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Lambda function missing X-Ray tracing configuration for better monitoring and debugging.",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda function missing X-Ray tracing configuration for better monitoring and debugging.",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 3 (UDOP)",
+    "resourceType": "CloudFormation Stack",
+    "resourceName": "SAGEMAKERCLASSIFIERSTACK",
+    "issue": "Nested stack uses URL from S3 bucket with potentially public access. Consider using private access mechanisms.",
+    "priority": "Medium",
+    "status": "Open"
+  }
+]

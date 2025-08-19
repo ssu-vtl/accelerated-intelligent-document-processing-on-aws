@@ -1,0 +1,281 @@
+[
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function has overly permissive Bedrock permissions with 'bedrock:InvokeModel' on all foundation models (*)",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Lambda function has overly permissive Bedrock permissions with 'bedrock:InvokeModel' on all foundation models (*)",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda function has overly permissive Bedrock permissions with 'bedrock:InvokeModel' on all foundation models (*)",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda function has overly permissive Bedrock permissions with 'bedrock:InvokeModel' on all foundation models (*)",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda function has overly permissive Bedrock permissions with 'bedrock:InvokeModel' on all foundation models (*)",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function has overly permissive Textract permissions with 'textract:DetectDocumentText' and 'textract:AnalyzeDocument' on all resources (*)",
+    "priority": "High",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function has overly permissive CloudWatch permissions with 'cloudwatch:PutMetricData' on all resources (*)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Lambda function has overly permissive CloudWatch permissions with 'cloudwatch:PutMetricData' on all resources (*)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda function has overly permissive CloudWatch permissions with 'cloudwatch:PutMetricData' on all resources (*)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda function has overly permissive CloudWatch permissions with 'cloudwatch:PutMetricData' on all resources (*)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Lambda function has overly permissive CloudWatch permissions with 'cloudwatch:PutMetricData' on all resources (*)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda function has overly permissive CloudWatch permissions with 'cloudwatch:PutMetricData' on all resources (*)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function lacks error handling configuration (no dead-letter queue)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Lambda function lacks error handling configuration (no dead-letter queue)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda function lacks error handling configuration (no dead-letter queue)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda function lacks error handling configuration (no dead-letter queue)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Lambda function lacks error handling configuration (no dead-letter queue)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda function lacks error handling configuration (no dead-letter queue)",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function does not have X-Ray tracing enabled",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Lambda function does not have X-Ray tracing enabled",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda function does not have X-Ray tracing enabled",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda function does not have X-Ray tracing enabled",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Lambda function does not have X-Ray tracing enabled",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda function does not have X-Ray tracing enabled",
+    "priority": "Medium",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "OCRFunction",
+    "issue": "Lambda function does not utilize VPC configuration for enhanced network security",
+    "priority": "Low",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ClassificationFunction",
+    "issue": "Lambda function does not utilize VPC configuration for enhanced network security",
+    "priority": "Low",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ExtractionFunction",
+    "issue": "Lambda function does not utilize VPC configuration for enhanced network security",
+    "priority": "Low",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "AssessmentFunction",
+    "issue": "Lambda function does not utilize VPC configuration for enhanced network security",
+    "priority": "Low",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "ProcessResultsFunction",
+    "issue": "Lambda function does not utilize VPC configuration for enhanced network security",
+    "priority": "Low",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "Lambda Function",
+    "resourceName": "SummarizationFunction",
+    "issue": "Lambda function does not utilize VPC configuration for enhanced network security",
+    "priority": "Low",
+    "status": "Open"
+  },
+  {
+    "source": "security-matrix",
+    "stack": "AWS GenAI IDP Accelerator - resources for IDP Pattern 2",
+    "resourceType": "State Machine",
+    "resourceName": "DocumentProcessingStateMachine",
+    "issue": "State Machine has overly permissive CloudWatchLogsFullAccess policy",
+    "priority": "High",
+    "status": "Open"
+  }
+]
