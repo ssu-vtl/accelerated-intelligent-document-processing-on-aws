@@ -3371,6 +3371,8 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       KmsKeyId: !GetAtt CustomerManagedEncryptionKey.Arn
+      RetentionInDays: !Ref LogRetentionDays
+
   ##########################################################################
   # Analytics resources for text-to-analytics feature
   ##########################################################################
