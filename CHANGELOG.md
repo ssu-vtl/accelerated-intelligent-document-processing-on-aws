@@ -45,6 +45,9 @@ SPDX-License-Identifier: MIT-0
 - **Fixed CloudWatch Log Group Missing Retention regression**
 - **Security: Cross-Site Scripting (XSS) Vulnerability in FileViewer Component** - Fixed high-risk XSS vulnerability in `src/ui/src/components/document-viewer/FileViewer.jsx` where `innerHTML` was used with user-controlled data
 - **Add permissions boundary support to new Lambda function roles introduced in previous releases**
+- **Fixed OutOfMemory Errors in Pattern-2 OCR Lambda for Large High-Resolution Documents**
+  - **Root Cause**: Processing large PDFs with high-resolution images (7469×9623 pixels) caused memory spikes when 20 concurrent workers each held ~101MB images simultaneously, exceeding the 4GB Lambda memory limit
+  - **Optimal Solution**: Refactored image extraction to render directly at target dimensions using PyMuPDF matrix transformations, completely eliminating oversized image creation
 
 ## [0.3.11]
 
