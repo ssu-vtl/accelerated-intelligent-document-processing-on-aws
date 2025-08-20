@@ -8,6 +8,13 @@ SPDX-License-Identifier: MIT-0
 
 ### Added
 
+- **Enhanced A2I Template and Workflow Management**
+  - Enhanced A2I template with improved user interface and clearer instructions for reviewers
+  - Added comprehensive instructions for reviewers in A2I template to guide the review process
+  - Implemented capture of failed review tasks with proper error handling and logging
+  - Added workflow orchestration control to stop processing when reviewer rejects A2I task
+  - Removed automatic A2I task creation when Pattern-1 Bedrock Data Automation (BDA) fails to classify document to appropriate Blueprint
+
 - **Dynamic Cost Calculation for Metering Data**
   - Added automated unit cost and estimated cost calculation to metering table with new `unit_cost` and `estimated_cost` columns
   - Dynamic pricing configuration loading from configuration
