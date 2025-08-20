@@ -598,7 +598,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       InlineCode: |
         import cfnresponse
         import time
@@ -657,7 +657,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 300
       InlineCode: |
         import boto3
@@ -1896,7 +1896,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 30
       CodeUri: src/lambda/initialize_counter
       Environment:
@@ -1963,7 +1963,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 30
       CodeUri: src/lambda/update_configuration
       Environment:
@@ -2038,7 +2038,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 30
       CodeUri: src/lambda/update_settings
       LoggingConfig:
@@ -2187,7 +2187,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/lambda/queue_sender/
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 30
       DeadLetterQueue:
         Type: SQS
@@ -2255,7 +2255,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/lambda/queue_processor/
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 30
       LoggingConfig:
         LogGroup: !Ref QueueProcessorLogGroup
@@ -2367,7 +2367,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/lambda/workflow_tracker/
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 30
       DeadLetterQueue:
         Type: SQS
@@ -2479,7 +2479,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/lambda/stepfunction_subscription_publisher/
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Architectures:
         - x86_64
       MemorySize: 256
@@ -2626,7 +2626,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/lambda/save_reporting_data/
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 300
       MemorySize: 1024
       LoggingConfig:
@@ -2707,7 +2707,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/lambda/evaluation_function/
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 900
       DeadLetterQueue:
         Type: SQS
@@ -3278,7 +3278,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/lambda/dashboard_merger
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 60
       MemorySize: 128
       Environment:
@@ -3332,7 +3332,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/lambda/lookup_function/
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 30
       LoggingConfig:
         LogGroup: !Ref LookupFunctionLogGroup
@@ -3420,7 +3420,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/lambda/analytics_request_handler/
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 30
       Environment:
         Variables:
@@ -3469,7 +3469,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/lambda/analytics_processor/
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 900
       MemorySize: 1024
       Environment:
@@ -3865,7 +3865,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Description: Converts Stackname to lowercase and adds unique timestamp
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 30
       MemorySize: 128
       LoggingConfig:
@@ -4037,7 +4037,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Description: Verifies email address is in allowed domain
       Handler: index.lambda_handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 10
       Environment:
         Variables:
@@ -4178,7 +4178,7 @@ Resources:
       Description: Update Cognito App Client with SageMaker GroundTruth Labelling WorkForce Private Work Team
       CodeUri: src/lambda/cognito_updater_hitl
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 300
       MemorySize: 4096
       LoggingConfig:
@@ -4374,7 +4374,7 @@ Resources:
       CodeUri: src/lambda/create_a2i_resources
       Handler: index.handler
       Role: !GetAtt A2IHumanTaskUILambdaRole.Arn
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 900  # 15 minutes - Increased timeout for enhanced deletion verification and wait logic
       Environment:
         Variables:
@@ -4411,7 +4411,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       CodeUri: src/lambda/get-workforce-url
       Description: Lambda function to get the SageMaker Ground Truth workforce portal URL
       MemorySize: 128
@@ -4534,7 +4534,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: ./src/lambda/ipset_updater
       Handler: index.lambda_handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 300
       MemorySize: 256
       Environment:
@@ -4708,7 +4708,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       CodeUri: ./src/lambda/create_document_resolver
       Description: Lambda function to create document tracking via GraphQL API
       MemorySize: 512
@@ -4973,7 +4973,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       CodeUri: ./src/lambda/get_file_contents_resolver
       Description: Lambda function to return file contents via GraphQL API
       MemorySize: 512
@@ -5047,7 +5047,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/lambda/get_stepfunction_execution_resolver/
       Handler: index.lambda_handler
-      Runtime: python3.12
+      Runtime: python3.13
       Architectures:
         - x86_64
       MemorySize: 512
@@ -5127,7 +5127,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/lambda/publish_stepfunction_update_resolver/
       Handler: index.lambda_handler
-      Runtime: python3.12
+      Runtime: python3.13
       Architectures:
         - x86_64
       MemorySize: 256
@@ -5192,7 +5192,7 @@ Resources:
       Properties:
         PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]       
         Handler: index.handler
-        Runtime: python3.12
+        Runtime: python3.13
         CodeUri: ./src/lambda/configuration_resolver
         Description: Lambda function to manage configuration through GraphQL API
         MemorySize: 512
@@ -5275,7 +5275,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       CodeUri: ./src/lambda/copy_to_baseline_resolver
       Description: Lambda function to copy files to baseline bucket via GraphQL API
       MemorySize: 512
@@ -5366,7 +5366,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       CodeUri: ./src/lambda/delete_document_resolver
       Description: Lambda function to delete documents via GraphQL API
       MemorySize: 512
@@ -5440,7 +5440,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       CodeUri: ./src/lambda/reprocess_document_resolver
       Description: Lambda function to reprocess documents via GraphQL API
       MemorySize: 512
@@ -5508,7 +5508,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       CodeUri: ./src/lambda/upload_resolver
       Description: Lambda function to return signed upload URL via GraphQL API
       MemorySize: 512
@@ -5592,7 +5592,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.13
       CodeUri: ./src/lambda/query_knowledgebase_resolver
       Description: Lambda function to query Bedrock Knowledge Base via GraphQL API
       MemorySize: 512
@@ -6083,7 +6083,7 @@ Resources:
     Properties:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Role: !GetAtt StartUICodeBuildExecutionRole.Arn
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 60
       MemorySize: 128
       Handler: index.handler

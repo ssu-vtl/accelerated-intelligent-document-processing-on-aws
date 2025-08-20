@@ -33,6 +33,9 @@ SPDX-License-Identifier: MIT-0
 - **Related Conditions**: Removed parameter conditions and state machine definition substitutions for both features
 - **Conditional Logic**: Eliminated complex conditional logic from state machine definitions for summarization and assessment steps
 
+### Changed
+- **Updated Python Lambda Runtime to 3.13**
+
 ### ⚠️ Breaking Changes
 - **Configuration Migration Required**: When updating a stack that previously had `IsSummarizationEnabled` or `IsAssessmentEnabled` set to `false`, these features will now default to `enabled: true` after the update. To maintain the disabled behavior:
   1. Update your configuration file to set `summarization.enabled: false` and/or `assessment.enabled: false` as needed
