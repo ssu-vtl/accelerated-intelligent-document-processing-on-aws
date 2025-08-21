@@ -81,6 +81,19 @@ Parameters:
     Default: ""
     Description: "If you provided a Bedrock Guardrail Id above, provide the corresponding Guardrail version here"
 
+  EnableHITL:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: "Enable Human In The Loop (A2I) for document review"
+
+  SageMakerA2IReviewPortalURL:
+    Type: String
+    Default: ""
+    Description: "SageMaker A2I Review Portal URL for HITL workflows"
+
   ConfigurationDefaultS3Uri:
     Type: String
     Description: "S3 URI (s3://bucket/path/config.json) to import default configuration from S3"
@@ -105,6 +118,7 @@ Conditions:
   HasCustomClassificationModelARN : !Not [!Equals [!Ref CustomClassificationModelARN , ""]]
   HasCustomExtractionModelARN : !Not [!Equals [!Ref CustomExtractionModelARN , ""]]
   HasPermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundaryArn, ""]]
+  IsHITLEnabled: !Equals [!Ref EnableHITL, "true"]
 
 
 Resources:

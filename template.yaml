@@ -926,6 +926,11 @@ Resources:
           - "s3://${ConfigurationBucket}/config_library/pattern-3/${ConfigPath}/config.yaml"
           - ConfigPath: !FindInMap [Pattern3ConfigurationMap, !Ref Pattern3Configuration, ConfigPath]
         ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
+        EnableHITL: !Ref EnableHITL
+        SageMakerA2IReviewPortalURL: !If
+          - IsHITLEnabled
+          - !GetAtt WorkforceURLResource.PortalURL
+          - ""
         PermissionsBoundaryArn: !Ref PermissionsBoundaryArn
 
   ##########################################################################
