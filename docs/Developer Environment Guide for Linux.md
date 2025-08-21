@@ -56,37 +56,20 @@ Click Launch instance and wait for it to reach "Running" state.
 1. Select your instance in EC2 console
 2. Note the Public IPv4 address
 
-#SSH Connection Command
+# SSH Connection Command
 On local machine:
-```bash
 # CMD Terminal
 ssh -i /path/to/genai-idp-dev-key.pem ec2-user@YOUR_INSTANCE_IP
-or
-# PowerShell:
-ssh -i C:\path\to\genai-idp-dev-key.pem ec2-user@YOUR_INSTANCE_IP
-```
-## Step 3: Automated Setup Script
 
-# Introduction:
-For faster setup, you can use this automated script that installs all required development tools in one go. This 
-script configures Python 3.12, AWS CLI, SAM CLI, Node.js, Docker, and development tools with optimized settings.
-What it installs: Complete development stack including Python 3.13, AWS CLI v2, SAM CLI, Node.js 18, Docker, 
-Miniconda, and enhanced shell configuration.
-Usage: Copy the script below, save it as setup.sh, make it executable with chmod +x setup.sh, and run ./setup.sh. 
-Reboot required after completion.
-
-Note: This script is an alternative to the manual installation steps.
-
-./scripts/dev_setup.sh
-```bash
-# Navigate to the project directory
-cd /home/ec2-user/genaiic-idp-accelerator
+# Clone Repository
+bash
+git clone https://github.com/aws-solutions-library-samples/accelerated-intelligent-document-processing-on-aws
 
 # Run the setup script
-./scripts/dev_setup.sh
+./dev_setup.sh
 
 ## Step 4: Install Visual Studio Code
-Visit the official website: Go to [https://code.visualstudio.com/](https://code.visualstudio.com/)
+# 4.1 Visit the official website: Go to [https://code.visualstudio.com/](https://code.visualstudio.com/)
 Download: Click the "Download for Windows" button
    • This will download the User Installer (recommended for most users)
    • File name will be something like VSCodeUserSetup-x64-1.x.x.exe
@@ -95,11 +78,9 @@ Install:
    • Choose installation location (default is recommended)
 Launch: Click "Launch Visual Studio Code" when installation completes
 
-VSCode setup
-1. Open VSCode on your local computer
-2. Install Remote - SSH extension (by Microsoft)
+Install Remote - SSH extension (by Microsoft)
 
-### 4.2 Connect via VSCode: Update your SSH config
+# 4.2 Connect via VSCode: Update your SSH config
 Press Ctrl+Shift+P for commands
 Append the following block to your ~/.ssh/config file:
 
@@ -111,17 +92,11 @@ Host genai-idp-dev
     Port 22
 ```
 
-# Clone Repository
-bash
-git clone https://github.com/aws-samples/genaiic-idp-accelerator.git
-cd genaiic-idp-accelerator
-
-
 # 4.3 Connect via VSCode
 1. Press Ctrl+Shift+P
 2. Type "Remote-SSH: Connect to Host"
 3. Select "genai-idp-dev"
-4. Open folder: /home/ec2-user/genaiic-idp-accelerator
+4. Open folder: /home/ec2-user//accelerated-intelligent-document-processing-on-aws
 
 ## Step 5: Setup
 
@@ -131,11 +106,31 @@ cd genaiic-idp-accelerator
 python3 -m venv venv
 source venv/bin/activate
 
+## Step6: Configure
+For aws configure you need "access key" and "secret access key"
+If you have one use that or create access key
+1.In the AWS Console search bar, type "IAM"
+Click on "IAM" service
+2.In the left sidebar, click "Users"
+Find and click on your username
+Click on the "Security credentials" tab 
+Scroll down to "Access keys" section
+3. Click "Create access key"
+4. Choose use case:
+   • **"Command Line Interface (CLI)"** - for development
+   • **"Local code"** - for applications
+5. Click "Next"
+6. Add description (optional): "Development Environment"
+7. Click "Create access key"
+8.Click "Download .csv file" to save both keys
+```bash
+aws configure
+
 ### Test Build Process
 ```bash
 # Test publish script help
-./scripts/publish.sh --help
+./publish.sh --help
 
 # Test build (this will take 10-15 minutes)
-./scripts/publish.sh --build-only --region us-east-1
+./publish.sh bucket_name build-test us-east-1
 ```
