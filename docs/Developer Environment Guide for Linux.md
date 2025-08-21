@@ -22,12 +22,12 @@ A hybrid development setup where your code runs on a pre-configured Amazon Linux
 
 # 1.2 Configure Instance Settings
 Name: genai-idp-dev-environment (example)
-AMI Selection:
-• **Amazon Linux 2023**
-Architecture: 64-bit (x86)
-Instance Type:
-• Heavy development: t3.2xlarge (8 vCPU, 32 GB RAM)(recommended)
-(Other instance types will also work, but this is one we tested)
+-AMI Selection:
+-• **Amazon Linux 2023**
+-Architecture: 64-bit (x86)
+-Instance Type:
+-• Heavy development: t3.2xlarge (8 vCPU, 32 GB RAM)(recommended)
+-(Other instance types will also work, but this is one we tested)
 
 # 1.3 Key Pair Setup
 1. Click Create new key pair (or select existing)
