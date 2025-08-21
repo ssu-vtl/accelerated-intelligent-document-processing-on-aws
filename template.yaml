@@ -149,7 +149,7 @@ Parameters:
       - true
       - false
     Default: false
-    Description: Enable Human In The Loop configuration to invoke HITL (SageMaker A2I) if the extraction confidence is less than configured threshold (applies to Pattern-1 and Pattern-2)
+    Description: Enable Human In The Loop configuration to invoke HITL (SageMaker A2I) if the extraction confidence is less than configured threshold (applies to Pattern-1)
 
   ExistingPrivateWorkforceArn:
     Type: String
