@@ -89,8 +89,8 @@ Launch: Click "Launch Visual Studio Code" when installation completes
 Install Remote - SSH extension (by Microsoft)
 
 ## 4.2 Connect via VSCode: Update your SSH config
-To open "SSH Config" it go to "Remote Explorer" option on left bar  
-You can open and edit SSH config file by option of settings on "SSH" Tab  
+To open "SSH Config" go to "Remote Explorer" option on left bar  
+You can open and edit SSH config file by settings option on "SSH" Tab  
 
 ```
 Host genai-idp-dev
