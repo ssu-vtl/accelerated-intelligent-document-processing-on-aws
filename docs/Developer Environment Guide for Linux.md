@@ -22,9 +22,10 @@ A hybrid development setup where your code runs on a pre-configured Amazon Linux
 
 ## 1.2 Configure Instance Settings
 Name: genai-idp-dev-environment(example)  
-AMI Selection:  
-**Amazon Linux 2023**  
-- Architecture: 64-bit (x86)  
+**AMI Selection:**  
+Amazon Linux 2023  
+- Architecture: 64-bit (x86)
+
 Instance Type:  
 - Heavy development: t3.2xlarge (8 vCPU, 32 GB RAM)(recommended)  
 (Other instance types will also work, but this is one we tested)  
@@ -70,7 +71,7 @@ git clone https://github.com/aws-solutions-library-samples/accelerated-intellige
  cd accelerated-intelligent-document-processing-on-aws/  
 
 ### Run the setup script for development tools which is scripts directory
-cd  scripts
+cd  scripts  
 sh ./dev_setup.sh
 
 ### To upgrade the python version run this command on EC2 instance
@@ -80,12 +81,13 @@ source /home/ec2-user/miniconda/bin/activate base
 ## 4.1 Visit the official website: Go to [https://code.visualstudio.com/](https://code.visualstudio.com/)
 Download: Click the "Download for Windows" button 
 - This will download the User Installer (recommended for most users) 
-- File name will be something like VSCodeUserSetup-x64-1.x.x.exe 
+- File name will be something like VSCodeUserSetup-x64-1.x.x.exe  
+
 Install:   
    - Run the downloaded installer  
    - Choose installation location (default is recommended)  
-Launch: Click "Launch Visual Studio Code" when installation completes
 
+Launch: Click "Launch Visual Studio Code" when installation completes  
 Install Remote - SSH extension (by Microsoft)
 
 ## 4.2 Connect via VSCode: Update your SSH config
