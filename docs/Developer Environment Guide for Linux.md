@@ -109,10 +109,6 @@ Host genai-idp-dev
 # Step 5: AWS Configure
 ### Refer this link for AWS configure
 https://docs.aws.amazon.com/cli/latest/userguide/getting-started-quickstart.html  
-- "Download .csv file" to save both keys  
-
-### In VScode Terminal run this script
-aws configure
 
 # Step 6: Run Publish Script 
 ## Test Build Process
