@@ -55,13 +55,13 @@ SPDX-License-Identifier: MIT-0
   - **Cost Optimization**: When disabled, no LLM API calls or S3 operations are performed
   - **Configuration Example**: Set `assessment.enabled: false` to disable, `enabled: true` to enable (default)
 
+- **Add guides and helper scripts for setting up EC2-based development environment**
+- **Add guides and helper scripts for setting up MacOS development environment**
+
 ### Removed
 - **CloudFormation Parameters**: Removed `IsSummarizationEnabled` and `IsAssessmentEnabled` parameters from all pattern templates
 - **Related Conditions**: Removed parameter conditions and state machine definition substitutions for both features
 - **Conditional Logic**: Eliminated complex conditional logic from state machine definitions for summarization and assessment steps
-
-### Changed
-- **Updated Python Lambda Runtime to 3.13**
 
 ### ⚠️ Breaking Changes
 - **Configuration Migration Required**: When updating a stack that previously had `IsSummarizationEnabled` or `IsAssessmentEnabled` set to `false`, these features will now default to `enabled: true` after the update. To maintain the disabled behavior:
@@ -69,6 +69,9 @@ SPDX-License-Identifier: MIT-0
   2. Save the configuration changes immediately after the stack update
   3. This ensures continued cost optimization by preventing unexpected LLM API calls
 - **Action Required**: Review your current CloudFormation parameter settings before updating and update your configuration accordingly to preserve existing behavior
+
+### Changed
+- **Updated Python Lambda Runtime to 3.13**
 
 ### Fixed
 - **Fixed B615 "Unsafe Hugging Face Hub download without revision pinning" security finding in Pattern-3 fine-tuning module** - Added revision pinning with to prevent supply chain attacks and ensure reproducible deployments
