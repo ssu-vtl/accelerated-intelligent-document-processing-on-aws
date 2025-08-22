@@ -115,7 +115,7 @@ If you have one use that or create access key
 - Click on the "Security credentials" tab   
 - Scroll down to "Access keys" section  
 3. Click "Create access key"  
-4. Choose use case: 
+4. Choose use case:  
 **"Command Line Interface (CLI)"** - for development  
 **"Local code"** - for applications 
 5. Click "Next"  
