@@ -22,7 +22,7 @@ A hybrid development setup where your code runs on a pre-configured Amazon Linux
 
 ## 1.2 Configure Instance Settings
 Name: genai-idp-dev-environment(example)  
-**AMI Selection:**  
+AMI Selection:  
 Amazon Linux 2023  
 - Architecture: 64-bit (x86)
 
