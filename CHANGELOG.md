@@ -5,8 +5,16 @@ SPDX-License-Identifier: MIT-0
 
 ## [Unreleased]
 
+## [0.3.12]
 
 ### Added
+
+- **Refactored Document Classification Service for Enhanced Boundary Detection**
+  - Consolidated `multimodalPageLevelClassification` and the experimental `multimodalPageBoundaryClassification` (from v0.3.11) into a single enhanced `multimodalPageLevelClassification` method
+  - Implemented BIO-like sequence segmentation with document boundary indicators: "start" (new document) and "continue" (same document)
+  - Automatically segments multi-document packets, even when they contain multiple documents of the same type
+  - **Benefits**: Simplified codebase with single multimodal classification method, improved handling of complex document packets, maintains backward compatibility
+  - **No Breaking Changes**: Existing configurations work unchanged, no configuration updates required
 
 - **Enhanced A2I Template and Workflow Management**
   - Enhanced A2I template with improved user interface and clearer instructions for reviewers
