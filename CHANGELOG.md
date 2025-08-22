@@ -55,8 +55,9 @@ SPDX-License-Identifier: MIT-0
   - **Cost Optimization**: When disabled, no LLM API calls or S3 operations are performed
   - **Configuration Example**: Set `assessment.enabled: false` to disable, `enabled: true` to enable (default)
 
-- **Add guides and helper scripts for setting up EC2-based development environment**
-- **Add guides and helper scripts for setting up MacOS development environment**
+- **New guides for setting up development environments**
+  - EC2-based Linux development environment
+  - MacOS development environment
 
 ### Removed
 - **CloudFormation Parameters**: Removed `IsSummarizationEnabled` and `IsAssessmentEnabled` parameters from all pattern templates
