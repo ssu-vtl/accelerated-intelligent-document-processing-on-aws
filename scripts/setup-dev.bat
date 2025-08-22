@@ -292,8 +292,16 @@ echo    Step 7: GitLab Project Setup
 echo ========================================
 echo.
 mwinit -k C:\Users\tanimath\.ssh\id_ecdsa.pub
-set /p GITLAB_PROJECT_URL="Enter GitLab project URL (e.g., https://gitlab.com/username/project.git): "
-set /p PROJECT_DIR="Enter local directory name for the project: "
+echo NOTE: This GitLab instance requires SSH authentication.
+echo.
+set /p GITLAB_PROJECT_URL="Enter GitLab project SSH URL (default: git@ssh.gitlab.aws.dev:genaiic-reusable-assets/engagement-artifacts/genaiic-idp-accelerator.git): "
+if "!GITLAB_PROJECT_URL!"=="" (
+    set GITLAB_PROJECT_URL=git@ssh.gitlab.aws.dev:genaiic-reusable-assets/engagement-artifacts/genaiic-idp-accelerator.git
+    echo Using default SSH URL: !GITLAB_PROJECT_URL!
+)
+echo Using SSH URL: !GITLAB_PROJECT_URL!
+set /p PROJECT_DIR="Enter local directory name for the project (default: idp): "
+if "!PROJECT_DIR!"=="" set PROJECT_DIR=idp
 
 if "!GITLAB_PROJECT_URL!"=="" (
     echo Skipping GitLab project clone...
@@ -316,6 +324,60 @@ if not exist "C:\Projects" (
 
 cd /d "C:\Projects"
 
+REM Check if project directory already exists
+if exist "!PROJECT_DIR!" (
+    echo Project directory C:\Projects\!PROJECT_DIR! already exists
+    cd "!PROJECT_DIR!"
+    
+    REM Check if it's a git repository
+    git status >nul 2>&1
+    if !errorLevel! equ 0 (
+        echo Found existing git repository, skipping clone...
+        echo Checking current branch and pulling latest changes...
+        
+        REM Get current branch
+        for /f "tokens=*" %%i in ('git branch --show-current') do set CURRENT_BRANCH=%%i
+        echo Current branch: !CURRENT_BRANCH!
+        
+        REM Pull latest changes
+        git pull origin !CURRENT_BRANCH!
+        if !errorLevel! neq 0 (
+            echo WARNING: Failed to pull latest changes
+        )
+        
+        REM Ask user which branch to checkout
+        echo.
+        set /p TARGET_BRANCH="Enter branch to checkout (default: develop): "
+        
+        if "!TARGET_BRANCH!"=="" (
+            set TARGET_BRANCH=develop
+            echo Using default branch: develop
+        )
+        
+        REM Checkout target branch if not already on it
+        if not "!CURRENT_BRANCH!"=="!TARGET_BRANCH!" (
+            echo Checking out branch: !TARGET_BRANCH!
+            git checkout !TARGET_BRANCH!
+            if !errorLevel! neq 0 (
+                echo ERROR: Failed to checkout branch !TARGET_BRANCH!
+                echo The branch may not exist or there may be network issues
+                pause
+            ) else (
+                echo Successfully checked out branch !TARGET_BRANCH!
+            )
+        ) else (
+            echo Already on !TARGET_BRANCH! branch
+        )
+        
+        goto :build_project
+    ) else (
+        echo Directory exists but is not a git repository
+        echo Please remove C:\Projects\!PROJECT_DIR! or choose a different directory name
+        pause
+        goto :skip_gitlab
+    )
+)
+
 REM Clone the project
 git clone "!GITLAB_PROJECT_URL!" "!PROJECT_DIR!"
 
@@ -328,18 +390,101 @@ if !errorLevel! neq 0 (
 
 cd "!PROJECT_DIR!"
 
+echo.
+echo Repository cloned successfully!
+echo.
+set /p TARGET_BRANCH="Enter branch to checkout (default: develop): "
+
+if "!TARGET_BRANCH!"=="" (
+    set TARGET_BRANCH=develop
+    echo Using default branch: develop
+)
+
+echo Checking out branch: !TARGET_BRANCH!
+git checkout !TARGET_BRANCH!
+
+if !errorLevel! neq 0 (
+    echo ERROR: Failed to checkout branch !TARGET_BRANCH!
+    echo The branch may not exist or there may be network issues
+    pause
+) else (
+    echo Successfully checked out branch !TARGET_BRANCH!
+)
+
 echo GitLab project cloned successfully to C:\Projects\!PROJECT_DIR!
 
-echo ==========================================
-echo building project
-echo ==========================================
+:build_project
 
-python publish.py > nul 2>&1
-if %errorLevel% equ 0 (
-		echo Project built successfully
-	) else (
-		echo Project build failed
-	)
+echo.
+echo ========================================
+echo    Step 8: Building Project
+echo ========================================
+echo.
+
+echo Please provide the required arguments for publish.py:
+echo.
+set /p BUCKET_NAME="Enter S3 bucket name for artifacts: "
+set /p PREFIX="Enter S3 prefix for artifacts (default: idp): "
+set /p REGION="Enter AWS region (default: us-east-1): "
+
+if "!BUCKET_NAME!"=="" (
+    echo ERROR: S3 bucket name cannot be empty
+    pause
+    exit /b 1
+)
+
+if "!PREFIX!"=="" (
+    set PREFIX=idp
+    echo Using default prefix: idp
+)
+
+if "!REGION!"=="" (
+    set REGION=us-east-1
+    echo Using default region: us-east-1
+)
+
+echo.
+echo ========================================
+echo    Step 8a: Installing Python Dependencies
+echo ========================================
+echo.
+
+echo Installing required Python packages for publish.py...
+echo Installing boto3...
+
+python -m pip install --upgrade pip
+if !errorLevel! neq 0 (
+    echo WARNING: Failed to upgrade pip, continuing anyway...
+)
+
+python -m pip install boto3
+if !errorLevel! neq 0 (
+    echo ERROR: Failed to install boto3
+    echo Please install boto3 manually: pip install boto3
+    pause
+    exit /b 1
+)
+
+echo Python dependencies installed successfully!
+
+echo.
+echo ========================================
+echo    Step 8b: Building Project
+echo ========================================
+echo.
+
+echo Running publish.py to build the project...
+echo Command: python publish.py !BUCKET_NAME! !PREFIX! !REGION!
+echo.
+
+python publish.py !BUCKET_NAME! !PREFIX! !REGION!
+if !errorLevel! equ 0 (
+    echo Project built successfully!
+) else (
+    echo ERROR: Project build failed
+    echo Please check the output above for details
+    pause
+)
 
 echo ========================================
 echo    Setup Complete!

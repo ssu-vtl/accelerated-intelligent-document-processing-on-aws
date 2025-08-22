@@ -149,7 +149,7 @@ class IDPPublisher:
     def check_prerequisites(self):
         """Check for required commands and versions"""
         # Check required commands
-        required_commands = ["aws", "sam", "sha256sum"]
+        required_commands = ["aws", "sam"]
         for cmd in required_commands:
             if not shutil.which(cmd):
                 print(f"Error: {cmd} is required but not installed")
