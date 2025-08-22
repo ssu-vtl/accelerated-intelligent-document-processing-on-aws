@@ -147,7 +147,9 @@ class ClassificationService:
                     f"Invalid classification method '{self.classification_method}', falling back to '{self.MULTIMODAL_PAGE_LEVEL}'"
                 )
                 self.classification_method = self.MULTIMODAL_PAGE_LEVEL
-            logger.info("Using multimodal page-level classification method with document boundary detection")
+            logger.info(
+                "Using multimodal page-level classification method with document boundary detection"
+            )
 
     def _load_document_types(self) -> List[DocumentType]:
         """Load document types from configuration."""
@@ -1566,15 +1568,15 @@ class ClassificationService:
     ) -> List[DocumentSection]:
         """
         Group consecutive pages into sections using sequence segmentation.
-        
+
         This method implements the BIO-like tagging approach by examining both:
         1. Document type (classification)
         2. Document boundary indicator ("start" or "continue")
-        
+
         A new section is created when:
         - The document type changes from one page to the next
         - A page has boundary="start", indicating a new document begins
-        
+
         This enables accurate segmentation of multi-document packets where multiple
         documents of the same type may appear consecutively.
 
