@@ -5,9 +5,20 @@ SPDX-License-Identifier: MIT-0
 
 ## [Unreleased]
 
+### Added
+
+
+
 ## [0.3.12]
 
 ### Added
+
+- **Custom Prompt Generator Lambda Support for Patterns 2 & 3**
+  - Added `custom_prompt_lambda_arn` configuration field to enable injection of custom business logic into extraction processing
+  - **Key Features**: Lambda interface with all template placeholders (DOCUMENT_TEXT, DOCUMENT_CLASS, ATTRIBUTE_NAMES_AND_DESCRIPTIONS, DOCUMENT_IMAGE), URI-based image handling for JSON serialization, comprehensive error handling with fail-fast behavior, scoped IAM permissions requiring GENAIIDP-* function naming
+  - **Use Cases**: Document type-specific processing rules, integration with external systems for customer configurations, conditional processing based on document content, regulatory compliance and industry-specific requirements
+  - **Demo Resources**: Interactive notebook demonstration (`step3_extraction_with_custom_lambda.ipynb`), SAM deployment template for demo Lambda function, comprehensive documentation and examples in `notebooks/examples/demo-lambda/`
+  - **Benefits**: Custom business logic without core code changes, backward compatible (existing deployments unchanged), robust JSON serialization handling all object types, complete observability with detailed logging
 
 - **Refactored Document Classification Service for Enhanced Boundary Detection**
   - Consolidated `multimodalPageLevelClassification` and the experimental `multimodalPageBoundaryClassification` (from v0.3.11) into a single enhanced `multimodalPageLevelClassification` method
