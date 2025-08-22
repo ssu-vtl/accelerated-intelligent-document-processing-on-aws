@@ -23,8 +23,8 @@ A hybrid development setup where your code runs on a pre-configured Amazon Linux
 ## 1.2 Configure Instance Settings
 Name: genai-idp-dev-environment(example)  
 AMI Selection:  
-**Amazon Linux 2023**   
-- Architecture: 64-bit (x86)
+**Amazon Linux 2023**  
+- Architecture: 64-bit (x86)  
 Instance Type:  
 - Heavy development: t3.2xlarge (8 vCPU, 32 GB RAM)(recommended)  
 (Other instance types will also work, but this is one we tested)  
@@ -40,7 +40,7 @@ Instance Type:
 Security Group Configuration:
 1. Create new security group  
 2. Add these inbound rules:  
-  - **SSH**: Port 22, Source: My IP
+- **SSH**: Port 22, Source: My IP
 
 ## 1.5 Storage Configuration
 - Size: 720 GiB    
@@ -73,14 +73,14 @@ git clone https://github.com/aws-solutions-library-samples/accelerated-intellige
 cd  scripts
 sh ./dev_setup.sh
 
-### To upgrade the python version run this on EC2 instance
+### To upgrade the python version run this command on EC2 instance
 source /home/ec2-user/miniconda/bin/activate base
 
 # Step 4: Install Visual Studio Code on Local Machine
 ## 4.1 Visit the official website: Go to [https://code.visualstudio.com/](https://code.visualstudio.com/)
-Download: Click the "Download for Windows" button  
-- This will download the User Installer (recommended for most users)  
-- File name will be something like VSCodeUserSetup-x64-1.x.x.exe  
+Download: Click the "Download for Windows" button 
+- This will download the User Installer (recommended for most users) 
+- File name will be something like VSCodeUserSetup-x64-1.x.x.exe 
 Install:   
    - Run the downloaded installer  
    - Choose installation location (default is recommended)  
@@ -115,9 +115,9 @@ If you have one use that or create access key
 - Click on the "Security credentials" tab   
 - Scroll down to "Access keys" section  
 3. Click "Create access key"  
-4. Choose use case:  
-- **"Command Line Interface (CLI)"** - for development  
-- **"Local code"** - for applications  
+4. Choose use case: 
+**"Command Line Interface (CLI)"** - for development  
+**"Local code"** - for applications 
 5. Click "Next"  
 6. Add description (optional): "Development Environment"  
 7. Click "Create access key"  
