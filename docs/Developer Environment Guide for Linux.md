@@ -126,7 +126,7 @@ aws configure
 ### Cline
 What it is: An AI coding assistant that runs as a VS Code extension, powered by various LLMs (Claude, GPT, etc.)  
 
-Key capabilities:  
+Key capabilities:
 - Autonomous code editing across multiple files  
 - Executes terminal commands and reads file outputs  
 - Can browse the web for documentation/research  
@@ -140,11 +140,11 @@ Why it's helpful: Acts like an AI pair programmer that can actually write, test,
 What it is: AWS's AI coding assistant integrated into IDEs, specifically designed for AWS development
 
 Key capabilities:
-• Code suggestions and completions optimized for AWS services
-• Security vulnerability scanning and fixes
-• AWS best practices recommendations
-• Infrastructure as Code (CloudFormation, CDK) assistance
-• Direct integration with AWS documentation and services
+- Code suggestions and completions optimized for AWS services  
+- Security vulnerability scanning and fixes  
+- AWS best practices recommendations  
+- Infrastructure as Code (CloudFormation, CDK) assistance  
+- Direct integration with AWS documentation and services  
 
 Why it's helpful: Specialized for AWS development with deep knowledge of AWS services, perfect for this GenAI-IDP project since it's 
 built entirely on AWS.
