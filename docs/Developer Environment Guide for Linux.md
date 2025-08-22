@@ -43,7 +43,7 @@ Security Group Configuration:
 - **SSH**: Port 22, Source: My IP
 
 ## 1.5 Storage Configuration
-- Size: 720 GiB    
+- Size: 720 GiB  
 - Type: gp3  
 - Delete on termination: Yes
 
@@ -89,8 +89,8 @@ Launch: Click "Launch Visual Studio Code" when installation completes
 Install Remote - SSH extension (by Microsoft)
 
 ## 4.2 Connect via VSCode: Update your SSH config
-Press Ctrl+Shift+P for commands  
-Append the following block to your ~/.ssh/config file:
+To open "SSH Config" it go to "Remote Explorer" option on left bar  
+You can open and edit SSH config file by option of settings on "SSH" Tab  
 
 ```
 Host genai-idp-dev
