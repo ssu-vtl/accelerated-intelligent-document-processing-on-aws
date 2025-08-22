@@ -13,6 +13,7 @@ SPDX-License-Identifier: MIT-0
   - Consolidated `multimodalPageLevelClassification` and the experimental `multimodalPageBoundaryClassification` (from v0.3.11) into a single enhanced `multimodalPageLevelClassification` method
   - Implemented BIO-like sequence segmentation with document boundary indicators: "start" (new document) and "continue" (same document)
   - Automatically segments multi-document packets, even when they contain multiple documents of the same type
+  - Added comprehensive classification guide with method comparisons and best practices
   - **Benefits**: Simplified codebase with single multimodal classification method, improved handling of complex document packets, maintains backward compatibility
   - **No Breaking Changes**: Existing configurations work unchanged, no configuration updates required
 
