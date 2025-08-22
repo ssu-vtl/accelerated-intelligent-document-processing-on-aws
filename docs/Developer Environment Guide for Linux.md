@@ -109,15 +109,15 @@ Host genai-idp-dev
 # Step 5: AWS Configure
 For aws configure you need "access key" and "secret access key"  
 If you have one use that or create access key  
-1.In the AWS Console search bar, Click on "IAM" service  
-2.In the left sidebar, click "Users"  
+1. In the AWS Console search bar, Click on "IAM" service  
+2. In the left sidebar, click "Users"  
 - Find and click on your username  
 - Click on the "Security credentials" tab   
 - Scroll down to "Access keys" section  
-3.Click "Create access key"  
-4.Choose use case:  
-  - **"Command Line Interface (CLI)"** - for development  
-  - **"Local code"** - for applications  
+3. Click "Create access key"  
+4. Choose use case:  
+- **"Command Line Interface (CLI)"** - for development  
+- **"Local code"** - for applications  
 5. Click "Next"  
 6. Add description (optional): "Development Environment"  
 7. Click "Create access key"  
