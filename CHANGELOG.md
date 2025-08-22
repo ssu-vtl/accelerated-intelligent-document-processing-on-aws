@@ -5,27 +5,17 @@ SPDX-License-Identifier: MIT-0
 
 ## [Unreleased]
 
+## [0.3.12]
+
 ### Added
 
-- **BIO-like Sequence Segmentation for Multimodal Classification**
-  - Enhanced multimodal page-level classification with document boundary detection using BIO (Begin-Inside-Outside) tagging
-  - Each page receives both document type and boundary indicator ("start"/"continue") for automatic multi-document packet segmentation
-  - Eliminates need for manual document splitting in complex packets containing multiple documents of same type
-
-### Changed
-
-- **Consolidated Classification Methods**
-  - Merged `multimodalPageBoundaryClassification` into enhanced `multimodalPageLevelClassification` 
-  - Removed `MULTIMODAL_PAGE_BOUNDARY` constant and simplified configuration logic
-  - Maintains backward compatibility with existing configurations
-
-### Documentation
-
-- **Updated Classification Documentation**
-  - Enhanced service docstrings and README files with sequence segmentation examples
+- **Refactored Document Classification Service for Enhanced Boundary Detection**
+  - Consolidated `multimodalPageLevelClassification` and the experimental `multimodalPageBoundaryClassification` (from v0.3.11) into a single enhanced `multimodalPageLevelClassification` method
+  - Implemented BIO-like sequence segmentation with document boundary indicators: "start" (new document) and "continue" (same document)
+  - Automatically segments multi-document packets, even when they contain multiple documents of the same type
   - Added comprehensive classification guide with method comparisons and best practices
-
-### Added
+  - **Benefits**: Simplified codebase with single multimodal classification method, improved handling of complex document packets, maintains backward compatibility
+  - **No Breaking Changes**: Existing configurations work unchanged, no configuration updates required
 
 - **Enhanced A2I Template and Workflow Management**
   - Enhanced A2I template with improved user interface and clearer instructions for reviewers
