@@ -90,7 +90,7 @@ Install Remote - SSH extension (by Microsoft)
 
 ## 4.2 Connect via VSCode: Update your SSH config
 To open "SSH Config" go to "Remote Explorer" option on left bar  
-You can open and edit SSH config file by settings option on "SSH" Tab  
+You can open and edit "SSH config" file by settings option on "SSH" Tab  
 
 ```
 Host genai-idp-dev
@@ -121,3 +121,31 @@ aws configure
 
 ### Test build (this will take 10-15 minutes)
 ./publish.sh bucket_name build-test us-east-1
+
+# Step 7: Cline & Q Developer installation
+### Cline
+What it is: An AI coding assistant that runs as a VS Code extension, powered by various LLMs (Claude, GPT, etc.)  
+
+Key capabilities:  
+- Autonomous code editing across multiple files  
+- Executes terminal commands and reads file outputs  
+- Can browse the web for documentation/research  
+- Maintains context across entire codebases  
+- Handles complex, multi-step development tasks  
+
+Why it's helpful: Acts like an AI pair programmer that can actually write, test, and debug code independently while you supervise.  
+- You can install it from "Extensions" tab on VSCode.
+
+### Amazon Q Developer
+What it is: AWS's AI coding assistant integrated into IDEs, specifically designed for AWS development
+
+Key capabilities:
+• Code suggestions and completions optimized for AWS services
+• Security vulnerability scanning and fixes
+• AWS best practices recommendations
+• Infrastructure as Code (CloudFormation, CDK) assistance
+• Direct integration with AWS documentation and services
+
+Why it's helpful: Specialized for AWS development with deep knowledge of AWS services, perfect for this GenAI-IDP project since it's 
+built entirely on AWS.
+- You can install it from https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/command-line-installing.html  
