@@ -23,6 +23,10 @@ import boto3
 from botocore.exceptions import ClientError
 import tempfile
 import platform
+import concurrent.futures
+import threading
+from functools import partial
+import time
 
 
 class IDPPublisher:
@@ -41,14 +45,22 @@ class IDPPublisher:
         self.stat_cmd = None
         self.s3_client = None
         self.cf_client = None
+        self._print_lock = threading.Lock()  # Thread-safe printing
+        
+    def thread_safe_print(self, message):
+        """Thread-safe print method"""
+        with self._print_lock:
+            print(message)
         
     def print_usage(self):
         """Print usage information"""
-        print("Usage: python3 publish.py <cfn_bucket_basename> <cfn_prefix> <region> [public]")
+        print("Usage: python3 publish.py <cfn_bucket_basename> <cfn_prefix> <region> [public] [--max-workers N]")
         print("  <cfn_bucket_basename>: Base name for the CloudFormation artifacts bucket")
         print("  <cfn_prefix>: S3 prefix for artifacts")
         print("  <region>: AWS region for deployment")
         print("  [public]: Optional. If 'public', artifacts will be made publicly readable")
+        print("  [--max-workers N]: Optional. Maximum number of concurrent workers (default: auto-detect)")
+        print("                     Use 1 for sequential processing, higher numbers for more concurrency")
 
     def check_parameters(self, args):
         """Check and validate input parameters"""
@@ -56,18 +68,49 @@ class IDPPublisher:
             print("Error: Missing required parameters")
             self.print_usage()
             sys.exit(1)
-            
+        
+        # Parse arguments
         self.bucket_basename = args[0]
         self.prefix = args[1].rstrip('/')  # Remove trailing slash
         self.region = args[2]
         
-        if len(args) > 3 and args[3].lower() == 'public':
-            self.public = True
-            self.acl = "public-read"
-            print("Published S3 artifacts will be accessible by public.")
-        else:
-            self.public = False
-            self.acl = "bucket-owner-full-control"
+        # Default values
+        self.public = False
+        self.acl = "bucket-owner-full-control"
+        self.max_workers = None  # Auto-detect
+        
+        # Parse optional arguments
+        remaining_args = args[3:]
+        i = 0
+        while i < len(remaining_args):
+            arg = remaining_args[i]
+            
+            if arg.lower() == 'public':
+                self.public = True
+                self.acl = "public-read"
+                print("Published S3 artifacts will be accessible by public.")
+            elif arg == '--max-workers':
+                if i + 1 >= len(remaining_args):
+                    print("Error: --max-workers requires a number")
+                    self.print_usage()
+                    sys.exit(1)
+                try:
+                    self.max_workers = int(remaining_args[i + 1])
+                    if self.max_workers < 1:
+                        print("Error: --max-workers must be at least 1")
+                        sys.exit(1)
+                    print(f"Using {self.max_workers} concurrent workers")
+                    i += 1  # Skip the next argument (the number)
+                except ValueError:
+                    print("Error: --max-workers must be followed by a valid number")
+                    self.print_usage()
+                    sys.exit(1)
+            else:
+                print(f"Warning: Unknown argument '{arg}' ignored")
+            
+            i += 1
+        
+        if not self.public:
             print("Published S3 artifacts will NOT be accessible by public.")
 
     def setup_environment(self):
@@ -335,41 +378,142 @@ class IDPPublisher:
             sys.exit(1)
 
     def build_and_package_template(self, directory):
-        """Build and package a template directory"""
+        """Build and package a template directory (thread-safe version)"""
         if self.needs_rebuild(directory):
-            print(f"BUILDING {directory}")
+            self.thread_safe_print(f"BUILDING {directory}")
             
-            # Change to directory
-            original_cwd = os.getcwd()
-            os.chdir(directory)
+            # Use absolute paths to avoid directory changing issues
+            abs_directory = os.path.abspath(directory)
+            template_path = os.path.join(abs_directory, "template.yaml")
             
             try:
-                # Build the template
-                self.clean_and_build("template.yaml")
+                # Build the template using absolute paths
+                cmd = ['sam', 'build', '--template-file', template_path]
+                if self.use_container_flag:
+                    cmd.append(self.use_container_flag)
+                
+                # Clean previous build artifacts if they exist
+                aws_sam_dir = os.path.join(abs_directory, '.aws-sam')
+                if os.path.exists(aws_sam_dir):
+                    build_dir = os.path.join(aws_sam_dir, 'build')
+                    if os.path.exists(build_dir):
+                        self.thread_safe_print(f"Cleaning previous build artifacts in {build_dir}")
+                        shutil.rmtree(build_dir)
+                
+                result = subprocess.run(cmd, cwd=abs_directory, capture_output=True, text=True)
+                if result.returncode != 0:
+                    self.thread_safe_print(f"Error building template in {directory}: {result.stderr}")
+                    return False
                 
                 # Package the template
+                build_template_path = os.path.join(abs_directory, '.aws-sam', 'build', 'template.yaml')
+                packaged_template_path = os.path.join(abs_directory, '.aws-sam', 'packaged.yaml')
+                
                 cmd = [
                     'sam', 'package',
-                    '--template-file', '.aws-sam/build/template.yaml',
-                    '--output-template-file', '.aws-sam/packaged.yaml',
+                    '--template-file', build_template_path,
+                    '--output-template-file', packaged_template_path,
                     '--s3-bucket', self.bucket,
                     '--s3-prefix', self.prefix_and_version
                 ]
                 
-                result = subprocess.run(cmd)
+                result = subprocess.run(cmd, cwd=abs_directory, capture_output=True, text=True)
                 if result.returncode != 0:
-                    print(f"Error packaging template in {directory}")
-                    sys.exit(1)
+                    self.thread_safe_print(f"Error packaging template in {directory}: {result.stderr}")
+                    return False
                 
-            finally:
-                os.chdir(original_cwd)
+            except Exception as e:
+                self.thread_safe_print(f"Error building {directory}: {str(e)}")
+                return False
             
-            print(f"DONE {directory}")
+            self.thread_safe_print(f"DONE {directory}")
             
             # Update the checksum
             self.set_checksum(directory)
+            return True
         else:
-            print(f"SKIPPING {directory} (unchanged)")
+            self.thread_safe_print(f"SKIPPING {directory} (unchanged)")
+            return True
+
+    def build_patterns_concurrently(self, max_workers=None):
+        """Build patterns concurrently"""
+        patterns = ["patterns/pattern-1", "patterns/pattern-2", "patterns/pattern-3"]
+        existing_patterns = [pattern for pattern in patterns if os.path.exists(pattern)]
+        
+        if not existing_patterns:
+            self.thread_safe_print("No patterns found to build")
+            return True
+        
+        self.thread_safe_print(f"Building {len(existing_patterns)} patterns concurrently with {max_workers} workers...")
+        
+        # Use ThreadPoolExecutor for I/O bound operations (sam build/package)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all pattern build tasks
+            future_to_pattern = {
+                executor.submit(self.build_and_package_template, pattern): pattern 
+                for pattern in existing_patterns
+            }
+            
+            # Wait for all tasks to complete and check results
+            all_successful = True
+            completed = 0
+            total = len(existing_patterns)
+            
+            for future in concurrent.futures.as_completed(future_to_pattern):
+                pattern = future_to_pattern[future]
+                completed += 1
+                try:
+                    success = future.result()
+                    if not success:
+                        self.thread_safe_print(f"Failed to build pattern: {pattern}")
+                        all_successful = False
+                    else:
+                        self.thread_safe_print(f"Progress: {completed}/{total} patterns completed")
+                except Exception as e:
+                    self.thread_safe_print(f"Exception building pattern {pattern}: {str(e)}")
+                    all_successful = False
+        
+        return all_successful
+
+    def build_options_concurrently(self, max_workers=None):
+        """Build options concurrently"""
+        options = ["options/bda-lending-project", "options/bedrockkb"]
+        existing_options = [option for option in options if os.path.exists(option)]
+        
+        if not existing_options:
+            self.thread_safe_print("No options found to build")
+            return True
+        
+        self.thread_safe_print(f"Building {len(existing_options)} options concurrently with {max_workers} workers...")
+        
+        # Use ThreadPoolExecutor for I/O bound operations (sam build/package)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all option build tasks
+            future_to_option = {
+                executor.submit(self.build_and_package_template, option): option 
+                for option in existing_options
+            }
+            
+            # Wait for all tasks to complete and check results
+            all_successful = True
+            completed = 0
+            total = len(existing_options)
+            
+            for future in concurrent.futures.as_completed(future_to_option):
+                option = future_to_option[future]
+                completed += 1
+                try:
+                    success = future.result()
+                    if not success:
+                        self.thread_safe_print(f"Failed to build option: {option}")
+                        all_successful = False
+                    else:
+                        self.thread_safe_print(f"Progress: {completed}/{total} options completed")
+                except Exception as e:
+                    self.thread_safe_print(f"Exception building option {option}: {str(e)}")
+                    all_successful = False
+        
+        return all_successful
 
     def generate_config_file_list(self):
         """Generate list of configuration files for explicit copying"""
@@ -489,12 +633,17 @@ class IDPPublisher:
             config_files_json = json.dumps(config_files_list)
             
             # Get various hashes
-            workforce_url_hash = self.get_file_checksum("src/lambda/get-workforce-url/lambda_function.py")[:16]
-            a2i_resources_hash = self.get_file_checksum("src/lambda/create_a2i_resources/lambda_function.py")[:16]
-            cognito_client_hash = self.get_file_checksum("src/lambda/cognito_updater_hitl/lambda_function.py")[:16]
+            workforce_url_file = "src/lambda/get-workforce-url/lambda_function.py"
+            a2i_resources_file = "src/lambda/create_a2i_resources/lambda_function.py"
+            cognito_client_file = "src/lambda/cognito_updater_hitl/lambda_function.py"
+            
+            workforce_url_hash = self.get_file_checksum(workforce_url_file)[:16] if os.path.exists(workforce_url_file) else ""
+            a2i_resources_hash = self.get_file_checksum(a2i_resources_file)[:16] if os.path.exists(a2i_resources_file) else ""
+            cognito_client_hash = self.get_file_checksum(cognito_client_file)[:16] if os.path.exists(cognito_client_file) else ""
             
             # Replace tokens in template
-            build_date_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            from datetime import datetime, timezone
+            build_date_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             
             replacements = {
                 '<VERSION>': self.version,
@@ -516,27 +665,33 @@ class IDPPublisher:
                 print(f"   {token} with: {value}")
                 template_content = template_content.replace(token, value)
             
-            # Write the modified template
-            packaged_template_path = '.aws-sam/packaged.yaml'
-            with open(packaged_template_path, 'w') as f:
+            # Write the modified template to the build directory
+            build_packaged_template_path = '.aws-sam/build/packaged.yaml'
+            with open(build_packaged_template_path, 'w') as f:
                 f.write(template_content)
             
-            # Package the template
-            cmd = [
-                'sam', 'package',
-                '--template-file', packaged_template_path,
-                '--output-template-file', packaged_template_path,
-                '--s3-bucket', self.bucket,
-                '--s3-prefix', self.prefix_and_version
-            ]
-            
-            result = subprocess.run(cmd)
-            if result.returncode != 0:
-                print("Error packaging main template")
-                sys.exit(1)
+            # Package the template from the build directory
+            original_cwd = os.getcwd()
+            try:
+                os.chdir('.aws-sam/build')
+                cmd = [
+                    'sam', 'package',
+                    '--template-file', 'packaged.yaml',
+                    '--output-template-file', '../../.aws-sam/packaged.yaml',
+                    '--s3-bucket', self.bucket,
+                    '--s3-prefix', self.prefix_and_version
+                ]
+                
+                result = subprocess.run(cmd)
+                if result.returncode != 0:
+                    print("Error packaging main template")
+                    sys.exit(1)
+            finally:
+                os.chdir(original_cwd)
             
             # Upload the final template
             final_template_key = f"{self.prefix}/{self.main_template}"
+            packaged_template_path = '.aws-sam/packaged.yaml'
             
             try:
                 self.s3_client.upload_file(
@@ -560,7 +715,9 @@ class IDPPublisher:
                 sys.exit(1)
             
             # Update checksums
-            self.set_file_checksum("./src", "./options", "./patterns", "template.yaml")
+            checksum = self.get_checksum("./src", "./options", "./patterns", "template.yaml")
+            with open('.build_checksum', 'w') as f:
+                f.write(checksum)
         
         else:
             print("SKIPPING main (unchanged)")
@@ -574,10 +731,10 @@ class IDPPublisher:
 
     def print_outputs(self):
         """Print final outputs"""
-        print("OUTPUTS")
         template_url = f"https://s3.{self.region}.amazonaws.com/{self.bucket}/{self.prefix}/{self.main_template}"
         launch_url = f"https://{self.region}.console.aws.amazon.com/cloudformation/home?region={self.region}#/stacks/create/review?templateURL={template_url}&stackName=IDP"
         
+        print("OUTPUTS")
         print(f"Template URL (use to update existing stack): {template_url}")
         print(f"1-Click Launch URL (use to launch new stack): {launch_url}")
 
@@ -607,17 +764,37 @@ class IDPPublisher:
             if lib_changed:
                 print("Library files in ./lib have changed. All patterns will be rebuilt.")
             
-            # Build patterns
-            patterns = ["patterns/pattern-1", "patterns/pattern-2", "patterns/pattern-3"]
-            for pattern in patterns:
-                if os.path.exists(pattern):
-                    self.build_and_package_template(pattern)
+            # Build patterns and options concurrently
+            print("Building patterns and options concurrently...")
+            start_time = time.time()
             
-            # Build options
-            options = ["options/bda-lending-project", "options/bedrockkb"]
-            for option in options:
-                if os.path.exists(option):
-                    self.build_and_package_template(option)
+            # Determine optimal number of workers
+            if self.max_workers is None:
+                # Auto-detect: typically CPU count or a bit less, capped at 4
+                import os
+                self.max_workers = min(4, (os.cpu_count() or 1) + 1)
+                print(f"Auto-detected {self.max_workers} concurrent workers")
+            
+            # Build patterns concurrently
+            patterns_start = time.time()
+            patterns_success = self.build_patterns_concurrently(max_workers=self.max_workers)
+            patterns_time = time.time() - patterns_start
+            
+            if not patterns_success:
+                print("Error: Failed to build one or more patterns")
+                sys.exit(1)
+            
+            # Build options concurrently
+            options_start = time.time()
+            options_success = self.build_options_concurrently(max_workers=self.max_workers)
+            options_time = time.time() - options_start
+            
+            if not options_success:
+                print("Error: Failed to build one or more options")
+                sys.exit(1)
+            
+            total_build_time = time.time() - start_time
+            print(f"Concurrent build completed in {total_build_time:.2f}s (patterns: {patterns_time:.2f}s, options: {options_time:.2f}s)")
             
             # Upload configuration library
             self.upload_config_library()
