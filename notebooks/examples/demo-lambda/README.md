@@ -15,7 +15,7 @@ The custom prompt generator Lambda feature allows you to:
 ## 📁 Files in This Directory
 
 - **`GENAIIDP-notebook-demo-extractor.py`** - Demo Lambda function with educational business logic
-- **`deploy-demo-lambda.yaml`** - CloudFormation SAM template to deploy the demo function
+- **`template.yml`** - CloudFormation SAM template to deploy the demo function
 - **`README.md`** - This comprehensive documentation and guide
 
 ## 🏗️ Architecture
@@ -68,12 +68,6 @@ cd notebooks/examples/demo-lambda
 # Deploy using AWS SAM
 sam deploy --guided
 
-# Alternative: Deploy using AWS CLI
-aws cloudformation create-stack \
-    --stack-name genaiidp-custom-lambda-demo \
-    --template-body file://deploy-demo-lambda.yaml \
-    --capabilities CAPABILITY_IAM
-```
 
 ### Step 2: Get the Lambda ARN
 
@@ -88,9 +82,9 @@ aws cloudformation describe-stacks \
 
 ### Step 3: Run the Demo Notebook
 
+0. Run `notebooks/examples` steps 0, 1, 2
 1. Open `notebooks/examples/step3_extraction_with_custom_lambda.ipynb`
-2. Set the `DEMO_LAMBDA_ARN` variable in the notebook
-3. Run all cells to see the comparison
+2. Run all cells to see the comparison
 
 ## Demo Lambda Function Features
 
