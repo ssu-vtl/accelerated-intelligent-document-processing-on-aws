@@ -58,9 +58,6 @@ sudo yum install docker -y
 sudo service docker start
 sudo usermod -a -G docker ec2-user
 
-# interpreter
-pip install open-interpreter
-
 # local .bashrc scripts
 mkdir -p ~/.bashrc.d
 cat <<_EOF > ~/.bashrc.d/bob-prefs
