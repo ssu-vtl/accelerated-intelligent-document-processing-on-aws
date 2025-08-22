@@ -920,7 +920,7 @@ classes:
         evaluation_method: LLM
         attributeType: group
 classification:
-  classificationMethod: multimodalPageBoundaryClassification
+  classificationMethod: multimodalPageLevelClassification
   image:
     target_height: ''
     target_width: ''
