@@ -633,9 +633,9 @@ class IDPPublisher:
             config_files_json = json.dumps(config_files_list)
             
             # Get various hashes
-            workforce_url_file = "src/lambda/get-workforce-url/lambda_function.py"
-            a2i_resources_file = "src/lambda/create_a2i_resources/lambda_function.py"
-            cognito_client_file = "src/lambda/cognito_updater_hitl/lambda_function.py"
+            workforce_url_file = "src/lambda/get-workforce-url/index.py"
+            a2i_resources_file = "src/lambda/create_a2i_resources/index.py"
+            cognito_client_file = "src/lambda/cognito_updater_hitl/index.py"
             
             workforce_url_hash = self.get_file_checksum(workforce_url_file)[:16] if os.path.exists(workforce_url_file) else ""
             a2i_resources_hash = self.get_file_checksum(a2i_resources_file)[:16] if os.path.exists(a2i_resources_file) else ""
