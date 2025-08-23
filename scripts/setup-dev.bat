@@ -7,11 +7,12 @@ echo ========================================
 echo.
 echo This script will install:
 echo - AWS CLI
-echo - Python 3.11 or later
+echo - Python 3.13 (required for compatibility)
 echo - Node.js (for React development)
 echo - Git
 echo - Docker
 echo - AWS SAM CLI
+echo - Python dependencies (boto3, numpy 2.3.2)
 echo - Configure AWS credentials [requires aws cli role secrets]
 echo - Clone GitLab project and install dependencies
 echo.
@@ -58,7 +59,7 @@ echo Checking Python installation...
 :: Check if python command exists
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Python is not installed or not in PATH.
+    echo Python is not installed. Installing Python 3.13...
     goto :install_python
 ) 
 :: Get Python version
@@ -69,41 +70,37 @@ for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
      set MINOR=%%b
   ) 
 echo Found Python %PYTHON_VERSION%
-:: Check if version is 3.11 or later
+:: Check if version is 3.13 or later
 if %MAJOR% lss 3 (
-    echo Python version is too old. Need Python 3.11 or later.
+    echo Python version is too old. Need Python 3.13 or later.
     goto :install_python
 )
 if %MAJOR% equ 3 (
-   if %MINOR% lss 11 (
-       echo Python version is too old. Need Python 3.11 or later.
+   if %MINOR% lss 13 (
+       echo Python version is too old. Need Python 3.13 or later.
        goto :install_python
     )
 ) 
-echo Python %PYTHON_VERSION% meets requirements (3.11+)
-goto :end
+echo Python %PYTHON_VERSION% meets requirements (3.13+)
 
 :install_python
 echo ========================================
-echo    Step 2: Installing Python 3.11
+echo    Step 2: Installing Python 3.13
 echo ========================================
 echo.
 
-
-echo Installing Python 3.11...
-choco install python311 -y
+echo Installing Python 3.13...
+choco install python313 -y
     
 if !errorLevel! neq 0 (
-	echo ERROR: Failed to install Python 3.11
+	echo ERROR: Failed to install Python 3.13
 	pause
 	exit /b 1
 )
     
-    call refreshenv
-    echo Python 3.11 installed successfully!
-) else (
-    echo Python 3.11 is already installed.
-)
+call refreshenv
+echo Python 3.13 installed successfully!
+
 :end
 echo.
 
@@ -158,7 +155,7 @@ if %errorLevel% neq 0 (
 echo.
 
 echo ========================================
-echo    Step 6: Configuring AWS CLI
+echo    Step 4.1: Configuring AWS CLI
 echo ========================================
 echo.
 
@@ -213,7 +210,7 @@ if !errorLevel! neq 0 (
 )
 
 echo ========================================
-echo    Step 4: Installing Docker Desktop
+echo    Step 5: Installing Docker Desktop
 echo ========================================
 echo.
 
@@ -247,17 +244,42 @@ echo.
 REM Check if AWS SAM CLI is installed
 sam --version >nul 2>&1
 if %errorLevel% neq 0 (
-    echo Installing AWS SAM CLI...
-    where pip3 >nul 2>&1
-		if !errorLevel! == 0 (
-				echo pip3 found. Installing AWS SAM CLI...
-				pip3 install aws-sam-cli
-				if !errorLevel! == 0 (
-					echo SUCCESS: AWS SAM CLI installed via pip3
-				)
-	)
+    echo Installing AWS SAM CLI via Chocolatey...
+    choco install aws-sam-cli -y
+    
+    if !errorLevel! neq 0 (
+        echo WARNING: Chocolatey installation failed. Trying pip installation...
+        python -m pip install aws-sam-cli
+        
+        if !errorLevel! neq 0 (
+            echo ERROR: Failed to install AWS SAM CLI
+            echo Please install manually from: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html
+            pause
+            exit /b 1
+        )
+    )
+    
+    call refreshenv
+    
+    REM Verify installation and check version
+    sam --version >nul 2>&1
+    if !errorLevel! equ 0 (
+        echo AWS SAM CLI installed successfully!
+        echo Checking SAM CLI version...
+        for /f "tokens=4" %%i in ('sam --version 2^>^&1') do set SAM_VERSION=%%i
+        echo Found SAM CLI version: !SAM_VERSION!
+        echo Note: publish.py requires SAM CLI version >= 1.129.0
+    ) else (
+        echo ERROR: AWS SAM CLI installation verification failed
+        pause
+        exit /b 1
+    )
 ) else (
     echo AWS SAM CLI is already installed.
+    echo Checking SAM CLI version...
+    for /f "tokens=4" %%i in ('sam --version 2^>^&1') do set SAM_VERSION=%%i
+    echo Found SAM CLI version: !SAM_VERSION!
+    echo Note: publish.py requires SAM CLI version >= 1.129.0
 )
 
 echo.
@@ -281,10 +303,11 @@ if %errorLevel% equ 0 (
 )
 
 echo Your development environment has been set up with:
-echo - Python 3.11
+echo - Python 3.13
 echo - Node.js and npm
 echo - AWS CLI (configured)
 echo - Git
+echo - Python dependencies (boto3, numpy 2.3.2)
 
 
 echo ========================================
@@ -413,6 +436,7 @@ if !errorLevel! neq 0 (
 
 echo GitLab project cloned successfully to C:\Projects\!PROJECT_DIR!
 
+:skip_gitlab
 :build_project
 
 echo.
@@ -450,7 +474,7 @@ echo ========================================
 echo.
 
 echo Installing required Python packages for publish.py...
-echo Installing boto3...
+echo Installing boto3 and numpy...
 
 python -m pip install --upgrade pip
 if !errorLevel! neq 0 (
@@ -461,6 +485,15 @@ python -m pip install boto3
 if !errorLevel! neq 0 (
     echo ERROR: Failed to install boto3
     echo Please install boto3 manually: pip install boto3
+    pause
+    exit /b 1
+)
+
+echo Installing numpy 2.3.2...
+python -m pip install numpy==2.3.2
+if !errorLevel! neq 0 (
+    echo ERROR: Failed to install numpy 2.3.2
+    echo Please install numpy manually: pip install numpy==2.3.2
     pause
     exit /b 1
 )
@@ -490,5 +523,10 @@ echo ========================================
 echo    Setup Complete!
 echo ========================================
 echo.
-
+echo Your development environment has been set up with:
+echo - Python 3.13
+echo - Node.js and npm
+echo - AWS CLI (configured)
+echo - Git
+echo - Python dependencies (boto3, numpy 2.3.2)
 pause

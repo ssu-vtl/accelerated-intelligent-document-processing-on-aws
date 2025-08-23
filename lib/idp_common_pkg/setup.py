@@ -28,7 +28,7 @@ extras_require = {
         "Pillow==11.2.1",
         "PyMuPDF==1.25.5",
         "amazon-textract-textractor[pandas]==1.9.2",
-        "numpy==1.26.4",
+        "numpy==2.3.2",
         "pandas==2.2.3",
         "openpyxl==3.1.5",
         "python-docx==1.2.0",
@@ -48,7 +48,7 @@ extras_require = {
     # Evaluation module dependencies
     "evaluation": [
         "munkres>=1.1.4",  # For Hungarian algorithm
-        "numpy==1.26.4",  # For numeric operations
+        "numpy==2.3.2",  # For numeric operations
     ],
     # Reporting module dependencies
     "reporting": [
@@ -85,7 +85,7 @@ extras_require = {
         "PyMuPDF==1.25.5",
         "amazon-textract-textractor[pandas]==1.9.2",
         "munkres>=1.1.4",
-        "numpy==1.26.4",
+        "numpy==2.3.2",
         "pandas==2.2.3",
         "requests==2.32.4",
         "pyarrow==20.0.0",
@@ -109,7 +109,7 @@ setup(
         ]
     ),
     include_package_data=True,
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=install_requires,
     extras_require=extras_require,
 )
