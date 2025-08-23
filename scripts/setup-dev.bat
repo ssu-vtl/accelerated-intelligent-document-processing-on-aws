@@ -498,6 +498,25 @@ if !errorLevel! neq 0 (
     exit /b 1
 )
 
+echo Installing editdistance==0.8.1...
+python -m pip install editdistance==0.8.1
+if !errorLevel! neq 0 (
+    echo ERROR: Failed to install editdistance==0.8.1
+    echo Please install editdistance manually: pip install editdistance==0.8.1
+    pause
+    exit /b 1
+)
+
+echo Installing python-docx==1.2.0...
+python -m pip install python-docx==1.2.0
+if !errorLevel! neq 0 (
+    echo ERROR: Failed to install python-docx==1.2.0
+    echo Please install editdistance manually: pip install python-docx==1.2.0
+    pause
+    exit /b 1
+)
+call refreshenv
+
 echo Python dependencies installed successfully!
 
 echo.
