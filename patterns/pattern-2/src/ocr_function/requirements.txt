@@ -1,3 +1,4 @@
+editdistance==0.8.1 --no-binary editdistance  # Build from source for Python 3.13 compatibility
 ../../lib/idp_common_pkg[ocr,docs_service]  # OCR module and document service with dependencies
 numpy==2.3.2  # Pin numpy to stable version
 pandas>=1.5.0,<3.0.0  # Pin pandas to stable version
