@@ -474,61 +474,11 @@ echo ========================================
 echo.
 
 echo Installing required Python packages for publish.py...
-echo Installing editdistance, boto3 and numpy...
+echo Installing boto3 and numpy...
 
 python -m pip install --upgrade pip
 if !errorLevel! neq 0 (
     echo WARNING: Failed to upgrade pip, continuing anyway...
-)
-
-echo Checking Python version for editdistance compatibility...
-for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
-echo Python version: %PYTHON_VERSION%
-
-echo Installing editdistance...
-python -m pip install editdistance==0.8.1
-if !errorLevel! neq 0 (
-    echo WARNING: Failed to install editdistance 0.8.1 from wheels
-    echo Attempting to install Visual Studio Build Tools for source compilation...
-    
-    REM Check if Visual Studio Build Tools are already installed
-    where cl >nul 2>&1
-    if !errorLevel! neq 0 (
-        echo Installing Microsoft Visual C++ Build Tools...
-        choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --includeOptional --passive"
-        
-        if !errorLevel! neq 0 (
-            echo ERROR: Failed to install Visual Studio Build Tools via Chocolatey
-            echo Please install manually from: https://visualstudio.microsoft.com/visual-cpp-build-tools/
-            echo Then run: pip install editdistance --no-binary editdistance
-            pause
-            exit /b 1
-        )
-        
-        echo Visual Studio Build Tools installed. Refreshing environment...
-        call refreshenv
-        
-        REM Add VS tools to PATH for current session
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" >nul 2>&1
-    ) else (
-        echo Visual Studio Build Tools already available
-    )
-    
-    echo Building editdistance from source...
-    python -m pip install editdistance==0.8.1 --no-binary editdistance --force-reinstall
-    
-    if !errorLevel! neq 0 (
-        echo ERROR: Failed to build editdistance from source
-        echo This may be due to missing build dependencies
-        echo Please ensure Visual Studio Build Tools are properly installed
-        echo Manual installation: pip install editdistance --no-binary editdistance
-        pause
-        exit /b 1
-    ) else (
-        echo Successfully built and installed editdistance from source
-    )
-) else (
-    echo Successfully installed editdistance 0.8.1
 )
 
 python -m pip install boto3

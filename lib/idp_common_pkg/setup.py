@@ -27,7 +27,7 @@ extras_require = {
     "ocr": [
         "Pillow==11.2.1",
         "PyMuPDF==1.25.5",
-        "amazon-textract-textractor[pandas]==1.9.2",
+        "amazon-textract-textractor==1.9.2",  # Removed [pandas] extra to avoid editdistance dependency on Python 3.13
         "numpy==2.3.2",
         "pandas==2.2.3",
         "openpyxl==3.1.5",
@@ -83,7 +83,7 @@ extras_require = {
     "all": [
         "Pillow==11.2.1",
         "PyMuPDF==1.25.5",
-        "amazon-textract-textractor[pandas]==1.9.2",
+        "amazon-textract-textractor==1.9.2",  # Removed [pandas] extra to avoid editdistance dependency on Python 3.13
         "munkres>=1.1.4",
         "numpy==2.3.2",
         "pandas==2.2.3",
