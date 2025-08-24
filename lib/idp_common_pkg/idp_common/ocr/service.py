@@ -1209,14 +1209,14 @@ class OcrService:
                         if is_pdf:
                             dpi = self.dpi or 150
                             pix = page.get_pixmap(dpi=dpi)
-                            logger.info(
-                                f"Page {page_id} already fits target size, using DPI {dpi}"
-                            )
                         else:
                             pix = page.get_pixmap()
-                            logger.info(
-                                f"Page {page_id} already fits target size, using original dimensions"
-                            )
+
+                        # Log actual extracted dimensions
+                        actual_width, actual_height = pix.width, pix.height
+                        logger.info(
+                            f"Page {page_id} already fits target size, extracted at: {actual_width}x{actual_height}"
+                        )
                 else:
                     # No valid target dimensions - use original extraction
                     if is_pdf:
@@ -1224,17 +1224,25 @@ class OcrService:
                         pix = page.get_pixmap(dpi=dpi)
                     else:
                         pix = page.get_pixmap()
+
+                    # Log actual extracted dimensions
+                    actual_width, actual_height = pix.width, pix.height
+                    logger.info(
+                        f"Page {page_id} extracted at original size: {actual_width}x{actual_height}"
+                    )
             else:
                 # No resize config - extract at original size
                 if is_pdf:
                     dpi = self.dpi or 150
                     pix = page.get_pixmap(dpi=dpi)
-                    logger.debug(f"Processing PDF page {page_id} at {dpi} DPI")
                 else:
                     pix = page.get_pixmap()
-                    logger.debug(
-                        f"Processing image page {page_id} at original dimensions"
-                    )
+
+                # Log actual extracted dimensions
+                actual_width, actual_height = pix.width, pix.height
+                logger.info(
+                    f"Page {page_id} extracted at original size: {actual_width}x{actual_height}"
+                )
 
             image_bytes = pix.tobytes("jpeg")
             return image_bytes
