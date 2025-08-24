@@ -7,6 +7,11 @@ SPDX-License-Identifier: MIT-0
 
 ### Added
 
+- **OCR Service Default Image Sizing for Resource Optimization**
+  - Implemented automatic default image size limits (951×1268) when no image sizing configuration is provided
+  - **Key Benefits**: Reduction in vision model token consumption, prevents OutOfMemory errors during concurrent processing, improves processing speed and reduces bandwidth usage
+
+
 
 
 ## [0.3.12]
