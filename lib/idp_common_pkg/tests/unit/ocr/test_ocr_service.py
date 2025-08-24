@@ -108,8 +108,8 @@ class TestOcrService:
             assert service.enhanced_features is False
             # NEW: Default image sizing is now applied automatically
             assert service.resize_config == {
-                "target_width": 1600,
-                "target_height": 1200,
+                "target_width": 951,
+                "target_height": 1268,
             }
             assert service.preprocessing_config is None
 
@@ -200,8 +200,8 @@ class TestOcrService:
 
             # Verify defaults are applied
             assert service.resize_config == {
-                "target_width": 1600,
-                "target_height": 1200,
+                "target_width": 951,
+                "target_height": 1268,
             }
             assert service.dpi == 200
 
@@ -244,8 +244,8 @@ class TestOcrService:
 
             # Verify defaults are applied (empty strings treated same as None)
             assert service.resize_config == {
-                "target_width": 1600,
-                "target_height": 1200,
+                "target_width": 951,
+                "target_height": 1268,
             }
             assert service.dpi == 150
 
@@ -285,8 +285,8 @@ class TestOcrService:
 
             # Verify fallback to defaults on invalid values
             assert service.resize_config == {
-                "target_width": 1600,
-                "target_height": 1200,
+                "target_width": 951,
+                "target_height": 1268,
             }
             assert service.dpi == 150
 

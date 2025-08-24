@@ -125,8 +125,8 @@ class OcrService:
             image_config = ocr_config.get("image", {})
 
             # Apply sensible defaults for image sizing when not specified
-            DEFAULT_TARGET_WIDTH = 1600
-            DEFAULT_TARGET_HEIGHT = 1200
+            DEFAULT_TARGET_WIDTH = 951
+            DEFAULT_TARGET_HEIGHT = 1268
 
             # Extract resize configuration
             target_width = image_config.get("target_width")

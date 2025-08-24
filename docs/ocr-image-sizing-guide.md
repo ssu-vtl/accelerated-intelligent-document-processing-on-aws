@@ -7,7 +7,7 @@ The OCR service automatically applies sensible default image size limits to opti
 ## Default Behavior (NEW)
 
 ### Automatic Optimization
-- **Default limits**: 1600x1200 pixels when no image sizing is configured
+- **Default limits**: 951x1268 pixels when no image sizing is configured
 - **Why defaults matter**: Prevents excessive token consumption, memory issues, and processing delays
 - **Backward compatibility**: Existing explicit configurations continue to work unchanged
 
@@ -16,7 +16,7 @@ The OCR service automatically applies sensible default image size limits to opti
 ocr:
   image:
     # No target_width or target_height specified
-    # → Automatic 1600x1200 limits applied
+    # → Automatic 951x1268 limits applied
     dpi: 150
 ```
 
@@ -47,10 +47,10 @@ ocr:
 - **10-page document**: 40,000+ tokens
 - **Monthly cost impact**: Can be substantial for high-volume processing
 
-### With Default Sizing (1600×1200)
-- **Typical page**: 500-800 tokens
-- **10-page document**: ~6,000 tokens
-- **Cost reduction**: 50-80% on vision model costs
+### With Default Sizing (951×1268)
+- **Typical page**: 400-600 tokens
+- **10-page document**: ~5,000 tokens
+- **Cost reduction**: 60-85% on vision model costs
 
 ### Resource Benefits
 - **Memory usage**: Reduced OutOfMemory errors during concurrent processing
@@ -64,7 +64,7 @@ ocr:
 ocr:
   image:
     dpi: 150
-    # No sizing specified = automatic 1600×1200 defaults applied
+    # No sizing specified = automatic 951×1268 defaults applied
 ```
 
 ### High-Volume Text Processing
@@ -106,7 +106,7 @@ ocr:
     dpi: 150
     target_width: ""
     target_height: ""
-    # → Automatic 1600x1200 defaults applied (same as if not specified)
+    # → Automatic 951x1268 defaults applied (same as if not specified)
 ```
 
 ### Partial Configuration (Disables Defaults)
