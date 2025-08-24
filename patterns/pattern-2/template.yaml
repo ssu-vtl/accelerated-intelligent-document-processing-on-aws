@@ -163,13 +163,13 @@ Resources:
                     order: 0
                   target_width:
                     type: number
-                    description: "Target image width in pixels. Images larger than this will be resized."
+                    description: "Target image width in pixels. Images larger than this will be resized. If not specified, automatic default of 1600 pixels is applied to optimize resource usage and token consumption."
                     minimum: 100
                     maximum: 3500
                     order: 1
                   target_height:
                     type: number
-                    description: "Target image height in pixels. Images larger than this will be resized."
+                    description: "Target image height in pixels. Images larger than this will be resized. If not specified, automatic default of 1200 pixels is applied to optimize resource usage and token consumption."
                     minimum: 100
                     maximum: 3500
                     order: 2
