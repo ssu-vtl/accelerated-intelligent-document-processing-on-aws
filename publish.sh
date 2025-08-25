@@ -144,7 +144,7 @@ function setup_artifacts_bucket() {
 function calculate_hash() {
   local directory_path=$1
   local HASH=$(
-    find "$directory_path" \( -name "node_modules" -o -name "build" -o -name ".aws-sam" \) -prune -o -type f -print0 | 
+    find "$directory_path" \( -name "node_modules" -o -name "build" -o -name ".aws-sam" -o -name "venv" -o -name ".venv" -o -name ".git" -o -name "__pycache__" -o -name ".pytest_cache" -o -name "dist" -o -name "*.egg-info" \) -prune -o -type f -print0 | 
     sort -f -z |
     xargs -0 sha256sum |
     sha256sum |
@@ -161,7 +161,7 @@ function calculate_hash() {
 # Calculate directory checksum
 function get_dir_checksum() {
   local dir=$1
-  local dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" -o -name "dist" -o -name "__pycache__" -o -name ".pytest_cache" -o -name "*.egg-info" \) -prune -o -type f \( ! -name ".checksum" -a ! -name "*.pyc" \) -exec $STAT_CMD {} \; | sha256sum | awk '{ print $1 }')
+  local dir_checksum=$(find "$dir" -type d \( -name "python" -o -name "node_modules" -o -name "build" -o -name ".aws-sam" -o -name "dist" -o -name "__pycache__" -o -name ".pytest_cache" -o -name "*.egg-info" -o -name "venv" -o -name ".venv" -o -name ".git" \) -prune -o -type f \( ! -name ".checksum" -a ! -name "*.pyc" \) -exec $STAT_CMD {} \; | sha256sum | awk '{ print $1 }')
   local combined_string="$BUCKET $PREFIX_AND_VERSION $REGION $dir_checksum"
   echo -n "$combined_string" | sha256sum | awk '{ print $1 }'
 }
