@@ -12,7 +12,7 @@ echo - Node.js (for React development)
 echo - Git
 echo - Docker
 echo - AWS SAM CLI
-echo - Python dependencies (boto3, numpy 2.3.2)
+echo - Python dependencies (boto3, numpy 2.3.2, typer, rich)
 echo - Configure AWS credentials [requires aws cli role secrets]
 echo - Clone GitLab project and install dependencies
 echo.
@@ -307,7 +307,7 @@ echo - Python 3.13
 echo - Node.js and npm
 echo - AWS CLI (configured)
 echo - Git
-echo - Python dependencies (boto3, numpy 2.3.2)
+echo - Python dependencies (boto3, numpy 2.3.2, typer, rich)
 
 
 echo ========================================
@@ -511,10 +511,29 @@ echo Installing python-docx==1.2.0...
 python -m pip install python-docx==1.2.0
 if !errorLevel! neq 0 (
     echo ERROR: Failed to install python-docx==1.2.0
-    echo Please install editdistance manually: pip install python-docx==1.2.0
+    echo Please install python-docx manually: pip install python-docx==1.2.0
     pause
     exit /b 1
 )
+
+echo Installing typer...
+python -m pip install typer
+if !errorLevel! neq 0 (
+    echo ERROR: Failed to install typer
+    echo Please install typer manually: pip install typer
+    pause
+    exit /b 1
+)
+
+echo Installing rich...
+python -m pip install rich
+if !errorLevel! neq 0 (
+    echo ERROR: Failed to install rich
+    echo Please install rich manually: pip install rich
+    pause
+    exit /b 1
+)
+
 call refreshenv
 
 echo Python dependencies installed successfully!
@@ -547,5 +566,5 @@ echo - Python 3.13
 echo - Node.js and npm
 echo - AWS CLI (configured)
 echo - Git
-echo - Python dependencies (boto3, numpy 2.3.2)
+echo - Python dependencies (boto3, numpy 2.3.2, typer, rich)
 pause
