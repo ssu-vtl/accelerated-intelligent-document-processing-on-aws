@@ -21,6 +21,7 @@ import threading
 import time
 import zipfile
 from typing import Optional
+from urllib.parse import quote
 
 import boto3
 import typer
@@ -307,20 +308,81 @@ class IDPPublisher:
         return sha256_hash.hexdigest()
 
     def get_directory_checksum(self, directory):
-        """Get combined checksum of all files in a directory"""
+        """Get combined checksum of all files in a directory, excluding development artifacts"""
         if not os.path.exists(directory):
             return ""
 
+        # Define patterns to exclude from checksum calculation
+        exclude_dirs = {
+            "__pycache__",
+            ".pytest_cache",
+            ".ruff_cache",
+            "build",
+            "dist",
+            ".aws-sam",
+            "node_modules",
+            ".git",
+            ".vscode",
+            ".idea",
+        }
+
+        exclude_file_patterns = {
+            ".checksum",
+            ".build_checksum",
+            ".lib_checksum",
+            ".pyc",
+            ".pyo",
+            ".pyd",
+            ".so",
+            ".egg-info",
+            ".coverage",
+            ".DS_Store",
+            "Thumbs.db",
+        }
+
+        exclude_file_suffixes = (".pyc", ".pyo", ".pyd", ".so", ".coverage")
+        exclude_dir_suffixes = (".egg-info",)
+
+        def should_exclude_dir(dir_name):
+            """Check if directory should be excluded from checksum"""
+            if dir_name in exclude_dirs:
+                return True
+            if any(dir_name.endswith(suffix) for suffix in exclude_dir_suffixes):
+                return True
+            # Exclude test directories for library checksum only
+            if "lib" in directory and (
+                dir_name == "tests" or dir_name.startswith("test_")
+            ):
+                return True
+            return False
+
+        def should_exclude_file(file_name):
+            """Check if file should be excluded from checksum"""
+            if file_name in exclude_file_patterns:
+                return True
+            if any(file_name.endswith(suffix) for suffix in exclude_file_suffixes):
+                return True
+            # Exclude test files for library checksum only
+            if "lib" in directory and (
+                file_name.startswith("test_") or file_name.endswith("_test.py")
+            ):
+                return True
+            return False
+
         checksums = []
         for root, dirs, files in os.walk(directory):
+            # Filter out excluded directories in-place to prevent os.walk from descending into them
+            dirs[:] = [d for d in dirs if not should_exclude_dir(d)]
+
             # Sort to ensure consistent ordering
             dirs.sort()
             files.sort()
 
             for file in files:
-                file_path = os.path.join(root, file)
-                if os.path.isfile(file_path):
-                    checksums.append(self.get_file_checksum(file_path))
+                if not should_exclude_file(file):
+                    file_path = os.path.join(root, file)
+                    if os.path.isfile(file_path):
+                        checksums.append(self.get_file_checksum(file_path))
 
         # Combine all checksums
         combined = "".join(checksums)
@@ -377,6 +439,30 @@ class IDPPublisher:
         with open(".build_checksum", "w") as f:
             f.write(checksum)
 
+    def show_build_optimization_info(self):
+        """Show information about build optimizations"""
+        self.console.print("\n[bold cyan]Build Optimizations Enabled:[/bold cyan]")
+        self.console.print("  ✅ SAM Build Caching (--cached)")
+        self.console.print("  ✅ Parallel Builds (--parallel)")
+        self.console.print("  ✅ Smart Checksum (excludes dev artifacts)")
+        self.console.print("  ✅ Selective Cache Clearing (only when lib changes)")
+
+        # Check if cache directories exist
+        cache_info = []
+        for pattern in ["pattern-1", "pattern-2", "pattern-3"]:
+            pattern_dir = f"./patterns/{pattern}"
+            if os.path.exists(pattern_dir):
+                cache_dir = os.path.join(pattern_dir, ".aws-sam", "cache")
+                if os.path.exists(cache_dir):
+                    cache_info.append(f"  📁 {pattern}: Cache exists")
+                else:
+                    cache_info.append(f"  📁 {pattern}: No cache (first build)")
+
+        if cache_info:
+            self.console.print("\n[bold cyan]Cache Status:[/bold cyan]")
+            for info in cache_info:
+                self.console.print(info)
+
     def clean_lib(self):
         """Clean previous build artifacts in ./lib"""
         self.console.print(
@@ -407,30 +493,50 @@ class IDPPublisher:
                     os.remove(os.path.join(root, file_name))
 
     def clean_and_build(self, template_path):
-        """Clean previous build artifacts and run sam build"""
+        """Clean previous build artifacts and run sam build with optimizations"""
         dir_path = os.path.dirname(template_path)
 
         # If dir_path is empty (template.yaml in current directory), use current directory
         if not dir_path:
             dir_path = "."
 
-        # Clean previous build artifacts if they exist
+        # Only clean build artifacts if lib changed, otherwise preserve cache
+        lib_changed = hasattr(self, "_lib_changed") and self._lib_changed
         aws_sam_dir = os.path.join(dir_path, ".aws-sam")
-        if os.path.exists(aws_sam_dir):
+
+        if lib_changed and os.path.exists(aws_sam_dir):
             build_dir = os.path.join(aws_sam_dir, "build")
+            cache_dir = os.path.join(aws_sam_dir, "cache")
+
             if os.path.exists(build_dir):
-                print(f"Cleaning previous build artifacts in {build_dir}")
+                print(f"Cleaning build artifacts in {build_dir} (lib changed)")
                 shutil.rmtree(build_dir)
 
-        # Run sam build
-        cmd = ["sam", "build", "--template-file", template_path]
+            if os.path.exists(cache_dir):
+                print(f"Clearing SAM cache in {cache_dir} (lib changed)")
+                shutil.rmtree(cache_dir)
+
+        # Run sam build with optimizations
+        cmd = [
+            "sam",
+            "build",
+            "--template-file",
+            template_path,
+            "--cached",
+            "--parallel",
+        ]
         if self.use_container_flag:
             cmd.append(self.use_container_flag)
 
         result = subprocess.run(cmd, cwd=dir_path)
         if result.returncode != 0:
-            print(f"Error running sam build in {dir_path}")
-            sys.exit(1)
+            # If cached build fails, try without cache
+            print(f"Cached build failed, retrying without cache for {template_path}")
+            cmd_no_cache = [c for c in cmd if c != "--cached"]
+            result = subprocess.run(cmd_no_cache, cwd=dir_path)
+            if result.returncode != 0:
+                print(f"Error running sam build in {dir_path}")
+                sys.exit(1)
 
     def build_and_package_template(self, directory):
         """Build and package a template directory (optimized for progress display)"""
@@ -439,24 +545,58 @@ class IDPPublisher:
             abs_directory = os.path.abspath(directory)
             template_path = os.path.join(abs_directory, "template.yaml")
 
+            # Track build time
+            build_start = time.time()
+
             try:
-                # Build the template using absolute paths
+                # Build the template using absolute paths with optimizations
                 cmd = ["sam", "build", "--template-file", template_path]
+
+                # Add performance optimizations
+                cmd.extend(
+                    [
+                        "--cached",  # Enable SAM build caching
+                        "--parallel",  # Enable parallel builds
+                    ]
+                )
+
                 if self.use_container_flag:
                     cmd.append(self.use_container_flag)
 
-                # Clean previous build artifacts if they exist
+                # Only clean build artifacts if we're doing a fresh build
+                # For cached builds, we want to preserve the cache
                 aws_sam_dir = os.path.join(abs_directory, ".aws-sam")
-                if os.path.exists(aws_sam_dir):
-                    build_dir = os.path.join(aws_sam_dir, "build")
-                    if os.path.exists(build_dir):
-                        shutil.rmtree(build_dir)
+                build_dir = os.path.join(aws_sam_dir, "build")
 
+                # Check if we should do a clean build (when lib changed or forced)
+                lib_changed = hasattr(self, "_lib_changed") and self._lib_changed
+                if lib_changed and os.path.exists(build_dir):
+                    # Only clean if lib changed to force rebuild with new dependencies
+                    shutil.rmtree(build_dir)
+                    # Also clear SAM cache when lib changes
+                    cache_dir = os.path.join(aws_sam_dir, "cache")
+                    if os.path.exists(cache_dir):
+                        shutil.rmtree(cache_dir)
+
+                sam_build_start = time.time()
                 result = subprocess.run(
                     cmd, cwd=abs_directory, capture_output=True, text=True
                 )
+                sam_build_time = time.time() - sam_build_start
+
                 if result.returncode != 0:
-                    return False
+                    # If cached build fails, try without cache
+                    self.console.print(
+                        f"[yellow]Cached build failed for {directory}, retrying without cache[/yellow]"
+                    )
+                    cmd_no_cache = [c for c in cmd if c != "--cached"]
+                    sam_build_start = time.time()
+                    result = subprocess.run(
+                        cmd_no_cache, cwd=abs_directory, capture_output=True, text=True
+                    )
+                    sam_build_time = time.time() - sam_build_start
+                    if result.returncode != 0:
+                        return False
 
                 # Package the template
                 build_template_path = os.path.join(
@@ -479,11 +619,21 @@ class IDPPublisher:
                     self.prefix_and_version,
                 ]
 
+                sam_package_start = time.time()
                 result = subprocess.run(
                     cmd, cwd=abs_directory, capture_output=True, text=True
                 )
+                sam_package_time = time.time() - sam_package_start
+
                 if result.returncode != 0:
                     return False
+
+                # Log timing information
+                total_time = time.time() - build_start
+                pattern_name = os.path.basename(directory)
+                self.console.print(
+                    f"[dim]  {pattern_name}: build={sam_build_time:.1f}s, package={sam_package_time:.1f}s, total={total_time:.1f}s[/dim]"
+                )
 
             except Exception:
                 return False
@@ -493,6 +643,8 @@ class IDPPublisher:
             return True
         else:
             # No rebuild needed - still successful
+            pattern_name = os.path.basename(directory)
+            self.console.print(f"[dim]  {pattern_name}: skipped (no changes)[/dim]")
             return True
 
     def build_patterns_concurrently(self, max_workers=None):
@@ -921,18 +1073,46 @@ class IDPPublisher:
 
     def print_outputs(self):
         """Print final outputs using Rich table formatting"""
+        # Use the same S3 URL format as in publish.sh - ensure .amazonaws.com is complete
         template_url = f"https://s3.{self.region}.amazonaws.com/{self.bucket}/{self.prefix}/{self.main_template}"
-        launch_url = f"https://{self.region}.console.aws.amazon.com/cloudformation/home?region={self.region}#/stacks/create/review?templateURL={template_url}&stackName=IDP"
 
-        table = Table(title="[bold green]Deployment Outputs[/bold green]")
-        table.add_column("Type", style="cyan", no_wrap=True)
-        table.add_column("URL", style="magenta")
-        table.add_column("Description", style="yellow")
+        # URL encode the template URL for use in the CloudFormation console URL
+        encoded_template_url = quote(template_url, safe=":/?#[]@!$&'()*+,;=")
+        launch_url = f"https://{self.region}.console.aws.amazon.com/cloudformation/home?region={self.region}#/stacks/create/review?templateURL={encoded_template_url}&stackName=IDP"
 
-        table.add_row("Template URL", template_url, "Use to update existing stack")
-        table.add_row("1-Click Launch", launch_url, "Use to launch new stack")
+        # First, display URLs in plain text to avoid Rich formatting issues
+        self.console.print("\n[bold green]Deployment Outputs[/bold green]")
+        self.console.print("[cyan]Template URL (use to update existing stack):[/cyan]")
+        self.console.print(f"{template_url}")
+        self.console.print(
+            "\n[cyan]1-Click Launch URL (use to launch new stack):[/cyan]"
+        )
+        self.console.print(f"{launch_url}")
+
+        # Also display in a table with clickable links
+        table = Table(title="[bold green]Quick Links[/bold green]", show_lines=True)
+        table.add_column("Link", style="cyan", no_wrap=False, width=60)
+        table.add_column("Description", style="yellow", width=40)
+
+        # Create clickable links using Rich's link syntax
+        template_link = f"[link={template_url}]Template URL[/link]"
+        launch_link = f"[link={launch_url}]1-Click Launch[/link]"
+
+        table.add_row(template_link, "Go to cloudformation and update existing stack")
+        table.add_row(launch_link, "Use to launch new stack")
 
         self.console.print(table)
+
+        # Additional information for troubleshooting
+        self.console.print("\n[bold cyan]Deployment Information:[/bold cyan]")
+        self.console.print(f"  • Region: [yellow]{self.region}[/yellow]")
+        self.console.print(f"  • Bucket: [yellow]{self.bucket}[/yellow]")
+        self.console.print(
+            f"  • Template Path: [yellow]{self.prefix}/{self.main_template}[/yellow]"
+        )
+        self.console.print(
+            f"  • Public Access: [yellow]{'Yes' if self.public else 'No'}[/yellow]"
+        )
 
     def run(self, args):
         """Main execution method"""
@@ -957,6 +1137,9 @@ class IDPPublisher:
 
             # Check if lib has changed
             lib_changed = self.needs_rebuild("./lib")
+            self._lib_changed = (
+                lib_changed  # Store for use in build_and_package_template
+            )
             if lib_changed:
                 self.console.print(
                     "[yellow]Library files in ./lib have changed. All patterns will be rebuilt.[/yellow]"
@@ -980,6 +1163,7 @@ class IDPPublisher:
 
             # Build patterns concurrently
             self.console.print("\n[bold yellow]📦 Building Patterns[/bold yellow]")
+            self.show_build_optimization_info()
             patterns_start = time.time()
             patterns_success = self.build_patterns_concurrently(
                 max_workers=self.max_workers
