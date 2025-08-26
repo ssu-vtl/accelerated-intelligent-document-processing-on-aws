@@ -951,11 +951,11 @@ class TestIDPPublisherFileOperations:
                 "sam",
                 "build",
                 "--template-file",
-                "patterns/pattern-1/template.yaml",
+                "template.yaml",  # Now uses basename
                 "--cached",
                 "--parallel",
             ],
-            cwd="patterns/pattern-1",
+            cwd=os.path.abspath("patterns/pattern-1"),  # Now uses absolute path
         )
 
     @patch("subprocess.run")
@@ -1048,6 +1048,9 @@ class TestIDPPublisherIntegration:
             patch.object(publisher, "setup_artifacts_bucket") as mock_setup_bucket,
             patch.object(publisher, "clean_temp_files"),
             patch.object(publisher, "clean_lib"),
+            patch.object(
+                publisher, "build_idp_common_package", return_value=True
+            ),  # Add this mock
             patch.object(publisher, "needs_rebuild", return_value=False),
             patch.object(
                 publisher, "build_patterns_concurrently", return_value=True
@@ -1127,6 +1130,9 @@ class TestIDPPublisherIntegration:
             patch.object(publisher, "setup_artifacts_bucket"),
             patch.object(publisher, "clean_temp_files"),
             patch.object(publisher, "clean_lib"),
+            patch.object(
+                publisher, "build_idp_common_package", return_value=True
+            ),  # Add this mock
             patch.object(publisher, "needs_rebuild", return_value=False),
             patch.object(publisher, "build_patterns_concurrently", return_value=False),
             patch.object(publisher.console, "print") as mock_print,
@@ -1169,7 +1175,9 @@ class TestIDPPublisherPlatformSpecificCommands:
             "--cached",
             "--parallel",
         ]
-        mock_run.assert_called_with(expected_cmd, cwd=".")
+        # The method now uses absolute paths for thread safety
+        expected_cwd = os.path.abspath(".")
+        mock_run.assert_called_with(expected_cmd, cwd=expected_cwd)
 
     @patch("platform.system")
     @patch("subprocess.run")
@@ -1193,7 +1201,9 @@ class TestIDPPublisherPlatformSpecificCommands:
             "--cached",
             "--parallel",
         ]
-        mock_run.assert_called_with(expected_cmd, cwd=".")
+        # The method now uses absolute paths for thread safety
+        expected_cwd = os.path.abspath(".")
+        mock_run.assert_called_with(expected_cmd, cwd=expected_cwd)
 
     @patch("platform.system")
     @patch("subprocess.run")
@@ -1216,7 +1226,9 @@ class TestIDPPublisherPlatformSpecificCommands:
             "--cached",
             "--parallel",
         ]
-        mock_run.assert_called_with(expected_cmd, cwd=".")
+        # The method now uses absolute paths for thread safety
+        expected_cwd = os.path.abspath(".")
+        mock_run.assert_called_with(expected_cmd, cwd=expected_cwd)
 
     @patch("platform.system")
     def test_path_handling_windows(self, mock_system):

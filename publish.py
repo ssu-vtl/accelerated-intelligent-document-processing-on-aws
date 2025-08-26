@@ -581,8 +581,118 @@ class IDPPublisher:
                 if file_name.endswith(".pyc"):
                     os.remove(os.path.join(root, file_name))
 
+    def build_idp_common_package(self):
+        """Build the idp_common package to ensure it's available for Lambda functions"""
+        lib_pkg_dir = "./lib/idp_common_pkg"
+
+        if not os.path.exists(lib_pkg_dir):
+            self.console.print(
+                f"[yellow]Warning: {lib_pkg_dir} directory not found[/yellow]"
+            )
+            return
+
+        self.console.print(
+            "[cyan]Building idp_common package for Lambda functions[/cyan]"
+        )
+
+        try:
+            # Build the package in development mode so it's available for local imports
+            cmd = ["pip", "install", "-e", ".", "--quiet"]
+            result = subprocess.run(
+                cmd, cwd=lib_pkg_dir, capture_output=True, text=True
+            )
+
+            if result.returncode != 0:
+                self.log_verbose(
+                    f"pip install failed, trying alternative approach: {result.stderr}"
+                )
+                # Alternative: build the package using setup.py
+                cmd = ["python", "setup.py", "build"]
+                result = subprocess.run(
+                    cmd, cwd=lib_pkg_dir, capture_output=True, text=True
+                )
+
+                if result.returncode != 0:
+                    error_output = (
+                        f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+                    )
+                    self.log_error_details("idp_common package build", error_output)
+                    return False
+
+            self.console.print(
+                "[green]✅ idp_common package built successfully[/green]"
+            )
+            return True
+
+        except Exception as e:
+            self.console.print(f"[red]Error building idp_common package: {e}[/red]")
+            return False
+
+    def fix_requirements_paths(self, directory):
+        """Fix relative paths in requirements.txt files to work with SAM build from project root"""
+        self.log_verbose(f"Fixing requirements.txt paths in {directory}")
+
+        # Get absolute path to the lib directory
+        project_root = os.path.abspath(".")
+        lib_abs_path = os.path.join(project_root, "lib", "idp_common_pkg")
+
+        # Find all requirements.txt files in the directory
+        for root, dirs, files in os.walk(directory):
+            for file in files:
+                if file == "requirements.txt":
+                    req_file_path = os.path.join(root, file)
+                    self.log_verbose(f"Processing requirements file: {req_file_path}")
+
+                    try:
+                        # Read the current requirements
+                        with open(req_file_path, "r") as f:
+                            content = f.read()
+
+                        # Check if it contains relative paths to lib
+                        if "lib/idp_common_pkg" in content and not content.startswith(
+                            "-e "
+                        ):
+                            # Replace any existing lib paths with absolute path
+                            import re
+
+                            # Pattern to match various forms of lib path references with extras
+                            # Only match if not already processed (doesn't start with -e)
+                            pattern = r"^([./]*lib/idp_common_pkg(\[[^\]]+\])?)"
+
+                            def replace_lib_path(match):
+                                extras_match = re.search(
+                                    r"\[([^\]]+)\]", match.group(1)
+                                )
+                                extras = (
+                                    f"[{extras_match.group(1)}]" if extras_match else ""
+                                )
+                                # Use absolute path with -e flag for editable install
+                                return f"-e {lib_abs_path}{extras}"
+
+                            new_content = re.sub(
+                                pattern, replace_lib_path, content, flags=re.MULTILINE
+                            )
+
+                            if new_content != content:
+                                self.log_verbose(
+                                    f"Updated requirements.txt: {req_file_path}"
+                                )
+                                self.log_verbose(f"  Old content: {content.strip()}")
+                                self.log_verbose(
+                                    f"  New content: {new_content.strip()}"
+                                )
+
+                                # Write the updated content
+                                with open(req_file_path, "w") as f:
+                                    f.write(new_content)
+
+                    except Exception as e:
+                        self.log_verbose(f"Error processing {req_file_path}: {e}")
+                        # Don't fail the build for this, just log the error
+                        continue
+
     def clean_and_build(self, template_path):
-        """Clean previous build artifacts and run sam build with optimizations"""
+        """Clean previous build artifacts and run sam build (matching publish_2.sh approach)"""
         dir_path = os.path.dirname(template_path)
 
         # If dir_path is empty (template.yaml in current directory), use current directory
@@ -605,41 +715,60 @@ class IDPPublisher:
                 print(f"Clearing SAM cache in {cache_dir} (lib changed)")
                 shutil.rmtree(cache_dir)
 
-        # Run sam build with optimizations
+        # Run sam build with cwd parameter (thread-safe)
+        abs_dir_path = os.path.abspath(dir_path)
         cmd = [
             "sam",
             "build",
             "--template-file",
-            template_path,
+            os.path.basename(template_path),
             "--cached",
             "--parallel",
         ]
-        if self.use_container_flag:
+        if self.use_container_flag and self.use_container_flag.strip():
             cmd.append(self.use_container_flag)
 
-        result = subprocess.run(cmd, cwd=dir_path)
+        result = subprocess.run(cmd, cwd=abs_dir_path)
         if result.returncode != 0:
             # If cached build fails, try without cache
             print(f"Cached build failed, retrying without cache for {template_path}")
             cmd_no_cache = [c for c in cmd if c != "--cached"]
-            result = subprocess.run(cmd_no_cache, cwd=dir_path)
+            result = subprocess.run(cmd_no_cache, cwd=abs_dir_path)
             if result.returncode != 0:
-                print(f"Error running sam build in {dir_path}")
+                print("Error running sam build")
                 sys.exit(1)
 
     def build_and_package_template(self, directory):
-        """Build and package a template directory (optimized for progress display)"""
+        """Build and package a template directory (using same approach as publish_2.sh)"""
         if self.needs_rebuild(directory):
             # Use absolute paths to avoid directory changing issues
             abs_directory = os.path.abspath(directory)
-            template_path = os.path.join(abs_directory, "template.yaml")
 
             # Track build time
             build_start = time.time()
 
             try:
-                # Build the template using absolute paths with optimizations
-                cmd = ["sam", "build", "--template-file", template_path]
+                # Clean previous build artifacts if lib changed (thread-safe)
+                lib_changed = hasattr(self, "_lib_changed") and self._lib_changed
+                aws_sam_dir = os.path.join(abs_directory, ".aws-sam")
+                build_dir = os.path.join(aws_sam_dir, "build")
+
+                if lib_changed and os.path.exists(aws_sam_dir):
+                    if os.path.exists(build_dir):
+                        self.log_verbose(
+                            f"Cleaning build artifacts in {build_dir} (lib changed)"
+                        )
+                        shutil.rmtree(build_dir)
+                    # Also clear SAM cache when lib changes
+                    cache_dir = os.path.join(aws_sam_dir, "cache")
+                    if os.path.exists(cache_dir):
+                        self.log_verbose(
+                            f"Clearing SAM cache in {cache_dir} (lib changed)"
+                        )
+                        shutil.rmtree(cache_dir)
+
+                # Build the template from the pattern directory
+                cmd = ["sam", "build", "--template-file", "template.yaml"]
 
                 # Add performance optimizations
                 cmd.extend(
@@ -649,26 +778,14 @@ class IDPPublisher:
                     ]
                 )
 
-                if self.use_container_flag:
+                if self.use_container_flag and self.use_container_flag.strip():
                     cmd.append(self.use_container_flag)
 
-                # Only clean build artifacts if we're doing a fresh build
-                # For cached builds, we want to preserve the cache
-                aws_sam_dir = os.path.join(abs_directory, ".aws-sam")
-                build_dir = os.path.join(aws_sam_dir, "build")
-
-                # Check if we should do a clean build (when lib changed or forced)
-                lib_changed = hasattr(self, "_lib_changed") and self._lib_changed
-                if lib_changed and os.path.exists(build_dir):
-                    # Only clean if lib changed to force rebuild with new dependencies
-                    shutil.rmtree(build_dir)
-                    # Also clear SAM cache when lib changes
-                    cache_dir = os.path.join(aws_sam_dir, "cache")
-                    if os.path.exists(cache_dir):
-                        shutil.rmtree(cache_dir)
-
                 sam_build_start = time.time()
-                self.log_verbose(f"Running SAM build command: {' '.join(cmd)}")
+                self.log_verbose(
+                    f"Running SAM build command in {directory}: {' '.join(cmd)}"
+                )
+                # Run SAM build from the pattern directory (like publish_2.sh)
                 result = subprocess.run(
                     cmd, cwd=abs_directory, capture_output=True, text=True
                 )
@@ -685,7 +802,7 @@ class IDPPublisher:
                     cmd_no_cache = [c for c in cmd if c != "--cached"]
                     sam_build_start = time.time()
                     self.log_verbose(
-                        f"Running SAM build command (no cache): {' '.join(cmd_no_cache)}"
+                        f"Running SAM build command (no cache) in {directory}: {' '.join(cmd_no_cache)}"
                     )
                     result = subprocess.run(
                         cmd_no_cache, cwd=abs_directory, capture_output=True, text=True
@@ -701,7 +818,7 @@ class IDPPublisher:
                         )
                         return False
 
-                # Package the template
+                # Package the template (using absolute paths)
                 build_template_path = os.path.join(
                     abs_directory, ".aws-sam", "build", "template.yaml"
                 )
@@ -724,9 +841,8 @@ class IDPPublisher:
 
                 sam_package_start = time.time()
                 self.log_verbose(f"Running SAM package command: {' '.join(cmd)}")
-                result = subprocess.run(
-                    cmd, cwd=abs_directory, capture_output=True, text=True
-                )
+                # Run SAM package from project root (no cwd change needed)
+                result = subprocess.run(cmd, capture_output=True, text=True)
                 sam_package_time = time.time() - sam_package_start
 
                 if result.returncode != 0:
@@ -744,7 +860,11 @@ class IDPPublisher:
                     f"[dim]  {pattern_name}: build={sam_build_time:.1f}s, package={sam_package_time:.1f}s, total={total_time:.1f}s[/dim]"
                 )
 
-            except Exception:
+            except Exception as e:
+                import traceback
+
+                self.log_verbose(f"Exception in build_and_package_template: {e}")
+                self.log_verbose(f"Traceback: {traceback.format_exc()}")
                 return False
 
             # Update the checksum
@@ -1255,6 +1375,11 @@ class IDPPublisher:
 
             # Clean lib artifacts
             self.clean_lib()
+
+            # Build idp_common package to ensure it's available for Lambda functions
+            if not self.build_idp_common_package():
+                self.console.print("[red]❌ Failed to build idp_common package[/red]")
+                sys.exit(1)
 
             # Check if lib has changed
             lib_changed = self.needs_rebuild("./lib")
