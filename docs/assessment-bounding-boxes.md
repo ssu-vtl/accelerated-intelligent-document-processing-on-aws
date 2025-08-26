@@ -23,8 +23,9 @@ The Assessment Service now supports **optional bounding box extraction** as part
 
 ### Output Format
 
-When bounding boxes are enabled, the assessment output includes `geometry` arrays:
+When bounding boxes are enabled, the assessment output includes `geometry` arrays for all attribute types:
 
+**Simple Attributes:**
 ```json
 {
   "account_number": {
@@ -34,15 +35,97 @@ When bounding boxes are enabled, the assessment output includes `geometry` array
     "geometry": [
       {
         "boundingBox": {
-          "top": 0.3751128193254686,
-          "left": 0.4474376978868207,
-          "width": 0.05959462312246394,
-          "height": 0.010745484576798636
+          "top": 0.375,
+          "left": 0.447,
+          "width": 0.059,
+          "height": 0.010
         },
         "page": 1
       }
     ]
   }
+}
+```
+
+**Group Attributes (Nested):**
+```json
+{
+  "CompanyAddress": {
+    "State": {
+      "confidence": 0.99,
+      "confidence_reason": "Clear text with high OCR confidence",
+      "confidence_threshold": 0.9,
+      "geometry": [
+        {
+          "boundingBox": {
+            "top": 0.116,
+            "left": 0.23,
+            "width": 0.029,
+            "height": 0.01
+          },
+          "page": 1
+        }
+      ]
+    },
+    "ZipCode": {
+      "confidence": 0.99,
+      "confidence_reason": "Clear text with high OCR confidence", 
+      "confidence_threshold": 0.9,
+      "geometry": [
+        {
+          "boundingBox": {
+            "top": 0.116,
+            "left": 0.261,
+            "width": 0.037,
+            "height": 0.01
+          },
+          "page": 1
+        }
+      ]
+    }
+  }
+}
+```
+
+**List Attributes:**
+```json
+{
+  "Transactions": [
+    {
+      "Date": {
+        "confidence": 0.95,
+        "confidence_reason": "Clear date format",
+        "confidence_threshold": 0.9,
+        "geometry": [
+          {
+            "boundingBox": {
+              "top": 0.2,
+              "left": 0.1,
+              "width": 0.05,
+              "height": 0.02
+            },
+            "page": 1
+          }
+        ]
+      },
+      "Amount": {
+        "confidence": 0.88,
+        "confidence_reason": "Good number format",
+        "confidence_threshold": 0.9,
+        "geometry": [
+          {
+            "boundingBox": {
+              "top": 0.2,
+              "left": 0.2,
+              "width": 0.05,
+              "height": 0.02
+            },
+            "page": 1
+          }
+        ]
+      }
+    }
+  ]
 }
 ```
 
