@@ -215,7 +215,7 @@ Test system capacity and identify bottlenecks:
 
 **Python Runtime Error:**
 ```
-Error: PythonPipBuilder:Validation - Binary validation failed for python, searched for python in following locations: [...] which did not satisfy constraints for runtime: python3.13
+Error: PythonPipBuilder:Validation - Binary validation failed for python, searched for python in following locations: [...] which did not satisfy constraints for runtime: python3.12
 ```
 **Resolution:** Install Python 3.13 and ensure it's in your PATH, or use the `--use-container` flag for containerized builds.
 
