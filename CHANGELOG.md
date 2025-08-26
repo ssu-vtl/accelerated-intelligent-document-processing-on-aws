@@ -66,6 +66,8 @@ SPDX-License-Identifier: MIT-0
   - Enhanced developer experience with rich console output and clear progress indicators
   - Better error diagnostics and troubleshooting capabilities
 
+- **Reverted to python3.12 runtime to resolve build package dependency problems**
+
 ### Technical Improvements
 
 - **Build System Optimization**: Checksum-based incremental builds reduce unnecessary processing time

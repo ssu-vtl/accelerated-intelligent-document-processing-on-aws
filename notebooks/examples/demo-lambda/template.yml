@@ -28,7 +28,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: ./
       Handler: GENAIIDP-notebook-demo-extractor.lambda_handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 300
       MemorySize: 512
       Description: Demo Lambda function for GenAI IDP Custom Prompt Generator demonstration

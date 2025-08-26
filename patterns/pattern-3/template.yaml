@@ -781,7 +781,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/ocr_function/
       Handler: index.handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
@@ -856,7 +856,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/classification_function/
       Handler: index.handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
@@ -940,7 +940,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/extraction_function/
       Handler: index.handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 512
       Environment:
@@ -1028,7 +1028,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/assessment_function/
       Handler: index.handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 512
       Environment:
@@ -1109,7 +1109,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/processresults_function/
       Handler: index.handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
@@ -1174,7 +1174,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/summarization_function/
       Handler: index.handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
