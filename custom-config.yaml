@@ -1,13 +1,8 @@
-# Custom Configuration for GenAI IDP Testing
 # SPDX-License-Identifier: MIT-0
-
-notes: Custom test configuration for deployment validation
 
 ocr:
   backend: "textract"
   model_id: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-  system_prompt: "You are an expert OCR system. Extract all text from the provided image accurately."
-  task_prompt: "Extract all text from this document image. Preserve the layout and formatting."
   features:
     - name: LAYOUT
     - name: TABLES
@@ -15,58 +10,43 @@ ocr:
 
 classes:
   - name: Invoice
-    description: >-
-      A commercial document that itemizes and records a transaction between a buyer and seller.
-      Contains details about products/services, quantities, prices, and payment terms.
+    description: Commercial document with itemized transaction details between buyer and seller
     attributes:
       - name: InvoiceNumber
-        description: >-
-          Unique identifier assigned to the invoice for tracking and reference purposes.
+        description: Unique invoice identifier
         evaluation_method: EXACT
         attributeType: simple
       - name: InvoiceDate
-        description: >-
-          The date when the invoice was issued or created.
+        description: Invoice issue date
         evaluation_method: EXACT
         attributeType: simple
       - name: TotalAmount
-        description: >-
-          The total amount due including all items, taxes, and fees.
+        description: Total amount due
         evaluation_method: NUMERIC_EXACT
         attributeType: simple
       - name: VendorName
-        description: >-
-          The name of the company or individual issuing the invoice.
+        description: Invoice issuer name
         evaluation_method: EXACT
         attributeType: simple
 
   - name: Receipt
-    description: >-
-      A document acknowledging that a person has received money or property in payment.
-      Shows proof of purchase with transaction details.
+    description: Payment acknowledgment document with transaction details
     attributes:
       - name: TransactionDate
-        description: >-
-          The date when the transaction occurred.
+        description: Transaction date
         evaluation_method: EXACT
         attributeType: simple
       - name: Amount
-        description: >-
-          The total amount paid for the transaction.
+        description: Transaction amount
         evaluation_method: NUMERIC_EXACT
         attributeType: simple
       - name: MerchantName
-        description: >-
-          The name of the business or merchant where the transaction took place.
+        description: Business name
         evaluation_method: EXACT
         attributeType: simple
 
 classification:
   model_id: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-  system_prompt: "You are an expert document classifier."
-  task_prompt: "Classify this document into one of the provided categories based on its content and structure."
 
 extraction:
   model_id: "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-  system_prompt: "You are an expert at extracting structured information from documents."
-  task_prompt: "Extract the requested information from this document and return it in JSON format."
