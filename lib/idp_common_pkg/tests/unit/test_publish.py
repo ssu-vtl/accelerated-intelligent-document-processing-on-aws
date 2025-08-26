@@ -1048,9 +1048,6 @@ class TestIDPPublisherIntegration:
             patch.object(publisher, "setup_artifacts_bucket") as mock_setup_bucket,
             patch.object(publisher, "clean_temp_files"),
             patch.object(publisher, "clean_lib"),
-            patch.object(
-                publisher, "build_idp_common_package", return_value=True
-            ),  # Add this mock
             patch.object(publisher, "needs_rebuild", return_value=False),
             patch.object(
                 publisher, "build_patterns_concurrently", return_value=True
@@ -1130,9 +1127,6 @@ class TestIDPPublisherIntegration:
             patch.object(publisher, "setup_artifacts_bucket"),
             patch.object(publisher, "clean_temp_files"),
             patch.object(publisher, "clean_lib"),
-            patch.object(
-                publisher, "build_idp_common_package", return_value=True
-            ),  # Add this mock
             patch.object(publisher, "needs_rebuild", return_value=False),
             patch.object(publisher, "build_patterns_concurrently", return_value=False),
             patch.object(publisher.console, "print") as mock_print,

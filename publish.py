@@ -581,116 +581,6 @@ class IDPPublisher:
                 if file_name.endswith(".pyc"):
                     os.remove(os.path.join(root, file_name))
 
-    def build_idp_common_package(self):
-        """Build the idp_common package to ensure it's available for Lambda functions"""
-        lib_pkg_dir = "./lib/idp_common_pkg"
-
-        if not os.path.exists(lib_pkg_dir):
-            self.console.print(
-                f"[yellow]Warning: {lib_pkg_dir} directory not found[/yellow]"
-            )
-            return
-
-        self.console.print(
-            "[cyan]Building idp_common package for Lambda functions[/cyan]"
-        )
-
-        try:
-            # Build the package in development mode so it's available for local imports
-            cmd = ["pip", "install", "-e", ".", "--quiet"]
-            result = subprocess.run(
-                cmd, cwd=lib_pkg_dir, capture_output=True, text=True
-            )
-
-            if result.returncode != 0:
-                self.log_verbose(
-                    f"pip install failed, trying alternative approach: {result.stderr}"
-                )
-                # Alternative: build the package using setup.py
-                cmd = ["python", "setup.py", "build"]
-                result = subprocess.run(
-                    cmd, cwd=lib_pkg_dir, capture_output=True, text=True
-                )
-
-                if result.returncode != 0:
-                    error_output = (
-                        f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-                    )
-                    self.log_error_details("idp_common package build", error_output)
-                    return False
-
-            self.console.print(
-                "[green]✅ idp_common package built successfully[/green]"
-            )
-            return True
-
-        except Exception as e:
-            self.console.print(f"[red]Error building idp_common package: {e}[/red]")
-            return False
-
-    def fix_requirements_paths(self, directory):
-        """Fix relative paths in requirements.txt files to work with SAM build from project root"""
-        self.log_verbose(f"Fixing requirements.txt paths in {directory}")
-
-        # Get absolute path to the lib directory
-        project_root = os.path.abspath(".")
-        lib_abs_path = os.path.join(project_root, "lib", "idp_common_pkg")
-
-        # Find all requirements.txt files in the directory
-        for root, dirs, files in os.walk(directory):
-            for file in files:
-                if file == "requirements.txt":
-                    req_file_path = os.path.join(root, file)
-                    self.log_verbose(f"Processing requirements file: {req_file_path}")
-
-                    try:
-                        # Read the current requirements
-                        with open(req_file_path, "r") as f:
-                            content = f.read()
-
-                        # Check if it contains relative paths to lib
-                        if "lib/idp_common_pkg" in content and not content.startswith(
-                            "-e "
-                        ):
-                            # Replace any existing lib paths with absolute path
-                            import re
-
-                            # Pattern to match various forms of lib path references with extras
-                            # Only match if not already processed (doesn't start with -e)
-                            pattern = r"^([./]*lib/idp_common_pkg(\[[^\]]+\])?)"
-
-                            def replace_lib_path(match):
-                                extras_match = re.search(
-                                    r"\[([^\]]+)\]", match.group(1)
-                                )
-                                extras = (
-                                    f"[{extras_match.group(1)}]" if extras_match else ""
-                                )
-                                # Use absolute path with -e flag for editable install
-                                return f"-e {lib_abs_path}{extras}"
-
-                            new_content = re.sub(
-                                pattern, replace_lib_path, content, flags=re.MULTILINE
-                            )
-
-                            if new_content != content:
-                                self.log_verbose(
-                                    f"Updated requirements.txt: {req_file_path}"
-                                )
-                                self.log_verbose(f"  Old content: {content.strip()}")
-                                self.log_verbose(
-                                    f"  New content: {new_content.strip()}"
-                                )
-
-                                # Write the updated content
-                                with open(req_file_path, "w") as f:
-                                    f.write(new_content)
-
-                    except Exception as e:
-                        self.log_verbose(f"Error processing {req_file_path}: {e}")
-                        # Don't fail the build for this, just log the error
-                        continue
-
     def clean_and_build(self, template_path):
         """Clean previous build artifacts and run sam build (matching publish_2.sh approach)"""
         dir_path = os.path.dirname(template_path)
@@ -1373,15 +1263,11 @@ class IDPPublisher:
             # Clean temporary files
             self.clean_temp_files()
 
-            # Clean lib artifacts
+            # Clean lib artifacts (matching publish_2.sh approach)
             self.clean_lib()
 
-            # Build idp_common package to ensure it's available for Lambda functions
-            if not self.build_idp_common_package():
-                self.console.print("[red]❌ Failed to build idp_common package[/red]")
-                sys.exit(1)
-
             # Check if lib has changed
+            # Note: We don't pre-build idp_common package - SAM handles it during build
             lib_changed = self.needs_rebuild("./lib")
             self._lib_changed = (
                 lib_changed  # Store for use in build_and_package_template
