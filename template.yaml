@@ -2037,19 +2037,26 @@ Resources:
               - !Sub "arn:aws:s3:::<ARTIFACT_BUCKET_TOKEN>/<ARTIFACT_PREFIX_TOKEN>/*"
               - !Sub "arn:aws:s3:::${ConfigurationBucket}"
               - !Sub "arn:aws:s3:::${ConfigurationBucket}/*"
-          # Allow reading user-supplied config files from any S3 bucket
-          - Effect: Allow
-            Action:
-              - "s3:GetObject"
-            Resource: "*"
-            Condition:
-              StringLike:
-                "s3:ExistingObjectTag/idp-config": "true"
-          # Fallback permission for user-supplied config files (less restrictive)
-          - Effect: Allow
-            Action:
-              - "s3:GetObject"
-            Resource: "arn:aws:s3:::*/*"
+          # Allow reading user-supplied config file only if CustomConfigPath is specified
+          - !If
+            - HasCustomConfigPath
+            - Effect: Allow
+              Action:
+                - "s3:GetObject"
+              Resource: !Sub
+                - "arn:aws:s3:::${Path}"
+                - Path: !Select [1, !Split ["s3://", !Ref CustomConfigPath]]
+            - !Ref AWS::NoValue
+          # Allow listing the specific bucket containing the custom config file
+          - !If
+            - HasCustomConfigPath
+            - Effect: Allow
+              Action:
+                - "s3:ListBucket"
+              Resource: !Sub
+                - "arn:aws:s3:::${BucketName}"
+                - BucketName: !Select [0, !Split ["/", !Select [1, !Split ["s3://", !Ref CustomConfigPath]]]]
+            - !Ref AWS::NoValue
 
   UpdateConfigurationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
