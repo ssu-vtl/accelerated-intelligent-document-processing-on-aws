@@ -35,7 +35,6 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
-from rich.table import Table
 
 
 class IDPPublisher:
@@ -107,7 +106,7 @@ class IDPPublisher:
         """Print usage information with Rich formatting"""
         self.console.print("\n[bold cyan]Usage:[/bold cyan]")
         self.console.print(
-            "  python3 publish.py <cfn_bucket_basename> <cfn_prefix> <region> [public] [--max-workers N]"
+            "  python3 publish.py <cfn_bucket_basename> <cfn_prefix> <region> [public] [--max-workers N] [--verbose]"
         )
 
         self.console.print("\n[bold cyan]Parameters:[/bold cyan]")
@@ -124,6 +123,9 @@ class IDPPublisher:
         )
         self.console.print(
             "                     Use 1 for sequential processing, higher numbers for more concurrency"
+        )
+        self.console.print(
+            "  [yellow][--verbose, -v][/yellow]: Optional. Enable verbose output for debugging"
         )
 
     def check_parameters(self, args):
@@ -179,6 +181,9 @@ class IDPPublisher:
                     )
                     self.print_usage()
                     sys.exit(1)
+            elif arg in ["--verbose", "-v"]:
+                # Verbose flag is already handled by Typer, just acknowledge it here
+                pass
             else:
                 self.console.print(
                     f"[yellow]Warning: Unknown argument '{arg}' ignored[/yellow]"
@@ -262,6 +267,22 @@ class IDPPublisher:
                 f"[red]Error: Python version >= {min_python_version} is required. (Installed version is {python_version})[/red]"
             )
             sys.exit(1)
+
+    def ensure_aws_sam_directory(self):
+        """Ensure .aws-sam directory exists"""
+        aws_sam_dir = ".aws-sam"
+
+        if not os.path.exists(aws_sam_dir):
+            self.console.print(
+                "[yellow].aws-sam directory not found. Creating it...[/yellow]"
+            )
+            os.makedirs(aws_sam_dir, exist_ok=True)
+            self.console.print(
+                "[green]✅ Successfully created .aws-sam directory[/green]"
+            )
+        else:
+            if self.verbose:
+                self.console.print("[dim].aws-sam directory already exists[/dim]")
 
     def version_compare(self, version1, version2):
         """Compare two version strings. Returns -1 if v1 < v2, 0 if equal, 1 if v1 > v2"""
@@ -365,6 +386,7 @@ class IDPPublisher:
             ".git",
             ".vscode",
             ".idea",
+            "test-reports",  # Exclude test report directories
         }
 
         exclude_file_patterns = {
@@ -379,9 +401,19 @@ class IDPPublisher:
             ".coverage",
             ".DS_Store",
             "Thumbs.db",
+            "coverage.xml",  # Coverage reports
+            "test-results.xml",  # Test result reports
+            ".gitkeep",  # Git placeholder files
         }
 
-        exclude_file_suffixes = (".pyc", ".pyo", ".pyd", ".so", ".coverage")
+        exclude_file_suffixes = (
+            ".pyc",
+            ".pyo",
+            ".pyd",
+            ".so",
+            ".coverage",
+            ".log",  # Log files
+        )
         exclude_dir_suffixes = (".egg-info",)
 
         def should_exclude_dir(dir_name):
@@ -405,7 +437,12 @@ class IDPPublisher:
                 return True
             # Exclude test files for library checksum only
             if "lib" in directory and (
-                file_name.startswith("test_") or file_name.endswith("_test.py")
+                file_name.startswith("test_")
+                or file_name.endswith("_test.py")
+                or file_name == "nodeids"  # pytest cache files
+                or file_name == "lastfailed"  # pytest cache files
+                or file_name
+                in ["coverage.xml", "test-results.xml"]  # specific test report files
             ):
                 return True
             return False
@@ -458,6 +495,17 @@ class IDPPublisher:
 
     def needs_rebuild(self, *paths):
         """Check if any of the paths have changed since last build"""
+        # Special case for ./lib directory - use .lib_checksum in root and get_directory_checksum
+        if len(paths) == 1 and paths[0] == "./lib":
+            current_checksum = self.get_directory_checksum("./lib")
+            checksum_file = ".lib_checksum"
+            if os.path.exists(checksum_file):
+                with open(checksum_file, "r") as f:
+                    stored_checksum = f.read().strip()
+                return current_checksum != stored_checksum
+            return True
+
+        # For all other cases, use get_checksum
         current_checksum = self.get_checksum(*paths)
 
         # For single directory, check its stored checksum
@@ -1164,30 +1212,7 @@ class IDPPublisher:
         encoded_template_url = quote(template_url, safe=":/?#[]@!$&'()*+,;=")
         launch_url = f"https://{self.region}.console.aws.amazon.com/cloudformation/home?region={self.region}#/stacks/create/review?templateURL={encoded_template_url}&stackName=IDP"
 
-        # First, display URLs in plain text to avoid Rich formatting issues
-        self.console.print("\n[bold green]Deployment Outputs[/bold green]")
-        self.console.print("[cyan]Template URL (use to update existing stack):[/cyan]")
-        self.console.print(f"{template_url}")
-        self.console.print(
-            "\n[cyan]1-Click Launch URL (use to launch new stack):[/cyan]"
-        )
-        self.console.print(f"{launch_url}")
-
-        # Also display in a table with clickable links
-        table = Table(title="[bold green]Quick Links[/bold green]", show_lines=True)
-        table.add_column("Link", style="cyan", no_wrap=False, width=60)
-        table.add_column("Description", style="yellow", width=40)
-
-        # Create clickable links using Rich's link syntax
-        template_link = f"[link={template_url}]Template URL[/link]"
-        launch_link = f"[link={launch_url}]1-Click Launch[/link]"
-
-        table.add_row(template_link, "Go to cloudformation and update existing stack")
-        table.add_row(launch_link, "Use to launch new stack")
-
-        self.console.print(table)
-
-        # Additional information for troubleshooting
+        # Display deployment information first
         self.console.print("\n[bold cyan]Deployment Information:[/bold cyan]")
         self.console.print(f"  • Region: [yellow]{self.region}[/yellow]")
         self.console.print(f"  • Bucket: [yellow]{self.bucket}[/yellow]")
@@ -1197,6 +1222,15 @@ class IDPPublisher:
         self.console.print(
             f"  • Public Access: [yellow]{'Yes' if self.public else 'No'}[/yellow]"
         )
+
+        # Then display URLs
+        self.console.print("\n[bold green]Deployment Outputs[/bold green]")
+        self.console.print("[cyan]Template URL (use to update existing stack):[/cyan]")
+        self.console.print(f"{template_url}")
+        self.console.print(
+            "\n[cyan]1-Click Launch URL (use to launch new stack):[/cyan]"
+        )
+        self.console.print(f"{launch_url}")
 
     def run(self, args):
         """Main execution method"""
@@ -1209,6 +1243,9 @@ class IDPPublisher:
 
             # Check prerequisites
             self.check_prerequisites()
+
+            # Ensure .aws-sam directory exists
+            self.ensure_aws_sam_directory()
 
             # Set up S3 bucket
             self.setup_artifacts_bucket()

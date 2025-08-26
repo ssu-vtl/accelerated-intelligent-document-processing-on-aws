@@ -1044,6 +1044,7 @@ class TestIDPPublisherIntegration:
             patch.object(publisher, "check_parameters") as mock_check_params,
             patch.object(publisher, "setup_environment") as mock_setup_env,
             patch.object(publisher, "check_prerequisites") as mock_check_prereq,
+            patch.object(publisher, "ensure_aws_sam_directory") as mock_ensure_sam,
             patch.object(publisher, "setup_artifacts_bucket") as mock_setup_bucket,
             patch.object(publisher, "clean_temp_files"),
             patch.object(publisher, "clean_lib"),
@@ -1072,6 +1073,7 @@ class TestIDPPublisherIntegration:
         mock_check_params.assert_called_once()
         mock_setup_env.assert_called_once()
         mock_check_prereq.assert_called_once()
+        mock_ensure_sam.assert_called_once()
         mock_setup_bucket.assert_called_once()
         mock_build_patterns.assert_called_once()
         mock_build_options.assert_called_once()
@@ -1121,6 +1123,7 @@ class TestIDPPublisherIntegration:
             patch.object(publisher, "check_parameters"),
             patch.object(publisher, "setup_environment"),
             patch.object(publisher, "check_prerequisites"),
+            patch.object(publisher, "ensure_aws_sam_directory"),
             patch.object(publisher, "setup_artifacts_bucket"),
             patch.object(publisher, "clean_temp_files"),
             patch.object(publisher, "clean_lib"),

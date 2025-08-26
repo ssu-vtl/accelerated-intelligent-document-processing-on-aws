@@ -1,13 +1,34 @@
 @echo off
 setlocal enabledelayedexpansion
 
+REM ========================================
+REM    GenAI IDP Development Setup Script
+REM ========================================
+REM
+REM This script sets up a complete development environment for the
+REM GenAI Intelligent Document Processing (IDP) accelerator.
+REM
+REM Updated for:
+REM - Python 3.12 compatibility (minimum required version)
+REM - Enhanced validation and error handling
+REM - Verbose mode support for publish.py
+REM - Comprehensive installation verification
+REM
+REM Requirements:
+REM - Windows 10/11 with PowerShell
+REM - Administrator privileges
+REM - Internet connectivity
+REM
+REM Last updated: 2025-08-26
+REM ========================================
+
 echo ========================================
 echo    Development Environment Setup
 echo ========================================
 echo.
 echo This script will install:
 echo - AWS CLI
-echo - Python 3.13 (required for compatibility)
+echo - Python 3.12 (required for compatibility)
 echo - Node.js (for React development)
 echo - Git
 echo - Docker
@@ -59,7 +80,7 @@ echo Checking Python installation...
 :: Check if python command exists
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Python is not installed. Installing Python 3.13...
+    echo Python is not installed. Installing Python 3.12...
     goto :install_python
 ) 
 :: Get Python version
@@ -70,36 +91,36 @@ for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
      set MINOR=%%b
   ) 
 echo Found Python %PYTHON_VERSION%
-:: Check if version is 3.13 or later
+:: Check if version is 3.12 or later
 if %MAJOR% lss 3 (
-    echo Python version is too old. Need Python 3.13 or later.
+    echo Python version is too old. Need Python 3.12 or later.
     goto :install_python
 )
 if %MAJOR% equ 3 (
-   if %MINOR% lss 13 (
-       echo Python version is too old. Need Python 3.13 or later.
+   if %MINOR% lss 12 (
+       echo Python version is too old. Need Python 3.12 or later.
        goto :install_python
     )
 ) 
-echo Python %PYTHON_VERSION% meets requirements (3.13+)
+echo Python %PYTHON_VERSION% meets requirements (3.12+)
 
 :install_python
 echo ========================================
-echo    Step 2: Installing Python 3.13
+echo    Step 2: Installing Python 3.12
 echo ========================================
 echo.
 
-echo Installing Python 3.13...
-choco install python313 -y
+echo Installing Python 3.12...
+choco install python312 -y
     
 if !errorLevel! neq 0 (
-	echo ERROR: Failed to install Python 3.13
+	echo ERROR: Failed to install Python 3.12
 	pause
 	exit /b 1
 )
     
 call refreshenv
-echo Python 3.13 installed successfully!
+echo Python 3.12 installed successfully!
 
 :end
 echo.
@@ -303,7 +324,7 @@ if %errorLevel% equ 0 (
 )
 
 echo Your development environment has been set up with:
-echo - Python 3.13
+echo - Python 3.12
 echo - Node.js and npm
 echo - AWS CLI (configured)
 echo - Git
@@ -380,13 +401,30 @@ if exist "!PROJECT_DIR!" (
         REM Checkout target branch if not already on it
         if not "!CURRENT_BRANCH!"=="!TARGET_BRANCH!" (
             echo Checking out branch: !TARGET_BRANCH!
-            git checkout !TARGET_BRANCH!
+            
+            REM First try to checkout existing local branch
+            git checkout !TARGET_BRANCH! >nul 2>&1
+            
             if !errorLevel! neq 0 (
-                echo ERROR: Failed to checkout branch !TARGET_BRANCH!
-                echo The branch may not exist or there may be network issues
-                pause
+                echo Local branch !TARGET_BRANCH! not found, checking for remote branch...
+                
+                REM Fetch latest remote branches
+                git fetch origin
+                
+                REM Try to checkout remote branch and create local tracking branch
+                git checkout -b !TARGET_BRANCH! origin/!TARGET_BRANCH!
+                
+                if !errorLevel! neq 0 (
+                    echo ERROR: Failed to checkout branch !TARGET_BRANCH!
+                    echo The branch may not exist remotely or there may be network issues
+                    echo Available remote branches:
+                    git branch -r
+                    pause
+                ) else (
+                    echo Successfully created and checked out branch !TARGET_BRANCH! from origin/!TARGET_BRANCH!
+                )
             ) else (
-                echo Successfully checked out branch !TARGET_BRANCH!
+                echo Successfully checked out existing local branch !TARGET_BRANCH!
             )
         ) else (
             echo Already on !TARGET_BRANCH! branch
@@ -415,6 +453,15 @@ cd "!PROJECT_DIR!"
 
 echo.
 echo Repository cloned successfully!
+
+echo Fetching all remote branches...
+git fetch
+
+if !errorLevel! neq 0 (
+    echo WARNING: Failed to fetch remote branches
+) else (
+    echo Remote branches fetched successfully!
+)
 echo.
 set /p TARGET_BRANCH="Enter branch to checkout (default: develop): "
 
@@ -424,14 +471,27 @@ if "!TARGET_BRANCH!"=="" (
 )
 
 echo Checking out branch: !TARGET_BRANCH!
-git checkout !TARGET_BRANCH!
+
+REM First try to checkout existing local branch
+git checkout !TARGET_BRANCH! >nul 2>&1
 
 if !errorLevel! neq 0 (
-    echo ERROR: Failed to checkout branch !TARGET_BRANCH!
-    echo The branch may not exist or there may be network issues
-    pause
+    echo Local branch !TARGET_BRANCH! not found, checking for remote branch...
+    
+    REM Try to checkout remote branch and create local tracking branch
+    git checkout -b !TARGET_BRANCH! origin/!TARGET_BRANCH!
+    
+    if !errorLevel! neq 0 (
+        echo ERROR: Failed to checkout branch !TARGET_BRANCH!
+        echo The branch may not exist remotely or there may be network issues
+        echo Available remote branches:
+        git branch -r
+        pause
+    ) else (
+        echo Successfully created and checked out branch !TARGET_BRANCH! from origin/!TARGET_BRANCH!
+    )
 ) else (
-    echo Successfully checked out branch !TARGET_BRANCH!
+    echo Successfully checked out existing local branch !TARGET_BRANCH!
 )
 
 echo GitLab project cloned successfully to C:\Projects\!PROJECT_DIR!
@@ -476,11 +536,50 @@ echo.
 echo Installing required Python packages for publish.py...
 echo Installing boto3 and numpy...
 
+REM Validate Python installation before installing packages
+python --version >nul 2>&1
+if !errorLevel! neq 0 (
+    echo ERROR: Python is not available in PATH
+    echo Please restart your command prompt or check Python installation
+    pause
+    exit /b 1
+)
+
+REM Check Python version compatibility
+for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
+echo Using Python version: !PYTHON_VERSION!
+
+REM Extract major and minor version numbers for validation
+for /f "tokens=1,2 delims=." %%a in ("!PYTHON_VERSION!") do (
+    set MAJOR=%%a
+    set MINOR=%%b
+)
+
+if !MAJOR! lss 3 (
+    echo ERROR: Python version !PYTHON_VERSION! is not supported
+    echo This project requires Python 3.12 or later
+    pause
+    exit /b 1
+)
+
+if !MAJOR! equ 3 (
+    if !MINOR! lss 12 (
+        echo ERROR: Python version !PYTHON_VERSION! is not supported
+        echo This project requires Python 3.12 or later
+        pause
+        exit /b 1
+    )
+)
+
+echo Python version !PYTHON_VERSION! is compatible (3.12+ required)
+echo.
+
 python -m pip install --upgrade pip
 if !errorLevel! neq 0 (
     echo WARNING: Failed to upgrade pip, continuing anyway...
 )
 
+echo Installing boto3...
 python -m pip install boto3
 if !errorLevel! neq 0 (
     echo ERROR: Failed to install boto3
@@ -544,27 +643,228 @@ echo    Step 8b: Building Project
 echo ========================================
 echo.
 
+echo Build Options:
+echo 1. Standard build (recommended)
+echo 2. Verbose build (detailed output for debugging)
+echo 3. Skip build (just setup environment)
+echo.
+set /p BUILD_OPTION="Select build option (1-3, default: 1): "
+
+if "!BUILD_OPTION!"=="" set BUILD_OPTION=1
+if "!BUILD_OPTION!"=="3" (
+    echo Skipping project build as requested.
+    goto :setup_complete
+)
+
+set VERBOSE_FLAG=
+if "!BUILD_OPTION!"=="2" (
+    set VERBOSE_FLAG=--verbose
+    echo Using verbose mode for detailed output...
+)
+
 echo Running publish.py to build the project...
-echo Command: python publish.py !BUCKET_NAME! !PREFIX! !REGION!
+if "!VERBOSE_FLAG!"=="" (
+    echo Command: python publish.py !BUCKET_NAME! !PREFIX! !REGION!
+) else (
+    echo Command: python publish.py !BUCKET_NAME! !PREFIX! !REGION! !VERBOSE_FLAG!
+)
 echo.
 
-python publish.py !BUCKET_NAME! !PREFIX! !REGION!
-if !errorLevel! equ 0 (
-    echo Project built successfully!
+REM Validate that we're in the correct directory
+if not exist "publish.py" (
+    echo ERROR: publish.py not found in current directory
+    echo Current directory: %CD%
+    echo Please ensure you're in the project root directory
+    pause
+    exit /b 1
+)
+
+REM Validate that required files exist
+if not exist "template.yaml" (
+    echo ERROR: template.yaml not found. This doesn't appear to be the IDP project root.
+    echo Current directory: %CD%
+    pause
+    exit /b 1
+)
+
+if not exist "lib\idp_common_pkg" (
+    echo ERROR: lib\idp_common_pkg directory not found. Project structure appears incomplete.
+    echo Current directory: %CD%
+    pause
+    exit /b 1
+)
+
+echo Validation passed. Starting build...
+echo.
+
+if "!VERBOSE_FLAG!"=="" (
+    python publish.py !BUCKET_NAME! !PREFIX! !REGION!
 ) else (
+    python publish.py !BUCKET_NAME! !PREFIX! !REGION! !VERBOSE_FLAG!
+)
+
+if !errorLevel! equ 0 (
+    echo.
+    echo ========================================
+    echo    Build Successful!
+    echo ========================================
+    echo.
+    echo Project built successfully!
+    echo.
+    echo Next steps:
+    echo 1. Check the CloudFormation template URL provided above
+    echo 2. Use the 1-Click Launch URL to deploy the stack
+    echo 3. Monitor the deployment in AWS CloudFormation console
+    echo.
+) else (
+    echo.
+    echo ========================================
+    echo    Build Failed!
+    echo ========================================
+    echo.
     echo ERROR: Project build failed
     echo Please check the output above for details
+    echo.
+    echo Common issues:
+    echo - AWS credentials not configured correctly
+    echo - S3 bucket permissions
+    echo - SAM CLI version requirements
+    echo - Python dependencies missing
+    echo.
+    echo Try running with verbose mode for more details:
+    echo python publish.py !BUCKET_NAME! !PREFIX! !REGION! --verbose
+    echo.
     pause
+    exit /b 1
 )
+
+:setup_complete
 
 echo ========================================
 echo    Setup Complete!
 echo ========================================
 echo.
-echo Your development environment has been set up with:
-echo - Python 3.13
-echo - Node.js and npm
-echo - AWS CLI (configured)
-echo - Git
-echo - Python dependencies (boto3, numpy 2.3.2, typer, rich)
+
+echo ========================================
+echo    Installation Validation
+echo ========================================
+echo.
+
+REM Validate all installations
+set VALIDATION_FAILED=0
+
+echo Validating installations...
+echo.
+
+REM Check Python
+python --version >nul 2>&1
+if !errorLevel! equ 0 (
+    for /f "tokens=2" %%i in ('python --version 2^>^&1') do echo ✓ Python %%i installed
+) else (
+    echo ✗ Python installation failed
+    set VALIDATION_FAILED=1
+)
+
+REM Check Node.js
+node --version >nul 2>&1
+if !errorLevel! equ 0 (
+    for /f "tokens=*" %%i in ('node --version 2^>^&1') do echo ✓ Node.js %%i installed
+) else (
+    echo ✗ Node.js installation failed
+    set VALIDATION_FAILED=1
+)
+
+REM Check AWS CLI
+aws --version >nul 2>&1
+if !errorLevel! equ 0 (
+    for /f "tokens=1" %%i in ('aws --version 2^>^&1') do echo ✓ %%i installed
+) else (
+    echo ✗ AWS CLI installation failed
+    set VALIDATION_FAILED=1
+)
+
+REM Check Git
+git --version >nul 2>&1
+if !errorLevel! equ 0 (
+    for /f "tokens=1,2,3" %%i in ('git --version 2^>^&1') do echo ✓ %%i %%j %%k installed
+) else (
+    echo ✗ Git installation failed
+    set VALIDATION_FAILED=1
+)
+
+REM Check Docker
+docker --version >nul 2>&1
+if !errorLevel! equ 0 (
+    for /f "tokens=1,2,3" %%i in ('docker --version 2^>^&1') do echo ✓ %%i %%j %%k installed
+) else (
+    echo ⚠ Docker installation failed or not running
+    echo   Note: Docker Desktop may require manual startup
+)
+
+REM Check SAM CLI
+sam --version >nul 2>&1
+if !errorLevel! equ 0 (
+    for /f "tokens=4" %%i in ('sam --version 2^>^&1') do echo ✓ SAM CLI %%i installed
+) else (
+    echo ✗ SAM CLI installation failed
+    set VALIDATION_FAILED=1
+)
+
+REM Check Python packages
+python -c "import boto3; print('✓ boto3 installed')" 2>nul
+if !errorLevel! neq 0 (
+    echo ✗ boto3 package not available
+    set VALIDATION_FAILED=1
+)
+
+python -c "import numpy; print('✓ numpy installed')" 2>nul
+if !errorLevel! neq 0 (
+    echo ✗ numpy package not available
+    set VALIDATION_FAILED=1
+)
+
+python -c "import typer; print('✓ typer installed')" 2>nul
+if !errorLevel! neq 0 (
+    echo ✗ typer package not available
+    set VALIDATION_FAILED=1
+)
+
+python -c "import rich; print('✓ rich installed')" 2>nul
+if !errorLevel! neq 0 (
+    echo ✗ rich package not available
+    set VALIDATION_FAILED=1
+)
+
+echo.
+if !VALIDATION_FAILED! equ 0 (
+    echo ========================================
+    echo    ✓ All validations passed!
+    echo ========================================
+    echo.
+    echo Your development environment has been set up with:
+    echo - Python 3.12
+    echo - Node.js and npm
+    echo - AWS CLI (configured)
+    echo - Git
+    echo - Python dependencies (boto3, numpy 2.3.2, typer, rich)
+    echo.
+    echo You can now use the IDP accelerator!
+) else (
+    echo ========================================
+    echo    ⚠ Some validations failed!
+    echo ========================================
+    echo.
+    echo Please review the failed installations above and
+    echo install them manually before proceeding.
+    echo.
+    echo Common solutions:
+    echo - Restart your command prompt to refresh PATH
+    echo - Run 'refreshenv' to update environment variables
+    echo - Check internet connectivity for package downloads
+)
+
+echo.
+echo For support, refer to the project documentation or
+echo contact the development team.
+echo.
 pause
