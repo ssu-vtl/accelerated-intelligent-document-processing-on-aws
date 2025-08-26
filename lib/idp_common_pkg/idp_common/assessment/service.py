@@ -587,6 +587,116 @@ class AssessmentService:
 
         return ""
 
+    def _is_bounding_box_enabled(self) -> bool:
+        """Check if bounding box extraction is enabled."""
+        assessment_config = self.config.get("assessment", {})
+        bbox_config = assessment_config.get("bounding_boxes", {})
+        from idp_common.utils import normalize_boolean_value
+
+        return normalize_boolean_value(bbox_config.get("enabled", False))
+
+    def _convert_bbox_to_geometry(
+        self, bbox_coords: List[float], page_num: int
+    ) -> Dict[str, Any]:
+        """
+        Convert [x1,y1,x2,y2] coordinates to geometry format.
+
+        Args:
+            bbox_coords: List of 4 coordinates [x1, y1, x2, y2] in 0-1000 scale
+            page_num: Page number where the bounding box appears
+
+        Returns:
+            Dictionary in geometry format compatible with pattern-1 UI
+        """
+        if len(bbox_coords) != 4:
+            raise ValueError(f"Expected 4 coordinates, got {len(bbox_coords)}")
+
+        x1, y1, x2, y2 = bbox_coords
+
+        # Ensure coordinates are in correct order
+        x1, x2 = min(x1, x2), max(x1, x2)
+        y1, y2 = min(y1, y2), max(y1, y2)
+
+        # Convert from normalized 0-1000 scale to 0-1
+        left = x1 / 1000.0
+        top = y1 / 1000.0
+        width = (x2 - x1) / 1000.0
+        height = (y2 - y1) / 1000.0
+
+        return {
+            "boundingBox": {"top": top, "left": left, "width": width, "height": height},
+            "page": page_num,
+        }
+
+    def _extract_geometry_from_assessment(
+        self, assessment_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Extract geometry data from assessment response and convert to proper format.
+
+        Args:
+            assessment_data: Dictionary containing assessment results from LLM
+
+        Returns:
+            Enhanced assessment data with geometry information converted to proper format
+        """
+        enhanced_assessment = {}
+
+        for attr_name, attr_assessment in assessment_data.items():
+            if isinstance(attr_assessment, dict):
+                enhanced_attr = attr_assessment.copy()
+
+                # Check if this assessment includes bbox data
+                if "bbox" in attr_assessment or "page" in attr_assessment:
+                    # Both bbox and page are required for valid geometry
+                    if "bbox" in attr_assessment and "page" in attr_assessment:
+                        try:
+                            bbox_coords = attr_assessment["bbox"]
+                            page_num = attr_assessment["page"]
+
+                            # Validate bbox coordinates
+                            if isinstance(bbox_coords, list) and len(bbox_coords) == 4:
+                                # Convert to geometry format
+                                geometry = self._convert_bbox_to_geometry(
+                                    bbox_coords, page_num
+                                )
+                                enhanced_attr["geometry"] = [geometry]
+
+                                logger.debug(
+                                    f"Converted bounding box for {attr_name}: {bbox_coords} -> geometry format"
+                                )
+                            else:
+                                logger.warning(
+                                    f"Invalid bounding box format for {attr_name}: {bbox_coords}"
+                                )
+
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to process bounding box for {attr_name}: {str(e)}"
+                            )
+                    else:
+                        # If only one of bbox/page exists, log a warning about incomplete data
+                        if "bbox" in attr_assessment and "page" not in attr_assessment:
+                            logger.warning(
+                                f"Found bbox without page for {attr_name} - removing incomplete bbox data"
+                            )
+                        elif (
+                            "page" in attr_assessment and "bbox" not in attr_assessment
+                        ):
+                            logger.warning(
+                                f"Found page without bbox for {attr_name} - removing incomplete page data"
+                            )
+
+                    # Always remove raw bbox/page data from output (whether processed or incomplete)
+                    enhanced_attr.pop("bbox", None)
+                    enhanced_attr.pop("page", None)
+
+                enhanced_assessment[attr_name] = enhanced_attr
+            else:
+                enhanced_assessment[attr_name] = attr_assessment
+
+        return enhanced_assessment
+
     def process_document_section(self, document: Document, section_id: str) -> Document:
         """
         Process a single section from a Document object to assess extraction confidence.
@@ -825,6 +935,19 @@ class AssessmentService:
                         "confidence_reason": "Unable to parse assessment response - default score assigned",
                     }
                 parsing_succeeded = False  # Mark that parsing failed
+
+            # Process bounding boxes if enabled
+            if self._is_bounding_box_enabled():
+                logger.info(
+                    "Bounding box extraction is enabled - processing geometry data"
+                )
+                try:
+                    assessment_data = self._extract_geometry_from_assessment(
+                        assessment_data
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to extract geometry data: {str(e)}")
+                    # Continue with assessment even if geometry extraction fails
 
             # Get confidence thresholds
             default_confidence_threshold = _safe_float_conversion(
