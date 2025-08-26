@@ -20,6 +20,7 @@ import sys
 import threading
 import time
 import zipfile
+from pathlib import Path
 from typing import Optional
 from urllib.parse import quote
 
@@ -57,6 +58,7 @@ class IDPPublisher:
         self.s3_client = None
         self.cf_client = None
         self._print_lock = threading.Lock()  # Thread-safe printing
+        self.skip_validation = False  # Flag to skip lambda validation
 
     def log_verbose(self, message, style="dim"):
         """Log verbose messages if verbose mode is enabled"""
@@ -532,7 +534,7 @@ class IDPPublisher:
         """Show information about build optimizations"""
         self.console.print("\n[bold cyan]Build Optimizations Enabled:[/bold cyan]")
         self.console.print("  ✅ SAM Build Caching (--cached)")
-        self.console.print("  ✅ Parallel Builds (--parallel)")
+        self.console.print("  ✅ Template-level Concurrency (multiple templates)")
         self.console.print("  ✅ Smart Checksum (excludes dev artifacts)")
         self.console.print("  ✅ Selective Cache Clearing (only when lib changes)")
 
@@ -551,6 +553,72 @@ class IDPPublisher:
             self.console.print("\n[bold cyan]Cache Status:[/bold cyan]")
             for info in cache_info:
                 self.console.print(info)
+
+    def ensure_idp_common_library_ready(self):
+        """Ensure idp_common library is properly built and ready for use by Lambda functions."""
+        self.console.print("[cyan]Ensuring idp_common library is ready for Lambda builds...[/cyan]")
+        
+        lib_dir = Path("./lib/idp_common_pkg")
+        if not lib_dir.exists():
+            self.console.print("[red]Error: idp_common library directory not found[/red]")
+            sys.exit(1)
+        
+        # Use a lock file to prevent concurrent library builds
+        lock_file = lib_dir / ".build_lock"
+        
+        # Wait for any existing build to complete
+        max_wait = 300  # 5 minutes
+        wait_time = 0
+        while lock_file.exists() and wait_time < max_wait:
+            self.log_verbose("Waiting for concurrent library build to complete...")
+            time.sleep(1)
+            wait_time += 1
+        
+        if lock_file.exists():
+            self.console.print("[red]Timeout waiting for library build lock[/red]")
+            sys.exit(1)
+        
+        try:
+            # Create lock file
+            lock_file.touch()
+            
+            # Build the library to ensure it's ready
+            result = subprocess.run(
+                [sys.executable, "setup.py", "build"],
+                cwd=lib_dir,
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            
+            if result.returncode != 0:
+                self.console.print(f"[red]Error building idp_common library: {result.stderr}[/red]")
+                sys.exit(1)
+            
+            # Also create a wheel for better pip compatibility
+            result = subprocess.run(
+                [sys.executable, "setup.py", "bdist_wheel"],
+                cwd=lib_dir,
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            
+            if result.returncode != 0:
+                self.log_verbose(f"Warning: Could not create wheel: {result.stderr}")
+            
+            self.log_verbose("idp_common library build completed successfully")
+            
+        except subprocess.TimeoutExpired:
+            self.console.print("[red]Timeout building idp_common library[/red]")
+            sys.exit(1)
+        except Exception as e:
+            self.console.print(f"[red]Error building idp_common library: {e}[/red]")
+            sys.exit(1)
+        finally:
+            # Remove lock file
+            if lock_file.exists():
+                lock_file.unlink()
 
     def clean_lib(self):
         """Clean previous build artifacts in ./lib"""
@@ -660,11 +728,12 @@ class IDPPublisher:
                 # Build the template from the pattern directory
                 cmd = ["sam", "build", "--template-file", "template.yaml"]
 
-                # Add performance optimizations
+                # Add caching but remove parallel flag to avoid race conditions
+                # when building multiple templates concurrently
                 cmd.extend(
                     [
                         "--cached",  # Enable SAM build caching
-                        "--parallel",  # Enable parallel builds
+                        # Note: Removed --parallel to prevent race conditions with idp_common_pkg
                     ]
                 )
 
@@ -775,8 +844,15 @@ class IDPPublisher:
             self.console.print("[yellow]No patterns found to build[/yellow]")
             return True
 
+        # Check if any patterns have idp_common dependencies
+        has_idp_common_deps = self._check_patterns_for_idp_common_deps(existing_patterns)
+        
+        if has_idp_common_deps:
+            self.console.print("[yellow]⚠️  idp_common dependencies detected - using sequential builds to prevent race conditions[/yellow]")
+            max_workers = 1  # Force sequential builds
+        
         self.console.print(
-            f"[cyan]Building {len(existing_patterns)} patterns concurrently with {max_workers} workers...[/cyan]"
+            f"[cyan]Building {len(existing_patterns)} patterns with {max_workers} workers...[/cyan]"
         )
 
         # Create progress display
@@ -862,6 +938,24 @@ class IDPPublisher:
                         progress.update(main_task, completed=completed)
 
         return all_successful
+
+    def _check_patterns_for_idp_common_deps(self, patterns):
+        """Check if any patterns have idp_common dependencies in their Lambda functions."""
+        for pattern in patterns:
+            pattern_path = Path(pattern)
+            src_dir = pattern_path / "src"
+            if src_dir.exists():
+                for func_dir in src_dir.iterdir():
+                    if func_dir.is_dir():
+                        requirements_file = func_dir / "requirements.txt"
+                        if requirements_file.exists():
+                            try:
+                                content = requirements_file.read_text(encoding="utf-8")
+                                if "idp_common" in content:
+                                    return True
+                            except Exception:
+                                continue
+        return False
 
     def build_options_concurrently(self, max_workers=None):
         """Build options concurrently with rich progress display"""
@@ -972,6 +1066,265 @@ class IDPPublisher:
                 file_list.append(relative_path)
 
         return sorted(file_list)
+
+    def validate_lambda_builds(self):
+        """Validate that Lambda functions with idp_common_pkg in requirements.txt have the library included."""
+        self.console.print("\n[bold cyan]🔍 VALIDATING Lambda builds for idp_common inclusion[/bold cyan]")
+        
+        try:
+            # Discover functions with idp_common_pkg in requirements.txt
+            functions = self._discover_lambda_functions_with_idp_common()
+            
+            if not functions:
+                self.console.print("[yellow]No Lambda functions found with idp_common_pkg in requirements.txt[/yellow]")
+                return
+            
+            self.console.print(f"[cyan]📋 Found {len(functions)} Lambda functions with idp_common_pkg in requirements.txt:[/cyan]")
+            for func_key, func_info in functions.items():
+                self.console.print(f"   • {func_key} → {func_info['function_name']}")
+                self.log_verbose(f"     Requirements: {func_info['requirements_msg']}")
+            
+            # Validate each function
+            all_passed = True
+            results = []
+            
+            for func_key, func_info in functions.items():
+                function_name = func_info["function_name"]
+                template_dir = func_info["template_dir"]
+                source_path = func_info["source_path"]
+                
+                self.log_verbose(f"Validating function: {func_key} → {function_name}")
+                
+                # Check if build directory exists and has idp_common
+                has_package, issues = self._validate_idp_common_in_build(template_dir, function_name, source_path)
+                
+                if not has_package:
+                    error_msg = f"Missing idp_common: {'; '.join(issues)}"
+                    results.append((func_key, False, error_msg))
+                    all_passed = False
+                    self.log_verbose(f"❌ {func_key}: {error_msg}")
+                    continue
+                
+                # Test import functionality
+                import_success, import_msg = self._test_import_functionality(template_dir, function_name)
+                
+                if import_success:
+                    results.append((func_key, True, "Validation passed"))
+                    self.log_verbose(f"✅ {func_key}: All validations passed")
+                else:
+                    results.append((func_key, False, f"Import test failed: {import_msg}"))
+                    all_passed = False
+                    self.log_verbose(f"❌ {func_key}: Import test failed")
+            
+            # Print summary
+            self.console.print("\n[cyan]📊 Validation Results Summary:[/cyan]")
+            self.console.print("=" * 60)
+            
+            passed_count = sum(1 for _, passed, _ in results if passed)
+            total_count = len(results)
+            
+            for func_key, passed, message in results:
+                status = "[green]✅ PASS[/green]" if passed else "[red]❌ FAIL[/red]"
+                self.console.print(f"{status} {func_key}: {message}")
+            
+            self.console.print("=" * 60)
+            self.console.print(f"Results: {passed_count}/{total_count} functions passed validation")
+            
+            if all_passed:
+                self.console.print("[bold green]🎉 All Lambda functions with idp_common_pkg in requirements.txt have the library properly included![/bold green]")
+                self.console.print("[bold green]✅ Lambda build validation passed![/bold green]")
+            else:
+                self.console.print("[bold red]💥 Some Lambda functions are missing idp_common library in their builds.[/bold red]")
+                self.console.print("[bold red]❌ Lambda build validation failed![/bold red]")
+                self.console.print("[bold red]🚫 Publish process aborted due to validation failures![/bold red]")
+                self.console.print("[yellow]Fix the missing idp_common dependencies and rebuild before publishing.[/yellow]")
+                sys.exit(1)
+                
+        except Exception as e:
+            self.console.print(f"[red]❌ Error running lambda build validation: {e}[/red]")
+            if self.verbose:
+                import traceback
+                self.console.print(f"[red]{traceback.format_exc()}[/red]")
+            self.console.print("[bold red]🚫 Publish process aborted due to validation error![/bold red]")
+            sys.exit(1)
+
+    def _discover_lambda_functions_with_idp_common(self):
+        """Discover all Lambda functions that have idp_common_pkg in requirements.txt."""
+        functions = {}
+        project_root = Path(__file__).parent.resolve()
+        
+        # Check pattern Lambda functions
+        patterns_dir = project_root / "patterns"
+        if patterns_dir.exists():
+            for pattern_dir in patterns_dir.iterdir():
+                if pattern_dir.is_dir() and (pattern_dir / "template.yaml").exists():
+                    pattern_src = pattern_dir / "src"
+                    if pattern_src.exists():
+                        functions.update(self._scan_lambda_directory(
+                            pattern_src, pattern_dir / "template.yaml", pattern_dir.name
+                        ))
+        
+        # Check options Lambda functions  
+        options_dir = project_root / "options"
+        if options_dir.exists():
+            for option_dir in options_dir.iterdir():
+                if option_dir.is_dir() and (option_dir / "template.yaml").exists():
+                    option_src = option_dir / "src"
+                    if option_src.exists():
+                        functions.update(self._scan_lambda_directory(
+                            option_src, option_dir / "template.yaml", option_dir.name
+                        ))
+        
+        return functions
+    
+    def _scan_lambda_directory(self, src_dir, template_path, context):
+        """Scan a directory for Lambda functions that have idp_common_pkg in requirements.txt."""
+        functions = {}
+        
+        for func_dir in src_dir.iterdir():
+            if not func_dir.is_dir():
+                continue
+                
+            has_idp_common_req, req_msg = self._check_requirements_has_idp_common_pkg(func_dir)
+            if has_idp_common_req:
+                function_key = f"{context}/{func_dir.name}"
+                functions[function_key] = {
+                    "template_path": template_path,
+                    "function_name": self._extract_function_name(func_dir.name),
+                    "source_path": func_dir,
+                    "context": context,
+                    "template_dir": template_path.parent,
+                    "requirements_msg": req_msg
+                }
+                
+        return functions
+    
+    def _check_requirements_has_idp_common_pkg(self, func_dir):
+        """Check if requirements.txt contains idp_common_pkg dependency."""
+        requirements_file = func_dir / "requirements.txt"
+        if not requirements_file.exists():
+            return False, "No requirements.txt found"
+        
+        try:
+            content = requirements_file.read_text(encoding="utf-8")
+            lines = [line.strip() for line in content.split('\n') if line.strip() and not line.strip().startswith('#')]
+            
+            # Look for idp_common_pkg reference
+            for line in lines:
+                if "idp_common_pkg" in line or "lib/idp_common_pkg" in line:
+                    return True, f"Found dependency: {line}"
+            
+            return False, f"No idp_common_pkg found in requirements.txt"
+        except Exception as e:
+            return False, f"Error reading requirements.txt: {e}"
+    
+    def _extract_function_name(self, dir_name):
+        """Extract CloudFormation function name from directory name."""
+        name_mappings = {
+            "bda_invoke_function": "InvokeBDAFunction",
+            "bda_completion_function": "BDACompletionFunction",
+            "processresults_function": "ProcessResultsFunction", 
+            "summarization_function": "SummarizationFunction",
+            "hitl-process-function": "HITLProcessLambdaFunction",
+            "hitl-wait-function": "HITLWaitFunction",
+            "hitl-status-update-function": "HITLStatusUpdateFunction",
+            # Pattern 2 and 3 function mappings
+            "ocr_function": "OCRFunction",
+            "classification_function": "ClassificationFunction", 
+            "extraction_function": "ExtractionFunction",
+            "assessment_function": "AssessmentFunction",
+        }
+        return name_mappings.get(dir_name, dir_name)
+    
+    def _validate_idp_common_in_build(self, template_dir, function_name, source_path):
+        """Validate that idp_common package exists in the built Lambda function."""
+        build_dir = template_dir / ".aws-sam" / "build" / function_name
+        issues = []
+        
+        if not build_dir.exists():
+            issues.append(f"Build directory not found: {build_dir}")
+            return False, issues
+        
+        # Check for idp_common directory in build
+        idp_common_dir = build_dir / "idp_common"
+        if not idp_common_dir.exists():
+            issues.append("idp_common directory not found in build")
+            return False, issues
+        
+        # Check core files
+        core_files = ["__init__.py", "models.py"]
+        for core_file in core_files:
+            file_path = idp_common_dir / core_file
+            if not file_path.exists():
+                issues.append(f"Missing core file: {core_file}")
+        
+        # Check for key modules based on function type
+        module_checks = {
+            "InvokeBDAFunction": ["bda/bda_service.py", "bda/__init__.py"],
+            "BDACompletionFunction": ["metrics/__init__.py"],
+            "ProcessResultsFunction": ["ocr/service.py", "extraction/service.py"],
+            "ClassificationFunction": ["classification/service.py"],
+            "ExtractionFunction": ["extraction/service.py"],
+            "OCRFunction": ["ocr/service.py"],
+            "AssessmentFunction": ["assessment/service.py"],
+            "SummarizationFunction": ["summarization/service.py"]
+        }
+        
+        if function_name in module_checks:
+            for module_path in module_checks[function_name]:
+                module_file = idp_common_dir / module_path
+                if not module_file.exists():
+                    issues.append(f"Missing function-specific module: {module_path}")
+        
+        return len(issues) == 0, issues
+    
+    def _test_import_functionality(self, template_dir, function_name):
+        """Test that idp_common can actually be imported in the built function."""
+        build_dir = template_dir / ".aws-sam" / "build" / function_name
+        
+        if not build_dir.exists():
+            return False, "Build directory not found"
+        
+        # Create a test script
+        test_script = build_dir / "test_imports.py"
+        test_content = '''
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+
+try:
+    import idp_common
+    from idp_common import models
+    print("SUCCESS: All imports working")
+except ImportError as e:
+    print(f"IMPORT_ERROR: {e}")
+    sys.exit(1)
+except Exception as e:
+    print(f"ERROR: {e}")
+    sys.exit(1)
+'''
+        
+        try:
+            test_script.write_text(test_content)
+            
+            result = subprocess.run(
+                [sys.executable, str(test_script)],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            test_script.unlink()  # Clean up
+            
+            if result.returncode == 0:
+                return True, "Import test passed"
+            else:
+                return False, f"Import failed: {result.stdout} {result.stderr}"
+                
+        except Exception as e:
+            if test_script.exists():
+                test_script.unlink()
+            return False, f"Test execution failed: {e}"
 
     def upload_config_library(self):
         """Upload configuration library to S3"""
@@ -1266,6 +1619,9 @@ class IDPPublisher:
             # Clean lib artifacts
             self.clean_lib()
 
+            # Ensure idp_common library is ready before concurrent builds
+            self.ensure_idp_common_library_ready()
+
             # Check if lib has changed
             # Note: We don't pre-build idp_common package - SAM handles it during build
             lib_changed = self.needs_rebuild("./lib")
@@ -1338,6 +1694,9 @@ class IDPPublisher:
             )
             self.console.print(f"   [dim]• Patterns: {patterns_time:.2f}s[/dim]")
             self.console.print(f"   [dim]• Options: {options_time:.2f}s[/dim]")
+
+            # Validate Lambda builds for idp_common inclusion
+            self.validate_lambda_builds()
 
             # Upload configuration library
             self.upload_config_library()
