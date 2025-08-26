@@ -1048,6 +1048,9 @@ class TestIDPPublisherIntegration:
             patch.object(publisher, "setup_artifacts_bucket") as mock_setup_bucket,
             patch.object(publisher, "clean_temp_files"),
             patch.object(publisher, "clean_lib"),
+            patch.object(
+                publisher, "ensure_idp_common_library_ready"
+            ) as mock_ensure_lib,
             patch.object(publisher, "needs_rebuild", return_value=False),
             patch.object(
                 publisher, "build_patterns_concurrently", return_value=True
@@ -1055,6 +1058,7 @@ class TestIDPPublisherIntegration:
             patch.object(
                 publisher, "build_options_concurrently", return_value=True
             ) as mock_build_options,
+            patch.object(publisher, "validate_lambda_builds") as mock_validate_builds,
             patch.object(publisher, "upload_config_library") as mock_upload_config,
             patch.object(
                 publisher, "package_ui", return_value="test-ui.zip"
@@ -1075,8 +1079,10 @@ class TestIDPPublisherIntegration:
         mock_check_prereq.assert_called_once()
         mock_ensure_sam.assert_called_once()
         mock_setup_bucket.assert_called_once()
+        mock_ensure_lib.assert_called_once()
         mock_build_patterns.assert_called_once()
         mock_build_options.assert_called_once()
+        mock_validate_builds.assert_called_once()
         mock_upload_config.assert_called_once()
         mock_package_ui.assert_called_once()
         mock_build_main.assert_called_once_with("test-ui.zip")
@@ -1127,6 +1133,7 @@ class TestIDPPublisherIntegration:
             patch.object(publisher, "setup_artifacts_bucket"),
             patch.object(publisher, "clean_temp_files"),
             patch.object(publisher, "clean_lib"),
+            patch.object(publisher, "ensure_idp_common_library_ready"),
             patch.object(publisher, "needs_rebuild", return_value=False),
             patch.object(publisher, "build_patterns_concurrently", return_value=False),
             patch.object(publisher.console, "print") as mock_print,
