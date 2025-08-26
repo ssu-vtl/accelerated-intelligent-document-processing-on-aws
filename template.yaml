@@ -100,7 +100,9 @@ Parameters:
     AllowedValues:
       - "lending-package-sample"
       - "default"
-    Description: Select the configuration preset for Pattern 1. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md. Note: This selected configuration will be replaced by the Custom Configuration Path if specified.
+    Description: >-
+      Select the configuration preset for Pattern 1. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md. 
+      Note: This selected configuration will be replaced by the Custom Configuration Path if specified.
 
   CustomConfigPath:
     Type: String
@@ -120,7 +122,9 @@ Parameters:
       - "rvl-cdip-package-sample-with-few-shot-examples"
       - "bank-statement-sample"
       - "default"
-    Description: Select the configuration preset for Pattern 2. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md. Note: This selected configuration will be replaced by the Custom Configuration Path if specified.
+    Description: >-
+      Select the configuration preset for Pattern 2. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md. 
+      Note: This selected configuration will be replaced by the Custom Configuration Path if specified.
 
   Pattern2CustomClassificationModelARN:
     Type: String
@@ -146,7 +150,9 @@ Parameters:
     AllowedValues:
       - "rvl-cdip-package-sample"
       - "default"
-    Description: Select the configuration preset for Pattern 3. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md. Note: This selected configuration will be replaced by the Custom Configuration Path if specified.
+    Description: >-
+      Select the configuration preset for Pattern 3. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md. 
+      Note: This selected configuration will be replaced by the Custom Configuration Path if specified.
 
   # HITL (A2I) Configuration
 
