@@ -138,6 +138,10 @@ Parameters:
     Default: ""
     Description: Specify Custom Fine Tuned Extraction Model ARN. Leave blank to use pretrained model specified in the selected configuration.
 
+  Pattern2CustomConfigPath:
+    Type: String
+    Default: ""
+    Description: Custom S3 path for Pattern 2 config. For Example s3://idp-bucket/
   # Pattern 3 Parameters
 
   Pattern3UDOPModelArtifactPath:
