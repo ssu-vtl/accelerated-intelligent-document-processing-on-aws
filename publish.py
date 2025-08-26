@@ -58,23 +58,22 @@ class IDPPublisher:
 
     def log_error_details(self, component, error_output):
         """Log detailed error information and store for summary"""
-        error_info = {
-            "component": component,
-            "error": error_output
-        }
+        error_info = {"component": component, "error": error_output}
         self.build_errors.append(error_info)
-        
+
         if self.verbose:
             self.console.print(f"[red]❌ {component} build failed:[/red]")
             self.console.print(f"[red]{error_output}[/red]")
         else:
-            self.console.print(f"[red]❌ {component} build failed (use --verbose for details)[/red]")
+            self.console.print(
+                f"[red]❌ {component} build failed (use --verbose for details)[/red]"
+            )
 
     def print_error_summary(self):
         """Print summary of all build errors"""
         if not self.build_errors:
             return
-            
+
         self.console.print("\n[red]❌ Build Error Summary:[/red]")
         for i, error_info in enumerate(self.build_errors, 1):
             self.console.print(f"\n[red]{i}. {error_info['component']}:[/red]")
@@ -82,12 +81,14 @@ class IDPPublisher:
                 self.console.print(f"[red]{error_info['error']}[/red]")
             else:
                 # Show first few lines of error for non-verbose mode
-                error_lines = error_info['error'].strip().split('\n')
+                error_lines = error_info["error"].strip().split("\n")
                 preview_lines = error_lines[:3]  # Show first 3 lines
                 for line in preview_lines:
                     self.console.print(f"[red]  {line}[/red]")
                 if len(error_lines) > 3:
-                    self.console.print(f"[dim]  ... ({len(error_lines) - 3} more lines, use --verbose for full output)[/dim]")
+                    self.console.print(
+                        f"[dim]  ... ({len(error_lines) - 3} more lines, use --verbose for full output)[/dim]"
+                    )
         self.public_sample_udop_model = ""
         self.public = False
         self.main_template = "idp-main.yaml"
@@ -627,21 +628,29 @@ class IDPPublisher:
 
                 if result.returncode != 0:
                     # If cached build fails, try without cache
-                    self.log_verbose(f"Cached build failed for {directory}, retrying without cache")
+                    self.log_verbose(
+                        f"Cached build failed for {directory}, retrying without cache"
+                    )
                     self.console.print(
                         f"[yellow]Cached build failed for {directory}, retrying without cache[/yellow]"
                     )
                     cmd_no_cache = [c for c in cmd if c != "--cached"]
                     sam_build_start = time.time()
-                    self.log_verbose(f"Running SAM build command (no cache): {' '.join(cmd_no_cache)}")
+                    self.log_verbose(
+                        f"Running SAM build command (no cache): {' '.join(cmd_no_cache)}"
+                    )
                     result = subprocess.run(
                         cmd_no_cache, cwd=abs_directory, capture_output=True, text=True
                     )
                     sam_build_time = time.time() - sam_build_start
                     if result.returncode != 0:
                         # Log detailed error information
-                        error_output = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-                        self.log_error_details(f"SAM build for {directory}", error_output)
+                        error_output = (
+                            f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+                        )
+                        self.log_error_details(
+                            f"SAM build for {directory}", error_output
+                        )
                         return False
 
                 # Package the template
@@ -674,7 +683,9 @@ class IDPPublisher:
 
                 if result.returncode != 0:
                     # Log detailed error information
-                    error_output = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+                    error_output = (
+                        f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+                    )
                     self.log_error_details(f"SAM package for {directory}", error_output)
                     return False
 
@@ -778,9 +789,12 @@ class IDPPublisher:
                     except Exception as e:
                         # Log detailed error information
                         import traceback
+
                         error_output = f"Exception: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
-                        self.log_error_details(f"Pattern {pattern} build exception", error_output)
-                        
+                        self.log_error_details(
+                            f"Pattern {pattern} build exception", error_output
+                        )
+
                         progress.update(
                             pattern_tasks[pattern],
                             description=f"[red]{pattern}[/red] - Error: {str(e)[:30]}...",
@@ -872,9 +886,12 @@ class IDPPublisher:
                     except Exception as e:
                         # Log detailed error information
                         import traceback
+
                         error_output = f"Exception: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
-                        self.log_error_details(f"Option {option} build exception", error_output)
-                        
+                        self.log_error_details(
+                            f"Option {option} build exception", error_output
+                        )
+
                         progress.update(
                             option_tasks[option],
                             description=f"[red]{option}[/red] - Error: {str(e)[:30]}...",
@@ -1080,10 +1097,14 @@ class IDPPublisher:
                     self.prefix_and_version,
                 ]
 
-                self.log_verbose(f"Running main template SAM package command: {' '.join(cmd)}")
+                self.log_verbose(
+                    f"Running main template SAM package command: {' '.join(cmd)}"
+                )
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 if result.returncode != 0:
-                    error_output = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+                    error_output = (
+                        f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+                    )
                     self.log_error_details("Main template SAM package", error_output)
                     self.console.print("[red]Error packaging main template[/red]")
                     sys.exit(1)
@@ -1239,7 +1260,9 @@ class IDPPublisher:
                     "[red]❌ Error: Failed to build one or more patterns[/red]"
                 )
                 if not self.verbose:
-                    self.console.print("[dim]Use --verbose flag for detailed error information[/dim]")
+                    self.console.print(
+                        "[dim]Use --verbose flag for detailed error information[/dim]"
+                    )
                 sys.exit(1)
 
             # Build options concurrently
@@ -1256,7 +1279,9 @@ class IDPPublisher:
                     "[red]❌ Error: Failed to build one or more options[/red]"
                 )
                 if not self.verbose:
-                    self.console.print("[dim]Use --verbose flag for detailed error information[/dim]")
+                    self.console.print(
+                        "[dim]Use --verbose flag for detailed error information[/dim]"
+                    )
                 sys.exit(1)
 
             total_build_time = time.time() - start_time
@@ -1335,10 +1360,12 @@ def main(
             args.extend(["--max-workers", str(max_workers)])
 
         publisher = IDPPublisher(verbose=verbose)
-        
+
         if verbose:
-            console.print("[dim]Verbose mode enabled - detailed error output will be shown[/dim]")
-        
+            console.print(
+                "[dim]Verbose mode enabled - detailed error output will be shown[/dim]"
+            )
+
         publisher.run(args)
 
     except KeyboardInterrupt:
