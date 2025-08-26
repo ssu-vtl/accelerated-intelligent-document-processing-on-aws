@@ -49,14 +49,15 @@ class TestIDPPublisherInit:
         assert publisher.bucket is None
         assert publisher.prefix_and_version is None
         assert publisher.version is None
-        assert publisher.public_sample_udop_model == ""
-        assert publisher.public is False
-        assert publisher.main_template == "idp-main.yaml"
-        assert publisher.use_container_flag == ""
-        assert publisher.stat_cmd is None
-        assert publisher.s3_client is None
-        assert publisher.cf_client is None
-        assert publisher._print_lock is not None
+        assert publisher.verbose is False
+        assert publisher.build_errors == []
+
+    def test_init_verbose_mode(self):
+        """Test that IDPPublisher initializes correctly with verbose mode enabled"""
+        publisher = IDPPublisher(verbose=True)
+
+        assert publisher.verbose is True
+        assert publisher.build_errors == []
 
 
 @pytest.mark.unit
