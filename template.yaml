@@ -101,7 +101,14 @@ Parameters:
       - "lending-package-sample"
       - "default"
     Description: Select the configuration preset for Pattern 1. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md.
-
+  
+    CustomConfigPath:
+    Type: String
+    Default: ""
+    Description: Custom S3 path for configuration file (applicable to all patterns). For Example s3://your-bucket/path/to/config.yaml
+    AllowedPattern: '^(|s3://[a-zA-Z0-9.\-_]+(/.*)?$)'
+    ConstraintDescription: Must be empty or a valid S3 URI (e.g., s3://my-bucket/my-key)
+    
   # Pattern 2 Parameters
 
   Pattern2Configuration:
@@ -125,10 +132,6 @@ Parameters:
     Default: ""
     Description: Specify Custom Fine Tuned Extraction Model ARN. Leave blank to use pretrained model specified in the selected configuration.
 
-  Pattern2CustomConfigPath:
-    Type: String
-    Default: ""
-    Description: Custom S3 path for Pattern 2 config. For Example s3://idp-bucket/
   # Pattern 3 Parameters
 
   Pattern3UDOPModelArtifactPath:
@@ -446,7 +449,7 @@ Conditions:
   ShouldUseDocumentKnowledgeBase: !Condition ShouldCreateDocumentKnowledgeBase
   DocumentSectionsCrawlerScheduleEnabled: !Not [!Equals [!Ref DocumentSectionsCrawlerFrequency, "Manual"]]
   HasPermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundaryArn, ""]]
-  HasPattern2CustomConfigPath: !Not [!Equals [!Ref Pattern2CustomConfigPath, ""]]
+  HasCustomConfigPath: !Not [!Equals [!Ref CustomConfigPath, ""]]
 
 
 Metadata:
@@ -472,7 +475,6 @@ Metadata:
           - Pattern2Configuration
           - Pattern2CustomClassificationModelARN
           - Pattern2CustomExtractionModelARN
-          - Pattern2CustomConfigPath
       - Label:
           default: "Pattern 3 Configuration"
         Parameters:
@@ -519,6 +521,7 @@ Metadata:
       - Label:
           default: "General Configuration"
         Parameters:
+          - CustomConfigPath
           - MaxConcurrentWorkflows
           - DataRetentionInDays
           - ErrorThreshold
@@ -549,8 +552,8 @@ Metadata:
         default: "Existing Private Workforce ARN"
       Pattern2Configuration:
         default: "Pattern2 - Configuration Preset"
-      Pattern2CustomConfigPath:
-        default: "Pattern2 - Custom Config Path"
+      CustomConfigPath:
+        default: "Custom Configuration Path"
       Pattern3UDOPModelArtifactPath:
         default: "Pattern3 - UDOP Model Artifact Path"
       Pattern3Configuration:
@@ -855,11 +858,11 @@ Resources:
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
         EnableHITL: !Ref EnableHITL
         ConfigurationDefaultS3Uri: !If
-          - HasPattern2CustomConfigPath
-          - !Sub "s3://${ConfigurationBucket}/${Pattern2CustomConfigPath}/config.yaml"
+          - HasCustomConfigPath
+          - !Ref CustomConfigPath
           - !Sub 
-            - "s3://${ConfigurationBucket}/config_library/pattern-2/${ConfigPath}/config.yaml"
-            - ConfigPath: !FindInMap [Pattern2ConfigurationMap, !Ref Pattern2Configuration, ConfigPath]
+            - "s3://${ConfigurationBucket}/config_library/pattern-1/${ConfigPath}/config.yaml"
+            - ConfigPath: !FindInMap [Pattern1ConfigurationMap, !Ref Pattern1Configuration, ConfigPath]
         ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
         PermissionsBoundaryArn: !Ref PermissionsBoundaryArn
         SageMakerA2IReviewPortalURL: !If
@@ -895,9 +898,12 @@ Resources:
         AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationTable: !Ref ConfigurationTable
-        ConfigurationDefaultS3Uri: !Sub 
-          - "s3://${ConfigurationBucket}/config_library/pattern-2/${ConfigPath}/config.yaml"
-          - ConfigPath: !FindInMap [Pattern2ConfigurationMap, !Ref Pattern2Configuration, ConfigPath]
+        ConfigurationDefaultS3Uri: !If
+          - HasCustomConfigPath
+          - !Ref CustomConfigPath
+          - !Sub 
+            - "s3://${ConfigurationBucket}/config_library/pattern-2/${ConfigPath}/config.yaml"
+            - ConfigPath: !FindInMap [Pattern2ConfigurationMap, !Ref Pattern2Configuration, ConfigPath]
         ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
         EnableHITL: !Ref EnableHITL
         SageMakerA2IReviewPortalURL: !If
@@ -933,9 +939,12 @@ Resources:
         AppSyncApiUrl: !GetAtt GraphQLApi.GraphQLUrl
         AppSyncApiArn: !GetAtt GraphQLApi.Arn
         ConfigurationTable: !Ref ConfigurationTable
-        ConfigurationDefaultS3Uri: !Sub 
-          - "s3://${ConfigurationBucket}/config_library/pattern-3/${ConfigPath}/config.yaml"
-          - ConfigPath: !FindInMap [Pattern3ConfigurationMap, !Ref Pattern3Configuration, ConfigPath]
+        ConfigurationDefaultS3Uri: !If
+          - HasCustomConfigPath
+          - !Ref CustomConfigPath
+          - !Sub 
+            - "s3://${ConfigurationBucket}/config_library/pattern-3/${ConfigPath}/config.yaml"
+            - ConfigPath: !FindInMap [Pattern3ConfigurationMap, !Ref Pattern3Configuration, ConfigPath]
         ConfigLibraryHash: "<CONFIG_LIBRARY_HASH_TOKEN>"
         EnableHITL: !Ref EnableHITL
         SageMakerA2IReviewPortalURL: !If
@@ -2022,6 +2031,19 @@ Resources:
               - !Sub "arn:aws:s3:::<ARTIFACT_BUCKET_TOKEN>/<ARTIFACT_PREFIX_TOKEN>/*"
               - !Sub "arn:aws:s3:::${ConfigurationBucket}"
               - !Sub "arn:aws:s3:::${ConfigurationBucket}/*"
+          # Allow reading user-supplied config files from any S3 bucket
+          - Effect: Allow
+            Action:
+              - "s3:GetObject"
+            Resource: "*"
+            Condition:
+              StringLike:
+                "s3:ExistingObjectTag/idp-config": "true"
+          # Fallback permission for user-supplied config files (less restrictive)
+          - Effect: Allow
+            Action:
+              - "s3:GetObject"
+            Resource: "arn:aws:s3:::*/*"
 
   UpdateConfigurationFunctionLogGroup:
     Type: AWS::Logs::LogGroup
