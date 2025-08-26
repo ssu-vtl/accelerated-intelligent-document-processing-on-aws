@@ -691,11 +691,11 @@ class IDPPublisher:
             os.path.basename(template_path),
             "--cached",
         ]
-        
+
         # Only add --parallel if no idp_common dependencies to prevent race conditions
         if not has_idp_common_deps:
             cmd.append("--parallel")
-        
+
         if self.use_container_flag and self.use_container_flag.strip():
             cmd.append(self.use_container_flag)
 
@@ -712,14 +712,14 @@ class IDPPublisher:
     def _check_template_for_idp_common_deps(self, template_path):
         """Check if a template has Lambda functions with idp_common dependencies."""
         template_dir = Path(template_path).parent
-        
+
         # For main template, check src/lambda directory
         if template_path == "template.yaml":
             src_dir = Path("src/lambda")
         else:
             # For pattern/option templates, check src directory
             src_dir = template_dir / "src"
-        
+
         if src_dir.exists():
             for func_dir in src_dir.iterdir():
                 if func_dir.is_dir():
