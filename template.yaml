@@ -101,8 +101,8 @@ Parameters:
       - "lending-package-sample"
       - "default"
     Description: Select the configuration preset for Pattern 1. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md.
-  
-    CustomConfigPath:
+
+  CustomConfigPath:
     Type: String
     Default: ""
     Description: Custom S3 path for configuration file (applicable to all patterns). For Example s3://your-bucket/path/to/config.yaml
