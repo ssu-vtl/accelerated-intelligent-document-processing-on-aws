@@ -582,7 +582,7 @@ class IDPPublisher:
                     os.remove(os.path.join(root, file_name))
 
     def clean_and_build(self, template_path):
-        """Clean previous build artifacts and run sam build (matching publish_2.sh approach)"""
+        """Clean previous build artifacts and run sam build"""
         dir_path = os.path.dirname(template_path)
 
         # If dir_path is empty (template.yaml in current directory), use current directory
@@ -629,7 +629,7 @@ class IDPPublisher:
                 sys.exit(1)
 
     def build_and_package_template(self, directory):
-        """Build and package a template directory (using same approach as publish_2.sh)"""
+        """Build and package a template directory"""
         if self.needs_rebuild(directory):
             # Use absolute paths to avoid directory changing issues
             abs_directory = os.path.abspath(directory)
@@ -675,7 +675,7 @@ class IDPPublisher:
                 self.log_verbose(
                     f"Running SAM build command in {directory}: {' '.join(cmd)}"
                 )
-                # Run SAM build from the pattern directory (like publish_2.sh)
+                # Run SAM build from the pattern directory
                 result = subprocess.run(
                     cmd, cwd=abs_directory, capture_output=True, text=True
                 )
@@ -1215,7 +1215,7 @@ class IDPPublisher:
 
     def print_outputs(self):
         """Print final outputs using Rich table formatting"""
-        # Use the same S3 URL format as in publish.sh - ensure .amazonaws.com is complete
+        # Generate S3 URL for the main template
         template_url = f"https://s3.{self.region}.amazonaws.com/{self.bucket}/{self.prefix}/{self.main_template}"
 
         # URL encode the template URL for use in the CloudFormation console URL
@@ -1263,7 +1263,7 @@ class IDPPublisher:
             # Clean temporary files
             self.clean_temp_files()
 
-            # Clean lib artifacts (matching publish_2.sh approach)
+            # Clean lib artifacts
             self.clean_lib()
 
             # Check if lib has changed
