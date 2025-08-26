@@ -50,6 +50,14 @@ class IDPPublisher:
         self.prefix_and_version = None
         self.version = None
         self.build_errors = []  # Track build errors for verbose reporting
+        self.public_sample_udop_model = ""
+        self.public = False
+        self.main_template = "idp-main.yaml"
+        self.use_container_flag = ""
+        self.stat_cmd = None
+        self.s3_client = None
+        self.cf_client = None
+        self._print_lock = threading.Lock()  # Thread-safe printing
 
     def log_verbose(self, message, style="dim"):
         """Log verbose messages if verbose mode is enabled"""
@@ -89,14 +97,6 @@ class IDPPublisher:
                     self.console.print(
                         f"[dim]  ... ({len(error_lines) - 3} more lines, use --verbose for full output)[/dim]"
                     )
-        self.public_sample_udop_model = ""
-        self.public = False
-        self.main_template = "idp-main.yaml"
-        self.use_container_flag = ""
-        self.stat_cmd = None
-        self.s3_client = None
-        self.cf_client = None
-        self._print_lock = threading.Lock()  # Thread-safe printing
 
     def thread_safe_print(self, message):
         """Thread-safe print method using Rich console"""
