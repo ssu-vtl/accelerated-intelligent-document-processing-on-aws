@@ -1,3 +1,4 @@
 aws-requests-auth==0.4.3
 requests==2.31.0
-./lib/idp_common_pkg[agents]  # idp_common package with analytics agent implementation
+# Use core package only to avoid Windows-specific dependencies like pywin32
+./lib/idp_common_pkg[core]
