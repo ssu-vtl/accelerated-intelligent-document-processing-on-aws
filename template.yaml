@@ -106,7 +106,7 @@ Parameters:
     Type: String
     Default: ""
     Description: Custom S3 path for configuration file (applicable to all patterns). For Example s3://your-bucket/path/to/config.yaml
-    AllowedPattern: '^(|s3://[a-zA-Z0-9.\-_]+(/.*)?$)'
+    AllowedPattern: '^(|s3://[a-zA-Z0-9.\-_]+(/.*)?)'
     ConstraintDescription: Must be empty or a valid S3 URI (e.g., s3://my-bucket/my-key)
     
   # Pattern 2 Parameters
