@@ -209,6 +209,101 @@ task_prompt: |
 
 **Important**: Images are only processed when the `{DOCUMENT_IMAGE}` placeholder is explicitly present in the prompt template.
 
+## Automatic Bounding Box Processing
+
+The assessment feature includes automatic spatial localization capabilities that extract bounding box coordinates from LLM responses and convert them to a UI-compatible geometry format. This provides visual field localization consistent with Pattern-1 (BDA) without requiring additional configuration.
+
+### How It Works
+
+#### 1. Spatial Localization in Task Prompts
+
+Include spatial localization guidelines in your assessment task prompts to request bounding box coordinates from the LLM:
+
+```yaml
+assessment:
+  task_prompt: |
+    <spatial-localization-guidelines>
+    For each field, provide bounding box coordinates:
+    - bbox: [x1, y1, x2, y2] coordinates in normalized 0-1000 scale
+    - page: Page number where the field appears (starting from 1)
+    
+    Coordinate system:
+    - Use normalized scale 0-1000 for both x and y axes
+    - x1, y1 = top-left corner of bounding box  
+    - x2, y2 = bottom-right corner of bounding box
+    - Ensure x2 > x1 and y2 > y1
+    - Make bounding boxes tight around the actual text content
+    </spatial-localization-guidelines>
+    
+    Provide confidence assessments with spatial localization in JSON format:
+    {
+      "attribute_name": {
+        "confidence": 0.85,
+        "confidence_reason": "Clear text with high OCR confidence",
+        "bbox": [100, 200, 300, 250],
+        "page": 1
+      }
+    }
+```
+
+#### 2. Automatic Coordinate Conversion
+
+When the LLM provides bounding box data in the assessment response, the system automatically:
+
+1. **Detects spatial data**: Identifies `bbox` and `page` fields in the LLM response
+2. **Converts coordinates**: Transforms from 0-1000 normalized scale to 0-1 decimal format
+3. **Calculates dimensions**: Converts [x1, y1, x2, y2] to {top, left, width, height} format
+4. **Creates geometry objects**: Formats data for Pattern-1/BDA UI compatibility
+5. **Processes recursively**: Handles nested group attributes and list items automatically
+
+#### 3. Coordinate System Transformation
+
+The conversion process transforms coordinates from the LLM's 0-1000 scale to the UI's 0-1 decimal format:
+
+```python
+# LLM Response Format
+{
+  "StatementDate": {
+    "confidence": 0.95,
+    "bbox": [100, 200, 400, 250],  # [x1, y1, x2, y2] in 0-1000 scale
+    "page": 1
+  }
+}
+
+# Automatically Converted to UI Format
+{
+  "StatementDate": {
+    "confidence": 0.95,
+    "confidence_threshold": 0.85,
+    "geometry": [{
+      "boundingBox": {
+        "top": 0.2,     # y1 / 1000
+        "left": 0.1,    # x1 / 1000  
+        "width": 0.3,   # (x2 - x1) / 1000
+        "height": 0.05  # (y2 - y1) / 1000
+      },
+      "page": 1
+    }]
+  }
+}
+```
+
+#### 4. Pattern-1 Compatibility
+
+The geometry format exactly matches Pattern-1 (BDA) specifications:
+- **boundingBox object**: Contains top, left, width, height as decimal values (0-1)
+- **page field**: 1-based page numbering
+- **Array structure**: geometry as array to support multiple regions per field
+- **Recursive processing**: Handles nested attributes like `CompanyAddress.State`
+
+### Configuration-Free Operation
+
+The bounding box feature requires no additional configuration:
+- **Automatic detection**: System detects when LLM provides spatial data
+- **Fallback handling**: Works normally when no bounding boxes are provided
+- **Backward compatibility**: Existing configurations continue to work unchanged
+- **Optional enhancement**: Bounding boxes enhance existing assessment without breaking changes
+
 ## Output Format
 
 Assessment results are appended to extraction results in the `explainability_info` format expected by the UI. The format varies based on the attribute type defined in your document class configuration.
@@ -229,12 +324,32 @@ attributes:
     description: "The date of the bank statement"
 ```
 
-**Assessment Response:**
+**Assessment Response (without spatial data):**
 ```json
 {
   "StatementDate": {
     "confidence": 0.85,
     "confidence_reason": "Date clearly visible in statement header"
+  }
+}
+```
+
+**Assessment Response (with automatic spatial data):**
+```json
+{
+  "StatementDate": {
+    "confidence": 0.85,
+    "confidence_reason": "Date clearly visible in statement header",
+    "confidence_threshold": 0.85,
+    "geometry": [{
+      "boundingBox": {
+        "top": 0.2,
+        "left": 0.1,
+        "width": 0.15,
+        "height": 0.03
+      },
+      "page": 1
+    }]
   }
 }
 ```
@@ -256,17 +371,37 @@ attributes:
         description: "The bank routing number"
 ```
 
-**Assessment Response:**
+**Assessment Response (with automatic spatial data):**
 ```json
 {
   "AccountDetails": {
     "AccountNumber": {
       "confidence": 0.90,
-      "confidence_reason": "Account number clearly printed in standard location"
+      "confidence_reason": "Account number clearly printed in standard location",
+      "confidence_threshold": 0.90,
+      "geometry": [{
+        "boundingBox": {
+          "top": 0.15,
+          "left": 0.2,
+          "width": 0.25,
+          "height": 0.04
+        },
+        "page": 1
+      }]
     },
     "RoutingNumber": {
       "confidence": 0.75,
-      "confidence_reason": "Routing number visible but slightly blurred"
+      "confidence_reason": "Routing number visible but slightly blurred",
+      "confidence_threshold": 0.90,
+      "geometry": [{
+        "boundingBox": {
+          "top": 0.2,
+          "left": 0.2,
+          "width": 0.2,
+          "height": 0.03
+        },
+        "page": 1
+      }]
     }
   }
 }
@@ -293,36 +428,96 @@ attributes:
           description: "Transaction amount"
 ```
 
-**Assessment Response:**
+**Assessment Response (with automatic spatial data):**
 ```json
 {
   "Transactions": [
     {
       "Date": {
         "confidence": 0.95,
-        "confidence_reason": "Date clearly printed in standard format"
+        "confidence_reason": "Date clearly printed in standard format",
+        "confidence_threshold": 0.80,
+        "geometry": [{
+          "boundingBox": {
+            "top": 0.3,
+            "left": 0.1,
+            "width": 0.12,
+            "height": 0.025
+          },
+          "page": 1
+        }]
       },
       "Description": {
         "confidence": 0.88,
-        "confidence_reason": "Description text is clear and readable"
+        "confidence_reason": "Description text is clear and readable",
+        "confidence_threshold": 0.75,
+        "geometry": [{
+          "boundingBox": {
+            "top": 0.3,
+            "left": 0.25,
+            "width": 0.35,
+            "height": 0.025
+          },
+          "page": 1
+        }]
       },
       "Amount": {
         "confidence": 0.92,
-        "confidence_reason": "Amount aligned in currency column with clear digits"
+        "confidence_reason": "Amount aligned in currency column with clear digits",
+        "confidence_threshold": 0.85,
+        "geometry": [{
+          "boundingBox": {
+            "top": 0.3,
+            "left": 0.65,
+            "width": 0.15,
+            "height": 0.025
+          },
+          "page": 1
+        }]
       }
     },
     {
       "Date": {
         "confidence": 0.90,
-        "confidence_reason": "Date visible but slightly smudged"
+        "confidence_reason": "Date visible but slightly smudged",
+        "confidence_threshold": 0.80,
+        "geometry": [{
+          "boundingBox": {
+            "top": 0.33,
+            "left": 0.1,
+            "width": 0.12,
+            "height": 0.025
+          },
+          "page": 1
+        }]
       },
       "Description": {
         "confidence": 0.85,
-        "confidence_reason": "Description partially cut off but main text readable"
+        "confidence_reason": "Description partially cut off but main text readable",
+        "confidence_threshold": 0.75,
+        "geometry": [{
+          "boundingBox": {
+            "top": 0.33,
+            "left": 0.25,
+            "width": 0.3,
+            "height": 0.025
+          },
+          "page": 1
+        }]
       },
       "Amount": {
         "confidence": 0.94,
-        "confidence_reason": "Amount clearly printed with proper decimal alignment"
+        "confidence_reason": "Amount clearly printed with proper decimal alignment",
+        "confidence_threshold": 0.85,
+        "geometry": [{
+          "boundingBox": {
+            "top": 0.33,
+            "left": 0.65,
+            "width": 0.15,
+            "height": 0.025
+          },
+          "page": 1
+        }]
       }
     }
   ]
@@ -359,18 +554,30 @@ Here's a complete example showing all three attribute types in a single assessme
       "StatementDate": {
         "confidence": 0.95,
         "confidence_reason": "Statement date clearly printed in header",
-        "confidence_threshold": 0.85
+        "confidence_threshold": 0.85,
+        "geometry": [{
+          "boundingBox": {"top": 0.1, "left": 0.1, "width": 0.15, "height": 0.03},
+          "page": 1
+        }]
       },
       "AccountDetails": {
         "AccountNumber": {
           "confidence": 0.90,
           "confidence_reason": "Account number clearly visible in account section",
-          "confidence_threshold": 0.90
+          "confidence_threshold": 0.90,
+          "geometry": [{
+            "boundingBox": {"top": 0.15, "left": 0.2, "width": 0.25, "height": 0.04},
+            "page": 1
+          }]
         },
         "RoutingNumber": {
           "confidence": 0.85,
-          "confidence_reason": "Routing number printed clearly below account number",
-          "confidence_threshold": 0.90
+          "confidence_reason": "Routing number printed clearly below account number", 
+          "confidence_threshold": 0.90,
+          "geometry": [{
+            "boundingBox": {"top": 0.2, "left": 0.2, "width": 0.2, "height": 0.03},
+            "page": 1
+          }]
         }
       },
       "Transactions": [
@@ -378,34 +585,58 @@ Here's a complete example showing all three attribute types in a single assessme
           "Date": {
             "confidence": 0.95,
             "confidence_reason": "Transaction date clearly printed",
-            "confidence_threshold": 0.80
+            "confidence_threshold": 0.80,
+            "geometry": [{
+              "boundingBox": {"top": 0.3, "left": 0.1, "width": 0.12, "height": 0.025},
+              "page": 1
+            }]
           },
           "Description": {
             "confidence": 0.88,
             "confidence_reason": "Description text is clear and complete",
-            "confidence_threshold": 0.75
+            "confidence_threshold": 0.75,
+            "geometry": [{
+              "boundingBox": {"top": 0.3, "left": 0.25, "width": 0.35, "height": 0.025},
+              "page": 1
+            }]
           },
           "Amount": {
             "confidence": 0.92,
             "confidence_reason": "Amount properly aligned in currency format",
-            "confidence_threshold": 0.85
+            "confidence_threshold": 0.85,
+            "geometry": [{
+              "boundingBox": {"top": 0.3, "left": 0.65, "width": 0.15, "height": 0.025},
+              "page": 1
+            }]
           }
         },
         {
           "Date": {
             "confidence": 0.90,
             "confidence_reason": "Date readable with minor print quality issues",
-            "confidence_threshold": 0.80
+            "confidence_threshold": 0.80,
+            "geometry": [{
+              "boundingBox": {"top": 0.33, "left": 0.1, "width": 0.12, "height": 0.025},
+              "page": 1
+            }]
           },
           "Description": {
             "confidence": 0.85,
             "confidence_reason": "Description clear, standard ATM format",
-            "confidence_threshold": 0.75
+            "confidence_threshold": 0.75,
+            "geometry": [{
+              "boundingBox": {"top": 0.33, "left": 0.25, "width": 0.3, "height": 0.025},
+              "page": 1
+            }]
           },
           "Amount": {
             "confidence": 0.94,
             "confidence_reason": "Negative amount clearly indicated with proper formatting",
-            "confidence_threshold": 0.85
+            "confidence_threshold": 0.85,
+            "geometry": [{
+              "boundingBox": {"top": 0.33, "left": 0.65, "width": 0.15, "height": 0.025},
+              "page": 1
+            }]
           }
         }
       ]
@@ -569,7 +800,9 @@ When neither confidence nor threshold data is available, no confidence indicator
 
 **2. Visual Editor Modal**
 - Same confidence indicators in the document image overlay editor
-- Visual connection between form fields and document bounding boxes
+- **Bounding Box Visualization**: When assessment includes geometry data, bounding boxes are automatically displayed on the document page image
+- Visual connection between form fields and document bounding boxes with spatial localization
+- Interactive overlay showing precise field locations from assessment spatial data
 - Confidence display for deeply nested extraction results
 
 **3. Nested Data Support**
