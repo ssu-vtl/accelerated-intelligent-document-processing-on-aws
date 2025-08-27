@@ -145,7 +145,7 @@ Parameters:
      Select the configuration preset for Pattern 3. Each configuration contains pre-tuned settings for specific document processing scenarios - see https://github.com/aws-samples/sample-genai-idp/blob/main/config_library/README.md. Note: Custom configuration overrides the selected pattern configuration when provided.
   
 # Custom Configuation Path:
-
+  CustomConfigPath:
   Type: String
   Default: ""
   Description: >-
