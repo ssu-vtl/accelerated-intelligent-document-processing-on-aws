@@ -1,12 +1,5 @@
-# SPDX-License-Identifier: MIT-0
-
-notes: Boundary-aware classification example for pattern-2
-
-
-
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-
 notes: Default settings for lending-package-sample configuration
 ocr:
   backend: "textract"  # Default to Textract for backward compatibility
