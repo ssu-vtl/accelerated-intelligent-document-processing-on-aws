@@ -41,7 +41,7 @@ CustomConfigPath: "s3://my-bucket/custom-config/config.yaml"
 
 **Key Features:**
 - **Override Default Configuration**: When specified, your custom configuration completely replaces the default pattern configuration
-- **S3 URI Format**: Accepts standard S3 URI format (e.g., `ss3://my-bucket/custom-config/config.yaml`)
+- **S3 URI Format**: Accepts standard S3 URI format (e.g., `s3://my-bucket/custom-config/config.yaml`)
 - **Least-Privilege Security**: IAM permissions are conditionally granted only to the specific S3 bucket and object you specify
 - **All Patterns Supported**: Works with Pattern 1 (BDA), Pattern 2 (Textract + Bedrock), and Pattern 3 (Textract + UDOP + Bedrock)
 
