@@ -976,7 +976,6 @@ class IDPPublisher:
                             description=f"[red]{pattern}[/red] - Error: {str(e)[:30]}...",
                             completed=1,
                         )
-                        all_successful = False
                         progress.update(main_task, completed=completed)
 
     def build_patterns_with_smart_detection(self, components_needing_rebuild, max_workers=None):
