@@ -11,6 +11,7 @@ The Assessment feature provides automated confidence evaluation of document extr
 
 - **Multimodal Analysis**: Combines text analysis with document images for comprehensive confidence assessment
 - **Per-Attribute Scoring**: Provides individual confidence scores and explanations for each extracted attribute
+- **Automatic Bounding Box Processing**: Spatial localization of extracted fields with UI-compatible geometry output
 - **Token-Optimized Processing**: Uses condensed text confidence data for 80-90% token reduction compared to full OCR results
 - **UI Integration**: Seamlessly displays assessment results in the web interface with explainability information
 - **Confidence Threshold Support**: Configurable global and per-attribute confidence thresholds with color-coded visual indicators
@@ -20,6 +21,7 @@ The Assessment feature provides automated confidence evaluation of document extr
 - **Granular Assessment**: Advanced scalable approach for complex documents with many attributes or list items
 - **Parallel Processing**: Multi-threaded assessment execution for improved performance
 - **Prompt Caching**: Leverages LLM caching capabilities to reduce costs for repeated assessments
+- **Visual Document Annotation**: Automatic conversion of spatial data for immediate document visualization
 
 ## Architecture
 
@@ -95,38 +97,74 @@ assessment:
   system_prompt: |
     You are an expert document analyst specializing in assessing the confidence and accuracy of document extraction results.
   task_prompt: |
-    Assess the confidence of the following extraction results by analyzing them against the source document.
+    <background>
+    You are an expert document analysis assessment system. Your task is to evaluate the confidence of extraction results for a document of class {DOCUMENT_CLASS} and provide precise spatial localization for each field.
+    </background>
+
+    <task>
+    Analyze the extraction results against the source document and provide confidence assessments AND bounding box coordinates for each extracted attribute. Consider factors such as:
+    1. Text clarity and OCR quality in the source regions 
+    2. Alignment between extracted values and document content 
+    3. Presence of clear evidence supporting the extraction 
+    4. Potential ambiguity or uncertainty in the source material 
+    5. Completeness and accuracy of the extracted information
+    6. Precise spatial location of each field in the document
+    </task>
+
+    <assessment-guidelines>
+    For each attribute, provide: 
+    - A confidence score between 0.0 and 1.0 where:
+       - 1.0 = Very high confidence, clear and unambiguous evidence
+       - 0.8-0.9 = High confidence, strong evidence with minor uncertainty
+       - 0.6-0.7 = Medium confidence, reasonable evidence but some ambiguity
+       - 0.4-0.5 = Low confidence, weak or unclear evidence
+       - 0.0-0.3 = Very low confidence, little to no supporting evidence
+    - A clear explanation of the confidence reasoning
+    - Precise spatial coordinates where the field appears in the document
+    </assessment-guidelines>
+
+    <spatial-localization-guidelines>
+    For each field, provide bounding box coordinates:
+    - bbox: [x1, y1, x2, y2] coordinates in normalized 0-1000 scale
+    - page: Page number where the field appears (starting from 1)
     
-    Document Class: {DOCUMENT_CLASS}
-    
-    Extraction Results to Assess:
-    {EXTRACTION_RESULTS}
-    
-    Attribute Definitions:
-    {ATTRIBUTE_NAMES_AND_DESCRIPTIONS}
-    
-    Source Document Text:
-    {DOCUMENT_TEXT}
-    
-    OCR Confidence Data:
-    {OCR_TEXT_CONFIDENCE}
-    
+    Coordinate system:
+    - Use normalized scale 0-1000 for both x and y axes
+    - x1, y1 = top-left corner of bounding box  
+    - x2, y2 = bottom-right corner of bounding box
+    - Ensure x2 > x1 and y2 > y1
+    - Make bounding boxes tight around the actual text content
+    </spatial-localization-guidelines>
+
+    <<CACHEPOINT>>
+
+    <document-image>
     {DOCUMENT_IMAGE}
+    </document-image>
+
+    <ocr-text-confidence-results>
+    {OCR_TEXT_CONFIDENCE}
+    </ocr-text-confidence-results>
+
+    <<CACHEPOINT>>
+
+    <attributes-definitions>
+    {ATTRIBUTE_NAMES_AND_DESCRIPTIONS}
+    </attributes-definitions>
+
+    <extraction-results>
+    {EXTRACTION_RESULTS}
+    </extraction-results>
     
-    Provide a confidence assessment for each extracted attribute. You can respond in either JSON or YAML format:
-    
-    JSON format:
+    Provide confidence assessments with spatial localization in JSON format:
     {
       "attribute_name": {
         "confidence": 0.85,
-        "confidence_reason": "Clear text match found in document with high OCR confidence"
+        "confidence_reason": "Clear text with high OCR confidence, easily identifiable location",
+        "bbox": [100, 200, 300, 250],
+        "page": 1
       }
     }
-    
-    YAML format (more token-efficient):
-    attribute_name:
-      confidence: 0.85
-      confidence_reason: Clear text match found in document with high OCR confidence
 ```
 
 ### Prompt Placeholders
