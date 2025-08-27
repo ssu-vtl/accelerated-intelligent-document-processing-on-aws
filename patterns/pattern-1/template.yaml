@@ -528,7 +528,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/bda_invoke_function/
       Handler: index.handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
@@ -596,7 +596,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/processresults_function/
       Handler: index.handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
@@ -687,7 +687,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/summarization_function/
       Handler: index.handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
@@ -772,7 +772,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/bda_completion_function/
       Handler: index.handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 900
       MemorySize: 4096
       Environment:
@@ -910,7 +910,7 @@ Resources:
       Handler: index.lambda_handler
       LoggingConfig:
         LogGroup: !Ref HITLProcessLambdaLogGroup
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 300
       CodeUri: src/hitl-process-function/
       Role: !GetAtt HITLProcessLambdaRole.Arn
@@ -1009,7 +1009,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/hitl-wait-function/
       Handler: index.lambda_handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 60
       MemorySize: 256
       Environment:
@@ -1066,7 +1066,7 @@ Resources:
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       CodeUri: src/hitl-status-update-function/
       Handler: index.handler
-      Runtime: python3.13
+      Runtime: python3.12
       Timeout: 300
       MemorySize: 512
       Environment:
