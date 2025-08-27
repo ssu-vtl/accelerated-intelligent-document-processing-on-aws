@@ -587,14 +587,6 @@ class AssessmentService:
 
         return ""
 
-    def _is_bounding_box_enabled(self) -> bool:
-        """Check if bounding box extraction is enabled."""
-        assessment_config = self.config.get("assessment", {})
-        bbox_config = assessment_config.get("bounding_boxes", {})
-        from idp_common.utils import normalize_boolean_value
-
-        return normalize_boolean_value(bbox_config.get("enabled", False))
-
     def _convert_bbox_to_geometry(
         self, bbox_coords: List[float], page_num: int
     ) -> Dict[str, Any]:
@@ -977,18 +969,15 @@ class AssessmentService:
                     }
                 parsing_succeeded = False  # Mark that parsing failed
 
-            # Process bounding boxes if enabled
-            if self._is_bounding_box_enabled():
-                logger.info(
-                    "Bounding box extraction is enabled - processing geometry data"
+            # Process bounding boxes automatically if bbox data is present
+            try:
+                logger.debug("Checking for bounding box data in assessment response")
+                assessment_data = self._extract_geometry_from_assessment(
+                    assessment_data
                 )
-                try:
-                    assessment_data = self._extract_geometry_from_assessment(
-                        assessment_data
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to extract geometry data: {str(e)}")
-                    # Continue with assessment even if geometry extraction fails
+            except Exception as e:
+                logger.warning(f"Failed to extract geometry data: {str(e)}")
+                # Continue with assessment even if geometry extraction fails
 
             # Get confidence thresholds
             default_confidence_threshold = _safe_float_conversion(
