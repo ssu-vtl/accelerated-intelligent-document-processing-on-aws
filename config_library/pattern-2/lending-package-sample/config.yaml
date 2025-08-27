@@ -1159,7 +1159,7 @@ assessment:
   system_prompt: >-
     You are a document analysis assessment expert. Your role is to evaluate the confidence and accuracy of data extraction results by analyzing them against source documents.
     
-    Provide accurate confidence scores and clear reasoning for each assessment.
+    Provide accurate confidence scores for each assessment.
     When bounding boxes are requested, provide precise coordinate locations where information appears in the document.
   task_prompt: >-
     <background>
@@ -1217,7 +1217,6 @@ assessment:
     {
       "simple_attribute_name": {
         "confidence": 0.85,
-        "confidence_reason": "Clear text with high OCR confidence, easily identifiable location",
         "bbox": [100, 200, 300, 250],
         "page": 1
       }
@@ -1228,13 +1227,11 @@ assessment:
       "group_attribute_name": {
         "sub_attribute_1": {
           "confidence": 0.90,
-          "confidence_reason": "Very clear text, unambiguous location",
           "bbox": [150, 300, 250, 320],
           "page": 1
         },
         "sub_attribute_2": {
           "confidence": 0.75,
-          "confidence_reason": "Good quality but slight formatting ambiguity",
           "bbox": [150, 325, 280, 345],
           "page": 1
         }
@@ -1247,13 +1244,11 @@ assessment:
         {
           "item_attribute_1": {
             "confidence": 0.95,
-            "confidence_reason": "Excellent clarity and precise alignment",
             "bbox": [100, 400, 200, 420],
             "page": 1
           },
           "item_attribute_2": {
             "confidence": 0.88,
-            "confidence_reason": "Good quality with minor OCR uncertainty",
             "bbox": [250, 400, 350, 420],
             "page": 1
           }
@@ -1261,13 +1256,11 @@ assessment:
         {
           "item_attribute_1": {
             "confidence": 0.92,
-            "confidence_reason": "Clear text, well-positioned",
             "bbox": [100, 425, 200, 445],
             "page": 1
           },
           "item_attribute_2": {
             "confidence": 0.70,
-            "confidence_reason": "Readable but some formatting irregularities",
             "bbox": [250, 425, 350, 445],
             "page": 1
           }
