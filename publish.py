@@ -343,9 +343,10 @@ class IDPPublisher:
                 self.console.print(f"[red]Error accessing bucket: {e}[/red]")
                 sys.exit(1)
 
-    def clean_temp_files(self):
+    def clean_temp_files(self, verbose_output=True):
         """Clean temporary files in ./lib"""
-        self.console.print("[yellow]Delete temp files in ./lib[/yellow]")
+        if verbose_output:
+            self.console.print("[yellow]Delete temp files in ./lib[/yellow]")
         lib_dir = "./lib"
         if os.path.exists(lib_dir):
             for root, dirs, files in os.walk(lib_dir):
@@ -626,11 +627,12 @@ class IDPPublisher:
             if lock_file.exists():
                 lock_file.unlink()
 
-    def clean_lib(self):
+    def clean_lib(self, verbose_output=True):
         """Clean previous build artifacts in ./lib"""
-        self.console.print(
-            "[yellow]Cleaning previous build artifacts in ./lib/idp_common_pkg[/yellow]"
-        )
+        if verbose_output:
+            self.console.print(
+                "[yellow]Cleaning previous build artifacts in ./lib/idp_common_pkg[/yellow]"
+            )
         lib_pkg_dir = "./lib/idp_common_pkg"
 
         # Remove build directories
@@ -733,144 +735,143 @@ class IDPPublisher:
                             continue
         return False
 
-    def build_and_package_template(self, directory):
-        """Build and package a template directory"""
-        if self.needs_rebuild(directory):
-            # Use absolute paths to avoid directory changing issues
-            abs_directory = os.path.abspath(directory)
+    def build_and_package_template(self, directory, force_rebuild=False):
+        """Build and package a template directory with smart rebuild detection"""
+        component_name = directory
+        
+        # Check if this component needs rebuilding (unless forced)
+        if not force_rebuild:
+            dependencies = self.get_component_dependencies().get(component_name, [])
+            if dependencies:
+                checksum_file = f".{component_name.replace('/', '_')}_checksum"
+                current_checksum = self.get_component_checksum(*dependencies)
+                
+                if os.path.exists(checksum_file):
+                    with open(checksum_file, "r") as f:
+                        stored_checksum = f.read().strip()
+                    
+                    if current_checksum == stored_checksum:
+                        pattern_name = os.path.basename(directory)
+                        self.console.print(f"[dim]  {pattern_name}: skipped (no changes detected)[/dim]")
+                        return True
 
-            # Track build time
-            build_start = time.time()
+        # Use absolute paths to avoid directory changing issues
+        abs_directory = os.path.abspath(directory)
 
-            try:
-                # Clean previous build artifacts if lib changed (thread-safe)
-                lib_changed = hasattr(self, "_lib_changed") and self._lib_changed
-                aws_sam_dir = os.path.join(abs_directory, ".aws-sam")
-                build_dir = os.path.join(aws_sam_dir, "build")
+        # Track build time
+        build_start = time.time()
 
-                if lib_changed and os.path.exists(aws_sam_dir):
-                    if os.path.exists(build_dir):
-                        self.log_verbose(
-                            f"Cleaning build artifacts in {build_dir} (lib changed)"
-                        )
-                        shutil.rmtree(build_dir)
-                    # Also clear SAM cache when lib changes
-                    cache_dir = os.path.join(aws_sam_dir, "cache")
-                    if os.path.exists(cache_dir):
-                        self.log_verbose(
-                            f"Clearing SAM cache in {cache_dir} (lib changed)"
-                        )
-                        shutil.rmtree(cache_dir)
+        try:
+            # Build the template from the pattern directory
+            cmd = ["sam", "build", "--template-file", "template.yaml"]
 
-                # Build the template from the pattern directory
-                cmd = ["sam", "build", "--template-file", "template.yaml"]
+            # Add caching but remove parallel flag to avoid race conditions
+            # when building multiple templates concurrently
+            cmd.extend([
+                "--cached",  # Enable SAM build caching
+                # Note: Removed --parallel to prevent race conditions with idp_common_pkg
+            ])
 
-                # Add caching but remove parallel flag to avoid race conditions
-                # when building multiple templates concurrently
-                cmd.extend(
-                    [
-                        "--cached",  # Enable SAM build caching
-                        # Note: Removed --parallel to prevent race conditions with idp_common_pkg
-                    ]
+            if self.use_container_flag and self.use_container_flag.strip():
+                cmd.append(self.use_container_flag)
+
+            sam_build_start = time.time()
+            self.log_verbose(
+                f"Running SAM build command in {directory}: {' '.join(cmd)}"
+            )
+            # Run SAM build from the pattern directory
+            result = subprocess.run(
+                cmd, cwd=abs_directory, capture_output=True, text=True
+            )
+            sam_build_time = time.time() - sam_build_start
+
+            if result.returncode != 0:
+                # If cached build fails, try without cache
+                self.log_verbose(
+                    f"Cached build failed for {directory}, retrying without cache"
                 )
-
-                if self.use_container_flag and self.use_container_flag.strip():
-                    cmd.append(self.use_container_flag)
-
+                self.console.print(
+                    f"[yellow]Cached build failed for {directory}, retrying without cache[/yellow]"
+                )
+                cmd_no_cache = [c for c in cmd if c != "--cached"]
                 sam_build_start = time.time()
                 self.log_verbose(
-                    f"Running SAM build command in {directory}: {' '.join(cmd)}"
+                    f"Running SAM build command (no cache) in {directory}: {' '.join(cmd_no_cache)}"
                 )
-                # Run SAM build from the pattern directory
                 result = subprocess.run(
-                    cmd, cwd=abs_directory, capture_output=True, text=True
+                    cmd_no_cache, cwd=abs_directory, capture_output=True, text=True
                 )
                 sam_build_time = time.time() - sam_build_start
-
-                if result.returncode != 0:
-                    # If cached build fails, try without cache
-                    self.log_verbose(
-                        f"Cached build failed for {directory}, retrying without cache"
-                    )
-                    self.console.print(
-                        f"[yellow]Cached build failed for {directory}, retrying without cache[/yellow]"
-                    )
-                    cmd_no_cache = [c for c in cmd if c != "--cached"]
-                    sam_build_start = time.time()
-                    self.log_verbose(
-                        f"Running SAM build command (no cache) in {directory}: {' '.join(cmd_no_cache)}"
-                    )
-                    result = subprocess.run(
-                        cmd_no_cache, cwd=abs_directory, capture_output=True, text=True
-                    )
-                    sam_build_time = time.time() - sam_build_start
-                    if result.returncode != 0:
-                        # Log detailed error information
-                        error_output = (
-                            f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
-                        )
-                        self.log_error_details(
-                            f"SAM build for {directory}", error_output
-                        )
-                        return False
-
-                # Package the template (using absolute paths)
-                build_template_path = os.path.join(
-                    abs_directory, ".aws-sam", "build", "template.yaml"
-                )
-                packaged_template_path = os.path.join(
-                    abs_directory, ".aws-sam", "packaged.yaml"
-                )
-
-                cmd = [
-                    "sam",
-                    "package",
-                    "--template-file",
-                    build_template_path,
-                    "--output-template-file",
-                    packaged_template_path,
-                    "--s3-bucket",
-                    self.bucket,
-                    "--s3-prefix",
-                    self.prefix_and_version,
-                ]
-
-                sam_package_start = time.time()
-                self.log_verbose(f"Running SAM package command: {' '.join(cmd)}")
-                # Run SAM package from project root (no cwd change needed)
-                result = subprocess.run(cmd, capture_output=True, text=True)
-                sam_package_time = time.time() - sam_package_start
-
                 if result.returncode != 0:
                     # Log detailed error information
                     error_output = (
                         f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
                     )
-                    self.log_error_details(f"SAM package for {directory}", error_output)
+                    self.log_error_details(
+                        f"SAM build for {directory}", error_output
+                    )
                     return False
 
-                # Log timing information
-                total_time = time.time() - build_start
-                pattern_name = os.path.basename(directory)
-                self.console.print(
-                    f"[dim]  {pattern_name}: build={sam_build_time:.1f}s, package={sam_package_time:.1f}s, total={total_time:.1f}s[/dim]"
+            # Package the template (using absolute paths)
+            build_template_path = os.path.join(
+                abs_directory, ".aws-sam", "build", "template.yaml"
+            )
+            # Use component name for packaged template
+            component_name = os.path.basename(abs_directory)
+            packaged_template_path = os.path.join(
+                abs_directory, ".aws-sam", f"{component_name}-packaged.yaml"
+            )
+
+            cmd = [
+                "sam",
+                "package",
+                "--template-file",
+                build_template_path,
+                "--output-template-file",
+                packaged_template_path,
+                "--s3-bucket",
+                self.bucket,
+                "--s3-prefix",
+                self.prefix_and_version,
+            ]
+
+            sam_package_start = time.time()
+            self.log_verbose(f"Running SAM package command: {' '.join(cmd)}")
+            # Run SAM package from project root (no cwd change needed)
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            sam_package_time = time.time() - sam_package_start
+
+            if result.returncode != 0:
+                # Log detailed error information
+                error_output = (
+                    f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
                 )
-
-            except Exception as e:
-                import traceback
-
-                self.log_verbose(f"Exception in build_and_package_template: {e}")
-                self.log_verbose(f"Traceback: {traceback.format_exc()}")
+                self.log_error_details(f"SAM package for {directory}", error_output)
                 return False
 
-            # Update the checksum
-            self.set_checksum(directory)
-            return True
-        else:
-            # No rebuild needed - still successful
+            # Log timing information
+            total_time = time.time() - build_start
             pattern_name = os.path.basename(directory)
-            self.console.print(f"[dim]  {pattern_name}: skipped (no changes)[/dim]")
-            return True
+            self.console.print(
+                f"[dim]  {pattern_name}: build={sam_build_time:.1f}s, package={sam_package_time:.1f}s, total={total_time:.1f}s[/dim]"
+            )
+
+            # Update component checksum on successful build
+            dependencies = self.get_component_dependencies().get(component_name, [])
+            if dependencies:
+                checksum_file = f".{component_name.replace('/', '_')}_checksum"
+                current_checksum = self.get_component_checksum(*dependencies)
+                with open(checksum_file, "w") as f:
+                    f.write(current_checksum)
+
+        except Exception as e:
+            import traceback
+
+            self.log_verbose(f"Exception in build_and_package_template: {e}")
+            self.log_verbose(f"Traceback: {traceback.format_exc()}")
+            return False
+
+        return True
 
     def build_patterns_concurrently(self, max_workers=None):
         """Build patterns concurrently with rich progress display"""
@@ -973,6 +974,173 @@ class IDPPublisher:
                         progress.update(
                             pattern_tasks[pattern],
                             description=f"[red]{pattern}[/red] - Error: {str(e)[:30]}...",
+                            completed=1,
+                        )
+                        all_successful = False
+                        progress.update(main_task, completed=completed)
+
+    def build_patterns_with_smart_detection(self, components_needing_rebuild, max_workers=None):
+        """Build patterns with smart dependency detection"""
+        patterns = ["patterns/pattern-1", "patterns/pattern-2", "patterns/pattern-3"]
+        existing_patterns = [pattern for pattern in patterns if os.path.exists(pattern)]
+
+        if not existing_patterns:
+            self.console.print("[yellow]No patterns found to build[/yellow]")
+            return True
+
+        # Filter to only patterns that need rebuilding
+        patterns_to_rebuild = []
+        patterns_to_skip = []
+        
+        for pattern in existing_patterns:
+            needs_rebuild = any(comp['component'] == pattern for comp in components_needing_rebuild)
+            if needs_rebuild:
+                patterns_to_rebuild.append(pattern)
+            else:
+                patterns_to_skip.append(pattern)
+
+        # Report what we're doing
+        if patterns_to_skip:
+            self.console.print(f"[green]✅ Skipping {len(patterns_to_skip)} unchanged patterns: {', '.join([os.path.basename(p) for p in patterns_to_skip])}[/green]")
+        
+        if not patterns_to_rebuild:
+            self.console.print("[green]✅ All patterns are up to date[/green]")
+            return True
+
+        # Check if any patterns have lib dependencies (force sequential if so)
+        has_lib_deps = any(
+            any('./lib' in dep for dep in comp['dependencies'])
+            for comp in components_needing_rebuild
+            if comp['component'] in patterns_to_rebuild
+        )
+
+        if has_lib_deps:
+            self.console.print(
+                "[yellow]⚠️  lib dependencies detected - using sequential builds to prevent race conditions[/yellow]"
+            )
+            max_workers = 1
+
+        self.console.print(
+            f"[cyan]Building {len(patterns_to_rebuild)} patterns with {max_workers} workers...[/cyan]"
+        )
+
+        # Build using the existing concurrent infrastructure
+        return self._build_components_concurrently(patterns_to_rebuild, "patterns", max_workers)
+
+    def build_options_with_smart_detection(self, components_needing_rebuild, max_workers=None):
+        """Build options with smart dependency detection"""
+        options = ["options/bda-lending-project", "options/bedrockkb"]
+        existing_options = [option for option in options if os.path.exists(option)]
+
+        if not existing_options:
+            self.console.print("[yellow]No options found to build[/yellow]")
+            return True
+
+        # Filter to only options that need rebuilding
+        options_to_rebuild = []
+        options_to_skip = []
+        
+        for option in existing_options:
+            needs_rebuild = any(comp['component'] == option for comp in components_needing_rebuild)
+            if needs_rebuild:
+                options_to_rebuild.append(option)
+            else:
+                options_to_skip.append(option)
+
+        # Report what we're doing
+        if options_to_skip:
+            self.console.print(f"[green]✅ Skipping {len(options_to_skip)} unchanged options: {', '.join([os.path.basename(p) for p in options_to_skip])}[/green]")
+        
+        if not options_to_rebuild:
+            self.console.print("[green]✅ All options are up to date[/green]")
+            return True
+
+        self.console.print(
+            f"[cyan]Building {len(options_to_rebuild)} options with {max_workers} workers...[/cyan]"
+        )
+
+        # Build using the existing concurrent infrastructure
+        return self._build_components_concurrently(options_to_rebuild, "options", max_workers)
+
+    def _build_components_concurrently(self, components, component_type, max_workers):
+        """Generic method to build components concurrently with progress display"""
+        # Create progress display
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=self.console,
+            transient=False,
+        ) as progress:
+            # Create main task for overall progress
+            main_task = progress.add_task(
+                f"[cyan]Building {component_type}...", total=len(components)
+            )
+
+            # Create individual tasks for each component
+            component_tasks = {}
+            for component in components:
+                task_id = progress.add_task(
+                    f"[yellow]{component}[/yellow] - Waiting...", total=1
+                )
+                component_tasks[component] = task_id
+
+            # Use ThreadPoolExecutor for I/O bound operations (sam build/package)
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=max_workers
+            ) as executor:
+                # Submit all component build tasks
+                future_to_component = {}
+                for component in components:
+                    # Update task status to building
+                    progress.update(
+                        component_tasks[component],
+                        description=f"[yellow]{component}[/yellow] - Building...",
+                    )
+                    future = executor.submit(self.build_and_package_template, component, force_rebuild=True)
+                    future_to_component[future] = component
+
+                # Wait for all tasks to complete and check results
+                all_successful = True
+                completed = 0
+
+                for future in concurrent.futures.as_completed(future_to_component):
+                    component = future_to_component[future]
+                    completed += 1
+
+                    try:
+                        success = future.result()
+                        if not success:
+                            progress.update(
+                                component_tasks[component],
+                                description=f"[red]{component}[/red] - Failed!",
+                                completed=1,
+                            )
+                            all_successful = False
+                        else:
+                            progress.update(
+                                component_tasks[component],
+                                description=f"[green]{component}[/green] - Complete!",
+                                completed=1,
+                            )
+
+                        # Update main progress
+                        progress.update(main_task, completed=completed)
+
+                    except Exception as e:
+                        # Log detailed error information
+                        import traceback
+
+                        error_output = f"Exception: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+                        self.log_error_details(
+                            f"{component_type.title()} {component} build exception", error_output
+                        )
+
+                        progress.update(
+                            component_tasks[component],
+                            description=f"[red]{component}[/red] - Error: {str(e)[:30]}...",
                             completed=1,
                         )
                         all_successful = False
@@ -1093,6 +1261,8 @@ class IDPPublisher:
                         all_successful = False
                         progress.update(main_task, completed=completed)
 
+        # Store the result for checksum update decision
+        self._options_build_successful = all_successful
         return all_successful
 
     def generate_config_file_list(self):
@@ -1517,14 +1687,15 @@ except Exception as e:
         self.console.print(f"[green]WebUI zipfile: {zipfile_name}[/green]")
         return zipfile_name
 
-    def build_main_template(self, webui_zipfile):
-        """Build and package main template"""
+    def build_main_template(self, webui_zipfile, components_needing_rebuild):
+        """Build and package main template with smart detection"""
         self.console.print("[bold cyan]BUILDING main[/bold cyan]")
 
-        if self.needs_rebuild("./src", "./options", "./patterns", "template.yaml"):
-            self.console.print(
-                "[yellow]Library files in ./lib have changed. All patterns will be rebuilt.[/yellow]"
-            )
+        # Check if main template needs rebuilding
+        main_needs_rebuild = any(comp['component'] == 'main' for comp in components_needing_rebuild)
+        
+        if main_needs_rebuild or not os.path.exists(".aws-sam/idp-main.yaml"):
+            self.console.print("[yellow]Main template needs rebuilding[/yellow]")
 
             # Build main template
             self.clean_and_build("template.yaml")
@@ -1590,7 +1761,7 @@ except Exception as e:
                 template_content = template_content.replace(token, value)
 
             # Write the modified template to the build directory
-            build_packaged_template_path = ".aws-sam/build/packaged.yaml"
+            build_packaged_template_path = ".aws-sam/build/idp-main.yaml"
             with open(build_packaged_template_path, "w") as f:
                 f.write(template_content)
 
@@ -1602,9 +1773,9 @@ except Exception as e:
                     "sam",
                     "package",
                     "--template-file",
-                    "packaged.yaml",
+                    "idp-main.yaml",
                     "--output-template-file",
-                    "../../.aws-sam/packaged.yaml",
+                    "../../.aws-sam/idp-main.yaml",
                     "--s3-bucket",
                     self.bucket,
                     "--s3-prefix",
@@ -1625,19 +1796,20 @@ except Exception as e:
             finally:
                 os.chdir(original_cwd)
 
-            # Update checksums
-            checksum = self.get_checksum(
-                "./src", "./options", "./patterns", "template.yaml"
-            )
-            with open(".build_checksum", "w") as f:
-                f.write(checksum)
+            # Update main template checksum on successful build
+            dependencies = self.get_component_dependencies().get('main', [])
+            if dependencies:
+                checksum_file = ".main_checksum"
+                current_checksum = self.get_component_checksum(*dependencies)
+                with open(checksum_file, "w") as f:
+                    f.write(current_checksum)
 
         else:
-            self.console.print("[yellow]SKIPPING main build (unchanged)[/yellow]")
+            self.console.print("[green]✅ Main template is up to date[/green]")
 
         # Always upload the final template to S3, regardless of whether rebuild was needed
         final_template_key = f"{self.prefix}/{self.main_template}"
-        packaged_template_path = ".aws-sam/packaged.yaml"
+        packaged_template_path = ".aws-sam/idp-main.yaml"
 
         # Check if packaged template exists, if not we have a problem
         if not os.path.exists(packaged_template_path):
@@ -1652,6 +1824,7 @@ except Exception as e:
         self.console.print(
             f"[cyan]Uploading main template to S3: {final_template_key}[/cyan]"
         )
+        self.log_verbose(f"Local template path: {packaged_template_path}")
         try:
             self.s3_client.upload_file(
                 packaged_template_path,
@@ -1685,6 +1858,263 @@ except Exception as e:
         lib_checksum = self.get_directory_checksum("./lib")
         with open(".lib_checksum", "w") as f:
             f.write(lib_checksum)
+
+    def get_source_files_checksum(self, directory):
+        """Get checksum of only source code files in a directory"""
+        if not os.path.exists(directory):
+            return ""
+
+        # Define source code file extensions
+        source_extensions = {
+            '.py', '.js', '.ts', '.jsx', '.tsx', '.yaml', '.yml', '.json', 
+            '.txt', '.md', '.toml', '.cfg', '.ini', '.requirements'
+        }
+        
+        # Define patterns to exclude
+        exclude_dirs = {
+            '__pycache__', '.pytest_cache', '.ruff_cache', 'build', 'dist', 
+            '.aws-sam', 'node_modules', '.git', '.vscode', '.idea', 
+            'test-reports', '.coverage', 'htmlcov', 'coverage_html_report',
+            'tests', 'test'  # Exclude test directories
+        }
+
+        exclude_file_patterns = {
+            '.checksum', '.build_checksum', '.lib_checksum', '.pyc', '.pyo', 
+            '.pyd', '.so', '.egg-info', '.coverage', '.DS_Store', 'Thumbs.db',
+            'coverage.xml', 'test-results.xml', '.gitkeep', 'nodeids', 'lastfailed'
+        }
+
+        def should_include_file(file_path, file_name):
+            """Check if file should be included in checksum"""
+            # Get file extension
+            _, ext = os.path.splitext(file_name)
+            
+            # Include if it's a source code extension
+            if ext.lower() in source_extensions:
+                return True
+            
+            # Include specific files without extensions that are source code
+            if file_name in {'Dockerfile', 'Makefile', 'requirements.txt', 'setup.py', 'setup.cfg'}:
+                return True
+                
+            # Include template files
+            if file_name.endswith('.template') or 'template' in file_name.lower():
+                return True
+                
+            return False
+
+        def should_exclude_dir(dir_name):
+            """Check if directory should be excluded"""
+            return dir_name in exclude_dirs or dir_name.startswith('.')
+
+        def should_exclude_file(file_name):
+            """Check if file should be excluded"""
+            if file_name in exclude_file_patterns:
+                return True
+            if any(file_name.endswith(suffix) for suffix in ['.pyc', '.pyo', '.pyd', '.so', '.log']):
+                return True
+            if file_name.startswith('.') and file_name not in {'.gitignore', '.dockerignore'}:
+                return True
+            # Exclude test files
+            if file_name.startswith('test_') or file_name.endswith('_test.py'):
+                return True
+            return False
+
+        checksums = []
+        file_count = 0
+        
+        for root, dirs, files in os.walk(directory):
+            # Filter out excluded directories in-place
+            dirs[:] = [d for d in dirs if not should_exclude_dir(d)]
+            dirs.sort()  # Ensure consistent ordering
+            
+            # Process files
+            files.sort()  # Ensure consistent ordering
+            for file in files:
+                if should_exclude_file(file):
+                    continue
+                    
+                file_path = os.path.join(root, file)
+                if not os.path.isfile(file_path):
+                    continue
+                    
+                if should_include_file(file_path, file):
+                    # Include both file path (for structure) and content (for changes)
+                    relative_path = os.path.relpath(file_path, directory)
+                    file_checksum = self.get_file_checksum(file_path)
+                    # Combine path and content for comprehensive tracking
+                    combined = f"{relative_path}:{file_checksum}"
+                    checksums.append(hashlib.sha256(combined.encode()).hexdigest())
+                    file_count += 1
+
+        if self.verbose:
+            self.console.print(f"[dim]Checksummed {file_count} source files in {directory}[/dim]")
+
+        # Combine all checksums
+        combined = "".join(sorted(checksums))  # Sort for consistency
+        return hashlib.sha256(combined.encode()).hexdigest()
+
+    def get_component_checksum(self, *paths):
+        """Get combined checksum for component paths (source files only)"""
+        checksums = []
+        for path in paths:
+            if os.path.isfile(path):
+                # For individual files, use file checksum
+                checksums.append(self.get_file_checksum(path))
+            elif os.path.isdir(path):
+                # For directories, use source files checksum
+                checksums.append(self.get_source_files_checksum(path))
+
+        combined = "".join(checksums)
+        return hashlib.sha256(combined.encode()).hexdigest()
+
+    def get_component_dependencies(self):
+        """Map each component to its dependencies for smart rebuild detection"""
+        dependencies = {
+            # Main template components
+            "main": ["./src", "template.yaml", "./config_library"],
+            
+            # Pattern components  
+            "patterns/pattern-1": ["./lib", "patterns/pattern-1/src", "patterns/pattern-1/template.yaml"],
+            "patterns/pattern-2": ["./lib", "patterns/pattern-2/src", "patterns/pattern-2/template.yaml"],
+            "patterns/pattern-3": ["./lib", "patterns/pattern-3/src", "patterns/pattern-3/template.yaml"],
+            
+            # Option components
+            "options/bda-lending-project": ["./lib", "options/bda-lending-project/src", "options/bda-lending-project/template.yaml"],
+            "options/bedrockkb": ["./lib", "options/bedrockkb/src", "options/bedrockkb/template.yaml"],
+        }
+        
+        # Filter to only existing components and dependencies
+        filtered_dependencies = {}
+        for component, deps in dependencies.items():
+            if component == "main" or os.path.exists(component):
+                existing_deps = [dep for dep in deps if os.path.exists(dep)]
+                if existing_deps:
+                    filtered_dependencies[component] = existing_deps
+        
+        return filtered_dependencies
+        """Map each component to its dependencies for smart rebuild detection"""
+        dependencies = {
+            # Main template components
+            "main": ["./src", "template.yaml", "./config_library"],
+            
+            # Pattern components  
+            "patterns/pattern-1": ["./lib", "patterns/pattern-1/src", "patterns/pattern-1/template.yaml"],
+            "patterns/pattern-2": ["./lib", "patterns/pattern-2/src", "patterns/pattern-2/template.yaml"],
+            "patterns/pattern-3": ["./lib", "patterns/pattern-3/src", "patterns/pattern-3/template.yaml"],
+            
+            # Option components
+            "options/bda-lending-project": ["./lib", "options/bda-lending-project/src", "options/bda-lending-project/template.yaml"],
+            "options/bedrockkb": ["./lib", "options/bedrockkb/src", "options/bedrockkb/template.yaml"],
+        }
+        
+        # Filter to only existing components and dependencies
+        filtered_dependencies = {}
+        for component, deps in dependencies.items():
+            if component == "main" or os.path.exists(component):
+                existing_deps = [dep for dep in deps if os.path.exists(dep)]
+                if existing_deps:
+                    filtered_dependencies[component] = existing_deps
+        
+        return filtered_dependencies
+
+    def get_components_needing_rebuild(self):
+        """Determine which components need rebuilding based on dependency changes"""
+        dependencies = self.get_component_dependencies()
+        components_to_rebuild = []
+        
+        for component, deps in dependencies.items():
+            checksum_file = f".{component.replace('/', '_')}_checksum"
+            current_checksum = self.get_component_checksum(*deps)
+            
+            needs_rebuild = True
+            if os.path.exists(checksum_file):
+                with open(checksum_file, "r") as f:
+                    stored_checksum = f.read().strip()
+                needs_rebuild = current_checksum != stored_checksum
+            
+            if needs_rebuild:
+                components_to_rebuild.append({
+                    'component': component,
+                    'dependencies': deps,
+                    'checksum_file': checksum_file,
+                    'current_checksum': current_checksum
+                })
+                
+                if self.verbose:
+                    self.console.print(f"[yellow]📝 {component} needs rebuild due to changes in: {', '.join(deps)}[/yellow]")
+        
+        return components_to_rebuild
+
+    def clear_component_cache(self, component):
+        """Clear build cache for a specific component"""
+        if component == "main":
+            sam_dir = ".aws-sam"
+        else:
+            sam_dir = os.path.join(component, ".aws-sam")
+        
+        if os.path.exists(sam_dir):
+            build_dir = os.path.join(sam_dir, "build")
+            cache_dir = os.path.join(sam_dir, "cache")
+            
+            if os.path.exists(build_dir):
+                self.log_verbose(f"Clearing build cache for {component}: {build_dir}")
+                shutil.rmtree(build_dir)
+            
+            if os.path.exists(cache_dir):
+                self.log_verbose(f"Clearing SAM cache for {component}: {cache_dir}")
+                shutil.rmtree(cache_dir)
+
+    def update_component_checksum(self, component_info):
+        """Update checksum for a successfully built component"""
+        with open(component_info['checksum_file'], "w") as f:
+            f.write(component_info['current_checksum'])
+        self.log_verbose(f"Updated checksum for {component_info['component']}")
+
+    def smart_rebuild_detection(self):
+        """Perform smart rebuild detection and cache clearing"""
+        self.console.print("[cyan]🔍 Analyzing component dependencies for smart rebuilds...[/cyan]")
+        
+        components_to_rebuild = self.get_components_needing_rebuild()
+        
+        if not components_to_rebuild:
+            self.console.print("[green]✅ No components need rebuilding[/green]")
+            return []
+        
+        self.console.print(f"[yellow]📦 {len(components_to_rebuild)} components need rebuilding:[/yellow]")
+        
+        # Group by dependency type for better reporting
+        lib_dependent = []
+        src_dependent = []
+        config_dependent = []
+        
+        for comp_info in components_to_rebuild:
+            component = comp_info['component']
+            deps = comp_info['dependencies']
+            
+            if any('./lib' in dep for dep in deps):
+                lib_dependent.append(component)
+            elif any('/src' in dep for dep in deps):
+                src_dependent.append(component)
+            elif any('config_library' in dep for dep in deps):
+                config_dependent.append(component)
+        
+        if lib_dependent:
+            self.console.print(f"   🔧 Due to lib changes: {', '.join(lib_dependent)}")
+            # Clean lib artifacts only when lib changes are detected
+            self.console.print("[yellow]Cleaning lib build artifacts due to library changes[/yellow]")
+            self.clean_temp_files(verbose_output=False)
+            self.clean_lib(verbose_output=False)
+        if src_dependent:
+            self.console.print(f"   📝 Due to src changes: {', '.join(src_dependent)}")
+        if config_dependent:
+            self.console.print(f"   ⚙️  Due to config changes: {', '.join(config_dependent)}")
+        
+        # Clear caches for components that need rebuilding
+        for comp_info in components_to_rebuild:
+            self.clear_component_cache(comp_info['component'])
+        
+        return components_to_rebuild
 
     def print_outputs(self):
         """Print final outputs using Rich table formatting"""
@@ -1738,29 +2168,25 @@ except Exception as e:
             # Set up S3 bucket
             self.setup_artifacts_bucket()
 
-            # Clean temporary files
-            self.clean_temp_files()
-
-            # Clean lib artifacts
-            self.clean_lib()
-
-            # Ensure idp_common library is ready before concurrent builds
-            self.ensure_idp_common_library_ready()
-
-            # Check if lib has changed
-            # Note: We don't pre-build idp_common package - SAM handles it during build
-            lib_changed = self.needs_rebuild("./lib")
-            self._lib_changed = (
-                lib_changed  # Store for use in build_and_package_template
-            )
-            if lib_changed:
+            # Perform smart rebuild detection and cache management
+            components_needing_rebuild = self.smart_rebuild_detection()
+            
+            # Determine if we need to force rebuilds for components with lib dependencies
+            lib_dependent_components = [
+                comp['component'] for comp in components_needing_rebuild 
+                if any('./lib' in dep for dep in comp['dependencies'])
+            ]
+            
+            if lib_dependent_components:
                 self.console.print(
-                    "[yellow]Library files in ./lib have changed. All patterns will be rebuilt.[/yellow]"
+                    f"[yellow]Library changes detected - will use sequential builds for {len(lib_dependent_components)} components[/yellow]"
                 )
+                # Ensure idp_common library is ready when lib changes detected
+                self.ensure_idp_common_library_ready()
 
-            # Build patterns and options concurrently
+            # Build patterns and options with smart detection
             self.console.print(
-                "[bold cyan]Building patterns and options concurrently...[/bold cyan]"
+                "[bold cyan]Building components with smart dependency detection...[/bold cyan]"
             )
             start_time = time.time()
 
@@ -1774,12 +2200,11 @@ except Exception as e:
                     f"[green]Auto-detected {self.max_workers} concurrent workers[/green]"
                 )
 
-            # Build patterns concurrently
+            # Build patterns with smart detection
             self.console.print("\n[bold yellow]📦 Building Patterns[/bold yellow]")
-            self.show_build_optimization_info()
             patterns_start = time.time()
-            patterns_success = self.build_patterns_concurrently(
-                max_workers=self.max_workers
+            patterns_success = self.build_patterns_with_smart_detection(
+                components_needing_rebuild, max_workers=self.max_workers
             )
             patterns_time = time.time() - patterns_start
 
@@ -1794,11 +2219,11 @@ except Exception as e:
                     )
                 sys.exit(1)
 
-            # Build options concurrently
+            # Build options with smart detection
             self.console.print("\n[bold yellow]⚙️  Building Options[/bold yellow]")
             options_start = time.time()
-            options_success = self.build_options_concurrently(
-                max_workers=self.max_workers
+            options_success = self.build_options_with_smart_detection(
+                components_needing_rebuild, max_workers=self.max_workers
             )
             options_time = time.time() - options_start
 
@@ -1815,7 +2240,7 @@ except Exception as e:
 
             total_build_time = time.time() - start_time
             self.console.print(
-                f"\n[bold green]✅ Concurrent build completed in {total_build_time:.2f}s[/bold green]"
+                f"\n[bold green]✅ Smart build completed in {total_build_time:.2f}s[/bold green]"
             )
             self.console.print(f"   [dim]• Patterns: {patterns_time:.2f}s[/dim]")
             self.console.print(f"   [dim]• Options: {options_time:.2f}s[/dim]")
@@ -1827,13 +2252,13 @@ except Exception as e:
             webui_zipfile = self.package_ui()
 
             # Build main template
-            self.build_main_template(webui_zipfile)
+            self.build_main_template(webui_zipfile, components_needing_rebuild)
 
             # Validate Lambda builds for idp_common inclusion (after all builds complete)
             self.validate_lambda_builds()
 
-            # Update lib checksum
-            self.update_lib_checksum()
+            # All builds completed successfully if we reach here
+            self.console.print("[green]✅ All builds completed successfully[/green]")
 
             # Print outputs
             self.print_outputs()
