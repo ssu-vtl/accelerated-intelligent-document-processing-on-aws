@@ -36,12 +36,12 @@ The solution now supports specifying a custom configuration file location via th
 When deploying the stack, you can specify a custom configuration file:
 
 ```yaml
-CustomConfigPath: "s3://my-bucket/path/to/my-config.yaml"
+CustomConfigPath: "s3://my-bucket/custom-config/config.yaml"
 ```
 
 **Key Features:**
 - **Override Default Configuration**: When specified, your custom configuration completely replaces the default pattern configuration
-- **S3 URI Format**: Accepts standard S3 URI format (e.g., `s3://bucket-name/path/to/config.yaml`)
+- **S3 URI Format**: Accepts standard S3 URI format (e.g., `ss3://my-bucket/custom-config/config.yaml`)
 - **Least-Privilege Security**: IAM permissions are conditionally granted only to the specific S3 bucket and object you specify
 - **All Patterns Supported**: Works with Pattern 1 (BDA), Pattern 2 (Textract + Bedrock), and Pattern 3 (Textract + UDOP + Bedrock)
 
@@ -131,7 +131,7 @@ Key parameters that can be configured during CloudFormation deployment:
 - `WAFAllowedIPv4Ranges`: IP restrictions for web UI access (default: allow all)
 - `CloudFrontPriceClass`: Set CloudFront price class for UI distribution
 - `CloudFrontAllowedGeos`: Optional geographic restrictions for UI access
-- `CustomConfigPath`: Optional S3 URI to a custom configuration file (e.g., s3://my-bucket/config.yaml)
+- `CustomConfigPath`: Optional S3 URI to a custom configuration file that overrides pattern presets. Leave blank to use selected pattern configuration. Example: s3://my-bucket/custom-config/config.yaml
 
 ### Pattern Selection
 - `IDPPattern`: Select processing pattern:
