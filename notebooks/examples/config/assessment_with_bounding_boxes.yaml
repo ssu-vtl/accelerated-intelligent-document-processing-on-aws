@@ -7,10 +7,7 @@ assessment:
   top_p: 0.1
   max_tokens: 4096
   default_confidence_threshold: 0.9
-  
-  # Enable bounding box extraction (new feature)
-  bounding_boxes:
-    enabled: true
+
   
   system_prompt: |
     You are a document analysis assessment expert. Your role is to evaluate the confidence and accuracy of data extraction results by analyzing them against source documents.
