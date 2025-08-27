@@ -1625,31 +1625,6 @@ except Exception as e:
             finally:
                 os.chdir(original_cwd)
 
-            # Upload the final template
-            final_template_key = f"{self.prefix}/{self.main_template}"
-            packaged_template_path = ".aws-sam/packaged.yaml"
-
-            try:
-                self.s3_client.upload_file(
-                    packaged_template_path,
-                    self.bucket,
-                    final_template_key,
-                    ExtraArgs={"ACL": self.acl},
-                )
-            except ClientError as e:
-                self.console.print(f"[red]Error uploading main template: {e}[/red]")
-                sys.exit(1)
-
-            # Validate the template
-            template_url = f"https://s3.{self.region}.amazonaws.com/{self.bucket}/{final_template_key}"
-            self.console.print(f"[cyan]Validating template: {template_url}[/cyan]")
-
-            try:
-                self.cf_client.validate_template(TemplateURL=template_url)
-            except ClientError as e:
-                self.console.print(f"[red]Template validation failed: {e}[/red]")
-                sys.exit(1)
-
             # Update checksums
             checksum = self.get_checksum(
                 "./src", "./options", "./patterns", "template.yaml"
@@ -1658,7 +1633,49 @@ except Exception as e:
                 f.write(checksum)
 
         else:
-            self.console.print("[yellow]SKIPPING main (unchanged)[/yellow]")
+            self.console.print("[yellow]SKIPPING main build (unchanged)[/yellow]")
+
+        # Always upload the final template to S3, regardless of whether rebuild was needed
+        final_template_key = f"{self.prefix}/{self.main_template}"
+        packaged_template_path = ".aws-sam/packaged.yaml"
+
+        # Check if packaged template exists, if not we have a problem
+        if not os.path.exists(packaged_template_path):
+            self.console.print(
+                f"[red]Error: Packaged template not found at {packaged_template_path}[/red]"
+            )
+            self.console.print(
+                "[red]This suggests the template was never built. Try running without cache.[/red]"
+            )
+            sys.exit(1)
+
+        self.console.print(
+            f"[cyan]Uploading main template to S3: {final_template_key}[/cyan]"
+        )
+        try:
+            self.s3_client.upload_file(
+                packaged_template_path,
+                self.bucket,
+                final_template_key,
+                ExtraArgs={"ACL": self.acl},
+            )
+            self.console.print("[green]✅ Main template uploaded successfully[/green]")
+        except ClientError as e:
+            self.console.print(f"[red]Error uploading main template: {e}[/red]")
+            sys.exit(1)
+
+        # Validate the template
+        template_url = (
+            f"https://s3.{self.region}.amazonaws.com/{self.bucket}/{final_template_key}"
+        )
+        self.console.print(f"[cyan]Validating template: {template_url}[/cyan]")
+
+        try:
+            self.cf_client.validate_template(TemplateURL=template_url)
+            self.console.print("[green]✅ Template validation passed[/green]")
+        except ClientError as e:
+            self.console.print(f"[red]Template validation failed: {e}[/red]")
+            sys.exit(1)
 
     def update_lib_checksum(self):
         """Update lib checksum file to track changes in the library directories"""
