@@ -1671,6 +1671,7 @@ except Exception as e:
 
     def print_outputs(self):
         """Print final outputs using Rich table formatting"""
+        
         # Generate S3 URL for the main template
         template_url = f"https://s3.{self.region}.amazonaws.com/{self.bucket}/{self.prefix}/{self.main_template}"
 
@@ -1689,14 +1690,18 @@ except Exception as e:
             f"  • Public Access: [yellow]{'Yes' if self.public else 'No'}[/yellow]"
         )
 
-        # Then display URLs
+        # Display hyperlinks with complete URLs as the display text
         self.console.print("\n[bold green]Deployment Outputs[/bold green]")
-        self.console.print("[cyan]Template URL (use to update existing stack):[/cyan]")
-        self.console.print(f"{template_url}")
-        self.console.print(
-            "\n[cyan]1-Click Launch URL (use to launch new stack):[/cyan]"
-        )
-        self.console.print(f"{launch_url}")
+        
+        # 1-Click Launch hyperlink with full URL as display text
+        self.console.print("\n[cyan]1-Click Launch (creates new stack):[/cyan]")
+        launch_link = f"[link={launch_url}]{launch_url}[/link]"
+        self.console.print(f"  {launch_link}")
+        
+        # Template URL hyperlink with full URL as display text
+        self.console.print("\n[cyan]Template URL (for updating existing stack):[/cyan]")
+        template_link = f"[link={template_url}]{template_url}[/link]"
+        self.console.print(f"  {template_link}")
 
     def run(self, args):
         """Main execution method"""
