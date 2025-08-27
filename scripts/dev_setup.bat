@@ -368,10 +368,17 @@ if not exist "C:\Projects" (
 
 cd /d "C:\Projects"
 
+REM Create the parent directory if it doesn't exist
+if not exist "!PROJECT_DIR!" (
+    mkdir "!PROJECT_DIR!"
+)
+
+cd "!PROJECT_DIR!"
+
 REM Check if project directory already exists
-if exist "!PROJECT_DIR!" (
-    echo Project directory C:\Projects\!PROJECT_DIR! already exists
-    cd "!PROJECT_DIR!"
+if exist "genaiic-idp-accelerator" (
+    echo Project directory C:\Projects\!PROJECT_DIR!\genaiic-idp-accelerator already exists
+    cd "genaiic-idp-accelerator"
     
     REM Check if it's a git repository
     git status >nul 2>&1
@@ -433,14 +440,14 @@ if exist "!PROJECT_DIR!" (
         goto :build_project
     ) else (
         echo Directory exists but is not a git repository
-        echo Please remove C:\Projects\!PROJECT_DIR! or choose a different directory name
+        echo Please remove C:\Projects\!PROJECT_DIR!\genaiic-idp-accelerator or choose a different directory name
         pause
         goto :skip_gitlab
     )
 )
 
 REM Clone the project
-git clone "!GITLAB_PROJECT_URL!" "!PROJECT_DIR!"
+git clone "!GITLAB_PROJECT_URL!" "genaiic-idp-accelerator"
 
 if !errorLevel! neq 0 (
     echo ERROR: Failed to clone GitLab project
@@ -449,7 +456,7 @@ if !errorLevel! neq 0 (
     goto :skip_gitlab
 )
 
-cd "!PROJECT_DIR!"
+cd "genaiic-idp-accelerator"
 
 echo.
 echo Repository cloned successfully!
@@ -494,7 +501,7 @@ if !errorLevel! neq 0 (
     echo Successfully checked out existing local branch !TARGET_BRANCH!
 )
 
-echo GitLab project cloned successfully to C:\Projects\!PROJECT_DIR!
+echo GitLab project cloned successfully to C:\Projects\!PROJECT_DIR!\genaiic-idp-accelerator
 
 :skip_gitlab
 :build_project
