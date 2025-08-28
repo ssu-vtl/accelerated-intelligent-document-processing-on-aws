@@ -532,7 +532,7 @@ class GovCloudTemplateGenerator:
                     self.logger.debug(f"Removed CORS configuration from {resource_name}")
         
         # Clean Lambda functions that have AppSync references in environment variables or policies
-        functions_to_clean = ['EvaluationFunction', 'QueueProcessor']
+        functions_to_clean = ['EvaluationFunction']  # QueueProcessor moved to conversion list
         for func_name in functions_to_clean:
             if func_name in resources:
                 func_def = resources[func_name]
@@ -559,8 +559,8 @@ class GovCloudTemplateGenerator:
                             if len(policy['Statement']) != len(statements):
                                 self.logger.debug(f"Removed AppSync policy statements from {func_name}")
         
-        # Convert QueueSender and WorkflowTracker from AppSync to DynamoDB tracking mode
-        functions_to_convert = ['QueueSender', 'WorkflowTracker']
+        # Convert all backend functions from AppSync to DynamoDB tracking mode
+        functions_to_convert = ['QueueSender', 'WorkflowTracker', 'QueueProcessor']
         for func_name in functions_to_convert:
             if func_name in resources:
                 func_def = resources[func_name]
