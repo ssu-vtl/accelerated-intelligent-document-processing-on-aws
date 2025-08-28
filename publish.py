@@ -97,10 +97,7 @@ class IDPPublisher:
                         f"[dim]  ... ({len(error_lines) - 3} more lines, use --verbose for full output)[/dim]"
                     )
 
-    def thread_safe_print(self, message):
-        """Thread-safe print method using Rich console"""
-        with self._print_lock:
-            self.console.print(message)
+
 
     def print_usage(self):
         """Print usage information with Rich formatting"""
@@ -341,23 +338,7 @@ class IDPPublisher:
                 self.console.print(f"[red]Error accessing bucket: {e}[/red]")
                 sys.exit(1)
 
-    def clean_temp_files(self, verbose_output=True):
-        """Clean temporary files in ./lib"""
-        if verbose_output:
-            self.console.print("[yellow]Delete temp files in ./lib[/yellow]")
-        lib_dir = "./lib"
-        if os.path.exists(lib_dir):
-            for root, dirs, files in os.walk(lib_dir):
-                # Remove __pycache__ directories
-                for dir_name in dirs[:]:
-                    if dir_name == "__pycache__":
-                        shutil.rmtree(os.path.join(root, dir_name))
-                        dirs.remove(dir_name)
 
-                # Remove .pyc files
-                for file_name in files:
-                    if file_name.endswith(".pyc"):
-                        os.remove(os.path.join(root, file_name))
 
     def get_file_checksum(self, file_path):
         """Get SHA256 checksum of a file"""
@@ -467,184 +448,19 @@ class IDPPublisher:
         combined = "".join(checksums)
         return hashlib.sha256(combined.encode()).hexdigest()
 
-    def get_checksum(self, *paths):
-        """Get combined checksum for multiple paths (files or directories)"""
-        checksums = []
-        for path in paths:
-            if os.path.isfile(path):
-                checksums.append(self.get_file_checksum(path))
-            elif os.path.isdir(path):
-                checksums.append(self.get_directory_checksum(path))
 
-        combined = "".join(checksums)
-        return hashlib.sha256(combined.encode()).hexdigest()
 
-    def set_checksum(self, directory):
-        """Set checksum for a directory in .checksum file"""
-        checksum = self.get_checksum(directory)
-        checksum_file = os.path.join(directory, ".checksum")
-        with open(checksum_file, "w") as f:
-            f.write(checksum)
 
-    def get_stored_checksum(self, directory):
-        """Get stored checksum from .checksum file"""
-        checksum_file = os.path.join(directory, ".checksum")
-        if os.path.exists(checksum_file):
-            with open(checksum_file, "r") as f:
-                return f.read().strip()
-        return ""
 
-    def needs_rebuild(self, *paths):
-        """Check if any of the paths have changed since last build"""
-        # Use get_component_checksum for consistency with component dependency system
-        current_checksum = self.get_component_checksum(*paths)
-        current_checksum = self.get_checksum(*paths)
+    
 
-        # For single directory, check its stored checksum
-        if len(paths) == 1 and os.path.isdir(paths[0]):
-            stored_checksum = self.get_stored_checksum(paths[0])
-            return current_checksum != stored_checksum
 
-        # For multiple paths or files, use a global checksum file
-        checksum_file = ".build_checksum"
-        if os.path.exists(checksum_file):
-            with open(checksum_file, "r") as f:
-                stored_checksum = f.read().strip()
-            return current_checksum != stored_checksum
 
-        return True
 
-    def set_file_checksum(self, path):
-        """Set checksum for files in global checksum file"""
-        checksum = self.get_checksum(path)
-        with open(".build_checksum", "w") as f:
-            f.write(checksum)
 
-    def show_build_optimization_info(self):
-        """Show information about build optimizations"""
-        self.console.print("\n[bold cyan]Build Optimizations Enabled:[/bold cyan]")
-        self.console.print("  ✅ SAM Build Caching (--cached)")
-        self.console.print("  ✅ Template-level Concurrency (multiple templates)")
-        self.console.print("  ✅ Smart Checksum (excludes dev artifacts)")
-        self.console.print("  ✅ Selective Cache Clearing (only when lib changes)")
 
-        # Check if cache directories exist
-        cache_info = []
-        for pattern in ["pattern-1", "pattern-2", "pattern-3"]:
-            pattern_dir = f"./patterns/{pattern}"
-            if os.path.exists(pattern_dir):
-                cache_dir = os.path.join(pattern_dir, ".aws-sam", "cache")
-                if os.path.exists(cache_dir):
-                    cache_info.append(f"  📁 {pattern}: Cache exists")
-                else:
-                    cache_info.append(f"  📁 {pattern}: No cache (first build)")
 
-        if cache_info:
-            self.console.print("\n[bold cyan]Cache Status:[/bold cyan]")
-            for info in cache_info:
-                self.console.print(info)
 
-    def ensure_idp_common_library_ready(self):
-        """Ensure idp_common library is properly built and ready for use by Lambda functions."""
-        self.console.print(
-            "[cyan]Ensuring idp_common library is ready for Lambda builds...[/cyan]"
-        )
-
-        lib_dir = Path("./lib/idp_common_pkg")
-        if not lib_dir.exists():
-            self.console.print(
-                "[red]Error: idp_common library directory not found[/red]"
-            )
-            sys.exit(1)
-
-        # Use a lock file to prevent concurrent library builds
-        lock_file = lib_dir / ".build_lock"
-
-        # Wait for any existing build to complete
-        max_wait = 300  # 5 minutes
-        wait_time = 0
-        while lock_file.exists() and wait_time < max_wait:
-            self.log_verbose("Waiting for concurrent library build to complete...")
-            time.sleep(1)
-            wait_time += 1
-
-        if lock_file.exists():
-            self.console.print("[red]Timeout waiting for library build lock[/red]")
-            sys.exit(1)
-
-        try:
-            # Create lock file
-            lock_file.touch()
-
-            # Build the library to ensure it's ready
-            result = subprocess.run(
-                [sys.executable, "setup.py", "build"],
-                cwd=lib_dir,
-                capture_output=True,
-                text=True,
-                timeout=120,
-            )
-
-            if result.returncode != 0:
-                self.console.print(
-                    f"[red]Error building idp_common library: {result.stderr}[/red]"
-                )
-                sys.exit(1)
-
-            # Also create a wheel for better pip compatibility
-            result = subprocess.run(
-                [sys.executable, "setup.py", "bdist_wheel"],
-                cwd=lib_dir,
-                capture_output=True,
-                text=True,
-                timeout=120,
-            )
-
-            if result.returncode != 0:
-                self.log_verbose(f"Warning: Could not create wheel: {result.stderr}")
-
-            self.log_verbose("idp_common library build completed successfully")
-
-        except subprocess.TimeoutExpired:
-            self.console.print("[red]Timeout building idp_common library[/red]")
-            sys.exit(1)
-        except Exception as e:
-            self.console.print(f"[red]Error building idp_common library: {e}[/red]")
-            sys.exit(1)
-        finally:
-            # Remove lock file
-            if lock_file.exists():
-                lock_file.unlink()
-
-    def clean_lib(self, verbose_output=True):
-        """Clean previous build artifacts in ./lib"""
-        if verbose_output:
-            self.console.print(
-                "[yellow]Cleaning previous build artifacts in ./lib/idp_common_pkg[/yellow]"
-            )
-        lib_pkg_dir = "./lib/idp_common_pkg"
-
-        # Remove build directories
-        for dir_name in ["build", "dist"]:
-            dir_path = os.path.join(lib_pkg_dir, dir_name)
-            if os.path.exists(dir_path):
-                shutil.rmtree(dir_path)
-
-        # Remove egg-info directories
-        for item in os.listdir(lib_pkg_dir):
-            if item.endswith(".egg-info"):
-                shutil.rmtree(os.path.join(lib_pkg_dir, item))
-
-        # Remove __pycache__ directories and .pyc files
-        for root, dirs, files in os.walk(lib_pkg_dir):
-            for dir_name in dirs[:]:
-                if dir_name == "__pycache__":
-                    shutil.rmtree(os.path.join(root, dir_name))
-                    dirs.remove(dir_name)
-
-            for file_name in files:
-                if file_name.endswith(".pyc"):
-                    os.remove(os.path.join(root, file_name))
 
     def clean_and_build(self, template_path):
         """Clean previous build artifacts and run sam build"""
@@ -744,31 +560,6 @@ class IDPPublisher:
 
     def build_and_package_template(self, directory, force_rebuild=False):
         """Build and package a template directory with smart rebuild detection"""
-        component_name = directory
-
-        # Check if this component needs rebuilding (unless forced)
-        if not force_rebuild:
-            dependencies = self.get_component_dependencies().get(component_name, [])
-            if dependencies:
-                if component_name == "main":
-                    checksum_file = ".checksum"
-                elif component_name == "lib":
-                    checksum_file = "lib/.checksum"
-                else:
-                    checksum_file = f"{component_name}/.checksum"
-                current_checksum = self.get_component_checksum(*dependencies)
-
-                if os.path.exists(checksum_file):
-                    with open(checksum_file, "r") as f:
-                        stored_checksum = f.read().strip()
-
-                    if current_checksum == stored_checksum:
-                        pattern_name = os.path.basename(directory)
-                        self.console.print(
-                            f"[dim]  {pattern_name}: skipped (no changes detected)[/dim]"
-                        )
-                        return True
-
         # Use absolute paths to avoid directory changing issues
         abs_directory = os.path.abspath(directory)
 
@@ -867,19 +658,6 @@ class IDPPublisher:
                 f"[dim]  {pattern_name}: build={sam_build_time:.1f}s, package={sam_package_time:.1f}s, total={total_time:.1f}s[/dim]"
             )
 
-            # Update component checksum on successful build
-            dependencies = self.get_component_dependencies().get(component_name, [])
-            if dependencies:
-                if component_name == "main":
-                    checksum_file = ".checksum"
-                elif component_name == "lib":
-                    checksum_file = "lib/.checksum"
-                else:
-                    checksum_file = f"{component_name}/.checksum"
-                current_checksum = self.get_component_checksum(*dependencies)
-                with open(checksum_file, "w") as f:
-                    f.write(current_checksum)
-
         except Exception as e:
             import traceback
 
@@ -889,141 +667,19 @@ class IDPPublisher:
 
         return True
 
-    def build_patterns_concurrently(self, max_workers=None):
-        """Build patterns concurrently with rich progress display"""
-        patterns = ["patterns/pattern-1", "patterns/pattern-2", "patterns/pattern-3"]
-        existing_patterns = [pattern for pattern in patterns if os.path.exists(pattern)]
 
-        if not existing_patterns:
-            self.console.print("[yellow]No patterns found to build[/yellow]")
-            return True
-
-        # Check if any patterns have idp_common dependencies
-        has_idp_common_deps = self._check_patterns_for_idp_common_deps(
-            existing_patterns
-        )
-
-        if has_idp_common_deps:
-            self.console.print(
-                "[yellow]⚠️  idp_common dependencies detected - using sequential builds to prevent race conditions[/yellow]"
-            )
-            max_workers = 1  # Force sequential builds
-
-        self.console.print(
-            f"[cyan]Building {len(existing_patterns)} patterns with {max_workers} workers...[/cyan]"
-        )
-
-        # Create progress display
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            MofNCompleteColumn(),
-            TimeElapsedColumn(),
-            console=self.console,
-            transient=False,
-        ) as progress:
-            # Create main task for overall progress
-            main_task = progress.add_task(
-                "[cyan]Building patterns...", total=len(existing_patterns)
-            )
-
-            # Create individual tasks for each pattern
-            pattern_tasks = {}
-            for pattern in existing_patterns:
-                task_id = progress.add_task(
-                    f"[yellow]{pattern}[/yellow] - Waiting...", total=1
-                )
-                pattern_tasks[pattern] = task_id
-
-            # Use ThreadPoolExecutor for I/O bound operations (sam build/package)
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=max_workers
-            ) as executor:
-                # Submit all pattern build tasks
-                future_to_pattern = {}
-                for pattern in existing_patterns:
-                    # Update task status to building
-                    progress.update(
-                        pattern_tasks[pattern],
-                        description=f"[yellow]{pattern}[/yellow] - Building...",
-                    )
-                    future = executor.submit(self.build_and_package_template, pattern)
-                    future_to_pattern[future] = pattern
-
-                # Wait for all tasks to complete and check results
-                completed = 0
-
-                for future in concurrent.futures.as_completed(future_to_pattern):
-                    pattern = future_to_pattern[future]
-                    completed += 1
-
-                    try:
-                        success = future.result()
-                        if not success:
-                            progress.update(
-                                pattern_tasks[pattern],
-                                description=f"[red]{pattern}[/red] - Failed!",
-                                completed=1,
-                            )
-                            # Mark as failed but continue
-                        else:
-                            progress.update(
-                                pattern_tasks[pattern],
-                                description=f"[green]{pattern}[/green] - Complete!",
-                                completed=1,
-                            )
-
-                        # Update main progress
-                        progress.update(main_task, completed=completed)
-
-                    except Exception as e:
-                        # Log detailed error information
-                        import traceback
-
-                        error_output = f"Exception: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
-                        self.log_error_details(
-                            f"Pattern {pattern} build exception", error_output
-                        )
-
-                        progress.update(
-                            pattern_tasks[pattern],
-                            description=f"[red]{pattern}[/red] - Error: {str(e)[:30]}...",
-                            completed=1,
-                        )
-                        progress.update(main_task, completed=completed)
 
     def build_patterns_with_smart_detection(
         self, components_needing_rebuild, max_workers=None
     ):
         """Build patterns with smart dependency detection"""
-        patterns = ["patterns/pattern-1", "patterns/pattern-2", "patterns/pattern-3"]
-        existing_patterns = [pattern for pattern in patterns if os.path.exists(pattern)]
-
-        if not existing_patterns:
-            self.console.print("[yellow]No patterns found to build[/yellow]")
-            return True
-
         # Filter to only patterns that need rebuilding
-        patterns_to_rebuild = []
-        patterns_to_skip = []
+        patterns_to_build = []
+        for item in components_needing_rebuild:
+            if "patterns" in item["component"]:
+                patterns_to_build.append(item["component"])
 
-        for pattern in existing_patterns:
-            needs_rebuild = any(
-                comp["component"] == pattern for comp in components_needing_rebuild
-            )
-            if needs_rebuild:
-                patterns_to_rebuild.append(pattern)
-            else:
-                patterns_to_skip.append(pattern)
-
-        # Report what we're doing
-        if patterns_to_skip:
-            self.console.print(
-                f"[green]✅ Skipping {len(patterns_to_skip)} unchanged patterns: {', '.join([os.path.basename(p) for p in patterns_to_skip])}[/green]"
-            )
-
-        if not patterns_to_rebuild:
+        if not patterns_to_build:
             self.console.print("[green]✅ All patterns are up to date[/green]")
             return True
 
@@ -1032,68 +688,45 @@ class IDPPublisher:
         lib_changed = any(
             comp["component"] == "lib" for comp in components_needing_rebuild
         )
-        has_lib_deps = any(
-            any("./lib" in dep for dep in comp["dependencies"])
-            for comp in components_needing_rebuild
-            if comp["component"] in patterns_to_rebuild
-        )
-
-        if lib_changed and has_lib_deps:
+        
+        if lib_changed:
             self.console.print(
                 "[yellow]⚠️  lib dependencies detected - using sequential builds to prevent race conditions[/yellow]"
             )
             max_workers = 1
 
         self.console.print(
-            f"[cyan]Building {len(patterns_to_rebuild)} patterns with {max_workers} workers...[/cyan]"
+            f"[cyan]Building {len(patterns_to_build)} patterns with {max_workers} workers...[/cyan]"
         )
 
         # Build using the existing concurrent infrastructure
         return self._build_components_concurrently(
-            patterns_to_rebuild, "patterns", max_workers
+            patterns_to_build, "patterns", max_workers
         )
 
     def build_options_with_smart_detection(
         self, components_needing_rebuild, max_workers=None
     ):
         """Build options with smart dependency detection"""
-        options = ["options/bda-lending-project", "options/bedrockkb"]
-        existing_options = [option for option in options if os.path.exists(option)]
-
-        if not existing_options:
-            self.console.print("[yellow]No options found to build[/yellow]")
-            return True
-
+        
         # Filter to only options that need rebuilding
-        options_to_rebuild = []
-        options_to_skip = []
+        options_to_build = []
 
-        for option in existing_options:
-            needs_rebuild = any(
-                comp["component"] == option for comp in components_needing_rebuild
-            )
-            if needs_rebuild:
-                options_to_rebuild.append(option)
-            else:
-                options_to_skip.append(option)
+        for item in components_needing_rebuild:
+            if "options" in item["component"]:
+                options_to_build.append(item["component"])
 
-        # Report what we're doing
-        if options_to_skip:
-            self.console.print(
-                f"[green]✅ Skipping {len(options_to_skip)} unchanged options: {', '.join([os.path.basename(p) for p in options_to_skip])}[/green]"
-            )
-
-        if not options_to_rebuild:
+        if not options_to_build:
             self.console.print("[green]✅ All options are up to date[/green]")
             return True
 
         self.console.print(
-            f"[cyan]Building {len(options_to_rebuild)} options with {max_workers} workers...[/cyan]"
+            f"[cyan]Building {len(options_to_build)} options with {max_workers} workers...[/cyan]"
         )
 
         # Build using the existing concurrent infrastructure
         return self._build_components_concurrently(
-            options_to_rebuild, "options", max_workers
+            options_to_build, "options", max_workers
         )
 
     def _build_components_concurrently(self, components, component_type, max_workers):
@@ -1324,9 +957,9 @@ class IDPPublisher:
         try:
             deps = self.get_component_dependencies()
             main_deps = deps.get("main", [])
-
+            lib_dependency = "./lib/idp_common_pkg/idp_common"
             # Check if main has lib dependency
-            has_lib_dep = "./lib" in main_deps
+            has_lib_dep = lib_dependency in main_deps
 
             if has_lib_dep:
                 self.console.print(
@@ -1767,11 +1400,11 @@ except Exception as e:
         self.console.print("[bold cyan]BUILDING main[/bold cyan]")
 
         # Check if main template needs rebuilding
-        main_needs_rebuild = any(
+        main_needs_build = any(
             comp["component"] == "main" for comp in components_needing_rebuild
         )
 
-        if main_needs_rebuild or not os.path.exists(".aws-sam/idp-main.yaml"):
+        if main_needs_build:
             self.console.print("[yellow]Main template needs rebuilding[/yellow]")
 
             # Build main template
@@ -1873,14 +1506,6 @@ except Exception as e:
             finally:
                 os.chdir(original_cwd)
 
-            # Update main template checksum on successful build
-            dependencies = self.get_component_dependencies().get("main", [])
-            if dependencies:
-                checksum_file = ".checksum"
-                current_checksum = self.get_component_checksum(*dependencies)
-                with open(checksum_file, "w") as f:
-                    f.write(current_checksum)
-
         else:
             self.console.print("[green]✅ Main template is up to date[/green]")
 
@@ -1927,14 +1552,6 @@ except Exception as e:
             self.console.print(f"[red]Template validation failed: {e}[/red]")
             sys.exit(1)
 
-    def update_lib_checksum(self):
-        """Update lib checksum file to track changes in the library directories"""
-        self.console.print(
-            "[cyan]Updated lib checksum file to track changes in the library directories[/cyan]"
-        )
-        lib_checksum = self.get_component_checksum("lib/idp_common_pkg")
-        with open("lib/.checksum", "w") as f:
-            f.write(lib_checksum)
 
     def get_source_files_checksum(self, directory):
         """Get checksum of only source code files in a directory"""
@@ -2079,22 +1696,23 @@ except Exception as e:
 
     def get_component_dependencies(self):
         """Map each component to its dependencies for smart rebuild detection"""
+        lib_dependency = "./lib/idp_common_pkg/idp_common"
         dependencies = {
             # Main template components
-            "main": ["./src", "template.yaml", "./config_library", "./lib"],
+            "main": ["./src", "template.yaml", "./config_library", lib_dependency],
             # Pattern components
             "patterns/pattern-1": [
-                "./lib",
+                lib_dependency,
                 "patterns/pattern-1/src",
                 "patterns/pattern-1/template.yaml",
             ],
             "patterns/pattern-2": [
-                "./lib",
+                lib_dependency,
                 "patterns/pattern-2/src",
                 "patterns/pattern-2/template.yaml",
             ],
             "patterns/pattern-3": [
-                "./lib",
+                lib_dependency,
                 "patterns/pattern-3/src",
                 "patterns/pattern-3/template.yaml",
             ],
@@ -2107,19 +1725,9 @@ except Exception as e:
                 "options/bedrockkb/src",
                 "options/bedrockkb/template.yaml",
             ],
-            # Lib component (tracks changes in idp_common_pkg)
-            "lib": ["lib/idp_common_pkg"],
+            "lib": [lib_dependency],
         }
-
-        # Filter to only existing components and dependencies
-        filtered_dependencies = {}
-        for component, deps in dependencies.items():
-            if component == "main" or os.path.exists(component):
-                existing_deps = [dep for dep in deps if os.path.exists(dep)]
-                if existing_deps:
-                    filtered_dependencies[component] = existing_deps
-
-        return filtered_dependencies
+        return dependencies
 
     def get_components_needing_rebuild(self):
         """Determine which components need rebuilding based on dependency changes"""
@@ -2127,7 +1735,6 @@ except Exception as e:
         components_to_rebuild = []
 
         # Cache checksums to avoid recalculating for shared dependencies (like ./lib)
-        checksum_cache = {}
 
         for component, deps in dependencies.items():
             # Use standard checksum file format: directory/.checksum
@@ -2138,11 +1745,7 @@ except Exception as e:
             else:
                 checksum_file = f"{component}/.checksum"
 
-            # Calculate checksum only once per unique dependency set
-            deps_key = tuple(sorted(deps))
-            if deps_key not in checksum_cache:
-                checksum_cache[deps_key] = self.get_component_checksum(*deps)
-            current_checksum = checksum_cache[deps_key]
+            current_checksum = self.get_component_checksum(*deps)
 
             needs_rebuild = True
             if os.path.exists(checksum_file):
@@ -2186,164 +1789,33 @@ except Exception as e:
                 self.log_verbose(f"Clearing SAM cache for {component}: {cache_dir}")
                 shutil.rmtree(cache_dir)
 
-    def update_component_checksum(self, component_info):
+    def update_component_checksum(self, components_needing_rebuild):
         """Update checksum for a successfully built component"""
-        with open(component_info["checksum_file"], "w") as f:
-            f.write(component_info["current_checksum"])
-        self.log_verbose(f"Updated checksum for {component_info['component']}")
+        for item in components_needing_rebuild:
+            current_checksum = item["current_checksum"]
+            checksum_file = item["checksum_file"]
+            with open(os.path.join(".", checksum_file), "w") as f:
+                f.write(current_checksum)
+            self.log_verbose(f"Updated checksum for {item['component']}")
 
     def smart_rebuild_detection(self):
-        """Perform smart rebuild detection and cache clearing"""
-        import os as os_module  # Local import to avoid scoping issues
-
         self.console.print(
             "[cyan]🔍 Analyzing component dependencies for smart rebuilds...[/cyan]"
         )
-
         components_to_rebuild = self.get_components_needing_rebuild()
-
-        # Check if lib actually changed (only if checksum exists and differs)
-        lib_actually_changed = False
-        lib_component = next(
-            (comp for comp in components_to_rebuild if comp["component"] == "lib"), None
-        )
-        if lib_component and os_module.path.exists(lib_component["checksum_file"]):
-            # Lib checksum exists, check if content actually changed
-            with open(lib_component["checksum_file"], "r") as f:
-                stored_checksum = f.read().strip()
-            current_checksum = lib_component["current_checksum"]
-            lib_actually_changed = stored_checksum != current_checksum
-
-            if self.verbose and lib_actually_changed:
-                self.console.print("[red]DEBUG: Lib checksum mismatch![/red]")
-                self.console.print(f"[red]Stored: {stored_checksum}[/red]")
-                self.console.print(f"[red]Current: {current_checksum}[/red]")
-
+        components_names = []
+        for item in components_to_rebuild:
+            components_names.append(item["component"])
+       
         if not components_to_rebuild:
             self.console.print("[green]✅ No components need rebuilding[/green]")
             return []
-
-        # Filter out lib component ONLY if it's just checksum tracking (not actual changes)
-        actual_rebuilds = [
-            comp
-            for comp in components_to_rebuild
-            if not (comp["component"] == "lib" and not lib_actually_changed)
-        ]
-
-        if not actual_rebuilds:
-            self.console.print("[green]✅ No components need rebuilding[/green]")
-            return components_to_rebuild  # Still return lib for checksum update
-
         self.console.print(
-            f"[yellow]📦 {len(actual_rebuilds)} components need rebuilding:[/yellow]"
-        )
-
-        # Categorize components by what triggered their rebuild
-        lib_triggered = []
-        component_triggered = []
-        config_triggered = []
-        lib_component_rebuilding = []
-
-        for comp_info in components_to_rebuild:
-            component = comp_info["component"]
-
-            # Handle lib component separately
-            if component == "lib":
-                lib_component_rebuilding.append(component)
-                continue
-
-            # Check what actually changed for this component
-            if lib_actually_changed and any(
-                "./lib" in dep for dep in comp_info["dependencies"]
-            ):
-                lib_triggered.append(component)
-            elif any(
-                component in dep or f"{component}/" in dep
-                for dep in comp_info["dependencies"]
-            ):
-                component_triggered.append(component)
-            elif any("config_library" in dep for dep in comp_info["dependencies"]):
-                config_triggered.append(component)
-
-        # Report lib component only if lib source code actually changed
-        if lib_component_rebuilding and lib_actually_changed:
-            self.console.print(
-                f"   📚 Lib changes detected: {', '.join(lib_component_rebuilding)}"
+                f"[yellow]📦 {len(components_to_rebuild)} components need rebuilding:[/yellow]"
             )
-
-        # Report what triggered rebuilds
-        if lib_triggered:
-            self.console.print(f"   🔧 Due to lib changes: {', '.join(lib_triggered)}")
-            # Only clean lib artifacts when lib source code actually changed (not just missing checksum)
-            if lib_actually_changed and os_module.path.exists("lib/.checksum"):
-                self.console.print(
-                    "[yellow]Cleaning lib build artifacts due to library changes[/yellow]"
-                )
-                self.clean_temp_files(verbose_output=False)
-                self.clean_lib(verbose_output=False)
-
-        if component_triggered:
-            # Separate first build vs actual changes
-            changed = []
-            first_build = []
-            for comp in component_triggered:
-                comp_info = next(
-                    c for c in components_to_rebuild if c["component"] == comp
-                )
-                if os_module.path.exists(comp_info["checksum_file"]):
-                    changed.append(comp)
-                else:
-                    first_build.append(comp)
-
-            if changed:
-                self.console.print(
-                    f"   📝 Component changes detected: {', '.join(changed)}"
-                )
-            if first_build:
-                self.console.print(
-                    f"   📝 Components (first build): {', '.join(first_build)}"
-                )
-
-        if config_triggered:
-            changed = []
-            first_build = []
-            for comp in config_triggered:
-                comp_info = next(
-                    c for c in components_to_rebuild if c["component"] == comp
-                )
-                if os_module.path.exists(comp_info["checksum_file"]):
-                    changed.append(comp)
-                else:
-                    first_build.append(comp)
-
-            if changed:
-                self.console.print(
-                    f"   ⚙️  Config changes detected: {', '.join(changed)}"
-                )
-            if first_build:
-                self.console.print(
-                    f"   ⚙️  Config (first build): {', '.join(first_build)}"
-                )
-
-        # Clear caches for components that need rebuilding
-        for comp_info in components_to_rebuild:
-            self.clear_component_cache(comp_info["component"])
-
-        # Create lib checksum if missing (lib doesn't go through normal build process)
-        lib_component = next(
-            (comp for comp in components_to_rebuild if comp["component"] == "lib"), None
-        )
-        if lib_component and not os_module.path.exists(lib_component["checksum_file"]):
-            # Create lib directory if needed
-            os.makedirs(os.path.dirname(lib_component["checksum_file"]), exist_ok=True)
-            # Write lib checksum
-            with open(lib_component["checksum_file"], "w") as f:
-                f.write(lib_component["current_checksum"])
-            # Remove lib from rebuild list since it's just checksum creation
-            components_to_rebuild = [
-                comp for comp in components_to_rebuild if comp["component"] != "lib"
-            ]
-
+        self.console.print(
+                f"   📚 Components: {', '.join(components_names)}"
+            )
         return components_to_rebuild
 
     def print_outputs(self):
@@ -2443,44 +1915,10 @@ except Exception as e:
             # Perform smart rebuild detection and cache management
             components_needing_rebuild = self.smart_rebuild_detection()
 
-            # Get components that have lib dependencies and need rebuilding
-            lib_dependent_components = [
-                comp["component"]
-                for comp in components_needing_rebuild
-                if any("./lib" in dep for dep in comp["dependencies"])
-            ]
-
-            if lib_dependent_components:
-                import os  # Local import to ensure availability
-
-                # Check if lib component actually changed OR if this is first build (lib checksum was just created)
-                lib_component_changed = any(
-                    comp["component"] == "lib" and os.path.exists(comp["checksum_file"])
-                    for comp in components_needing_rebuild
-                )
-
-                # Also check if this is effectively a first build (most components missing checksums)
-                missing_checksums = sum(
-                    1
-                    for comp in components_needing_rebuild
-                    if not os.path.exists(comp["checksum_file"])
-                )
-                is_first_build = (
-                    missing_checksums >= len(components_needing_rebuild) * 0.5
-                )  # 50% or more missing
-
-                if lib_component_changed or is_first_build:
-                    build_type = (
-                        "Library changes" if lib_component_changed else "First build"
-                    )
-                    self.console.print(
-                        f"[yellow]{build_type} detected - will use sequential builds for {len(lib_dependent_components)} components[/yellow]"
-                    )
-                    self.ensure_idp_common_library_ready()
-                else:
-                    self.console.print(
-                        f"[cyan]Pattern/component changes only - using concurrent builds for {len(lib_dependent_components)} components[/cyan]"
-                    )
+            # Clear caches for components that need rebuilding
+            for comp_info in components_needing_rebuild:
+                if comp_info["component"] != "lib": # lib doesnt have sam build
+                    self.clear_component_cache(comp_info["component"])
 
             # Build patterns and options with smart detection
             self.console.print(
@@ -2491,8 +1929,6 @@ except Exception as e:
             # Determine optimal number of workers
             if self.max_workers is None:
                 # Auto-detect: typically CPU count or a bit less, capped at 4
-                import os
-
                 self.max_workers = min(4, (os.cpu_count() or 1) + 1)
                 self.console.print(
                     f"[green]Auto-detected {self.max_workers} concurrent workers[/green]"
@@ -2565,6 +2001,8 @@ except Exception as e:
             # All builds completed successfully if we reach here
             self.console.print("[green]✅ All builds completed successfully[/green]")
 
+            # update checksum
+            self.update_component_checksum(components_needing_rebuild)
             # Print outputs
             self.print_outputs()
 
