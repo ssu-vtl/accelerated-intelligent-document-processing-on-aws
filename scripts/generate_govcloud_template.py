@@ -121,15 +121,15 @@ class GovCloudTemplateGenerator:
             'AdminUser',
             'AdminGroup',
             'AdminUserToGroupAttachment',
-            'GetDomainLambda',
-            'GetDomainLambdaLogGroup',
-            'GetDomain',
-            'GetLowercase',  # Custom resource that depends on GetDomainLambda
+            'GetDomain',  # This depends on Cognito UserPoolDomain - remove it
             'CognitoUserPoolEmailDomainVerifyFunction',
             'CognitoUserPoolEmailDomainVerifyFunctionLogGroup',
             'CognitoUserPoolEmailDomainVerifyPermission',
             'CognitoUserPoolEmailDomainVerifyPermissionReady'
         }
+        
+        # Keep these utility resources as they don't depend on GovCloud-incompatible services
+        # GetDomainLambda, GetDomainLambdaLogGroup, GetLowercase - utility functions for string manipulation
         
         self.waf_resources = {
             'WAFIPV4Set',
@@ -163,18 +163,14 @@ class GovCloudTemplateGenerator:
             'WorkforceURLResource'
         }
         
-        # Functions that depend on AppSync and should be removed for headless GovCloud deployment
+        # Functions that depend on AppSync but can be converted to use DynamoDB tracking
+        self.functions_to_convert_to_dynamodb = {
+            'QueueSender',  # Convert from AppSync to DynamoDB tracking
+            'WorkflowTracker',  # Convert from AppSync to DynamoDB tracking
+        }
+        
+        # Functions that are purely AppSync-dependent and should be removed for headless GovCloud deployment
         self.appsync_dependent_resources = {
-            'QueueSender',  # Uses AppSync for notifications
-            'QueueSenderLogGroup',
-            'QueueSenderDLQ',
-            'QueueSenderDLQPolicy',
-            'WorkflowTracker',  # Uses AppSync for status updates
-            'WorkflowTrackerLogGroup', 
-            'WorkflowTrackerDLQ',
-            'WorkflowTrackerDLQPolicy',
-            'WorkflowStateChangeRule',
-            'WorkflowTrackerPermission',
             'StepFunctionSubscriptionPublisher',  # AppSync subscription publisher
             'StepFunctionSubscriptionPublisherLogGroup',
             'StepFunctionSubscriptionRule',
@@ -563,6 +559,56 @@ class GovCloudTemplateGenerator:
                             if len(policy['Statement']) != len(statements):
                                 self.logger.debug(f"Removed AppSync policy statements from {func_name}")
         
+        # Convert QueueSender and WorkflowTracker from AppSync to DynamoDB tracking mode
+        functions_to_convert = ['QueueSender', 'WorkflowTracker']
+        for func_name in functions_to_convert:
+            if func_name in resources:
+                func_def = resources[func_name]
+                
+                # Update environment variables for DynamoDB tracking
+                env_vars = func_def.get('Properties', {}).get('Environment', {}).get('Variables', {})
+                
+                # Replace APPSYNC_API_URL with DynamoDB tracking variables
+                if 'APPSYNC_API_URL' in env_vars:
+                    del env_vars['APPSYNC_API_URL']
+                    env_vars['DOCUMENT_TRACKING_MODE'] = 'dynamodb'
+                    env_vars['TRACKING_TABLE'] = {'Ref': 'TrackingTable'}
+                    self.logger.debug(f"Converted {func_name} from AppSync to DynamoDB tracking mode")
+                
+                # Remove AppSync policies and ensure DynamoDB policies are present
+                policies = func_def.get('Properties', {}).get('Policies', [])
+                
+                # Add DynamoDB CRUD policy if not present
+                dynamodb_policy_exists = False
+                for policy in policies:
+                    if isinstance(policy, dict) and 'DynamoDBCrudPolicy' in policy:
+                        dynamodb_policy_exists = True
+                        break
+                
+                if not dynamodb_policy_exists:
+                    # Add DynamoDB CRUD policy for TrackingTable
+                    policies.append({
+                        'DynamoDBCrudPolicy': {
+                            'TableName': {'Ref': 'TrackingTable'}
+                        }
+                    })
+                    self.logger.debug(f"Added DynamoDB CRUD permissions for {func_name}")
+                
+                # Clean AppSync policies
+                for policy in policies:
+                    if isinstance(policy, dict) and 'Statement' in policy:
+                        statements = policy['Statement']
+                        if isinstance(statements, list):
+                            # Remove AppSync permissions
+                            policy['Statement'] = [
+                                stmt for stmt in statements 
+                                if not (isinstance(stmt, dict) and 
+                                       isinstance(stmt.get('Action'), list) and 
+                                       any('appsync:GraphQL' in str(action) for action in stmt.get('Action', [])))
+                            ]
+                            if len(policy['Statement']) != len(statements):
+                                self.logger.debug(f"Removed AppSync permissions from {func_name}")
+        
         # Clean nested stack parameters comprehensively
         pattern_stacks = ['PATTERN1STACK', 'PATTERN2STACK', 'PATTERN3STACK']
         for stack_name in pattern_stacks:
@@ -597,21 +643,10 @@ class GovCloudTemplateGenerator:
                     del resources[stack_name]['DependsOn']
                     self.logger.debug(f"Removed GraphQLApi dependency from {stack_name}")
         
-        # Replace GetLowercase.Lowercase references with proper lowercase transformation
-        # Convert to string, replace the references, then convert back
+        # Fix ShouldUseDocumentKnowledgeBase condition references (permanent fix)
+        # Convert to string for pattern matching and replacement
         template_str = yaml.dump(template, default_flow_style=False)
         
-        # Replace ${GetLowercase.Lowercase} with lowercase stack name using Transform::String
-        # For simplicity, we'll use a manual lowercase approach since GetLowercase was removed
-        if 'GetLowercase.Lowercase' in template_str:
-            # For database names, we need lowercase - use a simple transform approach
-            # Replace with AWS::StackName but add note that stack names should be lowercase for GovCloud
-            template_str = template_str.replace('${GetLowercase.Lowercase}', '${AWS::StackName}')
-            template = yaml.safe_load(template_str)
-            self.logger.warning("⚠️  Replaced GetLowercase.Lowercase with AWS::StackName")
-            self.logger.warning("   Note: Stack names should use lowercase for GovCloud deployment to avoid database naming issues")
-        
-        # Fix ShouldUseDocumentKnowledgeBase condition references (permanent fix)
         if 'ShouldUseDocumentKnowledgeBase' in template_str:
             # Replace the conditional reference with a hardcoded false value
             template_str = re.sub(
