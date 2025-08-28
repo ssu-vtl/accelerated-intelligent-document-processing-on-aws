@@ -97,8 +97,6 @@ class IDPPublisher:
                         f"[dim]  ... ({len(error_lines) - 3} more lines, use --verbose for full output)[/dim]"
                     )
 
-
-
     def print_usage(self):
         """Print usage information with Rich formatting"""
         self.console.print("\n[bold cyan]Usage:[/bold cyan]")
@@ -338,8 +336,6 @@ class IDPPublisher:
                 self.console.print(f"[red]Error accessing bucket: {e}[/red]")
                 sys.exit(1)
 
-
-
     def get_file_checksum(self, file_path):
         """Get SHA256 checksum of a file"""
         if not os.path.exists(file_path):
@@ -447,20 +443,6 @@ class IDPPublisher:
         # Combine all checksums
         combined = "".join(checksums)
         return hashlib.sha256(combined.encode()).hexdigest()
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
 
     def clean_and_build(self, template_path):
         """Clean previous build artifacts and run sam build"""
@@ -667,8 +649,6 @@ class IDPPublisher:
 
         return True
 
-
-
     def build_patterns_with_smart_detection(
         self, components_needing_rebuild, max_workers=None
     ):
@@ -688,7 +668,7 @@ class IDPPublisher:
         lib_changed = any(
             comp["component"] == "lib" for comp in components_needing_rebuild
         )
-        
+
         if lib_changed:
             self.console.print(
                 "[yellow]⚠️  lib dependencies detected - using sequential builds to prevent race conditions[/yellow]"
@@ -708,7 +688,7 @@ class IDPPublisher:
         self, components_needing_rebuild, max_workers=None
     ):
         """Build options with smart dependency detection"""
-        
+
         # Filter to only options that need rebuilding
         options_to_build = []
 
@@ -1552,7 +1532,6 @@ except Exception as e:
             self.console.print(f"[red]Template validation failed: {e}[/red]")
             sys.exit(1)
 
-
     def get_source_files_checksum(self, directory):
         """Get checksum of only source code files in a directory"""
         if not os.path.exists(directory):
@@ -1806,16 +1785,14 @@ except Exception as e:
         components_names = []
         for item in components_to_rebuild:
             components_names.append(item["component"])
-       
+
         if not components_to_rebuild:
             self.console.print("[green]✅ No components need rebuilding[/green]")
             return []
         self.console.print(
-                f"[yellow]📦 {len(components_to_rebuild)} components need rebuilding:[/yellow]"
-            )
-        self.console.print(
-                f"   📚 Components: {', '.join(components_names)}"
-            )
+            f"[yellow]📦 {len(components_to_rebuild)} components need rebuilding:[/yellow]"
+        )
+        self.console.print(f"   📚 Components: {', '.join(components_names)}")
         return components_to_rebuild
 
     def print_outputs(self):
@@ -1917,7 +1894,7 @@ except Exception as e:
 
             # Clear caches for components that need rebuilding
             for comp_info in components_needing_rebuild:
-                if comp_info["component"] != "lib": # lib doesnt have sam build
+                if comp_info["component"] != "lib":  # lib doesnt have sam build
                     self.clear_component_cache(comp_info["component"])
 
             # Build patterns and options with smart detection

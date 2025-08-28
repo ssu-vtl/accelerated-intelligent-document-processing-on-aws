@@ -27,7 +27,7 @@ class TestIDPPublisherInitialization:
     def test_init_default_values(self):
         """Test that IDPPublisher initializes with correct default values"""
         publisher = IDPPublisher()
-        
+
         assert publisher.verbose is False
         assert publisher.bucket_basename is None
         assert publisher.prefix is None
@@ -41,7 +41,7 @@ class TestIDPPublisherInitialization:
     def test_init_verbose_mode(self):
         """Test that IDPPublisher initializes correctly with verbose mode enabled"""
         publisher = IDPPublisher(verbose=True)
-        
+
         assert publisher.verbose is True
 
 
@@ -51,20 +51,20 @@ class TestIDPPublisherParameterValidation:
     def test_check_parameters_missing_required(self):
         """Test that missing required parameters cause exit"""
         publisher = IDPPublisher()
-        
+
         with patch.object(publisher, "print_usage") as mock_usage:
             with pytest.raises(SystemExit) as exc_info:
                 publisher.check_parameters(["bucket"])
-            
+
             assert exc_info.value.code == 1
             mock_usage.assert_called_once()
 
     def test_check_parameters_valid_minimal(self):
         """Test valid minimal parameters"""
         publisher = IDPPublisher()
-        
+
         publisher.check_parameters(["test-bucket", "test-prefix", "us-east-1"])
-        
+
         assert publisher.bucket_basename == "test-bucket"
         assert publisher.prefix == "test-prefix"
         assert publisher.region == "us-east-1"
@@ -75,10 +75,12 @@ class TestIDPPublisherParameterValidation:
     def test_check_parameters_with_public_flag(self):
         """Test parameters with public flag"""
         publisher = IDPPublisher()
-        
+
         with patch.object(publisher.console, "print") as mock_print:
-            publisher.check_parameters(["test-bucket", "test-prefix", "us-east-1", "public"])
-        
+            publisher.check_parameters(
+                ["test-bucket", "test-prefix", "us-east-1", "public"]
+            )
+
         assert publisher.public is True
         assert publisher.acl == "public-read"
         mock_print.assert_any_call(
@@ -88,19 +90,21 @@ class TestIDPPublisherParameterValidation:
     def test_check_parameters_with_max_workers(self):
         """Test parameters with max-workers option"""
         publisher = IDPPublisher()
-        
+
         with patch.object(publisher.console, "print") as mock_print:
-            publisher.check_parameters(["test-bucket", "test-prefix", "us-east-1", "--max-workers", "4"])
-        
+            publisher.check_parameters(
+                ["test-bucket", "test-prefix", "us-east-1", "--max-workers", "4"]
+            )
+
         assert publisher.max_workers == 4
         mock_print.assert_any_call("[green]Using 4 concurrent workers[/green]")
 
     def test_check_parameters_strip_trailing_slash(self):
         """Test that trailing slash is stripped from prefix"""
         publisher = IDPPublisher()
-        
+
         publisher.check_parameters(["test-bucket", "test-prefix/", "us-east-1"])
-        
+
         assert publisher.prefix == "test-prefix"
 
 
@@ -113,13 +117,13 @@ class TestIDPPublisherEnvironmentSetup:
         """Test setup_environment for x86_64 platform"""
         mock_machine.return_value = "x86_64"
         mock_boto_client.return_value = Mock()
-        
+
         publisher = IDPPublisher()
         publisher.region = "us-east-1"
-        
+
         with patch("builtins.open", mock_open_version_file("1.0.0")):
             publisher.setup_environment()
-            
+
             assert publisher.stat_cmd == "stat --format='%Y'"
 
     @patch("boto3.client")
@@ -128,26 +132,26 @@ class TestIDPPublisherEnvironmentSetup:
         """Test setup_environment for ARM64 platform (Mac)"""
         mock_machine.return_value = "arm64"
         mock_boto_client.return_value = Mock()
-        
+
         publisher = IDPPublisher()
         publisher.region = "us-west-2"
-        
+
         with patch("builtins.open", mock_open_version_file("1.0.0")):
             publisher.setup_environment()
-            
+
             assert publisher.stat_cmd == "stat -f %m"
 
     @patch("boto3.client")
     def test_setup_environment_us_east_1_udop_model(self, mock_boto_client):
         """Test UDOP model path for us-east-1"""
         mock_boto_client.return_value = Mock()
-        
+
         publisher = IDPPublisher()
         publisher.region = "us-east-1"
-        
+
         with patch("builtins.open", mock_open_version_file("1.0.0")):
             publisher.setup_environment()
-            
+
             expected_model = "s3://aws-ml-blog-us-east-1/artifacts/genai-idp/udop-finetuning/rvl-cdip/model.tar.gz"
             assert publisher.public_sample_udop_model == expected_model
 
@@ -155,13 +159,13 @@ class TestIDPPublisherEnvironmentSetup:
     def test_setup_environment_us_west_2_udop_model(self, mock_boto_client):
         """Test UDOP model path for us-west-2"""
         mock_boto_client.return_value = Mock()
-        
+
         publisher = IDPPublisher()
         publisher.region = "us-west-2"
-        
+
         with patch("builtins.open", mock_open_version_file("1.0.0")):
             publisher.setup_environment()
-            
+
             expected_model = "s3://aws-ml-blog-us-west-2/artifacts/genai-idp/udop-finetuning/rvl-cdip/model.tar.gz"
             assert publisher.public_sample_udop_model == expected_model
 
@@ -169,13 +173,13 @@ class TestIDPPublisherEnvironmentSetup:
     def test_setup_environment_other_region_udop_model(self, mock_boto_client):
         """Test UDOP model path for other regions"""
         mock_boto_client.return_value = Mock()
-        
+
         publisher = IDPPublisher()
         publisher.region = "eu-west-1"
-        
+
         with patch("builtins.open", mock_open_version_file("1.0.0")):
             publisher.setup_environment()
-            
+
             assert publisher.public_sample_udop_model == ""
 
 
@@ -213,11 +217,11 @@ class TestIDPPublisherChecksumOperations:
     def test_get_file_checksum_existing_file(self):
         """Test get_file_checksum with existing file"""
         publisher = IDPPublisher()
-        
+
         with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_file:
             temp_file.write("test content")
             temp_file_path = temp_file.name
-        
+
         try:
             checksum = publisher.get_file_checksum(temp_file_path)
             assert len(checksum) == 64  # SHA256 hex digest length
@@ -234,17 +238,17 @@ class TestIDPPublisherChecksumOperations:
     def test_get_directory_checksum_existing_directory(self):
         """Test get_directory_checksum with existing directory"""
         publisher = IDPPublisher()
-        
+
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create some files
             file1_path = os.path.join(temp_dir, "file1.txt")
             file2_path = os.path.join(temp_dir, "file2.txt")
-            
+
             with open(file1_path, "w") as f:
                 f.write("content1")
             with open(file2_path, "w") as f:
                 f.write("content2")
-            
+
             checksum = publisher.get_directory_checksum(temp_dir)
             assert len(checksum) == 64
             assert checksum != ""
@@ -259,6 +263,7 @@ class TestIDPPublisherChecksumOperations:
 def mock_open_version_file(version_content):
     """Helper function to mock opening VERSION file"""
     from unittest.mock import mock_open
+
     return mock_open(read_data=version_content)
 
 
