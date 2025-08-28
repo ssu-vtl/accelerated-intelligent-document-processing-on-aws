@@ -1667,7 +1667,13 @@ except Exception as e:
         if not hasattr(self, "_component_checksum_cache"):
             self._component_checksum_cache = {}
 
-        cache_key = tuple(sorted(paths))
+        # Include bucket and prefix in cache key to force rebuild when they change
+        cache_key = (
+            tuple(sorted(paths)),
+            self.bucket,
+            self.prefix_and_version,
+            self.region,
+        )
         if cache_key in self._component_checksum_cache:
             return self._component_checksum_cache[cache_key]
 
@@ -1680,7 +1686,10 @@ except Exception as e:
                 # For directories, use source files checksum
                 checksums.append(self.get_source_files_checksum(path))
 
-        combined = "".join(checksums)
+        # Include deployment context in checksum calculation
+        combined = (
+            "".join(checksums) + self.bucket + self.prefix_and_version + self.region
+        )
         result = hashlib.sha256(combined.encode()).hexdigest()
 
         # Cache the result
