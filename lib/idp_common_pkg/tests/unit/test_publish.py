@@ -11,7 +11,8 @@ Tests only methods that exist in the current implementation
 import os
 import sys
 import tempfile
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
 import pytest
 
 # Add the project root to the path so we can import publish
