@@ -1539,7 +1539,9 @@ class TestIDPPublisherRebuildLogic:
 
                 # Second call - should skip build (needs rebuild returns False)
                 mock_needs_rebuild.return_value = False
-                with patch.object(publisher, "get_component_dependencies", return_value={}):
+                with patch.object(
+                    publisher, "get_component_dependencies", return_value={}
+                ):
                     result2 = publisher.build_and_package_template(pattern_dir)
                 assert result2 is True
                 # Should still build because no dependencies found (fallback behavior)
