@@ -4370,8 +4370,8 @@ Resources:
                 Action:
                   - s3:PutObject
                 Resource:
-                  - 'arn:${AWS::Partition}:s3:::cloudformation-custom-resource-response-*'
-                  - 'arn:${AWS::Partition}:s3:::cloudformation-custom-resource-response-*/*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::cloudformation-custom-resource-response-*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::cloudformation-custom-resource-response-*/*'
   
   CreateA2IResourcesLambda:
     Type: AWS::Serverless::Function
