@@ -1049,28 +1049,24 @@ class TestIDPPublisherIntegration:
             patch.object(publisher, "setup_artifacts_bucket") as mock_setup_bucket,
             patch.object(publisher, "clean_temp_files"),
             patch.object(publisher, "clean_lib"),
-            patch.object(
-                publisher, "ensure_idp_common_library_ready"
-            ) as mock_ensure_lib,
+            patch.object(publisher, "ensure_idp_common_library_ready"),
             patch.object(publisher, "needs_rebuild", return_value=False),
-            patch.object(
-                publisher, "build_patterns_concurrently", return_value=True
-            ) as mock_build_patterns,
-            patch.object(
-                publisher, "build_options_concurrently", return_value=True
-            ) as mock_build_options,
+            patch.object(publisher, "build_patterns_concurrently", return_value=True),
+            patch.object(publisher, "build_options_concurrently", return_value=True),
             patch.object(publisher, "validate_lambda_builds") as mock_validate_builds,
             patch.object(publisher, "upload_config_library") as mock_upload_config,
             patch.object(
                 publisher, "package_ui", return_value="test-ui.zip"
             ) as mock_package_ui,
             patch.object(publisher, "build_main_template") as mock_build_main,
-            patch.object(publisher, "update_lib_checksum") as mock_update_checksum,
-            patch.object(publisher, "print_outputs") as mock_print_outputs,
+            patch.object(publisher, "update_lib_checksum"),
+            patch.object(publisher, "print_outputs"),
             patch.object(publisher.console, "print"),
             patch("time.time", side_effect=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
             patch("os.cpu_count", return_value=4),
-            patch.object(publisher, "validate_dependency_configuration", return_value=True),
+            patch.object(
+                publisher, "validate_dependency_configuration", return_value=True
+            ),
         ):
             publisher.max_workers = None  # Test auto-detection
 
@@ -1135,7 +1131,9 @@ class TestIDPPublisherIntegration:
             patch.object(publisher, "clean_lib"),
             patch.object(publisher, "ensure_idp_common_library_ready"),
             patch.object(publisher, "smart_rebuild_detection", return_value=[]),
-            patch.object(publisher, "build_patterns_with_smart_detection", return_value=False),
+            patch.object(
+                publisher, "build_patterns_with_smart_detection", return_value=False
+            ),
             patch.object(publisher.console, "print") as mock_print,
             patch("time.time", return_value=0),
             patch("os.cpu_count", return_value=4),
