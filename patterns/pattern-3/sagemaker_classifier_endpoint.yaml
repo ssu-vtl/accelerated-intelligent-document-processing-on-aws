@@ -103,11 +103,11 @@ Resources:
                 Resource:
                   - !Join 
                     - ''
-                    - - 'arn:${AWS::Partition}:s3:::'
+                    - - !Sub 'arn:${AWS::Partition}:s3:::'
                       - !Select [2, !Split ["/", !Ref UDOPModelArtifactPath]]
                   - !Join 
                     - ''
-                    - - 'arn:${AWS::Partition}:s3:::'
+                    - - !Sub 'arn:${AWS::Partition}:s3:::'
                       - !Select [2, !Split ["/", !Ref UDOPModelArtifactPath]]
                       - '/*'
                   - !Sub 'arn:${AWS::Partition}:s3:::${S3Bucket}'
