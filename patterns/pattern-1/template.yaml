@@ -99,9 +99,9 @@ Parameters:
     Description: >-
       (Optional) ARN of an existing IAM Permissions Boundary policy to attach to all IAM roles.
       Required by some organizations with Service Control Policies (SCPs).
-      Format: arn:aws:iam::account-id:policy/policy-name
+      Format: arn:${AWS::Partition}:iam::account-id:policy/policy-name
       Leave blank if no Permissions Boundary is required.
-    AllowedPattern: "^(|arn:aws:iam::[0-9]{12}:policy/.+)$"
+    AllowedPattern: "^(|arn:aws[a-z-]*:iam::[0-9]{12}:policy/.+)$"
     ConstraintDescription: Must be empty or a valid IAM policy ARN
 
 Conditions:
@@ -565,10 +565,10 @@ Resources:
             Action: bedrock:InvokeDataAutomationAsync
             Resource: 
               - !Ref BDAProjectArn
-              - !Sub "arn:aws:bedrock:us-east-1:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
-              - !Sub "arn:aws:bedrock:us-east-2:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
-              - !Sub "arn:aws:bedrock:us-west-1:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
-              - !Sub "arn:aws:bedrock:us-west-2:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
+              - !Sub "arn:${AWS::Partition}:bedrock:us-east-1:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
+              - !Sub "arn:${AWS::Partition}:bedrock:us-east-2:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
+              - !Sub "arn:${AWS::Partition}:bedrock:us-west-1:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
+              - !Sub "arn:${AWS::Partition}:bedrock:us-west-2:${AWS::AccountId}:data-automation-profile/us.data-automation-v1"
   
   InvokeBDAFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -645,7 +645,7 @@ Resources:
           - Effect: Allow
             Action:
               - sagemaker:StartHumanLoop
-            Resource: 'arn:aws:sagemaker:*:*:flow-definition/*'
+            Resource: 'arn:${AWS::Partition}:sagemaker:*:*:flow-definition/*'
           - Effect: Allow
             Action:
               - ssm:GetParameter
@@ -731,13 +731,13 @@ Resources:
           - Effect: Allow
             Action: bedrock:InvokeModel
             Resource: 
-                - !Sub "arn:aws:bedrock:*::foundation-model/*"
-                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
           - !If
             - HasGuardrailConfig
             - Effect: Allow
               Action: bedrock:ApplyGuardrail
-              Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
+              Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
             - !Ref AWS::NoValue
 
   SummarizationFunctionLogGroup:
@@ -931,7 +931,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
       PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
       Policies:
         - PolicyName: HITLProcessLambdaPolicy
@@ -948,7 +948,7 @@ Resources:
                   - dynamodb:DeleteItem
                   - dynamodb:Scan
                   - dynamodb:Query
-                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${BDAMetadataTable}'
+                Resource: !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${BDAMetadataTable}'
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
@@ -959,23 +959,23 @@ Resources:
                   - dynamodb:DeleteItem
                   - dynamodb:Scan
                   - dynamodb:Query
-                Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TrackingTable}'
+                Resource: !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TrackingTable}'
               - Effect: Allow
                 Action:
                   - s3:GetObject
                 Resource:
-                  - !Sub "arn:aws:s3:::${InputBucket}"
-                  - !Sub "arn:aws:s3:::${InputBucket}/*"
-                  - !Sub "arn:aws:s3:::${WorkingBucket}"
-                  - !Sub "arn:aws:s3:::${WorkingBucket}/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${InputBucket}"
+                  - !Sub "arn:${AWS::Partition}:s3:::${InputBucket}/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${WorkingBucket}"
+                  - !Sub "arn:${AWS::Partition}:s3:::${WorkingBucket}/*"
               - Effect: Allow
                 Action:
                   - s3:PutObject
                   - s3:GetBucketLocation
                   - s3:GetObject
                 Resource:
-                  - !Sub "arn:aws:s3:::${OutputBucket}"
-                  - !Sub "arn:aws:s3:::${OutputBucket}/*"
+                  - !Sub "arn:${AWS::Partition}:s3:::${OutputBucket}"
+                  - !Sub "arn:${AWS::Partition}:s3:::${OutputBucket}/*"
               - Effect: Allow
                 Action: 
                   - states:SendTaskSuccess
@@ -1519,4 +1519,4 @@ Outputs:
 
   DashboardArn:
     Description: ARN of the Pattern 1 (BDA) CloudWatch Dashboard
-    Value: !Sub "arn:aws:cloudwatch::${AWS::AccountId}:dashboard/${Dashboard}"
+    Value: !Sub "arn:${AWS::Partition}:cloudwatch::${AWS::AccountId}:dashboard/${Dashboard}"
