@@ -1218,6 +1218,10 @@ Resources:
           LOG_LEVEL: !Ref LogLevel
           APPSYNC_API_URL: !Ref AppSyncApiUrl
           WORKING_BUCKET: !Ref WorkingBucket
+          OUTPUT_BUCKET: !Ref OutputBucket
+          ENABLE_HITL: !Ref EnableHITL
+          SAGEMAKER_A2I_REVIEW_PORTAL_URL: !Ref SageMakerA2IReviewPortalURL
+          CONFIGURATION_TABLE_NAME: !Ref ConfigurationTable
       LoggingConfig:
         LogGroup: !Ref ProcessResultsFunctionLogGroup
       Policies:
@@ -1228,30 +1232,88 @@ Resources:
             BucketName: !Ref OutputBucket
         - S3CrudPolicy:
             BucketName: !Ref WorkingBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigurationTable
         - Statement:
-          - Effect: Allow
-            Action: cloudwatch:PutMetricData
-            Resource: '*'
-          - Effect: Allow
-            Action:
-              - kms:Encrypt
-              - kms:Decrypt
-              - kms:ReEncrypt*
-              - kms:GenerateDataKey*
-              - kms:DescribeKey
-            Resource: !Ref CustomerManagedEncryptionKeyArn
-          # AppSync permissions for updating document status
-          - Effect: Allow
-            Action:
-              - appsync:GraphQL
-            Resource: 
-              - !Sub "${AppSyncApiArn}/types/Mutation/*"
+            - Effect: Allow
+              Action: cloudwatch:PutMetricData
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - kms:Encrypt
+                - kms:Decrypt
+                - kms:ReEncrypt*
+                - kms:GenerateDataKey*
+                - kms:DescribeKey
+              Resource: !Ref CustomerManagedEncryptionKeyArn
+            # AppSync permissions for updating document status
+            - Effect: Allow
+              Action:
+                - appsync:GraphQL
+              Resource:
+                - !Sub "${AppSyncApiArn}/types/Mutation/*"
+            # SSM permissions for A2I FlowDefinition ARN
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${StackName}/FlowDefinitionArn"
+            # SageMaker A2I permissions for starting human loops
+            - Effect: Allow
+              Action:
+                - sagemaker-a2i-runtime:StartHumanLoop
+                - sagemaker-a2i-runtime:DescribeHumanLoop
+                - sagemaker-a2i-runtime:StopHumanLoop
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - sagemaker:StartHumanLoop
+              Resource: "arn:aws:sagemaker:*:*:flow-definition/*"
 
   ProcessResultsFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       LogGroupName: !Sub "/${AWS::StackName}/lambda/ProcessResultsFunction"
+      RetentionInDays: !Ref LogRetentionDays
+
+  HITLWaitFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsPattern2HITLEnabled
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "IAM policy allows broad permissions for DynamoDB operations which are necessary for tracking HITL tokens across multiple tables"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    Properties:
+      PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
+      CodeUri: src/hitl-wait-function/
+      Handler: index.lambda_handler
+      Runtime: python3.12
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          LOG_LEVEL: !Ref LogLevel
+          TRACKING_TABLE: !Ref TrackingTable
+          WORKING_BUCKET: !Ref WorkingBucket
+          SAGEMAKER_A2I_REVIEW_PORTAL_URL: !Ref SageMakerA2IReviewPortalURL
+      LoggingConfig:
+        LogGroup: !Ref HITLWaitFunctionLogGroup
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TrackingTable
+
+  HITLWaitFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsPattern2HITLEnabled
+    Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/HITLWaitFunction"
       RetentionInDays: !Ref LogRetentionDays
 
   SummarizationFunction:
@@ -1345,6 +1407,7 @@ Resources:
         ExtractionFunctionArn: !GetAtt ExtractionFunction.Arn
         AssessmentFunctionArn: !GetAtt AssessmentFunction.Arn
         ProcessResultsLambdaArn: !GetAtt ProcessResultsFunction.Arn
+        HITLWaitFunctionArn: !If [IsPattern2HITLEnabled, !GetAtt HITLWaitFunction.Arn, ""]
         SummarizationLambdaArn: !GetAtt SummarizationFunction.Arn
         OutputBucket: !Ref OutputBucket
       Logging:
@@ -1363,6 +1426,11 @@ Resources:
             FunctionName: !Ref AssessmentFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref ProcessResultsFunction
+        - !If
+          - IsPattern2HITLEnabled
+          - LambdaInvokePolicy:
+              FunctionName: !Ref HITLWaitFunction
+          - !Ref AWS::NoValue
         - LambdaInvokePolicy:
             FunctionName: !Ref SummarizationFunction
         - CloudWatchLogsFullAccess
