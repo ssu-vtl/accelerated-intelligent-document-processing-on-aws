@@ -45,10 +45,12 @@ Parameters:
     
   AppSyncApiUrl:
     Type: String
+    Default: ""
     Description: The AppSync API URL for status updates
     
   AppSyncApiArn:
     Type: String
+    Default: ""
     Description: The AppSync API ARN for IAM permissions
   
   ExecutionTimeThresholdMs:
@@ -119,6 +121,7 @@ Conditions:
   HasCustomExtractionModelARN : !Not [!Equals [!Ref CustomExtractionModelARN , ""]]
   HasPermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundaryArn, ""]]
   IsHITLEnabled: !Equals [!Ref EnableHITL, "true"]
+  HasAppSyncApi: !Not [!Equals [!Ref AppSyncApiArn, ""]]
 
 
 Resources:
@@ -910,12 +913,15 @@ Resources:
             Resource: 
                 - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
                 - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
-          # AppSync permissions for updating document status
-          - Effect: Allow
-            Action:
-              - appsync:GraphQL
-            Resource: 
-              - !Sub "${AppSyncApiArn}/types/Mutation/*"
+          # AppSync permissions for updating document status (only if AppSync API is available)
+          - !If
+            - HasAppSyncApi
+            - Effect: Allow
+              Action:
+                - appsync:GraphQL
+              Resource: 
+                - !Sub "${AppSyncApiArn}/types/Mutation/*"
+            - !Ref AWS::NoValue
 
   
   OCRFunctionLogGroup:
@@ -987,12 +993,15 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
-          # AppSync permissions for updating document status
-          - Effect: Allow
-            Action:
-              - appsync:GraphQL
-            Resource: 
-              - !Sub "${AppSyncApiArn}/types/Mutation/*"
+          # AppSync permissions for updating document status (only if AppSync API is available)
+          - !If
+            - HasAppSyncApi
+            - Effect: Allow
+              Action:
+                - appsync:GraphQL
+              Resource: 
+                - !Sub "${AppSyncApiArn}/types/Mutation/*"
+            - !Ref AWS::NoValue
           - Effect: Allow
             Action: bedrock:InvokeModel
             Resource: 
@@ -1073,12 +1082,15 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
-          # AppSync permissions for updating document status
-          - Effect: Allow
-            Action:
-              - appsync:GraphQL
-            Resource: 
-              - !Sub "${AppSyncApiArn}/types/Mutation/*"
+          # AppSync permissions for updating document status (only if AppSync API is available)
+          - !If
+            - HasAppSyncApi
+            - Effect: Allow
+              Action:
+                - appsync:GraphQL
+              Resource: 
+                - !Sub "${AppSyncApiArn}/types/Mutation/*"
+            - !Ref AWS::NoValue
           - Effect: Allow
             Action: bedrock:InvokeModel
             Resource: 
@@ -1165,12 +1177,15 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
-          # AppSync permissions for updating document status
-          - Effect: Allow
-            Action:
-              - appsync:GraphQL
-            Resource: 
-              - !Sub "${AppSyncApiArn}/types/Mutation/*"
+          # AppSync permissions for updating document status (only if AppSync API is available)
+          - !If
+            - HasAppSyncApi
+            - Effect: Allow
+              Action:
+                - appsync:GraphQL
+              Resource: 
+                - !Sub "${AppSyncApiArn}/types/Mutation/*"
+            - !Ref AWS::NoValue
           - Effect: Allow
             Action: bedrock:InvokeModel
             Resource: 
@@ -1240,12 +1255,15 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
-          # AppSync permissions for updating document status
-          - Effect: Allow
-            Action:
-              - appsync:GraphQL
-            Resource: 
-              - !Sub "${AppSyncApiArn}/types/Mutation/*"
+          # AppSync permissions for updating document status (only if AppSync API is available)
+          - !If
+            - HasAppSyncApi
+            - Effect: Allow
+              Action:
+                - appsync:GraphQL
+              Resource: 
+                - !Sub "${AppSyncApiArn}/types/Mutation/*"
+            - !Ref AWS::NoValue
 
   ProcessResultsFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -1308,12 +1326,15 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
-          # AppSync permissions for updating document status
-          - Effect: Allow
-            Action:
-              - appsync:GraphQL
-            Resource: 
-              - !Sub "${AppSyncApiArn}/types/Mutation/*"
+          # AppSync permissions for updating document status (only if AppSync API is available)
+          - !If
+            - HasAppSyncApi
+            - Effect: Allow
+              Action:
+                - appsync:GraphQL
+              Resource: 
+                - !Sub "${AppSyncApiArn}/types/Mutation/*"
+            - !Ref AWS::NoValue
           - Effect: Allow
             Action: bedrock:InvokeModel
             Resource: 

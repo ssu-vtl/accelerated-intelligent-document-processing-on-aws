@@ -60,10 +60,12 @@ Parameters:
     
   AppSyncApiUrl:
     Type: String
+    Default: ""
     Description: The AppSync API URL for status updates
     
   AppSyncApiArn:
     Type: String
+    Default: ""
     Description: The AppSync API ARN for IAM permissions
     
   BedrockGuardrailId:
@@ -111,6 +113,7 @@ Parameters:
 Conditions:
   HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
   HasPermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundaryArn, ""]]
+  HasAppSyncApi: !Not [!Equals [!Ref AppSyncApiArn, ""]]
   IsHITLEnabled: !Equals [!Ref EnableHITL, "true"]
 
 Resources:
@@ -822,12 +825,15 @@ Resources:
               - textract:DetectDocumentText
               - textract:AnalyzeDocument
             Resource: '*'
-          # AppSync permissions for updating document status
-          - Effect: Allow
-            Action:
-              - appsync:GraphQL
-            Resource: 
-              - !Sub "${AppSyncApiArn}/types/Mutation/*"
+          # AppSync permissions for updating document status (only if AppSync API is available) (only if AppSync API is available)
+          - !If
+            - HasAppSyncApi
+            - Effect: Allow
+              Action:
+                - appsync:GraphQL
+              Resource: 
+                - !Sub "${AppSyncApiArn}/types/Mutation/*"
+            - !Ref AWS::NoValue
 
   
   OCRFunctionLogGroup:
@@ -901,7 +907,7 @@ Resources:
           - Effect: Allow
             Action: sagemaker:InvokeEndpoint
             Resource: !GetAtt SAGEMAKERCLASSIFIERSTACK.Outputs.EndpointArn
-          # AppSync permissions for updating document status
+          # AppSync permissions for updating document status (only if AppSync API is available)
           - Effect: Allow
             Action:
               - appsync:GraphQL
@@ -989,7 +995,7 @@ Resources:
             Condition:
               StringLike:
                 "lambda:FunctionName": "GENAIIDP-*"
-          # AppSync permissions for updating document status
+          # AppSync permissions for updating document status (only if AppSync API is available)
           - Effect: Allow
             Action:
               - appsync:GraphQL
@@ -1065,7 +1071,7 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
-          # AppSync permissions for updating document status
+          # AppSync permissions for updating document status (only if AppSync API is available)
           - Effect: Allow
             Action:
               - appsync:GraphQL
@@ -1140,7 +1146,7 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !Ref CustomerManagedEncryptionKeyArn
-          # AppSync permissions for updating document status
+          # AppSync permissions for updating document status (only if AppSync API is available)
           - Effect: Allow
             Action:
               - appsync:GraphQL
@@ -1214,7 +1220,7 @@ Resources:
             Resource: 
                 - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
                 - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
-          # AppSync permissions for updating document status
+          # AppSync permissions for updating document status (only if AppSync API is available)
           - Effect: Allow
             Action:
               - appsync:GraphQL

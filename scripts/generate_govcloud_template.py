@@ -913,7 +913,7 @@ Examples:
         print("=" * 60)
         
         input_template = '.aws-sam/packaged.yaml'
-        output_template = 'template-govcloud.yaml'
+        output_template = '.aws-sam/idp-govcloud.yml'
         
         if not generator.generate_govcloud_template(input_template, output_template):
             print("❌ GovCloud template generation failed")
