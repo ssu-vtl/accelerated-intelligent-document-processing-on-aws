@@ -40,6 +40,8 @@ SPDX-License-Identifier: MIT-0
 
 - **Reverted to python3.12 runtime to resolve build package dependency problems**
 
+### Fixed
+- **Improved Visual Edit bounding box position when using image zoom or pan**
 
 
 
