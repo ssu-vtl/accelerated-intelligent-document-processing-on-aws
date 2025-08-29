@@ -188,9 +188,7 @@ class GovCloudTemplateGenerator:
             'WebUIBucketName',
             'WebUITestEnvFile',
             'SageMakerA2IReviewPortalURL',
-            'LabelingConsoleURL',
-            'CWDashboardConsoleName',  # References removed MergedDashboard
-            'CWDashboardConsoleURL'  # References removed MergedDashboard
+            'LabelingConsoleURL'
         }
 
     def setup_logging(self):
@@ -548,7 +546,7 @@ class GovCloudTemplateGenerator:
                                 self.logger.debug(f"Removed AppSync policy statements from {func_name}")
         
         # Convert all backend functions from AppSync to DynamoDB tracking mode
-        functions_to_convert = ['QueueSender', 'WorkflowTracker', 'QueueProcessor']
+        functions_to_convert = ['QueueSender', 'QueueProcessor', 'WorkflowTracker', 'EvaluationFunction']
         for func_name in functions_to_convert:
             if func_name in resources:
                 func_def = resources[func_name]

@@ -46,7 +46,7 @@ Successfully created a comprehensive GovCloud-compatible version of the GenAI ID
 - Fixed scheduler ingestion job ARNs
 
 #### 4. Automation Scripts
-**Complete Publication Script (`scripts/publish_all.py`):**
+**Complete Publication Script (`scripts/generate_govcloud_template.py`):**
 - Orchestrates full build + GovCloud generation process
 - Provides deployment instructions for both standard and GovCloud
 - Handles error reporting and status updates
@@ -103,7 +103,7 @@ sam deploy --template-file .aws-sam/packaged.yaml
 
 **GovCloud Deployment:**
 ```bash
-python scripts/publish_all.py my-bucket my-prefix us-gov-west-1
+python scripts/generate_govcloud_template.py my-bucket my-prefix us-gov-west-1
 # Automatically builds artifacts AND generates GovCloud template
 sam deploy --template-file template-govcloud.yaml
 ```
@@ -118,8 +118,7 @@ sam deploy --template-file template-govcloud.yaml
 ## Implementation Files Created/Modified
 
 ### New Files Created:
-- `scripts/generate_govcloud_template.py` - Main GovCloud template generator
-- `scripts/publish_all.py` - Complete automation wrapper script
+- `scripts/generate_govcloud_template.py` - Main GovCloud template generator and complete automation wrapper script
 - `docs/govcloud-deployment.md` - Comprehensive deployment documentation
 
 ### Templates Updated for GovCloud:
