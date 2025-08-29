@@ -1361,18 +1361,32 @@ except Exception as e:
                         arcname = os.path.relpath(file_path, ui_dir)
                         zipf.write(file_path, arcname)
 
-            self.console.print("[cyan]Upload source to S3[/cyan]")
-            s3_key = f"{self.prefix_and_version}/{zipfile_name}"
-
-            try:
-                self.s3_client.upload_file(
-                    zipfile_path, self.bucket, s3_key, ExtraArgs={"ACL": self.acl}
-                )
-            except ClientError as e:
-                self.console.print(f"[red]Error uploading UI zipfile: {e}[/red]")
+        # Check if file exists in S3 and upload if needed
+        s3_key = f"{self.prefix_and_version}/{zipfile_name}"
+        try:
+            self.s3_client.head_object(Bucket=self.bucket, Key=s3_key)
+            self.console.print(
+                f"[green]WebUI zipfile already exists in S3: {zipfile_name}[/green]"
+            )
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "404":
+                self.console.print("[cyan]Upload source to S3[/cyan]")
+                try:
+                    self.s3_client.upload_file(
+                        zipfile_path, self.bucket, s3_key, ExtraArgs={"ACL": self.acl}
+                    )
+                    self.console.print(
+                        f"[green]Uploaded WebUI zipfile to S3: {zipfile_name}[/green]"
+                    )
+                except ClientError as upload_error:
+                    self.console.print(
+                        f"[red]Error uploading UI zipfile: {upload_error}[/red]"
+                    )
+                    sys.exit(1)
+            else:
+                self.console.print(f"[red]Error checking S3 for UI zipfile: {e}[/red]")
                 sys.exit(1)
 
-        self.console.print(f"[green]WebUI zipfile: {zipfile_name}[/green]")
         return zipfile_name
 
     def build_main_template(self, webui_zipfile, components_needing_rebuild):
@@ -1653,7 +1667,13 @@ except Exception as e:
         if not hasattr(self, "_component_checksum_cache"):
             self._component_checksum_cache = {}
 
-        cache_key = tuple(sorted(paths))
+        # Include bucket and prefix in cache key to force rebuild when they change
+        cache_key = (
+            tuple(sorted(paths)),
+            self.bucket,
+            self.prefix_and_version,
+            self.region,
+        )
         if cache_key in self._component_checksum_cache:
             return self._component_checksum_cache[cache_key]
 
@@ -1666,7 +1686,10 @@ except Exception as e:
                 # For directories, use source files checksum
                 checksums.append(self.get_source_files_checksum(path))
 
-        combined = "".join(checksums)
+        # Include deployment context in checksum calculation
+        combined = (
+            "".join(checksums) + self.bucket + self.prefix_and_version + self.region
+        )
         result = hashlib.sha256(combined.encode()).hexdigest()
 
         # Cache the result
