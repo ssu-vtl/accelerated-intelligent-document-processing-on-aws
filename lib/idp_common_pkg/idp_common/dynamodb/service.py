@@ -11,6 +11,7 @@ storage and retrieval through direct DynamoDB operations, bypassing AppSync.
 import datetime
 import json
 import logging
+from decimal import Decimal
 from typing import Any, Dict, Optional
 
 from idp_common.dynamodb.client import DynamoDBClient
