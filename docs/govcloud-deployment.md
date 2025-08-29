@@ -170,15 +170,11 @@ aws dynamodb scan \
 
 ### 2. CLI Tools
 ```bash
-# Use the lookup function to check document status
-aws lambda invoke \
-  --function-name MyStack-LookupFunction \
-  --region us-gov-west-1 \
-  --payload '{"document_id": "documents/my-document.pdf"}' \
-  response.json
+# Use the lookup script to check document status
+./scripts/lookup_file_status.sh documents/my-document.pdf MyStack
 
-# View results
-cat response.json
+# Or use default stack name (IDP)
+./scripts/lookup_file_status.sh documents/my-document.pdf
 ```
 
 ### 3. SDK Integration
