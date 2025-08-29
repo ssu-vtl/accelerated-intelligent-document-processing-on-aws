@@ -127,10 +127,7 @@ class GovCloudTemplateGenerator:
             'CognitoUserPoolEmailDomainVerifyPermission',
             'CognitoUserPoolEmailDomainVerifyPermissionReady'
         }
-        
-        # Keep these utility resources as they don't depend on GovCloud-incompatible services
-        # GetDomainLambda, GetDomainLambdaLogGroup, GetLowercase - utility functions for string manipulation
-        
+          
         self.waf_resources = {
             'WAFIPV4Set',
             'WAFLambdaServiceIPSet',
@@ -163,21 +160,12 @@ class GovCloudTemplateGenerator:
             'WorkforceURLResource'
         }
         
-        # Functions that depend on AppSync but can be converted to use DynamoDB tracking
-        self.functions_to_convert_to_dynamodb = {
-            'QueueSender',  # Convert from AppSync to DynamoDB tracking
-            'WorkflowTracker',  # Convert from AppSync to DynamoDB tracking
-        }
-        
         # Functions that are purely AppSync-dependent and should be removed for headless GovCloud deployment
         self.appsync_dependent_resources = {
             'StepFunctionSubscriptionPublisher',  # AppSync subscription publisher
             'StepFunctionSubscriptionPublisherLogGroup',
             'StepFunctionSubscriptionRule',
-            'StepFunctionSubscriptionPublisherPermission',
-            'MainTemplateSubsetDashboard',  # Dashboard references removed log groups
-            'MergedDashboard',  # Dashboard merger depends on MainTemplateSubsetDashboard
-            'DashboardMergerFunction'  # Function that merges dashboards (not needed for headless)
+            'StepFunctionSubscriptionPublisherPermission'
         }
         
         # Parameters to remove
@@ -947,8 +935,8 @@ Examples:
         print("STEP 2: Generating GovCloud Template")
         print("=" * 60)
         
-        input_template = '.aws-sam/packaged.yaml'
-        output_template = '.aws-sam/idp-govcloud.yml'
+        input_template = '.aws-sam/idp-main.yaml'
+        output_template = '.aws-sam/idp-govcloud.yaml'
         
         if not generator.generate_govcloud_template(input_template, output_template):
             print("❌ GovCloud template generation failed")
