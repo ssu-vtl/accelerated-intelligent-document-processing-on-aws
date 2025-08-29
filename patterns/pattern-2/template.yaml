@@ -1335,6 +1335,8 @@ Resources:
             BucketName: !Ref WorkingBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref ConfigurationTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TrackingTable
         - Statement:
           - Effect: Allow
             Action: cloudwatch:PutMetricData
