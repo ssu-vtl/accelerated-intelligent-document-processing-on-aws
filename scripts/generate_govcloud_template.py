@@ -516,35 +516,7 @@ class GovCloudTemplateGenerator:
                 if 'CorsConfiguration' in properties:
                     del properties['CorsConfiguration']
                     self.logger.debug(f"Removed CORS configuration from {resource_name}")
-        
-        # Clean Lambda functions that have AppSync references in environment variables or policies
-        functions_to_clean = ['EvaluationFunction']  # QueueProcessor moved to conversion list
-        for func_name in functions_to_clean:
-            if func_name in resources:
-                func_def = resources[func_name]
-                
-                # Clean environment variables
-                env_vars = func_def.get('Properties', {}).get('Environment', {}).get('Variables', {})
-                if 'APPSYNC_API_URL' in env_vars:
-                    del env_vars['APPSYNC_API_URL']
-                    self.logger.debug(f"Removed APPSYNC_API_URL from {func_name}")
-                
-                # Clean policies that reference AppSync
-                policies = func_def.get('Properties', {}).get('Policies', [])
-                for policy in policies:
-                    if isinstance(policy, dict) and 'Statement' in policy:
-                        statements = policy['Statement']
-                        if isinstance(statements, list):
-                            # Remove statements that reference GraphQLApi
-                            policy['Statement'] = [
-                                stmt for stmt in statements 
-                                if not (isinstance(stmt, dict) and 
-                                       isinstance(stmt.get('Resource'), list) and 
-                                       any('GraphQLApi.Arn' in str(res) for res in stmt.get('Resource', [])))
-                            ]
-                            if len(policy['Statement']) != len(statements):
-                                self.logger.debug(f"Removed AppSync policy statements from {func_name}")
-        
+               
         # Convert all backend functions from AppSync to DynamoDB tracking mode
         functions_to_convert = ['QueueSender', 'QueueProcessor', 'WorkflowTracker', 'EvaluationFunction']
         for func_name in functions_to_convert:
