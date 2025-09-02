@@ -66,7 +66,7 @@ def lambda_handler(event, context):
     section_task_tokens = {}
     page_task_tokens = {}
     
-    # Process each section that needs HITL
+    # Process each section that needs HITL (Pattern-1 approach)
     for section in hitl_metadata:
         if section.get('hitl_triggered') == True:
             section_id = str(section.get('record_number'))

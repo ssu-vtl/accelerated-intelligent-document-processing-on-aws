@@ -89,6 +89,14 @@ Parameters:
       - "false"
     Description: "Enable Human In The Loop (A2I) for document review"
 
+  IsPattern2HITLEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: "Pattern-2 specific HITL enablement flag"
+
   SageMakerA2IReviewPortalURL:
     Type: String
     Default: ""
@@ -115,10 +123,11 @@ Parameters:
 
 Conditions:
   HasGuardrailConfig: !And [!Not [!Equals [!Ref BedrockGuardrailId, ""]], !Not [!Equals [!Ref BedrockGuardrailVersion, ""]]]
-  HasCustomClassificationModelARN : !Not [!Equals [!Ref CustomClassificationModelARN , ""]]
-  HasCustomExtractionModelARN : !Not [!Equals [!Ref CustomExtractionModelARN , ""]]
+  HasCustomClassificationModelARN: !Not [!Equals [!Ref CustomClassificationModelARN, ""]]
+  HasCustomExtractionModelARN: !Not [!Equals [!Ref CustomExtractionModelARN, ""]]
   HasPermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundaryArn, ""]]
   IsHITLEnabled: !Equals [!Ref EnableHITL, "true"]
+  IsPattern2HITLEnabled: !Equals [!Ref IsPattern2HITLEnabled, "true"]
 
 
 Resources:
@@ -1307,6 +1316,26 @@ Resources:
         - AWSLambdaBasicExecutionRole
         - DynamoDBCrudPolicy:
             TableName: !Ref TrackingTable
+        - S3CrudPolicy:
+            BucketName: !Ref WorkingBucket
+        - Statement:
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: !Ref CustomerManagedEncryptionKeyArn
+          # AppSync permissions for updating document status
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource: 
+              - !Sub "${AppSyncApiArn}/types/Mutation/*"
 
   HITLWaitFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -1315,6 +1344,177 @@ Resources:
       KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
       LogGroupName: !Sub "/${AWS::StackName}/lambda/HITLWaitFunction"
       RetentionInDays: !Ref LogRetentionDays
+
+  HITLStatusUpdateFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsPattern2HITLEnabled
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    Properties:
+      PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
+      CodeUri: src/hitl-status-update-function/
+      Handler: index.handler
+      Runtime: python3.12
+      Timeout: 60
+      LoggingConfig:
+        LogGroup: !Ref HITLStatusUpdateFunctionLogGroup
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3CrudPolicy:
+            BucketName: !Ref WorkingBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:GenerateDataKey
+              Resource: !Ref CustomerManagedEncryptionKeyArn
+
+  HITLStatusUpdateFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsPattern2HITLEnabled
+    Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/HITLStatusUpdateFunction"
+      RetentionInDays: !Ref LogRetentionDays
+
+  #EventBridge Rule to check Human In the Loop Status change
+  HITLEventRule:
+    Type: AWS::Events::Rule
+    Condition: IsPattern2HITLEnabled
+    Properties:
+      Description: 'Rule for SageMaker A2I HumanLoop Status Change'
+      EventPattern:
+        detail-type:
+          - 'SageMaker A2I HumanLoop Status Change'
+        source:
+          - 'aws.sagemaker'
+        detail:
+          humanLoopStatus:
+            - 'Completed'
+            - 'Failed'
+            - 'Stopped'
+      State: 'ENABLED'
+      Targets:
+        - Arn: !GetAtt HITLProcessLambdaFunction.Arn
+          Id: 'HITLProcessLambdaTarget'
+
+  HITLProcessLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsPattern2HITLEnabled
+    Properties:
+      KmsKeyId: !Ref CustomerManagedEncryptionKeyArn
+      LogGroupName: !Sub "/${AWS::StackName}/lambda/HITLProcessLambdaFunction"
+      RetentionInDays: !Ref LogRetentionDays
+
+  HITLProcessLambdaFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsPattern2HITLEnabled
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Function does not require VPC access as it only interacts with AWS services via APIs"
+          - id: W92
+            reason: "Function does not require reserved concurrency as it scales based on demand"
+          - id: W58
+            reason: "DLQ not required for EventBridge triggered function as it handles A2I status updates"
+    # checkov:skip=CKV_AWS_116: "DLQ not required for EventBridge triggered function as it handles A2I status updates"
+    # checkov:skip=CKV_AWS_117: "Function does not require VPC access as it only interacts with AWS services via APIs"
+    # checkov:skip=CKV_AWS_115: "Function does not require reserved concurrency as it scales based on demand"
+    # checkov:skip=CKV_AWS_173: "Environment variables do not contain sensitive data - only configuration values like feature flags and non-sensitive settings"
+    Properties:
+      PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
+      Handler: index.lambda_handler
+      LoggingConfig:
+        LogGroup: !Ref HITLProcessLambdaLogGroup
+      Runtime: python3.12
+      Timeout: 300
+      CodeUri: src/hitl-process-function/
+      Role: !GetAtt HITLProcessLambdaRole.Arn
+      Environment:
+        Variables:
+          TRACKING_TABLE: !Ref TrackingTable
+
+  HITLProcessLambdaRole:
+    Type: AWS::IAM::Role
+    Condition: IsPattern2HITLEnabled
+    Properties:
+      PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub "arn:aws:s3:::${OutputBucket}/*"
+                  - !Sub "arn:aws:s3:::sagemaker-*/*"
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::${OutputBucket}"
+                  - !Sub "arn:aws:s3:::sagemaker-*"
+        - PolicyName: KMSAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey
+                Resource: !Ref CustomerManagedEncryptionKeyArn
+        - PolicyName: DynamoDBAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TrackingTable}"
+        - PolicyName: StepFunctionsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:SendTaskSuccess
+                  - states:SendTaskFailure
+                Resource: "*"
+
+  #Event Bridge permissions to invoke Lambda function during HITL change 
+  EventBridgeInvokeLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Condition: IsPattern2HITLEnabled
+    Properties:
+      FunctionName: !Ref HITLProcessLambdaFunction
+      Action: 'lambda:InvokeFunction'
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt HITLEventRule.Arn
 
   SummarizationFunction:
     Type: AWS::Serverless::Function
@@ -1408,6 +1608,7 @@ Resources:
         AssessmentFunctionArn: !GetAtt AssessmentFunction.Arn
         ProcessResultsLambdaArn: !GetAtt ProcessResultsFunction.Arn
         HITLWaitFunctionArn: !If [IsPattern2HITLEnabled, !GetAtt HITLWaitFunction.Arn, ""]
+        HITLStatusUpdateFunctionArn: !If [IsPattern2HITLEnabled, !GetAtt HITLStatusUpdateFunction.Arn, ""]
         SummarizationLambdaArn: !GetAtt SummarizationFunction.Arn
         OutputBucket: !Ref OutputBucket
       Logging:
@@ -1430,6 +1631,11 @@ Resources:
           - IsPattern2HITLEnabled
           - LambdaInvokePolicy:
               FunctionName: !Ref HITLWaitFunction
+          - !Ref AWS::NoValue
+        - !If
+          - IsPattern2HITLEnabled
+          - LambdaInvokePolicy:
+              FunctionName: !Ref HITLStatusUpdateFunction
           - !Ref AWS::NoValue
         - LambdaInvokePolicy:
             FunctionName: !Ref SummarizationFunction

@@ -68,7 +68,9 @@ def start_human_loop(
     section_classification: str,
     confidence_threshold: float,
     page_ids: list,
-    section_page_number: int
+    section_page_number: int,
+    output_bucket: str,
+    document_id: str
 ) -> dict:
     """
     Start a SageMaker A2I human review loop for fields on a specific page.
@@ -86,7 +88,11 @@ def start_human_loop(
         "blueprintName": section_classification,
         "page_ids": page_ids,
         "execution_id": execution_id,
-        "page_number": section_page_number
+        "page_number": section_page_number,
+        # S3 metadata for EventBridge processing
+        "s3Bucket": output_bucket,
+        "documentId": document_id,
+        "sectionId": section_id
     }
     
     logger.info(f"Human loop input structure: {json.dumps(human_loop_input, indent=2, default=str)}")
@@ -221,7 +227,7 @@ def extract_field_value(inference_result: dict, field_name: str):
     
     return current
 
-def process_section_for_hitl(section: Section, section_data: dict, confidence_threshold: float, execution_id: str) -> bool:
+def process_section_for_hitl(section: Section, section_data: dict, confidence_threshold: float, execution_id: str, document_id: str) -> bool:
     """
     Process a section to determine if A2I should be triggered and start human loops for each page.
     Creates separate A2I tasks for each page in the section.
@@ -231,6 +237,7 @@ def process_section_for_hitl(section: Section, section_data: dict, confidence_th
         section_data: Section extraction result data from S3
         confidence_threshold: Confidence threshold to check against
         execution_id: Execution ID for tracking
+        document_id: Document ID from the event
         
     Returns:
         bool: True if any A2I was triggered, False otherwise
@@ -250,9 +257,8 @@ def process_section_for_hitl(section: Section, section_data: dict, confidence_th
     inference_result = section_data.get('inference_result', {})
     any_hitl_triggered = False
     
-    # Extract document ID and output bucket from section extraction_result_uri
+    # Extract output bucket from section extraction_result_uri, use document_id from event
     uri_parts = section.extraction_result_uri.split('/')
-    document_id = uri_parts[-4] if len(uri_parts) >= 4 else 'unknown'
     output_bucket = uri_parts[2] if len(uri_parts) >= 3 else os.environ.get('OUTPUT_BUCKET', '')
     
     # Process each page in the section separately with reset page numbering
@@ -347,7 +353,9 @@ def process_section_for_hitl(section: Section, section_data: dict, confidence_th
                 section_classification=section.classification,
                 confidence_threshold=confidence_threshold,
                 page_ids=[page_id],  # Single page for this A2I task
-                section_page_number=section_page_number  # Use section-relative page number
+                section_page_number=section_page_number,  # Use section-relative page number
+                output_bucket=output_bucket,
+                document_id=document_id
             )
             logger.info(f"Successfully triggered A2I for section {section.section_id}, page {page_id} (section page {section_page_number})")
             any_hitl_triggered = True
@@ -428,27 +436,26 @@ def handler(event, context):
                         
                         # Process section for HITL (creates A2I tasks for each page)
                         section_hitl_triggered = process_section_for_hitl(
-                            section, section_data, confidence_threshold, execution_id
+                            section, section_data, confidence_threshold, execution_id, document.id
                         )
                         
                         if section_hitl_triggered:
                             hitl_triggered = True
                             logger.info(f"A2I triggered for section {section.section_id}")
                             
-                            # Create HITL metadata for each page in the section with reset page numbering
-                            section_page_number = 1
-                            for page_id in section.page_ids:
-                                hitl_metadata = HitlMetadata(
-                                    execution_id=execution_id,
-                                    record_number=section_page_number,  # Use section-relative page number
-                                    bp_match=True,
-                                    extraction_bp_name=section.classification,
-                                    hitl_triggered=True,
-                                    page_array=[section_page_number],  # Use section-relative page number
-                                    review_portal_url=SAGEMAKER_A2I_REVIEW_PORTAL_URL
-                                )
-                                document.hitl_metadata.append(hitl_metadata)
-                                section_page_number += 1
+                            # Create ONE HITL metadata entry per section (like Pattern-1)
+                            # Include all pages in the section that triggered HITL
+                            section_page_numbers = list(range(1, len(section.page_ids) + 1))
+                            hitl_metadata = HitlMetadata(
+                                execution_id=execution_id,
+                                record_number=int(section.section_id),  # Use actual section ID
+                                bp_match=True,
+                                extraction_bp_name=section.classification,
+                                hitl_triggered=True,
+                                page_array=section_page_numbers,  # All pages in this section
+                                review_portal_url=SAGEMAKER_A2I_REVIEW_PORTAL_URL
+                            )
+                            document.hitl_metadata.append(hitl_metadata)
                         
                     except Exception as e:
                         logger.error(f"Error processing A2I for section {section.section_id}: {str(e)}")
