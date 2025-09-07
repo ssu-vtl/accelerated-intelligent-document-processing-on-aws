@@ -241,9 +241,10 @@ Parameters:
     AllowedValues:
       - "OpenSearch"
       - "S3 Vectors"
+      - "Disable"
     Description: |
       Use processed documents as knowledge base content. Bedrock Knowledge Base offers two backends: 
-      OpenSearch ($11/day, real-time analytics, faster queries) or S3 Vectors (on-demand, slower, free at rest).
+      OpenSearch ($11/day, real-time analytics, faster queries), S3 Vectors (on-demand, slower, free at rest), or Disable to turn off knowledge base functionality.
 
   KnowledgeBaseModelId:
     Type: String
@@ -493,6 +494,7 @@ Conditions:
   ShouldUseDocumentKnowledgeBase: !Condition ShouldCreateDocumentKnowledgeBase
   ShouldUseS3VectorsKnowledgeBase: !Condition ShouldCreateS3VectorsKnowledgeBase
   ShouldUseAnyKnowledgeBase: !Or [!Condition ShouldUseDocumentKnowledgeBase, !Condition ShouldUseS3VectorsKnowledgeBase]
+  IsKnowledgeBaseDisabled: !Equals [!Ref DocumentKnowledgeBase, "Disable"]
   DocumentSectionsCrawlerScheduleEnabled: !Not [!Equals [!Ref DocumentSectionsCrawlerFrequency, "Manual"]]
   HasPermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundaryArn, ""]]
   HasCustomConfigPath: !Not [!Equals [!Ref CustomConfigPath, ""]]
@@ -2253,6 +2255,10 @@ Resources:
           - False
         ShouldUseS3VectorsKnowledgeBase: !If
           - ShouldUseS3VectorsKnowledgeBase
+          - True
+          - False
+        IsKnowledgeBaseDisabled: !If
+          - IsKnowledgeBaseDisabled
           - True
           - False
     UpdateReplacePolicy: Delete
@@ -5864,9 +5870,12 @@ Resources:
         Variables:
           LOG_LEVEL: !Ref LogLevel
           KB_TYPE: !If
-            - ShouldUseS3VectorsKnowledgeBase
-            - "S3_VECTORS"
-            - "BEDROCK"
+            - IsKnowledgeBaseDisabled
+            - "DISABLED"
+            - !If
+              - ShouldUseS3VectorsKnowledgeBase
+              - "S3_VECTORS"
+              - "BEDROCK"
           KB_ID: !If
             - ShouldUseDocumentKnowledgeBase
             - !GetAtt DOCUMENTBEDROCKKB.Outputs.KnowledgeBaseID
@@ -5915,24 +5924,33 @@ Resources:
                 - lambda:InvokeFunction
               Resource: !GetAtt DOCUMENTS3VECTORSKB.Outputs.S3VectorsQueryFunctionArn
             - !Ref AWS::NoValue
-          - Effect: Allow
-            Action:
-              - "bedrock:InvokeModel"
-            Resource:
-              - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
-              - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
-          - Effect: Allow
-            Action:
-              - "bedrock:GetInferenceProfile"
-            Resource:
-              - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
           - !If
-            - HasGuardrailConfig
+            - IsKnowledgeBaseDisabled
+            - !Ref AWS::NoValue
             - Effect: Allow
               Action:
-                - "bedrock:ApplyGuardrail"
+                - "bedrock:InvokeModel"
               Resource:
-                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          - !If
+            - IsKnowledgeBaseDisabled
+            - !Ref AWS::NoValue
+            - Effect: Allow
+              Action:
+                - "bedrock:GetInferenceProfile"
+              Resource:
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          - !If
+            - HasGuardrailConfig
+            - !If
+              - IsKnowledgeBaseDisabled
+              - !Ref AWS::NoValue
+              - Effect: Allow
+                Action:
+                  - "bedrock:ApplyGuardrail"
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
             - !Ref AWS::NoValue
           - Effect: Allow
             Action:
@@ -6019,24 +6037,33 @@ Resources:
                 - bedrock:RetrieveAndGenerate
               Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/${DOCUMENTBEDROCKKB.Outputs.KnowledgeBaseID}"
             - !Ref AWS::NoValue
-          - Effect: Allow
-            Action:
-              - "bedrock:InvokeModel"
-            Resource:
-              - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
-              - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
-          - Effect: Allow
-            Action:
-              - "bedrock:GetInferenceProfile"
-            Resource:
-              - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
           - !If
-            - HasGuardrailConfig
+            - IsKnowledgeBaseDisabled
+            - !Ref AWS::NoValue
             - Effect: Allow
               Action:
-                - "bedrock:ApplyGuardrail"
+                - "bedrock:InvokeModel"
               Resource:
-                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          - !If
+            - IsKnowledgeBaseDisabled
+            - !Ref AWS::NoValue
+            - Effect: Allow
+              Action:
+                - "bedrock:GetInferenceProfile"
+              Resource:
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          - !If
+            - HasGuardrailConfig
+            - !If
+              - IsKnowledgeBaseDisabled
+              - !Ref AWS::NoValue
+              - Effect: Allow
+                Action:
+                  - "bedrock:ApplyGuardrail"
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
             - !Ref AWS::NoValue
           - Effect: Allow
             Action:

@@ -298,6 +298,7 @@ def store_vectors_in_batches(vectors: List[Tuple]):
             # Remove chunk_idx from metadata since it's now in the key
             metadata = {k: v for k, v in flattened_data.items() if k != 'chunk_idx'}
             
+            #  Retained section_type as an uninitialized system-side filterable key
             vector_obj = {
                 "objectId": vector_key,
                 "vector": embedding,
