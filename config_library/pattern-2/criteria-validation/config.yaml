@@ -183,6 +183,9 @@ output_bucket: criteria-validation-output
 textract_page_tracker: criteria-validation-textract
 cost_report_bucket: criteria-validation-cost-reports
 
+s3Vectors:
+  filterableMetadataKeys: []
+  
 # Pricing configuration for cost tracking
 pricing:
   - name: textract/detect_document_text

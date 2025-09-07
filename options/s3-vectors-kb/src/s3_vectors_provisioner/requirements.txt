@@ -1,0 +1,2 @@
+urllib3==2.3.0 
+../../lib/idp_common_pkg

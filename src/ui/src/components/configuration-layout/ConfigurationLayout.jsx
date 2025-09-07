@@ -22,8 +22,14 @@ import Editor from '@monaco-editor/react';
 import yaml from 'js-yaml';
 import useConfiguration from '../../hooks/use-configuration';
 import FormView from './FormView';
+import KnowledgeBaseStatus from './KnowledgeBaseStatus';
+import useSettingsContext from '../../contexts/settings';
 
 const ConfigurationLayout = () => {
+  const { settings } = useSettingsContext() || {};
+  const parseBool = (v) => (typeof v === 'boolean' ? v : v === 'true');
+  const isS3VectorsEnabled = parseBool(settings?.ShouldUseS3VectorsKnowledgeBase ?? 'true');
+
   const {
     schema,
     mergedConfig,
@@ -368,6 +374,16 @@ const ConfigurationLayout = () => {
       return [{ message: `Invalid YAML: ${e.message}` }];
     }
   };
+
+  // Compute schema used by FormView with simple gate for s3Vectors
+  const schemaToUse = React.useMemo(() => {
+    if (!schema) return null;
+    if (isS3VectorsEnabled) return schema;
+    if (!schema.properties || !schema.properties.s3Vectors) return schema;
+    const gated = { ...schema, properties: { ...schema.properties } };
+    delete gated.properties.s3Vectors;
+    return gated;
+  }, [schema, isS3VectorsEnabled]);
 
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -1082,6 +1098,10 @@ const ConfigurationLayout = () => {
         }
       >
         <Form>
+          <SpaceBetween direction="vertical" size="m">
+            <KnowledgeBaseStatus />
+          </SpaceBetween>
+
           {saveSuccess && (
             <Alert
               type="success"
@@ -1119,7 +1139,7 @@ const ConfigurationLayout = () => {
           <Box padding="s">
             {viewMode === 'form' && (
               <FormView
-                schema={schema}
+                schema={schemaToUse}
                 formValues={formValues}
                 defaultConfig={defaultConfig}
                 isCustomized={isCustomized}

@@ -23,3 +23,5 @@ notebooks/examples/data
 .idea/
 .dsr/
 *tmp-dev-assets*
+agents.json
+template-old.yaml
