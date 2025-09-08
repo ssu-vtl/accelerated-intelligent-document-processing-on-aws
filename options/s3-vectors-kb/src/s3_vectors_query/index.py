@@ -28,6 +28,7 @@ ACTIVE_FILTERABLE_KEYS = [k.strip() for k in os.environ.get("FILTERABLE_METADATA
 GUARDRAIL_ENV = os.environ.get("GUARDRAIL_ID_AND_VERSION", "")
 STACK_NAME = os.environ.get('STACK_NAME', 'GenAI-IDP')
 
+
 # --- AWS Service Clients & Logger ---
 logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
@@ -194,15 +195,17 @@ def query_s3_vectors(query_vector: List[float], top_k: int, metadata_filter: Opt
             'returnDistance': True
         }
         if metadata_filter:
-            params['filter'] = metadata_filter
-
+            params['filter'] = metadata_filter.get('filter')
+        print(f'METADATA FILTER {metadata_filter}')
         response = s3vectors_client.query_vectors(**params)
         
         results = []
         for vector in response.get('vectors', []):
             distance = float(vector.get('distance', 1.0))
-            # Convert distance to similarity score
-            score = 1.0 - distance if VECTOR_SIMILARITY_MEASURE == "cosine" else -distance
+            # Convert distance to similarity score [0, 1] using exponential decay
+            # Works well for both cosine and euclidean distances
+            score = 1.0 / (1.0 + distance)
+            
             results.append({
                 'vector_id': vector.get('key', ''),
                 'score': score,
@@ -236,8 +239,9 @@ def generate_response_from_chunks(query: str, refs: List[Dict], context: Optiona
     
     system_prompt = "You are a helpful AI assistant. Answer the user's question based only on the provided context. Cite sources as [Source: id]. If the context is insufficient, state that clearly."
     user_prompt = f"Context:\n{chr(10).join(chunks)}{history_text}\n\nQuestion: {query}\n\nAnswer:"
-    
-    return invoke_bedrock_llm(system_prompt, user_prompt, LLM_MODEL_ID)
+    model_response = invoke_bedrock_llm(system_prompt, user_prompt, LLM_MODEL_ID)
+    print(f'MODEL_RESPONSE: {model_response}')
+    return model_response
 
 def rerank_with_bedrock(query: str, docs: List[str]) -> List[Dict[str, Any]]:
     """Reranks documents using a lightweight LLM."""
@@ -250,11 +254,12 @@ def rerank_with_bedrock(query: str, docs: List[str]) -> List[Dict[str, Any]]:
         truncated_doc = doc[:2000] if len(doc) > 2000 else doc
         numbered_docs.append(f'Doc {i}:\n{truncated_doc}')
     
-    system_prompt = "You are a document reranker. Return ONLY a JSON array of objects with 'id' (int) and 'score' (float between 0 and 1) representing relevance to the query."
+    system_prompt = "You are a document reranker. You MUST return a JSON array with exactly one object for EVERY document provided. Each object must have 'id' (int) and 'score' (float between 0 and 1) representing relevance to the query. The closer to 1 the more relevant. Return ALL documents, even if some have low relevance scores."
     user_prompt = f"Query: {query}\n\nDocuments:\n{chr(10).join(numbered_docs)}\n\nReturn JSON array with relevance scores:"
     
     try:
         response_text = invoke_bedrock_llm(system_prompt, user_prompt, LIGHTWEIGHT_LLM_MODEL_ID)
+        print(f'RESPONSE_RERANK: {response_text}')
         scores = json.loads(response_text)
         
         # Validate response format
@@ -270,14 +275,15 @@ def rerank_with_bedrock(query: str, docs: List[str]) -> List[Dict[str, Any]]:
         return [{"id": i, "score": 0.5} for i in range(len(docs))]
 
 def invoke_bedrock_llm(system_prompt: str, user_prompt: str, model_id: str) -> str:
-    """Invokes Bedrock Converse API models."""
+    """Invokes Bedrock API models."""
     try:
         params = {
             "model_id": model_id,
             "system_prompt": system_prompt,
-            "messages": [{"role": "user", "content": user_prompt}],
+            "content": [{"text": user_prompt}],
             "temperature": 0.1,
-            "max_tokens": 1024
+            "top_k": 10,
+            "max_tokens": 2048  # Increased to handle larger JSON responses
         }
         
         # Add guardrail if configured
@@ -288,10 +294,15 @@ def invoke_bedrock_llm(system_prompt: str, user_prompt: str, model_id: str) -> s
                 "guardrailVersion": guardrail_version
             }
 
-        response = bedrock_client.invoke_converse(**params)
-        content = response.get("content", [])
-        if content and isinstance(content, list) and len(content) > 0:
-            return content[0].get("text", "").strip()
+        response = bedrock_client.invoke_model(**params)
+        
+        # Extract text from the nested response structure
+        if "response" in response and "output" in response["response"]:
+            message = response["response"]["output"].get("message", {})
+            content = message.get("content", [])
+            if content and isinstance(content, list) and len(content) > 0:
+                return content[0].get("text", "").strip()
+        
         return ""
     except Exception:
         logger.error(f"Error invoking Bedrock model {model_id}", exc_info=True)
@@ -372,7 +383,7 @@ def enhance_query_with_filter(query: str) -> Optional[Dict]:
         return None
     
     system_prompt = "Return ONLY a valid JSON object for an S3 Vectors metadata filter. No explanations or prose."
-    user_prompt = f"Convert this query to a JSON metadata filter. Available fields: {', '.join(ACTIVE_FILTERABLE_KEYS)}\nQuery: {query}\nJSON filter:"
+    user_prompt = f"Convert this query to a metadata filter. Here are some Examples:{os.environ.get("FILTER_EXAMPLES")} Available fields: {', '.join(ACTIVE_FILTERABLE_KEYS)}\nQuery: {query}\nJSON filter:"
 
     try:
         response_text = invoke_bedrock_llm(system_prompt, user_prompt, LIGHTWEIGHT_LLM_MODEL_ID)

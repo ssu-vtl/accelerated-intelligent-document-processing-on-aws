@@ -1557,7 +1557,7 @@ except Exception as e:
                 "patterns/pattern-3/src",
                 "patterns/pattern-3/template.yaml",
             ],
-            # Option components (no lib dependency - they don't use idp_common)
+            # Option components
             "options/bda-lending-project": [
                 "options/bda-lending-project/src",
                 "options/bda-lending-project/template.yaml",
@@ -1565,6 +1565,12 @@ except Exception as e:
             "options/bedrockkb": [
                 "options/bedrockkb/src",
                 "options/bedrockkb/template.yaml",
+            ],
+            # s3-vectors-kb uses idp_common library
+            "options/s3-vectors-kb": [
+                LIB_DEPENDENCY,
+                "options/s3-vectors-kb/src",
+                "options/s3-vectors-kb/template.yaml",
             ],
             "lib": [LIB_DEPENDENCY],
         }

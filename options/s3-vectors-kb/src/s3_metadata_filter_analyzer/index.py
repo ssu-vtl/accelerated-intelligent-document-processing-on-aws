@@ -3,7 +3,7 @@ import json
 import os
 import logging
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from collections import defaultdict
 
 # Import the correct custom client
@@ -53,10 +53,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return {'statusCode': 200, 'body': json.dumps({'message': 'No filterable fields found.'})}
 
         filter_examples = generate_filter_examples(metadata_analysis)
-        s3_location = store_filter_examples(filter_examples)
+        store_filter_examples(filter_examples)
         
         filterable_fields_keys = list(metadata_analysis['filterable_fields'].keys())
-        update_lambda_environment(filterable_fields_keys, s3_location)
+        update_lambda_environment(filterable_fields_keys, filter_examples)
 
         response_body = {
             'message': 'Filter analysis completed successfully.',
@@ -74,6 +74,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'body': json.dumps({'error': 'An internal error occurred.'})
         }
 
+
 def analyze_metadata() -> Dict[str, Any]:
     """
     Scans a sample of vectors to find common metadata fields suitable for filtering.
@@ -85,7 +86,8 @@ def analyze_metadata() -> Dict[str, Any]:
         response = s3_vectors_client.list_vectors(
             vectorBucketName=S3_VECTORS_BUCKET_NAME,
             indexName=S3_VECTORS_INDEX_NAME,
-            maxResults=METADATA_ANALYSIS_SAMPLE_SIZE
+            maxResults=METADATA_ANALYSIS_SAMPLE_SIZE,
+            returnMetadata=True
         )
         
         vectors = response.get('vectors', [])
@@ -127,9 +129,7 @@ def analyze_metadata() -> Dict[str, Any]:
 
 def generate_filter_examples(metadata_analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Generates useful filter examples using a Bedrock LLM."""
-    # (Code for this function remains largely the same, but with improved error handling and logging)
-    # This is a placeholder for the full prompt generation logic which is complex and correct.
-    # The key improvements are in the try/except block.
+    
     filterable_fields = metadata_analysis['filterable_fields']
     prompt = f"""
         You are an expert in S3 Vectors metadata filtering. Based on the following metadata analysis, create useful filter examples that a query Lambda can use as templates.
@@ -144,6 +144,7 @@ def generate_filter_examples(metadata_analysis: Dict[str, Any]) -> List[Dict[str
         - Types supported: string, number, boolean, list
         - All metadata is filterable unless explicitly configured as non-filterable
         - Non-filterable fields (excluded): text_content, document_id, s3_uri
+        - These filters are deterministic and should be used less in the examples you create: confidence, page_number, document_type
 
         FILTER OPERATORS:
         - $eq: Exact match (string, number, boolean)
@@ -177,21 +178,24 @@ def generate_filter_examples(metadata_analysis: Dict[str, Any]) -> List[Dict[str
     try:
         logger.info(f"Generating filter examples with Bedrock model: {NOVA_MODEL_ID}")
         response = bedrock_client.invoke_model(
-            modelId=NOVA_MODEL_ID,
-            body=json.dumps({
-                "messages": [{"role": "user", "content": prompt}], "max_tokens": 4096, "temperature": 0.1
-            })
+            model_id=NOVA_MODEL_ID,
+            system_prompt="You are an expert in S3 Vectors metadata filtering.",
+            content=[{"text": prompt}],
+            temperature=0.1,
+            max_tokens=4096
         )
         
-        response_body = json.loads(response['body'].read())
-        content = response_body.get('output', {}).get('message', {}).get('content', [{}])[0].get('text', '[]')
+        # Extract content from the BedrockClient response format
+        bedrock_response = response.get('response', {})
+        content_blocks = bedrock_response.get('output', {}).get('message', {}).get('content', [])
+        content = content_blocks[0].get('text', '[]') if content_blocks else '[]'
         
         content = content.strip()
         if content.startswith('```json'):
             content = content.replace('```json', '').replace('```', '').strip()
 
         filter_examples = json.loads(content)
-        logger.info(f"Successfully generated {len(filter_examples)} filter examples.")
+        logger.info(f"Successfully generated {len(filter_examples)} filter examples. FILTER EXAMPLES: {filter_examples}")
         return filter_examples
         
     except Exception:
@@ -227,7 +231,7 @@ def store_filter_examples(filter_examples: List[Dict[str, Any]]) -> str:
     logger.info(f"Stored {len(filter_examples)} filter examples at {latest_location}")
     return latest_location
 
-def update_lambda_environment(filterable_fields: List[str], s3_location: str):
+def update_lambda_environment(filterable_fields: List[str], filter_examples: str):
     """Updates the Query Lambda's environment with the latest filter info."""
     logger.info(f"Updating environment of Lambda: {QUERY_LAMBDA_FUNCTION_NAME}")
     try:
@@ -235,7 +239,7 @@ def update_lambda_environment(filterable_fields: List[str], s3_location: str):
         env_vars = config.get('Environment', {}).get('Variables', {})
 
         env_vars['FILTERABLE_METADATA_KEYS'] = ','.join(filterable_fields)
-        env_vars['FILTER_EXAMPLES_S3_LOCATION'] = s3_location
+        env_vars['FILTER_EXAMPLES'] = str(filter_examples)
 
         lambda_client.update_function_configuration(
             FunctionName=QUERY_LAMBDA_FUNCTION_NAME,

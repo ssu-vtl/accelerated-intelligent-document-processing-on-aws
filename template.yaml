@@ -883,6 +883,7 @@ Resources:
     DependsOn:
       - IsStacknameLengthOK
     Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Retain
     Condition: ShouldCreateS3VectorsKnowledgeBase
     Properties:
       TemplateURL: ./options/s3-vectors-kb/.aws-sam/packaged.yaml

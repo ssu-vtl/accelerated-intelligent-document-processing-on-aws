@@ -74,10 +74,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 def scan_and_ingest_documents(filter_keys: List[str]) -> Dict[str, Any]:
     """Scans the output bucket for document folders and ingests new or updated ones."""
     documents_processed = vectors_processed = 0
+    document_list = list(get_document_folders(OUTPUT_BUCKET))  # Convert iterator to list
     
-    for document_folder in get_document_folders(OUTPUT_BUCKET):
+    for document_folder in document_list:
         try:
-            if is_document_processed(document_folder):
+            if not is_document_processed(document_folder):
                 vectors_count = process_document_folder(document_folder, filter_keys)
                 if vectors_count > 0:
                     documents_processed += 1
@@ -119,12 +120,13 @@ def process_document_folder(document_folder: str, filter_keys: List[str]) -> int
                 # Combine all metadata
                 metadata = {
                     **page_metadata,
-                    'text': chunk_text,
+                    'text_content': chunk_text,
                     'chunk_idx': chunk_idx
                 }
                 
                 # Add classification if enabled
-                if USE_LLM_CLASSIFICATION and filter_keys:
+                
+                if filter_keys:
                     metadata.update(classify_chunk_metadata(chunk_text, filter_keys))
                 
                 # Clean up confidence fields
@@ -144,11 +146,14 @@ def process_document_folder(document_folder: str, filter_keys: List[str]) -> int
 def is_document_processed(document_id: str) -> bool:
     """Checks DynamoDB to see if this document has been processed."""
     try:
-        response = catalog_table.get_item(Key={'PK': f"DOC#{document_id}"})
-        return response.get('Item') is None  # Return True if not found (needs processing)
+        response = catalog_table.get_item({'PK': f"DOC#{document_id}",'SK': f"SEC#{document_id}"})
+        if response is None:
+            return False
+        else:
+            return True
     except Exception:
         logger.warning(f"Failed to check processing status for {document_id}", exc_info=True)
-        return True  # Assume needs processing if check fails
+        return False  # Assume needs processinssing if check fails
 
 # --- S3 Bucket Scanning ---
 def get_document_folders(bucket_name: str, pages_prefix: str = None) -> Union[List[Dict[str, str]], Iterator[str]]:
@@ -206,8 +211,9 @@ class DocumentReader:
                 **s3_uri,
                 **document_type,
                 **document_id,
-                "chunks": self._create_chunks({"text": result_data.get("text", "")})
+                "chunks": self._create_chunks(result_data)
             }
+            
             processed_pages.append(page_info)
 
         return processed_pages
@@ -230,8 +236,8 @@ class DocumentReader:
                         Key=f"{page_num['Prefix']}textConfidence.json")['Body'].read().decode('utf-8'))
                     
                     confidence_score = self._calculate_confidence_stats(confidence_data.get('text'))
-                    page_number = {"page_number": f"{page_num['Prefix'].split("/")[:-1]}"}
-                    s3_uri = {'s3_uri': f'{self.s3_uri}/pages/{page_number}'}
+                    page_number = {"page_number": page_num['Prefix'].split("/")[-2]}
+                    s3_uri = {'s3_uri': f'{self.s3_uri}/pages/{page_number.get("page_number")}'}
                     document_id = {'document_id': self.folder}
                     if result_data and confidence_score:
                         page_texts.append((result_data, confidence_score, page_number, s3_uri, document_type, document_id))
@@ -264,8 +270,8 @@ class DocumentReader:
         }
 
 
-    def _create_chunks(self, text_data: Dict[str, Any]) -> List[str]:
-        text = text_data.get('text', '')
+    def _create_chunks(self, result_data: Dict[str, Any]) -> List[str]:
+        text = result_data.get('text')
         words = text.split()
         
         if not words:
@@ -295,10 +301,10 @@ def store_vectors_in_batches(vectors: List[Tuple]):
         
         for embedding, flattened_data in batch_tuples:
             vector_key = f"{flattened_data['document_id']}_{flattened_data['page_number']}_{flattened_data['chunk_idx']}"
-            # Remove chunk_idx from metadata since it's now in the key
-            metadata = {k: v for k, v in flattened_data.items() if k != 'chunk_idx'}
+            # Remove chunk_idx from metadata since it's now in the key and filter out None values
+            metadata = {k: v for k, v in flattened_data.items() if k != 'chunk_idx' and v is not None}
             
-            #  Retained section_type as an uninitialized system-side filterable key
+            # Ensure all metadata va as an uninitialized system-side filterable key
             vector_obj = {
                 "objectId": vector_key,
                 "vector": embedding,
@@ -328,9 +334,11 @@ def store_vectors_in_batches(vectors: List[Tuple]):
 
 def update_dynamodb_catalog(vector: Dict):
     """Updates the DynamoDB catalog for a single processed vector chunk."""
+
     try:
-        catalog_table.put_item(Item={
+        catalog_table.put_item({
             'PK': f"DOC#{vector['document_id']}",
+            'SK': f"SEC#{vector['document_id']}",  #  Temp Holder
             's3_uri': vector['s3_uri'],
             'number_of_vectors': vector['length'],
             'created_at': datetime.now(timezone.utc).isoformat(),
@@ -371,13 +379,31 @@ def classify_chunk_metadata(text: str, fields: List[str]) -> Dict[str, Any]:
         response = bedrock_client.invoke_model(
             model_id=CLASSIFICATION_MODEL_ID,
             system_prompt='You are an expert document classifier. Return only a valid JSON object with the requested fields.',
-            content=[{"text": f"Analyze and classify this text using fields {fields}: {text[:500]}..."}],
+            content=[{"text": f"Analyze and classify this text using fields {fields}: {text[:1000]}..."}],
             temperature=0.1,
             max_tokens=500,
         )
         
-        classified_data = json.loads(response["content"][0]["text"])
-        return {field: classified_data.get(field, "unknown") for field in fields}
+        # Extract the text content from the Bedrock response structure
+        try:
+            response_text = response["response"]["output"]["message"]["content"][0]["text"]
+        except (KeyError, IndexError, TypeError) as e:
+            logger.warning(f"Unexpected response structure from Bedrock: {e}. Response keys: {list(response.keys()) if isinstance(response, dict) else 'not a dict'}")
+            # Fallback: try to find text content in the response
+            if isinstance(response, dict) and "content" in response:
+                response_text = response["content"][0]["text"]
+            else:
+                raise ValueError(f"Unable to extract text from Bedrock response: {response}")
+        
+        try:
+            classified_data = json.loads(response_text)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON from LLM response: {e}. Response text: {response_text[:200]}...")
+            return {}
+        
+        # Get all field values, then filter out any with "unknown" values
+        result = {field: classified_data.get(field, "unknown") for field in fields}
+        return {k: v for k, v in result.items() if v != "unknown"}
     except Exception:
         logger.warning("LLM classification failed", exc_info=True)
         return {field: "unknown" for field in fields}

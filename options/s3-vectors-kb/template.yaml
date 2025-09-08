@@ -75,39 +75,18 @@ Conditions:
   pHasCustomerManagedEncryptionKey: !Not [!Equals [!Ref pCustomerManagedEncryptionKeyArn, ""]]
 
 Resources:
-  S3VectorsProvisionerFunctionRole:
-    Type: AWS::IAM::Role
+
+  S3VectorsProvisionerFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
     Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      PermissionsBoundary: !If [pHasPermissionsBoundary, !Ref pPermissionsBoundaryArn, !Ref AWS::NoValue]
-      Policies:
-        - PolicyName: S3VectorsProvisionerPolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3vectors:CreateVectorBucket
-                  - s3vectors:CreateIndex
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - kms:Encrypt
-                  - kms:Decrypt
-                  - kms:ReEncrypt*
-                  - kms:GenerateDataKey*
-                  - kms:DescribeKey
-                  - kms:CreateGrant
-                Resource: !Ref pCustomerManagedEncryptionKeyArn
+      LogGroupName: !Sub "/aws/lambda/${pStackName}-S3VecProvisionerLog"
+      KmsKeyId: !Ref pCustomerManagedEncryptionKeyArn
+      RetentionInDays: !Ref pLogRetentionDays
+
   S3VectorsProvisionerFunction:
     Type: AWS::Serverless::Function
-    DependsOn: S3VectorsProvisionerFunctionRole
+    DeletionPolicy: Retain
     Properties:
       CodeUri: src/s3_vectors_provisioner
       Handler: index.handler
@@ -115,14 +94,34 @@ Resources:
       Timeout: 120
       MemorySize: 256
       PermissionsBoundary: !If [pHasPermissionsBoundary, !Ref pPermissionsBoundaryArn, !Ref AWS::NoValue]
-      Role: !GetAtt S3VectorsProvisionerFunctionRole.Arn
+      LoggingConfig:
+        LogGroup: !Ref S3VectorsProvisionerFunctionLogGroup
       Environment:
         Variables:
           LOG_LEVEL: !Ref pLogLevel
           STACK_NAME: !Ref pStackName
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3vectors:CreateVectorBucket
+                - s3vectors:CreateIndex
+                - s3vectors:ListVectorBuckets
+                - s3vectors:DescribeVectorBucket
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - kms:Encrypt
+                - kms:Decrypt
+                - kms:ReEncrypt*
+                - kms:GenerateDataKey*
+                - kms:DescribeKey
+                - kms:CreateGrant
+              Resource: !Ref pCustomerManagedEncryptionKeyArn
 
   S3VectorsProvisioner:
     Type: AWS::CloudFormation::CustomResource
+    DeletionPolicy: Retain
     Properties:
       ServiceToken: !GetAtt S3VectorsProvisionerFunction.Arn
       VectorBucketName: !Sub "${pStackName}-s3vectors"
@@ -133,6 +132,7 @@ Resources:
 
   S3VectorsQueryFunction:
     Type: AWS::Serverless::Function
+    DeletionPolicy: Retain
     Properties:
       CodeUri: src/s3_vectors_query
       Handler: index.handler
@@ -165,6 +165,7 @@ Resources:
               Resource:
                 - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}:0"
                 - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${pDocumentAnalysisAgentModelId}"
+                - "*"
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
@@ -178,6 +179,7 @@ Resources:
 
   S3VectorsIngestionFunction:
     Type: AWS::Serverless::Function
+    DeletionPolicy: Retain
     Properties:
       CodeUri: src/s3_vectors_ingestion
       Handler: index.handler
@@ -229,22 +231,25 @@ Resources:
               Action:
                 - dynamodb:GetItem
               Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${pConfigurationTable}"
-            - Effect: Allow
-              Action:
-                - kms:Encrypt
-                - kms:Decrypt
-                - kms:ReEncrypt*
-                - kms:GenerateDataKey*
-                - kms:DescribeKey
-                - kms:CreateGrant
-              Resource: !Ref pCustomerManagedEncryptionKeyArn
+            - !If
+              - pHasCustomerManagedEncryptionKey
+              - Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:Decrypt
+                  - kms:ReEncrypt*
+                  - kms:GenerateDataKey*
+                  - kms:DescribeKey
+                  - kms:CreateGrant
+                Resource: !Ref pCustomerManagedEncryptionKeyArn
+              - !Ref AWS::NoValue
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
                 - bedrock:InvokeModelWithResponseStream
               Resource:
                 - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}:0"
-                - "arn:aws:bedrock:*:*:foundation-model/us.amazon.nova-micro-v1:0"
+                - "*"
             - Effect: Allow
               Action:
                 - cloudwatch:PutMetricData
@@ -252,6 +257,7 @@ Resources:
 
   S3VectorsIngestionFunctionLogGroup:
     Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
     Properties:
       LogGroupName: !Sub "/aws/lambda/${pStackName}-S3VecIngestFnLog"
       KmsKeyId: !Ref pCustomerManagedEncryptionKeyArn
@@ -319,6 +325,7 @@ Resources:
             - Effect: Allow
               Action:
                 - s3vectors:ListVectors
+                - s3vectors:GetVectors
               Resource: "*"
             - Effect: Allow
               Action:
@@ -331,18 +338,26 @@ Resources:
               Resource: !GetAtt S3VectorsQueryFunction.Arn
             - Effect: Allow
               Action:
+                - cloudwatch:PutMetricData
+              Resource: "*"
+            - Effect: Allow
+              Action:
                 - bedrock:InvokeModel
               Resource:
                 - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${pDocumentAnalysisAgentModelId}"
-            - Effect: Allow
-              Action:
-                - kms:Encrypt
-                - kms:Decrypt
-                - kms:ReEncrypt*
-                - kms:GenerateDataKey*
-                - kms:DescribeKey
-                - kms:CreateGrant
-              Resource: !Ref pCustomerManagedEncryptionKeyArn
+                - "*"
+            - !If
+              - pHasCustomerManagedEncryptionKey
+              - Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:Decrypt
+                  - kms:ReEncrypt*
+                  - kms:GenerateDataKey*
+                  - kms:DescribeKey
+                  - kms:CreateGrant
+                Resource: !Ref pCustomerManagedEncryptionKeyArn
+              - !Ref AWS::NoValue
 
   S3MetadataFilterAnalyzerLogGroup:
     Type: AWS::Logs::LogGroup

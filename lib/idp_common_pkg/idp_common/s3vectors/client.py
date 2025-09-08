@@ -147,3 +147,79 @@ class S3VectorsClient:
             logger.error(f"Failed to query index '{query_params.get('indexName')}': {e}")
             raise
 
+    def list_vectors(self, vectorBucketName: Optional[str] = None, indexName: Optional[str] = None, 
+                     indexArn: Optional[str] = None, maxResults: Optional[int] = None, 
+                     nextToken: Optional[str] = None, segmentCount: Optional[int] = None, 
+                     segmentIndex: Optional[int] = None, returnData: Optional[bool] = None, 
+                     returnMetadata: Optional[bool] = None) -> Dict[str, Any]:
+        """
+        Lists vectors in the specified vector index.
+
+        Args:
+            vectorBucketName: The name of the vector bucket.
+            indexName: The name of the vector index.
+            indexArn: The Amazon Resource Name (ARN) of the vector index.
+            maxResults: The maximum number of vectors to return on a page (default: 500).
+            nextToken: Pagination token from a previous request.
+            segmentCount: Total number of segments for parallel ListVectors operation.
+            segmentIndex: Index of the segment for parallel ListVectors operation.
+            returnData: If true, vector data will be included in the response (default: false).
+            returnMetadata: If true, metadata will be included in the response (default: false).
+
+        Returns:
+            The response from the list_vectors API call containing vectors and pagination info.
+
+        Raises:
+            ValueError: If neither (vectorBucketName and indexName) nor indexArn is provided.
+            Exception: If the API call fails.
+        """
+        try:
+            # Validate input parameters
+            if not indexArn and not (vectorBucketName and indexName):
+                raise ValueError("Must provide either indexArn or both vectorBucketName and indexName")
+            
+            if segmentCount is not None and segmentIndex is None:
+                raise ValueError("segmentIndex must be provided when segmentCount is specified")
+            
+            if segmentIndex is not None and segmentCount is None:
+                raise ValueError("segmentCount must be provided when segmentIndex is specified")
+            
+            if segmentIndex is not None and segmentCount is not None:
+                if segmentIndex >= segmentCount:
+                    raise ValueError("segmentIndex must be less than segmentCount")
+
+            # Build the request parameters, only including non-None values
+            params = {}
+            
+            if vectorBucketName is not None:
+                params['vectorBucketName'] = vectorBucketName
+            if indexName is not None:
+                params['indexName'] = indexName
+            if indexArn is not None:
+                params['indexArn'] = indexArn
+            if maxResults is not None:
+                params['maxResults'] = maxResults
+            if nextToken is not None:
+                params['nextToken'] = nextToken
+            if segmentCount is not None:
+                params['segmentCount'] = segmentCount
+            if segmentIndex is not None:
+                params['segmentIndex'] = segmentIndex
+            if returnData is not None:
+                params['returnData'] = returnData
+            if returnMetadata is not None:
+                params['returnMetadata'] = returnMetadata
+
+            response = self.s3vectors.list_vectors(**params)
+            
+            vector_count = len(response.get('vectors', []))
+            index_identifier = indexArn or f"{vectorBucketName}/{indexName}"
+            logger.info(f"Listed {vector_count} vectors from index '{index_identifier}'.")
+            
+            return response
+            
+        except Exception as e:
+            index_identifier = indexArn or f"{vectorBucketName}/{indexName}"
+            logger.error(f"Failed to list vectors from index '{index_identifier}': {e}")
+            raise
+

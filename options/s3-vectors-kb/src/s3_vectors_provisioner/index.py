@@ -43,21 +43,19 @@ def provision_s3_vector_resources(
     """
     logger.info(f"Provisioning resources: bucket='{vector_bucket_name}', index='{vector_index_name}'")
     client = get_s3vectors_client()
+     
     client.create_bucket(vector_bucket_name)
     
     # Define non-filterable metadata keys (large content that shouldn't be used for filtering)
-    non_filterable_keys = [
-        "text",      # The actual text content of chunks (can be large)
-        "s3_uri"     # S3 URI reference (not typically used for filtering)
-    ]
-    
+
     client.create_index(
-        vector_bucket_name, 
-        vector_index_name, 
-        dimension, 
-        distance_metric,
-        non_filterable_metadata_keys=non_filterable_keys
-    )
+        vector_bucket_name,
+        vector_index_name,
+        dimension,
+        distance_metric
+        )
+    
+    
     return {'bucket': vector_bucket_name, 'index': vector_index_name}
 
 def send_cfn_response(event: Dict[str, Any], context: Any, status: str, data: Dict, physical_resource_id: str = None):
@@ -92,6 +90,8 @@ def handler(event: Dict[str, Any], context: Any):
     """
     CloudFormation Custom Resource handler for provisioning S3 Vector resources.
     """
+    print('Started Provisioning')
+    print(f'EVENT: {event}')
     request_type = event['RequestType']
     props = event.get('ResourceProperties', {})
     physical_id = event.get('PhysicalResourceId')
