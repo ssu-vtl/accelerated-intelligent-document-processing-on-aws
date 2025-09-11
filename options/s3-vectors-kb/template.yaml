@@ -78,7 +78,6 @@ Resources:
 
   S3VectorsProvisionerFunctionLogGroup:
     Type: AWS::Logs::LogGroup
-    DeletionPolicy: Retain
     Properties:
       LogGroupName: !Sub "/aws/lambda/${pStackName}-S3VecProvisionerLog"
       KmsKeyId: !Ref pCustomerManagedEncryptionKeyArn
@@ -86,7 +85,6 @@ Resources:
 
   S3VectorsProvisionerFunction:
     Type: AWS::Serverless::Function
-    DeletionPolicy: Retain
     Properties:
       CodeUri: src/s3_vectors_provisioner
       Handler: index.handler
@@ -121,7 +119,6 @@ Resources:
 
   S3VectorsProvisioner:
     Type: AWS::CloudFormation::CustomResource
-    DeletionPolicy: Retain
     Properties:
       ServiceToken: !GetAtt S3VectorsProvisionerFunction.Arn
       VectorBucketName: !Sub "${pStackName}-s3vectors"
@@ -132,7 +129,6 @@ Resources:
 
   S3VectorsQueryFunction:
     Type: AWS::Serverless::Function
-    DeletionPolicy: Retain
     Properties:
       CodeUri: src/s3_vectors_query
       Handler: index.handler
@@ -163,8 +159,8 @@ Resources:
                 - bedrock:InvokeModel
                 - bedrock:InvokeModelWithResponseStream
               Resource:
-                - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}:0"
-                - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${pDocumentAnalysisAgentModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}:0"
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${pDocumentAnalysisAgentModelId}"
                 - "*"
             - Effect: Allow
               Action:
@@ -179,7 +175,6 @@ Resources:
 
   S3VectorsIngestionFunction:
     Type: AWS::Serverless::Function
-    DeletionPolicy: Retain
     Properties:
       CodeUri: src/s3_vectors_ingestion
       Handler: index.handler
@@ -211,11 +206,11 @@ Resources:
             - Effect: Allow
               Action:
                 - s3:ListBucket
-              Resource: !Sub "arn:aws:s3:::${pOutputBucket}"
+              Resource: !Sub "arn:${AWS::Partition}:s3:::${pOutputBucket}"
             - Effect: Allow
               Action:
                 - s3:GetObject
-              Resource: !Sub "arn:aws:s3:::${pOutputBucket}/*"
+              Resource: !Sub "arn:${AWS::Partition}:s3:::${pOutputBucket}/*"
             - Effect: Allow
               Action:
                 - s3vectors:PutVectors
@@ -230,7 +225,7 @@ Resources:
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
-              Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${pConfigurationTable}"
+              Resource: !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${pConfigurationTable}"
             - !If
               - pHasCustomerManagedEncryptionKey
               - Effect: Allow
@@ -248,7 +243,7 @@ Resources:
                 - bedrock:InvokeModel
                 - bedrock:InvokeModelWithResponseStream
               Resource:
-                - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}:0"
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}:0"
                 - "*"
             - Effect: Allow
               Action:
@@ -257,7 +252,6 @@ Resources:
 
   S3VectorsIngestionFunctionLogGroup:
     Type: AWS::Logs::LogGroup
-    DeletionPolicy: Retain
     Properties:
       LogGroupName: !Sub "/aws/lambda/${pStackName}-S3VecIngestFnLog"
       KmsKeyId: !Ref pCustomerManagedEncryptionKeyArn
@@ -330,7 +324,7 @@ Resources:
             - Effect: Allow
               Action:
                 - s3:PutObject
-              Resource: !Sub "arn:aws:s3:::${pWorkingBucket}/*"
+              Resource: !Sub "arn:${AWS::Partition}:s3:::${pWorkingBucket}/*"
             - Effect: Allow
               Action:
                 - lambda:GetFunctionConfiguration
@@ -344,7 +338,7 @@ Resources:
               Action:
                 - bedrock:InvokeModel
               Resource:
-                - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${pDocumentAnalysisAgentModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${pDocumentAnalysisAgentModelId}"
                 - "*"
             - !If
               - pHasCustomerManagedEncryptionKey
