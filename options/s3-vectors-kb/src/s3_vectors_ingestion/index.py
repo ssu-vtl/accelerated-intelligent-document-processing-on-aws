@@ -226,16 +226,19 @@ class DocumentReader:
             page_texts = []  
             for page_num in pages:
                 try:
-                    # Get result.json
-                    
                     result_data = json.loads(s3_client.get_object(Bucket=self.bucket, 
                         Key=f"{page_num['Prefix']}result.json")['Body'].read().decode('utf-8'))
                     
                     # Get textConfidence.json
-                    confidence_data = json.loads(s3_client.get_object(Bucket=self.bucket, 
-                        Key=f"{page_num['Prefix']}textConfidence.json")['Body'].read().decode('utf-8'))
-                    
-                    confidence_score = self._calculate_confidence_stats(confidence_data.get('text'))
+                    try:
+                        confidence_data = json.loads(s3_client.get_object(Bucket=self.bucket, 
+                            Key=f"{page_num['Prefix']}textConfidence.json")['Body'].read().decode('utf-8'))
+                        confidence_score = self._calculate_confidence_stats(confidence_data.get('text'))
+                    except Exception:
+                        # textConfidence.json not available (e.g., for pattern1), use default confidence of 50
+                        # Be aware that when we begin Optimazation and Performance Tuning for queries the 80 band 
+                        # Confidenc Slice will not be triggered for this document_id
+                        confidence_score = 50
                     page_number = {"page_number": page_num['Prefix'].split("/")[-2]}
                     s3_uri = {'s3_uri': f'{self.s3_uri}/pages/{page_number.get("page_number")}'}
                     document_id = {'document_id': self.folder}
