@@ -11,31 +11,22 @@ from idp_common.s3vectors.client import S3VectorsClient
 from boto3.dynamodb.conditions import Key
 
 # --- Constants ---
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 SIMILARITY_WEIGHT = 0.5
 RERANK_WEIGHT = 0.5
 
 # --- Environment Variables ---
-VECTOR_BUCKET_NAME = os.environ["S3_VECTORS_BUCKET"]
-S3_VECTORS_INDEX_NAME = os.environ["S3_VECTORS_INDEX_NAME"]
-S3_VECTORS_CATALOG_TABLE = os.environ["S3_VECTORS_CATALOG_TABLE"]
-EMBEDDING_MODEL_ID = os.environ.get("EMBEDDING_MODEL_ID", "amazon.titan-embed-text-v2:0")
-LLM_MODEL_ID = os.environ.get("LLM_MODEL_ID", "anthropic.claude-3-5-sonnet-20240620-v1:0")
-LIGHTWEIGHT_LLM_MODEL_ID = os.environ.get("LIGHTWEIGHT_LLM_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0")
 MAX_RESULTS = int(os.environ.get("MAX_RESULTS", "20"))
-VECTOR_SIMILARITY_MEASURE = os.environ.get("VECTOR_SIMILARITY_MEASURE", "cosine").lower()
 ACTIVE_FILTERABLE_KEYS = [k.strip() for k in os.environ.get("FILTERABLE_METADATA_KEYS", "").split(',') if k.strip()]
-GUARDRAIL_ENV = os.environ.get("GUARDRAIL_ID_AND_VERSION", "")
-STACK_NAME = os.environ.get('STACK_NAME', 'GenAI-IDP')
-
+GUARDRAIL_ENV = os.environ["GUARDRAIL_ID_AND_VERSION"]
 
 # --- AWS Service Clients & Logger ---
 logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
+
 s3vectors_client = S3VectorsClient()
 bedrock_client = BedrockClient()
 cloudwatch_client = boto3.client('cloudwatch')
-catalog_table = DynamoDBClient(S3_VECTORS_CATALOG_TABLE)
+catalog_table = DynamoDBClient(os.environ["S3_VECTORS_CATALOG_TABLE"])
 
 # --- Main Handler ---
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -76,7 +67,7 @@ def process_query_pipeline(query: str, session_id: Optional[str]) -> Dict[str, A
     """Orchestrates the full RAG pipeline from query to response."""
     session_context = get_session_context(session_id) if session_id else None
     
-    query_embedding = bedrock_client.generate_embedding(text=query, model_id=EMBEDDING_MODEL_ID)
+    query_embedding = bedrock_client.generate_embedding(text=query, model_id=os.environ["EMBEDDING_MODEL_ID"])
     if not query_embedding:
         raise Exception("Failed to generate a query embedding.")
 
@@ -187,8 +178,8 @@ def query_s3_vectors(query_vector: List[float], top_k: int, metadata_filter: Opt
     """Queries the S3 Vectors service and normalizes the response."""
     try:
         params = {
-            'vectorBucketName': VECTOR_BUCKET_NAME,
-            'indexName': S3_VECTORS_INDEX_NAME,
+            'vectorBucketName': os.environ["S3_VECTORS_BUCKET"],
+            'indexName': os.environ["S3_VECTORS_INDEX_NAME"],
             'queryVector': query_vector,  # Client will handle the float32 formatting
             'topK': top_k,
             'returnMetadata': True,
@@ -239,7 +230,7 @@ def generate_response_from_chunks(query: str, refs: List[Dict], context: Optiona
     
     system_prompt = "You are a helpful AI assistant. Answer the user's question based only on the provided context. Cite sources as [Source: id]. If the context is insufficient, state that clearly."
     user_prompt = f"Context:\n{chr(10).join(chunks)}{history_text}\n\nQuestion: {query}\n\nAnswer:"
-    model_response = invoke_bedrock_llm(system_prompt, user_prompt, LLM_MODEL_ID)
+    model_response = invoke_bedrock_llm(system_prompt, user_prompt, os.environ["LLM_MODEL_ID"])
     print(f'MODEL_RESPONSE: {model_response}')
     return model_response
 
@@ -258,7 +249,7 @@ def rerank_with_bedrock(query: str, docs: List[str]) -> List[Dict[str, Any]]:
     user_prompt = f"Query: {query}\n\nDocuments:\n{chr(10).join(numbered_docs)}\n\nReturn JSON array with relevance scores:"
     
     try:
-        response_text = invoke_bedrock_llm(system_prompt, user_prompt, LIGHTWEIGHT_LLM_MODEL_ID)
+        response_text = invoke_bedrock_llm(system_prompt, user_prompt, os.environ["LIGHTWEIGHT_LLM_MODEL_ID"])
         print(f'RESPONSE_RERANK: {response_text}')
         scores = json.loads(response_text)
         
@@ -386,7 +377,7 @@ def enhance_query_with_filter(query: str) -> Optional[Dict]:
     user_prompt = f"Convert this query to a metadata filter. Here are some Examples:{os.environ.get("FILTER_EXAMPLES")} Available fields: {', '.join(ACTIVE_FILTERABLE_KEYS)}\nQuery: {query}\nJSON filter:"
 
     try:
-        response_text = invoke_bedrock_llm(system_prompt, user_prompt, LIGHTWEIGHT_LLM_MODEL_ID)
+        response_text = invoke_bedrock_llm(system_prompt, user_prompt, os.environ["LIGHTWEIGHT_LLM_MODEL_ID"])
         if response_text:
             filter_obj = json.loads(response_text)
             # Basic validation - ensure it's a dict
@@ -405,7 +396,7 @@ def emit_query_metrics(latency_ms: float, success: bool, count: int):
     Emits CloudWatch metrics for query performance.
     try:
         cloudwatch_client.put_metric_data(
-            Namespace=STACK_NAME,
+            Namespace=os.environ['STACK_NAME'],
             MetricData=[
                 {'MetricName': 'QueryLatency', 'Value': latency_ms, 'Unit': 'Milliseconds'},
                 {'MetricName': 'QuerySuccessRate', 'Value': 100.0 if success else 0.0, 'Unit': 'Percent'},

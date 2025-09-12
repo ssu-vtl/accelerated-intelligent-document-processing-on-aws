@@ -137,41 +137,40 @@ def generate_filter_examples(metadata_analysis: Dict[str, Any]) -> List[Dict[str
         Metadata Analysis:
         {json.dumps(filterable_fields, indent=2)}
 
-        S3 Vectors Filter Specifications:
+        S3 VECTORS FILTERING RULES:
 
-        FILTERABLE METADATA CONSTRAINTS:
-        - Size limit: Up to 2 KB per vector
-        - Types supported: string, number, boolean, list
-        - All metadata is filterable unless explicitly configured as non-filterable
-        - Non-filterable fields (excluded): text_content, document_id, s3_uri
-        - These filters are deterministic and should be used less in the examples you create: confidence, page_number, document_type
+        Metadata Constraints:
+        - Max 2 KB per vector
+        - Types: string, number, boolean, list
+        - All fields filterable except: text_content, document_id, s3_uri
+        - Use sparingly: confidence, page_number (deterministic)
+        - document_type is example only, may not exist
 
-        FILTER OPERATORS:
-        - $eq: Exact match (string, number, boolean)
-        - $ne: Not equal (string, number, boolean)  
-        - $gt, $gte, $lt, $lte: Numeric comparisons (numbers only)
-        - $in, $nin: Array membership operations (check if value is in/not in array)
-        - $exists: Field existence check (boolean: true/false)
-        - $and, $or: Logical operations (combine multiple conditions)
+        Filter Operators:
+        - $eq, $ne: exact/not equal (string, number, boolean)
+        - $gt, $gte, $lt, $lte: numeric comparisons 
+        - $in, $nin: array membership
+        - $exists: field presence (true/false)
+        - $and, $or: logical combinations
 
-        EXAMPLE FILTER PATTERNS:
-        - Single field exact match: {{"document_type": {{"$eq": "invoice"}}}}
-        - Numeric range: {{"confidence_score": {{"$gte": 0.8}}}}
-        - Array membership: {{"category": {{"$in": ["financial", "business"]}}}}
-        - Field existence: {{"processed": {{"$exists": true}}}}
-        - Combined conditions: {{"$and": [{{"document_type": {{"$eq": "invoice"}}}}, {{"year": {{"$eq": 2024}}}}]}}
-        - Alternative conditions: {{"$or": [{{"document_type": {{"$eq": "invoice"}}}}, {{"document_type": {{"$eq": "receipt"}}}}]}}
+        Pattern Examples:
+        - Exact match: {{"status": {{"$eq": "processed"}}}}
+        - Numeric range: {{"score": {{"$gte": 0.8}}}}
+        - Array check: {{"tags": {{"$in": ["urgent", "review"]}}}}
+        - Field exists: {{"approved": {{"$exists": true}}}}
+        - Multiple conditions: {{"$and": [{{"type": {{"$eq": "report"}}}}, {{"year": {{"$eq": 2024}}}}]}}
+        - Alternatives: {{"$or": [{{"priority": {{"$eq": "high"}}}}, {{"due_date": {{"$lt": "2024-01-31"}}}}]}}
 
-        Create 8-10 practical filter examples that cover different use cases and operator combinations. Each example should be a template that can be adapted for specific queries. Focus on real-world document filtering scenarios. 
+        Create 8-10 practical filter examples for real-world document filtering scenarios. Each should be adaptable as a query template.
 
-        CRITICAL: Return ONLY the JSON array, no other text or explanation:
+        CRITICAL: Return ONLY the JSON array, no other text:
         [
-        {{
+        {
             "name": "descriptive name",
             "description": "what this filter does and when to use it", 
             "use_case": "specific scenario where this filter is useful",
-            "filter": {{ "S3 Vectors filter JSON" }}
-        }}
+            "filter": { "S3 Vectors filter JSON" }
+        }
         ]
     """
 

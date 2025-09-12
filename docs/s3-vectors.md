@@ -80,8 +80,6 @@ S3 Vectors supports custom metadata filtering for improved search precision. You
 
 #### Built-in Metadata Fields
 - `document_id`: Unique document identifier
-- `document_type`: Document classification 
-- `section_type`: Document section classification
 - `confidence`: Processing confidence score
 
 #### Configuration Example
@@ -166,7 +164,7 @@ When knowledge base is disabled:
 1. User submits query via GraphQL
 2. Query resolver invokes S3 Vectors Query Lambda
 3. Lambda performs multi-slice vector search
-4. Intelligent metadata filtering applied
+4. Intelligent metadata filtering applied  ( Only enabled if a Filterable Metadata Field is Set )
 5. Results re-ranked using LLM for relevance
 6. Response generated with contextual citations
 7. Session context maintained for follow-up queries
@@ -176,7 +174,7 @@ When knowledge base is disabled:
 #### Multi-slice Query Processing
 S3 Vectors implements sophisticated query processing:
 1. **Initial Query**: Broad similarity search across vector space
-2. **Metadata Enhancement**: Context-aware filtering based on query analysis
+2. **Metadata Enhancement**: Context-aware filtering based on query analysis  ( Only enabled if a Filterable Metadata Field is Set )
 3. **Multi-slice Retrieval**: Multiple focused queries for comprehensive coverage
 4. **LLM Re-ranking**: Foundational model ranking for improved relevance
 5. **Response Generation**: Contextual responses with proper citations

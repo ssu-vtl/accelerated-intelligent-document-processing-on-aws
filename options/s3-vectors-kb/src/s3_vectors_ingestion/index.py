@@ -12,30 +12,20 @@ from idp_common.s3vectors.client import S3VectorsClient
 from idp_common.utils import build_s3_uri
 from idp_common.config import get_config
 
-# --- Constants ---
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 # --- Environment Variables ---
-OUTPUT_BUCKET = os.environ["OUTPUT_BUCKET"]
-S3_VECTORS_BUCKET = os.environ["S3_VECTORS_BUCKET"]
-S3_VECTORS_CATALOG_TABLE = os.environ["S3_VECTORS_CATALOG_TABLE"]
-CONFIGURATION_TABLE_NAME = os.environ.get("CONFIGURATION_TABLE_NAME")
-S3_VECTORS_INDEX_NAME = os.environ.get("S3_VECTORS_INDEX_NAME", "default-index")
-EMBEDDING_MODEL_ID = os.environ.get("EMBEDDING_MODEL_ID", "amazon.titan-embed-text-v2:0")
 MAX_VECTORS_PER_BATCH = int(os.environ.get("MAX_VECTORS_PER_BATCH", "100"))
 CHUNK_SIZE = int(os.environ.get("CHUNK_SIZE", "300"))
 CHUNK_OVERLAP = int(os.environ.get("CHUNK_OVERLAP", "50"))
-USE_LLM_CLASSIFICATION = os.environ.get("USE_LLM_CLASSIFICATION", "false").lower() == "true"
-CLASSIFICATION_MODEL_ID = os.environ.get("CLASSIFICATION_MODEL_ID", "us.amazon.nova-micro-v1:0")
-STACK_NAME = os.environ.get('STACK_NAME', 'GenAI-IDP')
 
 # --- AWS Service Clients & Logger ---
 logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
+
 s3_client = get_s3_client()
 s3vectors_client = S3VectorsClient()
 bedrock_client = BedrockClient()
 cloudwatch_client = boto3.client('cloudwatch')
-catalog_table = DynamoDBClient(S3_VECTORS_CATALOG_TABLE)
+catalog_table = DynamoDBClient(os.environ["S3_VECTORS_CATALOG_TABLE"])
 
 # --- Main Handler ---
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -74,7 +64,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 def scan_and_ingest_documents(filter_keys: List[str]) -> Dict[str, Any]:
     """Scans the output bucket for document folders and ingests new or updated ones."""
     documents_processed = vectors_processed = 0
-    document_list = list(get_document_folders(OUTPUT_BUCKET))  # Convert iterator to list
+    document_list = list(get_document_folders(os.environ["OUTPUT_BUCKET"]))  # Convert iterator to list
     
     for document_folder in document_list:
         try:
@@ -101,7 +91,7 @@ def process_s3_event(event: Dict[str, Any], filter_keys: List[str]) -> Dict[str,
 
 def process_document_folder(document_folder: str, filter_keys: List[str]) -> int:
     """Extracts, chunks, embeds, and stores vectors for a single document folder."""
-    reader = DocumentReader(OUTPUT_BUCKET, document_folder)
+    reader = DocumentReader(os.environ["OUTPUT_BUCKET"], document_folder)
     text_chunks = reader.extract_text_chunks()
     if not text_chunks:
         logger.warning(f"No text chunks extracted from document folder: {document_folder}")
@@ -113,7 +103,7 @@ def process_document_folder(document_folder: str, filter_keys: List[str]) -> int
         
         for chunk_idx, chunk_text in enumerate(page_data.get('chunks', [])):
             try:
-                embedding = bedrock_client.generate_embedding(text=chunk_text, model_id=EMBEDDING_MODEL_ID)
+                embedding = bedrock_client.generate_embedding(text=chunk_text, model_id=os.environ["EMBEDDING_MODEL_ID"])
                 if not embedding:
                     continue
                     
@@ -202,14 +192,15 @@ class DocumentReader:
         
         processed_pages = []
         for page_data in pages:
-            result_data, confidence_score, page_number, s3_uri, document_type, document_id = page_data
+        
+            # Add back document_type here if we decide to retain it contributor side for filtering
+            result_data, confidence_score, page_number, s3_uri, document_id = page_data
             
             # Create page metadata without the text
             page_info = {
                 **confidence_score,
                 **page_number, 
                 **s3_uri,
-                **document_type,
                 **document_id,
                 "chunks": self._create_chunks(result_data)
             }
@@ -219,9 +210,14 @@ class DocumentReader:
         return processed_pages
 
     def _get_preferred_text(self) -> Tuple[Optional[str], str]:
-        pages = get_document_folders(self.bucket, pages_prefix=f'{self.folder}/pages/')
-        document_type_raw = json.loads(s3_client.get_object(Bucket=self.bucket, Key=f"{self.folder}/sections/1/result.json")['Body'].read().decode('utf-8'))
-        document_type = {"document_type": document_type_raw.get("document_class").get("type")}
+        pages = get_document_folders(self.bucket, pages_prefix=f'{self.folder}pages/')
+
+        # Eliminated document_type from the filterable as the "sections/" prefix is not avaialbe in all
+        # Patterns.  Frees up one of the 10 filterable keys giving us two more to work with and the user
+        # still at 6.  Could give this back to the user and retain our 1 in case of expansion needs
+
+        # document_type_raw = json.loads(s3_client.get_object(Bucket=self.bucket, Key=f"{self.folder}/sections/1/result.json")['Body'].read().decode('utf-8'))
+        # document_type = {"document_type": document_type_raw.get("document_class").get("type")}
         if pages:  
             page_texts = []  
             for page_num in pages:
@@ -238,16 +234,17 @@ class DocumentReader:
                         # textConfidence.json not available (e.g., for pattern1), use default confidence of 50
                         # Be aware that when we begin Optimazation and Performance Tuning for queries the 80 band 
                         # Confidenc Slice will not be triggered for this document_id
-                        confidence_score = 50
+                        confidence_score = {"average_confidence": 50, "min_confidence": 50, "count": 1}
                     page_number = {"page_number": page_num['Prefix'].split("/")[-2]}
                     s3_uri = {'s3_uri': f'{self.s3_uri}/pages/{page_number.get("page_number")}'}
                     document_id = {'document_id': self.folder}
                     if result_data and confidence_score:
-                        page_texts.append((result_data, confidence_score, page_number, s3_uri, document_type, document_id))
+                        page_texts.append((result_data, confidence_score, page_number, s3_uri, document_id))
 
                 except Exception as e:
                     print(f"Error reading page {page_num}: {e}")
                     continue
+                
             return page_texts
         return None, "none"
     
@@ -274,7 +271,14 @@ class DocumentReader:
 
 
     def _create_chunks(self, result_data: Dict[str, Any]) -> List[str]:
+
         text = result_data.get('text')
+        if not text:
+            text = result_data.get('pages', [{}])[0].get('representation', {}).get('markdown', '')
+        
+        if not text:
+            return []
+
         words = text.split()
         
         if not words:
@@ -317,8 +321,8 @@ def store_vectors_in_batches(vectors: List[Tuple]):
         
         try:
             s3vectors_client.put_vectors(
-                vectorBucketName=S3_VECTORS_BUCKET,
-                indexName=S3_VECTORS_INDEX_NAME,
+                vectorBucketName=os.environ["S3_VECTORS_BUCKET"],
+                indexName=os.environ["S3_VECTORS_INDEX_NAME"],
                 vectors=batch
             )
             time.sleep(0.2)  # Rate limiting
@@ -352,11 +356,9 @@ def update_dynamodb_catalog(vector: Dict):
 # --- Configuration & Classification ---
 def load_filter_keys_from_config() -> List[str]:
     """Loads custom filterable metadata keys from the DynamoDB configuration table."""
-    if not CONFIGURATION_TABLE_NAME:
-        return []
     
     try:
-        config = get_config(CONFIGURATION_TABLE_NAME)
+        config = get_config(os.environ["CONFIGURATION_TABLE_NAME"])
         keys = config.get('s3Vectors', {}).get('filterableMetadataKeys', [])
         
         # Handle both list and comma-separated string formats
@@ -380,7 +382,7 @@ def classify_chunk_metadata(text: str, fields: List[str]) -> Dict[str, Any]:
         
     try:
         response = bedrock_client.invoke_model(
-            model_id=CLASSIFICATION_MODEL_ID,
+            model_id=os.environ["CLASSIFICATION_MODEL_ID"],
             system_prompt='You are an expert document classifier. Return only a valid JSON object with the requested fields.',
             content=[{"text": f"Analyze and classify this text using fields {fields}: {text[:1000]}..."}],
             temperature=0.1,
@@ -418,7 +420,7 @@ def emit_ingestion_metrics(latency_ms: float, success: bool, vectors: int, docs:
 
     try:
         cloudwatch_client.put_metric_data(
-            Namespace=STACK_NAME,
+            Namespace=os.environ['STACK_NAME'],
             MetricData=[
                 {'MetricName': 'IngestionLatency', 'Value': latency_ms, 'Unit': 'Milliseconds'},
                 {'MetricName': 'IngestionSuccessRate', 'Value': 100.0 if success else 0.0, 'Unit': 'Percent'},
