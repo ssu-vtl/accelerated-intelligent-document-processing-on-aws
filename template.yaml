@@ -286,13 +286,13 @@ Parameters:
 
   KnowledgeBaseEmbeddingModelId:
     Type: String
-    Default: "amazon.titan-embed-text-v2"
+    Default: "amazon.titan-embed-text-v2:0"
     AllowedValues:
-      - "amazon.titan-embed-text-v1"
-      - "amazon.titan-embed-text-v2"
-      - "cohere.embed-english-v3"
-      - "cohere.embed-multilingual-v3"
-    Description: Bedrock embedding model (base id, no version). Full id ":0" is appended where required.
+      - "amazon.titan-embed-text-v1:0"
+      - "amazon.titan-embed-text-v2:0"
+      - "cohere.embed-english-v3:0"
+      - "cohere.embed-multilingual-v3:0"
+    Description: Bedrock embedding model.
 
   KnowledgeBaseVectorIndexName:
     Type: String
@@ -875,7 +875,7 @@ Resources:
         pS3SyncScheduleExpression: "cron(0/30 * ? * * *)"  # default is to sync documents every 30 minutes
         pCustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         pChunkingStrategy: 'No chunking'
-        pEmbedModel: !Sub "${KnowledgeBaseEmbeddingModelId}:0"
+        pEmbedModel: !Ref KnowledgeBaseEmbeddingModelId
         LogLevel: !Ref LogLevel
         PermissionsBoundaryArn: !Ref PermissionsBoundaryArn
 
@@ -899,7 +899,7 @@ Resources:
         pOutputBucket: !Ref OutputBucket
         pWorkingBucket: !Ref WorkingBucket
         pConfigurationTable: !Ref ConfigurationTable
-        pDocumentAnalysisAgentModelId: !Ref DocumentAnalysisAgentModelId
+        pKnowledgeBaseModelId: !Ref KnowledgeBaseModelId
         pGuardrailId: !Ref BedrockGuardrailId
         pGuardrailVersion: !Ref BedrockGuardrailVersion
         VectorIndexName: !Ref KnowledgeBaseVectorIndexName

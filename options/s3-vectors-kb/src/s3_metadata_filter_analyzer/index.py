@@ -12,27 +12,16 @@ from idp_common.bedrock.client import BedrockClient
 from idp_common.s3 import get_s3_client
 
 # --- Constants ---
-# Use named constants instead of "magic numbers" for better readability and maintainability.
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 METADATA_ANALYSIS_SAMPLE_SIZE = 1000  # Max vectors to sample for analysis
 MIN_FIELD_OCCURRENCE_RATE = 0.1       # Field must be in at least 10% of samples
 MAX_FILTERABLE_FIELDS_TO_REPORT = 8   # Max number of fields to report and generate examples for
-NON_FILTERABLE_FIELDS = {'text_content', 'document_id', 's3_uri'}
+NON_FILTERABLE_FIELDS = {'text_content', 's3_uri'}
 
-# --- Environment Variables ---
-# Fail-fast by accessing required environment variables at startup.
-S3_VECTORS_BUCKET_NAME = os.environ["S3_VECTORS_BUCKET_NAME"]
-S3_VECTORS_INDEX_NAME = os.environ["S3_VECTORS_INDEX_NAME"]
-QUERY_LAMBDA_FUNCTION_NAME = os.environ["QUERY_LAMBDA_FUNCTION_NAME"]
-WORKING_BUCKET = os.environ["WORKING_BUCKET"]
-NOVA_MODEL_ID = os.environ.get("NOVA_MODEL_ID", "amazon.nova-pro-v1:0")
 
-# --- AWS Service Clients & Logger ---
 # Initialize clients in the global scope for connection reuse.
 logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
 
-# Correctly use the custom S3VectorsClient
 s3_vectors_client = S3VectorsClient()
 s3_client = get_s3_client()
 lambda_client = boto3.client('lambda')
@@ -53,7 +42,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return {'statusCode': 200, 'body': json.dumps({'message': 'No filterable fields found.'})}
 
         filter_examples = generate_filter_examples(metadata_analysis)
-        store_filter_examples(filter_examples)
+        s3_location = store_filter_examples(filter_examples)
         
         filterable_fields_keys = list(metadata_analysis['filterable_fields'].keys())
         update_lambda_environment(filterable_fields_keys, filter_examples)
@@ -82,10 +71,10 @@ def analyze_metadata() -> Dict[str, Any]:
     field_analysis = defaultdict(lambda: {'count': 0, 'sample_values': set(), 'data_type': None})
     
     try:
-        logger.info(f"Analyzing up to {METADATA_ANALYSIS_SAMPLE_SIZE} vectors from index '{S3_VECTORS_INDEX_NAME}'...")
+        logger.info(f"Analyzing up to {METADATA_ANALYSIS_SAMPLE_SIZE} vectors from index '{os.environ["S3_VECTORS_INDEX_NAME"]}'...")
         response = s3_vectors_client.list_vectors(
-            vectorBucketName=S3_VECTORS_BUCKET_NAME,
-            indexName=S3_VECTORS_INDEX_NAME,
+            vectorBucketName=os.environ["S3_VECTORS_BUCKET_NAME"],
+            indexName=os.environ["S3_VECTORS_INDEX_NAME"],
             maxResults=METADATA_ANALYSIS_SAMPLE_SIZE,
             returnMetadata=True
         )
@@ -127,6 +116,23 @@ def analyze_metadata() -> Dict[str, Any]:
         logger.error(f"Failed to analyze metadata from S3 Vectors API.", exc_info=True)
         return {'total_vectors_sampled': 0, 'filterable_fields': {}}
 
+
+def _parse_filter_response(response) -> List[Dict[str, Any]]:
+    """Parse filter examples from Bedrock response."""
+    # Extract content from the BedrockClient response format
+    bedrock_response = response.get('response', {})
+    content_blocks = bedrock_response.get('output', {}).get('message', {}).get('content', [])
+    content = content_blocks[0].get('text', '[]') if content_blocks else '[]'
+    
+    content = content.strip()
+    if content.startswith('```json'):
+        content = content.replace('```json', '').replace('```', '').strip()
+
+    filter_examples = json.loads(content)
+    logger.info(f"Successfully generated {len(filter_examples)}")
+    return filter_examples
+
+
 def generate_filter_examples(metadata_analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Generates useful filter examples using a Bedrock LLM."""
     
@@ -165,86 +171,79 @@ def generate_filter_examples(metadata_analysis: Dict[str, Any]) -> List[Dict[str
 
         CRITICAL: Return ONLY the JSON array, no other text:
         [
-        {
+        {{
             "name": "descriptive name",
             "description": "what this filter does and when to use it", 
             "use_case": "specific scenario where this filter is useful",
-            "filter": { "S3 Vectors filter JSON" }
-        }
+            "filter": {{ "S3 Vectors filter JSON" }}
+        }}
         ]
     """
 
     try:
-        logger.info(f"Generating filter examples with Bedrock model: {NOVA_MODEL_ID}")
-        response = bedrock_client.invoke_model(
-            model_id=NOVA_MODEL_ID,
-            system_prompt="You are an expert in S3 Vectors metadata filtering.",
-            content=[{"text": prompt}],
-            temperature=0.1,
-            max_tokens=4096
-        )
+        params = {
+            "model_id": os.environ["LLM_MODEL_ID"],
+            "system_prompt": "You are an expert in S3 Vectors metadata filtering.",
+            "content": [{"text": prompt}],
+            "temperature": 0.1,
+            "max_tokens": 4096
+        }
         
-        # Extract content from the BedrockClient response format
-        bedrock_response = response.get('response', {})
-        content_blocks = bedrock_response.get('output', {}).get('message', {}).get('content', [])
-        content = content_blocks[0].get('text', '[]') if content_blocks else '[]'
-        
-        content = content.strip()
-        if content.startswith('```json'):
-            content = content.replace('```json', '').replace('```', '').strip()
-
-        filter_examples = json.loads(content)
-        logger.info(f"Successfully generated {len(filter_examples)} filter examples. FILTER EXAMPLES: {filter_examples}")
-        return filter_examples
+        response = bedrock_client.invoke_model(**params)
+        return _parse_filter_response(response)
         
     except Exception:
-        logger.error("Failed to generate filter examples from Bedrock.", exc_info=True)
-        logger.info("Falling back to basic, default filter examples.")
-        field_names = list(filterable_fields.keys())
-        return [
-            {
-                'name': 'Default: Field Existence Check',
-                'description': 'Checks if a specific field exists in the metadata.',
-                'use_case': 'A fallback example because the AI model failed to generate examples.',
-                'filter': {field_names[0]: {'$exists': True}} if field_names else {}
-            }
-        ]
+        try:
+            params["model_id"] = os.environ["ALTERNATIVE_LLM_MODEL_ID"]
+            
+            response = bedrock_client.invoke_model(**params)
+            return _parse_filter_response(response)
+        except Exception:
+            
+            field_names = list(filterable_fields.keys())
+            return [
+                {
+                    'name': 'Default: Field Existence Check',
+                    'description': 'Checks if a specific field exists in the metadata.',
+                    'use_case': 'A fallback example because the AI model failed to generate examples.',
+                    'filter': {field_names[0]: {'$exists': True}} if field_names else {}
+                }
+            ]
 
 def store_filter_examples(filter_examples: List[Dict[str, Any]]) -> str:
     """Stores the generated filter examples in a versioned and 'latest' S3 object."""
     timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-    s3_prefix = f"metadata-filters/{S3_VECTORS_INDEX_NAME}"
+    s3_prefix = f"metadata-filters/{os.environ["S3_VECTORS_INDEX_NAME"]}"
     versioned_key = f"{s3_prefix}/filter-examples-{timestamp}.json"
     latest_key = f"{s3_prefix}/filter-examples-latest.json"
     
     filter_data = json.dumps({
         'generated_timestamp_utc': datetime.utcnow().isoformat(),
-        'vector_index': S3_VECTORS_INDEX_NAME,
+        'vector_index': os.environ["S3_VECTORS_INDEX_NAME"],
         'examples': filter_examples
     }, indent=2)
     
-    s3_client.put_object(Bucket=WORKING_BUCKET, Key=versioned_key, Body=filter_data, ContentType='application/json')
-    s3_client.put_object(Bucket=WORKING_BUCKET, Key=latest_key, Body=filter_data, ContentType='application/json')
+    s3_client.put_object(Bucket=os.environ["WORKING_BUCKET"], Key=versioned_key, Body=filter_data, ContentType='application/json')
+    s3_client.put_object(Bucket=os.environ["WORKING_BUCKET"], Key=latest_key, Body=filter_data, ContentType='application/json')
     
-    latest_location = f"s3://{WORKING_BUCKET}/{latest_key}"
+    latest_location = f"s3://{os.environ["WORKING_BUCKET"]}/{versioned_key}"
     logger.info(f"Stored {len(filter_examples)} filter examples at {latest_location}")
     return latest_location
 
 def update_lambda_environment(filterable_fields: List[str], filter_examples: str):
     """Updates the Query Lambda's environment with the latest filter info."""
-    logger.info(f"Updating environment of Lambda: {QUERY_LAMBDA_FUNCTION_NAME}")
     try:
-        config = lambda_client.get_function_configuration(FunctionName=QUERY_LAMBDA_FUNCTION_NAME)
+        config = lambda_client.get_function_configuration(FunctionName=os.environ["QUERY_LAMBDA_FUNCTION_NAME"])
         env_vars = config.get('Environment', {}).get('Variables', {})
 
         env_vars['FILTERABLE_METADATA_KEYS'] = ','.join(filterable_fields)
         env_vars['FILTER_EXAMPLES'] = str(filter_examples)
 
         lambda_client.update_function_configuration(
-            FunctionName=QUERY_LAMBDA_FUNCTION_NAME,
+            FunctionName=os.environ["QUERY_LAMBDA_FUNCTION_NAME"],
             Environment={'Variables': env_vars}
         )
         logger.info("Successfully updated Lambda environment.")
     except Exception:
-        logger.error(f"Failed to update environment for Lambda '{QUERY_LAMBDA_FUNCTION_NAME}'.", exc_info=True)
+        logger.error(f"Failed to update environment for Lambda '{os.environ["QUERY_LAMBDA_FUNCTION_NAME"]}'.", exc_info=True)
         raise # Re-raise the exception to fail the handler.

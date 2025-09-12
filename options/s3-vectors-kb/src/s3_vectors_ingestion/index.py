@@ -375,43 +375,57 @@ def load_filter_keys_from_config() -> List[str]:
         logger.warning("Failed to load filter keys from config", exc_info=True)
         return []
 
+
+def _parse_classification_response(response, fields: List[str]) -> Dict[str, Any]:
+    """Parse and process classification response from Bedrock."""
+    # Extract the text content from the Bedrock response structure
+    try:
+        response_text = response["response"]["output"]["message"]["content"][0]["text"]
+    except (KeyError, IndexError, TypeError) as e:
+        logger.warning(f"Unexpected response structure from Bedrock: {e}. Response keys: {list(response.keys()) if isinstance(response, dict) else 'not a dict'}")
+        # Fallback: try to find text content in the response
+        if isinstance(response, dict) and "content" in response:
+            response_text = response["content"][0]["text"]
+        else:
+            raise ValueError(f"Unable to extract text from Bedrock response: {response}")
+    
+    try:
+        classified_data = json.loads(response_text)
+    except json.JSONDecodeError as e:
+        logger.warning(f"Failed to parse JSON from LLM response: {e}. Response text: {response_text[:200]}...")
+        return {}
+    
+    # Get all field values, then filter out any with "unknown" values
+    result = {field: classified_data.get(field, "unknown") for field in fields}
+    return {k: v for k, v in result.items() if v != "unknown"}
+
+
 def classify_chunk_metadata(text: str, fields: List[str]) -> Dict[str, Any]:
     """Uses a Bedrock LLM to classify a text chunk against a defined schema."""
     if not fields:
         return {}
         
     try:
-        response = bedrock_client.invoke_model(
-            model_id=os.environ["CLASSIFICATION_MODEL_ID"],
-            system_prompt='You are an expert document classifier. Return only a valid JSON object with the requested fields.',
-            content=[{"text": f"Analyze and classify this text using fields {fields}: {text[:1000]}..."}],
-            temperature=0.1,
-            max_tokens=500,
-        )
+        params = {
+            "model_id": os.environ["LIGHTWEIGHT_LLM_MODEL_ID"],
+            "system_prompt": 'You are an expert document classifier. Return only a valid JSON object with the requested fields.',
+            "content": [{"text": f"Analyze and classify this text using fields {fields}: {text[:1000]}..."}],
+            "temperature": 0.1,
+            "max_tokens": 500,
+        }
         
-        # Extract the text content from the Bedrock response structure
-        try:
-            response_text = response["response"]["output"]["message"]["content"][0]["text"]
-        except (KeyError, IndexError, TypeError) as e:
-            logger.warning(f"Unexpected response structure from Bedrock: {e}. Response keys: {list(response.keys()) if isinstance(response, dict) else 'not a dict'}")
-            # Fallback: try to find text content in the response
-            if isinstance(response, dict) and "content" in response:
-                response_text = response["content"][0]["text"]
-            else:
-                raise ValueError(f"Unable to extract text from Bedrock response: {response}")
+        response = bedrock_client.invoke_model(**params)
+        return _parse_classification_response(response, fields)
         
-        try:
-            classified_data = json.loads(response_text)
-        except json.JSONDecodeError as e:
-            logger.warning(f"Failed to parse JSON from LLM response: {e}. Response text: {response_text[:200]}...")
-            return {}
-        
-        # Get all field values, then filter out any with "unknown" values
-        result = {field: classified_data.get(field, "unknown") for field in fields}
-        return {k: v for k, v in result.items() if v != "unknown"}
     except Exception:
-        logger.warning("LLM classification failed", exc_info=True)
-        return {field: "unknown" for field in fields}
+        try:
+            params["model_id"] = os.environ["ALTERNATIVE_LIGHTWEIGHT_LLM_MODEL_ID"]
+            response = bedrock_client.invoke_model(**params)
+            return _parse_classification_response(response, fields)
+            
+        except Exception:
+            logger.warning("LLM classification failed", exc_info=True)
+            return {field: "unknown" for field in fields}
 
 # --- CloudWatch Metrics ---
 def emit_ingestion_metrics(latency_ms: float, success: bool, vectors: int, docs: int):

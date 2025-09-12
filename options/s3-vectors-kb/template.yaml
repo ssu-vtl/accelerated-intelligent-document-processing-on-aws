@@ -33,7 +33,7 @@ Parameters:
     Type: String
   pConfigurationTable:
     Type: String
-  pDocumentAnalysisAgentModelId:
+  pKnowledgeBaseModelId:
     Type: String
   pGuardrailId:
     Type: String
@@ -41,6 +41,14 @@ Parameters:
   pGuardrailVersion:
     Type: String
     Default: ""
+  LightweightLLMModelId:
+    Type: String
+    Default: "amazon.nova-micro-v1:0"
+    Description: Lightweight LLM model ID for local region
+  CrossRegionLightweightLLMModelId:
+    Type: String
+    Default: "us.amazon.nova-micro-v1:0"
+    Description: Cross-region LLM model ID (with region prefix for cross-region access)
   VectorIndexName:
     Type: String
     Description: 'Name for the S3 vector index (auto-generated if empty)'
@@ -75,6 +83,16 @@ Conditions:
   pHasCustomerManagedEncryptionKey: !Not [!Equals [!Ref pCustomerManagedEncryptionKeyArn, ""]]
 
 Resources:
+
+  CrossRegionKnowledgeBaseModelId:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: CrossRegionKnowledgeBaseModelId
+      Type: String
+      Value: !Join
+        - "."
+        - [!Select [1, !Split [".", !Ref pKnowledgeBaseModelId]],
+           !Select [2, !Split [".", !Ref pKnowledgeBaseModelId]]]
 
   S3VectorsProvisionerFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -123,7 +141,10 @@ Resources:
       ServiceToken: !GetAtt S3VectorsProvisionerFunction.Arn
       VectorBucketName: !Sub "${pStackName}-s3vectors"
       VectorIndexName: !Ref VectorIndexName
-      VectorDimension: !FindInMap [EmbeddingModelDimensions, !Ref EmbeddingModelId, Dimension]
+      VectorDimension: !FindInMap 
+        - EmbeddingModelDimensions
+        - !Select [0, !Split [":0", !Ref EmbeddingModelId]]
+        - Dimension
       DistanceMetric: !Ref VectorSimilarityMeasure
 
 
@@ -143,8 +164,11 @@ Resources:
           S3_VECTORS_BUCKET: !Sub "${pStackName}-s3vectors"
           S3_VECTORS_INDEX_NAME: !Ref VectorIndexName
           VECTOR_SIMILARITY_MEASURE: !Ref VectorSimilarityMeasure
-          EMBEDDING_MODEL_ID: !Sub "${EmbeddingModelId}:0"
-          LLM_MODEL_ID: !Ref pDocumentAnalysisAgentModelId
+          EMBEDDING_MODEL_ID: !Ref EmbeddingModelId
+          LLM_MODEL_ID: !Ref pKnowledgeBaseModelId
+          ALTERNATIVE_LLM_MODEL_ID: !GetAtt CrossRegionKnowledgeBaseModelId.Value
+          LIGHTWEIGHT_LLM_MODEL_ID: !Ref LightweightLLMModelId
+          ALTERNATE_LIGHTWEIGHT_LLM_MODEL_ID: !Ref CrossRegionLightweightLLMModelId
           S3_VECTORS_CATALOG_TABLE: !Ref pS3VectorsCatalogTableName
           GUARDRAIL_ID_AND_VERSION: !If [pHasGuardrailConfig, !Sub "${pGuardrailId}:${pGuardrailVersion}", ""]
       Policies:
@@ -159,9 +183,17 @@ Resources:
                 - bedrock:InvokeModel
                 - bedrock:InvokeModelWithResponseStream
               Resource:
-                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}:0"
-                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${pDocumentAnalysisAgentModelId}"
-                - "*"
+                # Unknown AWS Routing Behavior for Nova Models to inference-profile
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/${EmbeddingModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/${pKnowledgeBaseModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/${LightweightLLMModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/${CrossRegionLightweightLLMModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/${CrossRegionKnowledgeBaseModelId.Value}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${EmbeddingModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${pKnowledgeBaseModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${LightweightLLMModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${CrossRegionLightweightLLMModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${CrossRegionKnowledgeBaseModelId.Value}"
             - Effect: Allow
               Action:
                 - dynamodb:GetItem
@@ -189,15 +221,19 @@ Resources:
           OUTPUT_BUCKET: !Ref pOutputBucket
           S3_VECTORS_BUCKET: !Sub "${pStackName}-s3vectors"
           S3_VECTORS_CATALOG_TABLE: !Ref pS3VectorsCatalogTableName
-          S3_VECTORS_SERVICE_INDEX_NAME: !Ref VectorIndexName
-          EMBEDDING_MODEL_ID: !Sub "${EmbeddingModelId}:0"
+          S3_VECTORS_INDEX_NAME: !Ref VectorIndexName
+          EMBEDDING_MODEL_ID: !Ref EmbeddingModelId
           MAX_VECTORS_PER_BATCH: !Ref MaxVectorsPerBatch
-          VECTOR_DIMENSION: !FindInMap [EmbeddingModelDimensions, !Ref EmbeddingModelId, Dimension]
+          VECTOR_DIMENSION: !FindInMap
+            - EmbeddingModelDimensions
+            - !Select [0, !Split [":0", !Ref EmbeddingModelId]]
+            - Dimension
           VECTOR_SIMILARITY_MEASURE: !Ref VectorSimilarityMeasure
           CHUNK_SIZE: 300
           CHUNK_OVERLAP: 50
           USE_LLM_CLASSIFICATION: "false"
-          CLASSIFICATION_MODEL_ID: "us.amazon.nova-micro-v1:0"
+          LIGHTWEIGHT_LLM_MODEL_ID: !Ref LightweightLLMModelId
+          ALTERNATE_LIGHTWEIGHT_LLM_MODEL_ID: !Ref CrossRegionLightweightLLMModelId
           CONFIGURATION_TABLE_NAME: !Ref pConfigurationTable
       LoggingConfig:
         LogGroup: !Ref S3VectorsIngestionFunctionLogGroup
@@ -243,8 +279,13 @@ Resources:
                 - bedrock:InvokeModel
                 - bedrock:InvokeModelWithResponseStream
               Resource:
-                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${EmbeddingModelId}:0"
-                - "*"
+                # Unknown AWS Routing Behavior for Nova Models to inference-profile
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/${EmbeddingModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/${LightweightLLMModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/${CrossRegionLightweightLLMModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${EmbeddingModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${LightweightLLMModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${CrossRegionLightweightLLMModelId}"
             - Effect: Allow
               Action:
                 - cloudwatch:PutMetricData
@@ -311,7 +352,8 @@ Resources:
           S3_VECTORS_INDEX_NAME: !Ref VectorIndexName
           QUERY_LAMBDA_FUNCTION_NAME: !Ref S3VectorsQueryFunction
           WORKING_BUCKET: !Ref pWorkingBucket
-          NOVA_MODEL_ID: !Ref pDocumentAnalysisAgentModelId
+          LLM_MODEL_ID: !Ref pKnowledgeBaseModelId
+          ALTERNATIVE_LLM_MODEL_ID: !GetAtt CrossRegionKnowledgeBaseModelId.Value
       LoggingConfig:
         LogGroup: !Ref S3MetadataFilterAnalyzerLogGroup
       Policies:
@@ -338,8 +380,11 @@ Resources:
               Action:
                 - bedrock:InvokeModel
               Resource:
-                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/${pDocumentAnalysisAgentModelId}"
-                - "*"
+                # Unknown AWS Routing Behavior for Nova Models to inference-profile
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/${pKnowledgeBaseModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/${CrossRegionKnowledgeBaseModelId.Value}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${pKnowledgeBaseModelId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${CrossRegionKnowledgeBaseModelId.Value}"
             - !If
               - pHasCustomerManagedEncryptionKey
               - Effect: Allow
@@ -455,7 +500,7 @@ Outputs:
     Value: !GetAtt S3MetadataFilterAnalyzerFunction.Arn
   EmbeddingModelId:
     Description: 'Configured embedding model for vector generation'
-    Value: !Sub '${EmbeddingModelId}:0'
+    Value: !Ref EmbeddingModelId
   MaxVectorsPerBatch:
     Description: 'Configured maximum vectors per batch for ingestion'
     Value: !Ref MaxVectorsPerBatch

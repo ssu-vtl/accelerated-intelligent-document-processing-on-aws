@@ -22,7 +22,6 @@ GUARDRAIL_ENV = os.environ["GUARDRAIL_ID_AND_VERSION"]
 # --- AWS Service Clients & Logger ---
 logger = logging.getLogger(__name__)
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
-
 s3vectors_client = S3VectorsClient()
 bedrock_client = BedrockClient()
 cloudwatch_client = boto3.client('cloudwatch')
@@ -285,19 +284,28 @@ def invoke_bedrock_llm(system_prompt: str, user_prompt: str, model_id: str) -> s
                 "guardrailVersion": guardrail_version
             }
 
-        response = bedrock_client.invoke_model(**params)
+        response = bedrock_client.invoke_model(**params) 
+        return _parse_bedrock_response(response)
         
-        # Extract text from the nested response structure
-        if "response" in response and "output" in response["response"]:
-            message = response["response"]["output"].get("message", {})
-            content = message.get("content", [])
-            if content and isinstance(content, list) and len(content) > 0:
-                return content[0].get("text", "").strip()
-        
-        return ""
     except Exception:
-        logger.error(f"Error invoking Bedrock model {model_id}", exc_info=True)
-        raise
+        if model_id in [os.environ["LIGHTWEIGHT_LLM_MODEL_ID"], os.environ["LLM_MODEL_ID"]]:
+            try:
+                alternative_model = os.environ["ALTERNATIVE_LIGHTWEIGHT_LLM_MODEL_ID"] if model_id == os.environ["LIGHTWEIGHT_LLM_MODEL_ID"] else os.environ["ALTERNATIVE_LLM_MODEL_ID"]
+                params["model_id"] = alternative_model
+                response = bedrock_client.invoke_model(**params)
+                return _parse_bedrock_response(response)
+            except Exception:
+                logger.error(f"Error invoking Bedrock model {model_id}", exc_info=True)
+                raise
+
+def _parse_bedrock_response(response) -> str:
+    """Parse text from Bedrock API response structure."""
+    if "response" in response and "output" in response["response"]:
+        message = response["response"]["output"].get("message", {})
+        content = message.get("content", [])
+        if content and isinstance(content, list) and len(content) > 0:
+            return content[0].get("text", "").strip()
+    return ""
 
 # --- Session Management ---
 def get_session_context(session_id: str) -> Optional[Dict[str, Any]]:
