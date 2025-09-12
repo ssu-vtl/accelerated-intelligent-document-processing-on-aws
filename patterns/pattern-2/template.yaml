@@ -819,7 +819,7 @@ Resources:
                 items:
                   type: string
           pricing:
-            order: 8
+            order: 9
             type: array
             sectionLabel: Pricing (Estimates only - check https://aws.amazon.com/bedrock/pricing/ & https://aws.amazon.com/textract/pricing/)
             listLabel: Services

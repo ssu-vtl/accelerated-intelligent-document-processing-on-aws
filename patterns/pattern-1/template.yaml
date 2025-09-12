@@ -428,8 +428,21 @@ Resources:
                 format: textarea
                 description: Task prompt - supports parameter {DOCUMENT_TEXT}. Optionally use <<CACHEPOINT>> to separate static and dynamic elements of prompt for Bedrock prompt caching.
                 order: 7
+          s3Vectors:
+            order: 7
+            type: object
+            sectionLabel: S3 Vectors
+            properties:
+              filterableMetadataKeys:
+                type: array
+                description: "Add up to 6 metadata keys for filtering.  These 4 are always included: document_id, document_type, section_type, confidence."
+                listLabel: "Filterable metadata keys"
+                itemLabel: "Metadata key"
+                maxItems: 6
+                items:
+                  type: string
           pricing:
-            order: 6
+            order: 8
             type: array
             sectionLabel: Pricing Estimates - check https://aws.amazon.com/bedrock/pricing/
             listLabel: Services
