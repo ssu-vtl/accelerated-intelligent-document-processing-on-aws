@@ -53,6 +53,19 @@ Mappings:
     default:
       ConfigPath: "rvl-cdip-package-sample"
 
+  # Embedding model → vector dimension mapping (base ids, no version)
+  EmbeddingModelDimensions:
+    amazon.titan-embed-text-v1:
+      Dimension: 1536
+    amazon.titan-embed-text-v2:
+      Dimension: 1024
+    cohere.embed-english-v3:
+      Dimension: 1024
+    cohere.embed-multilingual-v3:
+      Dimension: 1024
+
+  # Removed embedding model mapping; deriving versioned id via string concatenation
+
 Parameters:
 
   # Authorization params
@@ -223,12 +236,15 @@ Parameters:
 
   # Optional Knowledge Base Configuration
   DocumentKnowledgeBase:
-    Default: "BEDROCK_KNOWLEDGE_BASE (Create)"
+    Default: "OpenSearch"
     Type: String
     AllowedValues:
-      - "DISABLED"
-      - "BEDROCK_KNOWLEDGE_BASE (Create)"
-    Description: Use document processing results as knowledge base content. Model access for amazon.titan-embed-text-v2:0 MUST be enabled in Amazon Bedrock.
+      - "OpenSearch"
+      - "S3 Vectors"
+      - "Disable"
+    Description: |
+      Use processed documents as knowledge base content. Bedrock Knowledge Base offers two backends: 
+      OpenSearch ($11/day, real-time analytics, faster queries), S3 Vectors (on-demand, slower, free at rest), or Disable to turn off knowledge base functionality.
 
   KnowledgeBaseModelId:
     Type: String
@@ -241,7 +257,7 @@ Parameters:
       - "us.anthropic.claude-3-5-haiku-20241022-v1:0"
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-    Description: Model to use for optional Document Knowledge Base. Model access MUST be enabled in Amazon Bedrock.
+    Description: Model to use for chat with Knowledge Base. Model access MUST be enabled in Amazon Bedrock.
 
   DocumentAnalysisAgentModelId:
     Type: String
@@ -255,7 +271,40 @@ Parameters:
       - "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
       - "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
       - "us.anthropic.claude-sonnet-4-20250514-v1:0"
-    Description: Model to use for Document Analysis Agent (analytics queries). Model access MUST be enabled in Amazon Bedrock.
+    Description: Model to use for Document Analysis Agent (analytics queries, OpenSearch). Model access MUST be enabled in Amazon Bedrock.
+
+  # S3 Vectors Knowledge Base Configuration
+  VectorSimilarityMeasure:
+    Type: String
+    Default: "cosine"
+    AllowedValues:
+      - "cosine"
+      - "euclidean"
+    Description: |
+      Used in S3 Vectors (configurable only at creation time). Euclidean distance compares absolute magnitudes (product prices, ratings). 
+      Cosine similarity finds directional patterns regardless of scale (similar movie tastes, document topics).
+
+  KnowledgeBaseEmbeddingModelId:
+    Type: String
+    Default: "amazon.titan-embed-text-v2:0"
+    AllowedValues:
+      - "amazon.titan-embed-text-v1:0"
+      - "amazon.titan-embed-text-v2:0"
+      - "cohere.embed-english-v3:0"
+      - "cohere.embed-multilingual-v3:0"
+    Description: Bedrock embedding model.
+
+  KnowledgeBaseVectorIndexName:
+    Type: String
+    Default: "default-index"
+    Description: Name of the S3 Vectors index to create and use
+    AllowedPattern: '^[a-zA-Z0-9-_]{1,255}$'
+
+  # S3 Vectors ingestion schedule
+  S3VectorsIngestionScheduleExpression:
+    Type: String
+    Default: "cron(0/30 * ? * * *)"
+    Description: Schedule expression for periodic S3 Vectors ingestion (EventBridge Scheduler)
 
   # Optional - Post processing Lambda hook
   PostProcessingLambdaHookFunctionArn:
@@ -440,8 +489,12 @@ Conditions:
   ShouldCreateReportingBucket: !Equals [!Ref ReportingBucketName, '']
   IsEvaluationAutoEnabled: !Equals [!Ref EvaluationAutoEnabled, 'true']
   IsWafEnabled: !Not [!Equals [!Ref WAFAllowedIPv4Ranges, "0.0.0.0/0"]]
-  ShouldCreateDocumentKnowledgeBase: !Equals [!Ref DocumentKnowledgeBase, "BEDROCK_KNOWLEDGE_BASE (Create)"]
+  ShouldCreateDocumentKnowledgeBase: !Equals [!Ref DocumentKnowledgeBase, "OpenSearch"]
+  ShouldCreateS3VectorsKnowledgeBase: !Equals [!Ref DocumentKnowledgeBase, "S3 Vectors"]
   ShouldUseDocumentKnowledgeBase: !Condition ShouldCreateDocumentKnowledgeBase
+  ShouldUseS3VectorsKnowledgeBase: !Condition ShouldCreateS3VectorsKnowledgeBase
+  ShouldUseAnyKnowledgeBase: !Or [!Condition ShouldUseDocumentKnowledgeBase, !Condition ShouldUseS3VectorsKnowledgeBase]
+  IsKnowledgeBaseDisabled: !Equals [!Ref DocumentKnowledgeBase, "Disable"]
   DocumentSectionsCrawlerScheduleEnabled: !Not [!Equals [!Ref DocumentSectionsCrawlerFrequency, "Manual"]]
   HasPermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundaryArn, ""]]
   HasCustomConfigPath: !Not [!Equals [!Ref CustomConfigPath, ""]]
@@ -499,6 +552,8 @@ Metadata:
         Parameters:
           - DocumentKnowledgeBase
           - KnowledgeBaseModelId
+          - VectorSimilarityMeasure
+          - KnowledgeBaseEmbeddingModelId
       - Label:
           default: "Agentic Analysis"
         Parameters:
@@ -568,6 +623,10 @@ Metadata:
         default: "Document Knowledge Base Configuration"
       KnowledgeBaseModelId:
         default: "Knowledge Base Model Id"
+      VectorSimilarityMeasure:
+        default: "Vector Similarity Measure"
+      KnowledgeBaseEmbeddingModelId:
+        default: "Knowledge Base Embedding Model"
       DocumentAnalysisAgentModelId:
         default: "Document Analysis Agent Model Id"
       BedrockGuardrailId:
@@ -596,7 +655,6 @@ Metadata:
         default: "WAF Allowed IPv4 Ranges"
 
 Resources:
-
   # Custom resource to enforce max length of StackName - prevent downstream failures
   StacknameCheckFunction:
     Type: AWS::Serverless::Function
@@ -817,8 +875,38 @@ Resources:
         pS3SyncScheduleExpression: "cron(0/30 * ? * * *)"  # default is to sync documents every 30 minutes
         pCustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
         pChunkingStrategy: 'No chunking'
+        pEmbedModel: !Ref KnowledgeBaseEmbeddingModelId
         LogLevel: !Ref LogLevel
         PermissionsBoundaryArn: !Ref PermissionsBoundaryArn
+
+  DOCUMENTS3VECTORSKB:
+    DependsOn:
+      - IsStacknameLengthOK
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Retain
+    Condition: ShouldCreateS3VectorsKnowledgeBase
+    Properties:
+      TemplateURL: ./options/s3-vectors-kb/.aws-sam/packaged.yaml
+      Parameters:
+        pStackName: !GetAtt GetLowercase.Lowercase
+        pLogLevel: !Ref LogLevel
+        pLogRetentionDays: !Ref LogRetentionDays
+        pPermissionsBoundaryArn: !Ref PermissionsBoundaryArn
+        pCustomerManagedEncryptionKeyArn: !GetAtt CustomerManagedEncryptionKey.Arn
+        pS3VectorsCatalogTableName: !Ref S3VectorsCatalogTable
+        pS3VectorsCatalogTableArn: !GetAtt S3VectorsCatalogTable.Arn
+        pAlertsTopicArn: !Ref AlertsTopic
+        pOutputBucket: !Ref OutputBucket
+        pWorkingBucket: !Ref WorkingBucket
+        pConfigurationTable: !Ref ConfigurationTable
+        pKnowledgeBaseModelId: !Ref KnowledgeBaseModelId
+        pGuardrailId: !Ref BedrockGuardrailId
+        pGuardrailVersion: !Ref BedrockGuardrailVersion
+        VectorIndexName: !Ref KnowledgeBaseVectorIndexName
+        VectorSimilarityMeasure: !Ref VectorSimilarityMeasure
+        EmbeddingModelId: !Ref KnowledgeBaseEmbeddingModelId
+        MaxVectorsPerBatch: "100"
+        S3VectorsIngestionScheduleExpression: !Ref S3VectorsIngestionScheduleExpression
 
 
   ##########################################################################
@@ -875,7 +963,6 @@ Resources:
     DependsOn:
       - IsStacknameLengthOK
       - CopyConfigurationFiles
-      - GraphQLApi
     Type: AWS::CloudFormation::Stack
     Condition: IsPattern2
     Properties:
@@ -2117,6 +2204,35 @@ Resources:
       MessageRetentionPeriod: 345600  # 4 days
       KmsMasterKeyId: !Ref CustomerManagedEncryptionKey
 
+  S3VectorsCatalogTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref CustomerManagedEncryptionKey
+      Tags:
+        - Key: Purpose
+          Value: S3VectorsCatalog
+        - Key: Component
+          Value: KnowledgeBase
+
   UpdateConfigurationFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -2192,7 +2308,7 @@ Resources:
 
   # Pattern stacks can update the Configuration table with a CustomResource, using the 
   # UpdateConfigurationFunctionArn parameter passed to them. See examples in provided 
-  # pattern templates.
+
 
 
   ##########################################################################
@@ -2272,6 +2388,14 @@ Resources:
             - !Ref EvaluationBaselineBucketName
         ShouldUseDocumentKnowledgeBase: !If
           - ShouldUseDocumentKnowledgeBase
+          - True
+          - False
+        ShouldUseS3VectorsKnowledgeBase: !If
+          - ShouldUseS3VectorsKnowledgeBase
+          - True
+          - False
+        IsKnowledgeBaseDisabled: !If
+          - IsKnowledgeBaseDisabled
           - True
           - False
     UpdateReplacePolicy: Delete
@@ -3391,6 +3515,7 @@ Resources:
           - IsPattern2
           - !GetAtt PATTERN2STACK.Outputs.DashboardName
           - !GetAtt PATTERN1STACK.Outputs.DashboardName
+
       MergedDashboardName: !Sub "${AWS::StackName}-${AWS::Region}"
       ChangeToForceUpdate: <HASH_TOKEN> # Source code hash set by publish script
 
@@ -5699,6 +5824,7 @@ Resources:
       TypeName: Mutation
       FieldName: uploadDocument
 
+
   ##########################################################################
   # Discovery Upload Resolver 
   ##########################################################################
@@ -5943,6 +6069,7 @@ Resources:
   # Knowledge Base Query Resolver 
   ##########################################################################
 
+
   QueryKnowledgeBaseResolverFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -5969,6 +6096,13 @@ Resources:
       Environment:
         Variables:
           LOG_LEVEL: !Ref LogLevel
+          KB_TYPE: !If
+            - IsKnowledgeBaseDisabled
+            - "DISABLED"
+            - !If
+              - ShouldUseS3VectorsKnowledgeBase
+              - "S3_VECTORS"
+              - "BEDROCK"
           KB_ID: !If
             - ShouldUseDocumentKnowledgeBase
             - !GetAtt DOCUMENTBEDROCKKB.Outputs.KnowledgeBaseID
@@ -5977,6 +6111,27 @@ Resources:
           KB_REGION: !Ref AWS::Region
           MODEL_ID: !Ref KnowledgeBaseModelId
           GUARDRAIL_ID_AND_VERSION: !If [HasGuardrailConfig, !Sub "${BedrockGuardrailId}:${BedrockGuardrailVersion}", ""]
+          # S3 Vectors specific environment variables
+          S3_VECTORS_BUCKET_NAME: !If
+            - ShouldUseS3VectorsKnowledgeBase
+            - !Sub "${GetLowercase.Lowercase}-s3vectors"
+            - ""
+          S3_VECTORS_INDEX_NAME: !If
+            - ShouldUseS3VectorsKnowledgeBase
+            - !Ref KnowledgeBaseVectorIndexName
+            - ""
+          S3_VECTORS_SESSION_TABLE: !If
+            - ShouldUseS3VectorsKnowledgeBase
+            - !Ref S3VectorsCatalogTable
+            - ""
+          S3_VECTORS_EMBEDDING_MODEL: !If
+            - ShouldUseS3VectorsKnowledgeBase
+            - !GetAtt DOCUMENTS3VECTORSKB.Outputs.EmbeddingModelId
+            - ""
+          S3_VECTORS_QUERY_FUNCTION_NAME: !If
+            - ShouldUseS3VectorsKnowledgeBase
+            - !GetAtt DOCUMENTS3VECTORSKB.Outputs.S3VectorsQueryFunctionArn
+            - ""
       LoggingConfig:
         LogGroup: !Ref QueryKnowledgeBaseResolverFunctionLogGroup
       Policies:
@@ -5989,24 +6144,40 @@ Resources:
                 - bedrock:RetrieveAndGenerate
               Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/${DOCUMENTBEDROCKKB.Outputs.KnowledgeBaseID}"
             - !Ref AWS::NoValue
-          - Effect: Allow
-            Action:
-              - "bedrock:InvokeModel"
-            Resource:
-              - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
-              - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
-          - Effect: Allow
-            Action:
-              - "bedrock:GetInferenceProfile"
-            Resource:
-              - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
           - !If
-            - HasGuardrailConfig
+            - ShouldUseS3VectorsKnowledgeBase
             - Effect: Allow
               Action:
-                - "bedrock:ApplyGuardrail"
+                - lambda:InvokeFunction
+              Resource: !GetAtt DOCUMENTS3VECTORSKB.Outputs.S3VectorsQueryFunctionArn
+            - !Ref AWS::NoValue
+          - !If
+            - IsKnowledgeBaseDisabled
+            - !Ref AWS::NoValue
+            - Effect: Allow
+              Action:
+                - "bedrock:InvokeModel"
               Resource:
-                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
+                - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          - !If
+            - IsKnowledgeBaseDisabled
+            - !Ref AWS::NoValue
+            - Effect: Allow
+              Action:
+                - "bedrock:GetInferenceProfile"
+              Resource:
+                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+          - !If
+            - HasGuardrailConfig
+            - !If
+              - IsKnowledgeBaseDisabled
+              - !Ref AWS::NoValue
+              - Effect: Allow
+                Action:
+                  - "bedrock:ApplyGuardrail"
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
             - !Ref AWS::NoValue
           - Effect: Allow
             Action:
@@ -6042,6 +6213,8 @@ Resources:
       DataSourceName: !GetAtt QueryKnowledgeBaseDataSource.Name
       TypeName: Query
       FieldName: queryKnowledgeBase
+
+
 
   ##########################################################################
   # Chat With Document Resolver 
@@ -6085,7 +6258,7 @@ Resources:
             TableName: !Ref ConfigurationTable
         - DynamoDBCrudPolicy:
             TableName: !Ref TrackingTable
-        - Statement: 
+        - Statement:
           - !If
             - ShouldUseDocumentKnowledgeBase
             - Effect: Allow
@@ -6096,27 +6269,23 @@ Resources:
             - !Ref AWS::NoValue
           - Effect: Allow
             Action:
-              - "bedrock:InvokeModel"
+              - bedrock:InvokeModel
+              - bedrock:GetInferenceProfile
             Resource:
               - !Sub "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
               - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
-          - Effect: Allow
-            Action:
-              - cloudwatch:PutMetricData
-            Resource: "*"
-          - Effect: Allow
-            Action:
-              - "bedrock:GetInferenceProfile"
-            Resource:
-              - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
           - !If
             - HasGuardrailConfig
-            - Effect: Allow
-              Action:
-                - "bedrock:ApplyGuardrail"
-              Resource:
-                - !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
+            - !If
+              - IsKnowledgeBaseDisabled
+              - !Ref AWS::NoValue
+              - Effect: Allow
+                Action: bedrock:ApplyGuardrail
+                Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${BedrockGuardrailId}"
             - !Ref AWS::NoValue
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: "*"
           - Effect: Allow
             Action:
               - kms:Encrypt
@@ -6125,6 +6294,7 @@ Resources:
               - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: !GetAtt CustomerManagedEncryptionKey.Arn
+
 
   ChatWithDocumentResolverFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -6316,14 +6486,11 @@ Resources:
           phases:
             pre_build:
               commands:
-                - echo ${SOURCE_CODE_LOCATION}
-                - echo `ls -altr`
-                - echo `pwd`
                 - echo Installing NodeJS
                 - n 22.14.0
                 - npm install -g npm@11.1.0
                 - echo Installing Web UI dependencies
-                - npm install
+                - npm ci
             build:
               commands:
                 - echo Build started on `date`

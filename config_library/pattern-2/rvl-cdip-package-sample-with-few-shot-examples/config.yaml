@@ -798,6 +798,8 @@ extraction:
     7. Think step by step before finalizing your answer
 
     </final-instructions>
+s3Vectors:
+  filterableMetadataKeys: []
 pricing:
   - name: textract/detect_document_text
     units:

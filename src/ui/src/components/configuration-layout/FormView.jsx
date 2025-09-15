@@ -873,11 +873,18 @@ const FormView = ({ schema, formValues, defaultConfig, isCustomized, onResetToDe
               style={{ margin: '0', padding: '0', display: 'inline-flex' }}
               className="awsui-button-icon"
             />
-            <Box fontWeight="bold" fontSize="body-m" marginLeft="xxs" display="inline-block">
-              {`${listLabel} (${values.length})`}
-              {hasCustomizedItems && (
-                <Box as="span" color="text-status-info" fontSize="body-s" fontWeight="normal" marginLeft="xs">
-                  (customized)
+            <Box marginLeft="xxs" display="inline-block">
+              <Box fontWeight="bold" fontSize="body-m" display="block">
+                {`${listLabel} (${values.length})`}
+                {hasCustomizedItems && (
+                  <Box as="span" color="text-status-info" fontSize="body-s" fontWeight="normal" marginLeft="xs">
+                    (customized)
+                  </Box>
+                )}
+              </Box>
+              {property.description && /(^|\.)s3vectors(\.|$)/i.test(path) && (
+                <Box color="text-body-secondary" fontSize="body-s" marginTop="xxs" display="block">
+                  {property.description}
                 </Box>
               )}
             </Box>

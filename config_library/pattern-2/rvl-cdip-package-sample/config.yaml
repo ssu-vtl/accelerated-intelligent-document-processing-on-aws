@@ -801,6 +801,8 @@ evaluation:
     model: us.anthropic.claude-3-haiku-20240307-v1:0
     system_prompt: >-
       You are an evaluator that helps determine if the predicted and expected values match for document attribute extraction. You will consider the context and meaning rather than just exact string matching.
+s3Vectors:
+  filterableMetadataKeys: []
 pricing:
   - name: textract/detect_document_text
     units:

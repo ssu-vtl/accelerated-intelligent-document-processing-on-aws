@@ -362,7 +362,7 @@ Resources:
                   model:
                     type: string
                     description: Bedrock model ID
-                    enum: ["us.amazon.nova-lite-v1:0", "us.amazon.nova-pro-v1:0", "us.amazon.nova-premier-v1:0", "us.anthropic.claude-3-haiku-20240307-v1:0", "us.anthropic.claude-3-5-sonnet-20241022-v2:0", "us.anthropic.claude-3-7-sonnet-20250219-v1:0", "us.anthropic.claude-sonnet-4-20250514-v1:0", "us.anthropic.claude-sonnet-4-20250514-v1:0:1m", "us.anthropic.claude-opus-4-20250514-v1:0", "us.anthropic.claude-opus-4-1-20250805-v1:0"]
+                    enum: ["amazon.nova-lite-v1:0", "amazon.nova-pro-v1:0", "amazon.nova-premier-v1:0", "anthropic.claude-3-haiku-20240307-v1:0", "anthropic.claude-3-5-sonnet-20241022-v2:0", "anthropic.claude-3-5-haiku-20241022-v1:0"]
                     order: 1
                   temperature:
                     type: number
@@ -414,7 +414,7 @@ Resources:
               model:
                 type: string
                 description: Bedrock model ID
-                enum: ["us.amazon.nova-lite-v1:0", "us.amazon.nova-pro-v1:0", "us.amazon.nova-premier-v1:0", "us.anthropic.claude-3-haiku-20240307-v1:0", "us.anthropic.claude-3-5-sonnet-20241022-v2:0", "us.anthropic.claude-3-7-sonnet-20250219-v1:0", "us.anthropic.claude-sonnet-4-20250514-v1:0", "us.anthropic.claude-sonnet-4-20250514-v1:0:1m", "us.anthropic.claude-opus-4-20250514-v1:0", "us.anthropic.claude-opus-4-1-20250805-v1:0"]
+                enum: ["amazon.nova-lite-v1:0", "amazon.nova-pro-v1:0", "amazon.nova-premier-v1:0", "anthropic.claude-3-haiku-20240307-v1:0", "anthropic.claude-3-5-sonnet-20241022-v2:0", "anthropic.claude-3-5-haiku-20241022-v1:0"]
                 order: 1
               temperature:
                 type: number
@@ -443,7 +443,7 @@ Resources:
                 description: Task prompt - supports parameter {DOCUMENT_TEXT}. Optionally use <<CACHEPOINT>> to separate static and dynamic elements of prompt for Bedrock prompt caching.
                 order: 7
           discovery:
-            order: 5
+            order: 6
             type: object
             sectionLabel: Discovery Configuration
             description: Configuration for document class discovery functionality
@@ -550,8 +550,21 @@ Resources:
                     description: Sample JSON format for discovery output
                     default: "{\n  \"document_class\": \"Form-1040\",\n  \"document_description\": \"Brief summary of the document\",\n  \"groups\": [\n    {\n      \"name\": \"PersonalInformation\",\n      \"description\": \"Personal information of Tax payer\",\n      \"attributeType\": \"group\",\n      \"groupType\": \"normal\",\n      \"groupAttributes\": [\n        {\n          \"name\": \"FirstName\",\n          \"dataType\": \"string\",\n          \"description\": \"First Name of Taxpayer\"\n        },\n        {\n          \"name\": \"Age\",\n          \"dataType\": \"number\",\n          \"description\": \"Age of Taxpayer\"\n        }\n      ]\n    }\n  ]\n}"
                     order: 0
+          s3Vectors:
+            order: 7
+            type: object
+            sectionLabel: S3 Vectors
+            properties:
+              filterableMetadataKeys:
+                type: array
+                description: "Add up to 6 metadata keys for filtering.  These 2 are always included: document_id, confidence."
+                listLabel: "Filterable metadata keys"
+                itemLabel: "Metadata key"
+                maxItems: 6
+                items:
+                  type: string
           pricing:
-            order: 6
+            order: 8
             type: array
             sectionLabel: Pricing Estimates - check https://aws.amazon.com/bedrock/pricing/
             listLabel: Services
