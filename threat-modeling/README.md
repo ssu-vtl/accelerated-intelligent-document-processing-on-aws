@@ -3,36 +3,37 @@
 ## Overview
 This directory contains a comprehensive threat model analysis for the GenAI Intelligent Document Processing (IDP) Accelerator, focusing on commercial AWS deployments across all three processing patterns.
 
-## Directory Structure
+## Directory Structure & Navigation Guide
 ```
 threat-modeling/
-├── README.md                           # This file
+├── README.md                           # This file - START HERE
+├── deliverables/                       # Final threat model documents
+│   ├── executive-summary.md            # 📋 EXECUTIVE OVERVIEW (Read First)
+│   ├── implementation-guide.md         # 🛠️ TECHNICAL IMPLEMENTATION (Read Second)
+│   ├── threat-model.tc.json            # 📄 Threat Composer Export
+│   └── technical-report.md             # 📊 Detailed technical analysis
 ├── architecture/                       # Architecture diagrams and analysis
-│   ├── system-overview.md             # High-level system architecture
-│   ├── pattern-1-bda.md              # BDA pattern architecture
-│   ├── pattern-2-textract-bedrock.md # Textract + Bedrock pattern
-│   ├── pattern-3-textract-sagemaker-bedrock.md # Full pattern architecture
-│   └── data-flows.md                 # Data flow analysis
-├── threat-analysis/                   # Threat discovery and analysis
-│   ├── threat-designer-results/      # AI-powered threat discovery
-│   ├── threat-composer-models/       # Structured threat models
-│   ├── stride-analysis.md            # STRIDE methodology analysis
-│   └── pattern-specific-threats.md   # Pattern-specific threat analysis
-├── risk-assessment/                   # Risk evaluation and prioritization
-│   ├── risk-matrix.md               # Risk assessment matrix
-│   ├── business-impact-analysis.md  # Business impact evaluation
-│   └── threat-prioritization.md     # Prioritized threat catalog
-├── mitigations/                      # Security controls and countermeasures
-│   ├── preventive-controls.md       # Preventive security measures
-│   ├── detective-controls.md        # Detection and monitoring
-│   ├── responsive-controls.md       # Incident response measures
-│   └── implementation-roadmap.md    # Phased implementation plan
-└── deliverables/                    # Final threat model documents
-    ├── executive-summary.md         # Executive-level summary
-    ├── technical-report.md          # Detailed technical analysis
-    ├── threat-model.tc.json         # Threat Composer export
-    └── implementation-guide.md      # Step-by-step implementation guide
+│   ├── system-overview.md              # 🏗️ High-level system architecture
+│   ├── pattern-1-bda.md               # Pattern 1: BDA architecture
+│   ├── pattern-2-textract-bedrock.md  # Pattern 2: Textract + Bedrock
+│   ├── pattern-3-textract-sagemaker-bedrock.md # Pattern 3: Full ML pipeline
+│   └── data-flows.md                  # 🔄 Data flow security analysis
+├── threat-analysis/                    # Threat discovery and analysis
+│   ├── threat-designer-results/       # 🤖 AI-powered threat discovery
+│   ├── stride-analysis.md             # 🎯 STRIDE methodology analysis
+│   └── pattern-specific-threats.md    # 🔍 Pattern-specific threats
+├── risk-assessment/                    # Risk evaluation and prioritization
+│   └── risk-matrix.md                 # ⚖️ Risk assessment matrix
+└── [Additional supporting documentation]
 ```
+
+### 📖 **Recommended Reading Order:**
+1. **[📋 Executive Summary](deliverables/executive-summary.md)** - Start here for business overview
+2. **[🏗️ System Architecture](architecture/system-overview.md)** - Understand the system design  
+3. **[🎯 STRIDE Analysis](threat-analysis/stride-analysis.md)** - Core threat methodology
+4. **[⚖️ Risk Assessment](risk-assessment/risk-matrix.md)** - Risk prioritization and business impact
+5. **[🛠️ Implementation Guide](deliverables/implementation-guide.md)** - Technical implementation steps
+6. **[📄 Threat Composer Export](deliverables/threat-model.tc.json)** - Machine-readable threat model
 
 ## Methodology
 This threat model follows a hybrid approach combining:

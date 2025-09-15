@@ -1,7 +1,27 @@
 # STRIDE Threat Analysis for GenAI IDP Accelerator
 
+**📖 Navigation:** [🏠 Main README](../README.md) | [📋 Executive Summary](../deliverables/executive-summary.md) | [🏗️ Architecture](../architecture/system-overview.md) | **🎯 You are here** | [⚖️ Risk Assessment](../risk-assessment/risk-matrix.md)
+
+---
+
 ## Overview
 This document provides a systematic STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) analysis for each component in the GenAI IDP Accelerator across all three processing patterns.
+
+> **📖 Quick Navigation:**
+> - 📚 **[STRIDE Framework](#stride-methodology-framework)**
+> - 🌐 **[Web UI Components](#1-web-ui-components)**
+> - 🔐 **[Authentication Components](#2-authentication--authorization-components)**
+> - 📄 **[Document Processing](#3-document-processing-components)**
+> - 🤖 **[AI/ML Components](#amazon-bedrock-models)**
+> - ⚙️ **[Orchestration Components](#4-processing-orchestration-components)**
+> - 🗄️ **[Data Storage Components](#5-data-storage-components)**
+> - 🛡️ **[Security Controls](#stride-based-security-controls)**
+
+> **🔗 Related Analysis:**
+> - [🔍 Pattern-Specific Threats](pattern-specific-threats.md) - Pattern-focused vulnerabilities
+> - [🤖 AI-Generated Threats](threat-designer-results/ai-generated-threats.md) - Novel attack vectors
+> - [⚖️ Risk Assessment Matrix](../risk-assessment/risk-matrix.md) - Risk prioritization
+> - [🏗️ System Architecture](../architecture/system-overview.md) - Component details
 
 ## STRIDE Methodology Framework
 

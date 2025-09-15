@@ -1,7 +1,29 @@
 # GenAI IDP Accelerator - System Architecture Overview
 
+**📖 Navigation:** [🏠 Main README](../README.md) | [📋 Executive Summary](../deliverables/executive-summary.md) | **🏗️ You are here** | [⚖️ Risk Assessment](../risk-assessment/risk-matrix.md) | [🛠️ Implementation Guide](../deliverables/implementation-guide.md)
+
+---
+
 ## Executive Summary
 The GenAI IDP Accelerator is a sophisticated serverless document processing platform that combines multiple AWS services to provide intelligent document processing capabilities. The system operates across multiple security zones with complex data flows and AI/ML integrations, presenting a rich attack surface that requires comprehensive threat analysis.
+
+> **📖 Quick Navigation:**
+> - 🏗️ **[Architecture Diagrams](#high-level-architecture)**
+> - 🔒 **[Security Zones & Trust Boundaries](#security-zones--trust-boundaries)**
+> - ⚙️ **[Core Components](#core-components-analysis)**
+> - 🗂️ **[Data Classification](#data-classification--sensitivity)**
+> - 🛡️ **[Security Assessment](#architecture-security-assessment)**
+
+> **🔗 Pattern-Specific Architecture:**
+> - [🤖 Pattern 1: BDA](pattern-1-bda.md) - Bedrock Data Automation architecture
+> - [⚡ Pattern 2: Textract + Bedrock](pattern-2-textract-bedrock.md) - Multi-stage AI processing
+> - [🔄 Pattern 3: Textract + SageMaker + Bedrock](pattern-3-textract-sagemaker-bedrock.md) - Full ML pipeline
+> - [🌊 Data Flows](data-flows.md) - Comprehensive data flow security analysis
+
+> **🔗 Related Analysis:**
+> - [🎯 STRIDE Analysis](../threat-analysis/stride-analysis.md) - Component-level threats
+> - [🔍 Pattern-Specific Threats](../threat-analysis/pattern-specific-threats.md) - Processing vulnerabilities
+> - [🤖 AI-Generated Threats](../threat-analysis/threat-designer-results/ai-generated-threats.md) - Novel attack vectors
 
 ## High-Level Architecture
 

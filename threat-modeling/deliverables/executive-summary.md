@@ -1,8 +1,19 @@
 # GenAI IDP Accelerator - Threat Model Executive Summary
 
+**📖 Navigation:** [🏠 Main README](../README.md) | **📋 You are here** | [🏗️ Architecture](../architecture/system-overview.md) | [⚖️ Risk Assessment](../risk-assessment/risk-matrix.md) | [🛠️ Implementation Guide](implementation-guide.md)
+
+---
+
 ## Executive Overview
 
 The comprehensive threat modeling assessment of the GenAI Intelligent Document Processing (IDP) Accelerator reveals a sophisticated serverless architecture with significant security considerations due to its integration of multiple AI/ML services and complex document processing workflows. This assessment identified **31 distinct threats** across three processing patterns, with **8 critical-risk threats** requiring immediate attention.
+
+> **📖 Quick Navigation:**
+> - 🎯 **[Jump to Critical Threats](#critical-security-risks-requiring-immediate-action)**
+> - 🤖 **[AI/ML Security Challenges](#aiml-specific-security-challenges)**  
+> - 📊 **[Business Impact](#business-impact-assessment)**
+> - 🗺️ **[Strategic Roadmap](#strategic-recommendations)**
+> - ▶️ **[Next Steps](#next-steps)**
 
 ### Key Findings Summary
 

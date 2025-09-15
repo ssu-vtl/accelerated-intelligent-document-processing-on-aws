@@ -1,7 +1,23 @@
 # GenAI IDP Accelerator - Security Implementation Guide
 
+**📖 Navigation:** [🏠 Main README](../README.md) | [📋 Executive Summary](executive-summary.md) | **🛠️ You are here** | [⚖️ Risk Assessment](../risk-assessment/risk-matrix.md) | [🎯 STRIDE Analysis](../threat-analysis/stride-analysis.md)
+
+---
+
 ## Overview
 This implementation guide provides step-by-step instructions for implementing the security controls identified in the comprehensive threat modeling assessment. The guide is organized by priority level and includes specific technical implementations, verification procedures, and success metrics.
+
+> **📖 Quick Navigation:**
+> - 🚨 **[Critical Security Controls (Phase 0)](#phase-0-critical-security-controls---immediate-priority)**
+> - ⚡ **[Advanced Threat Protection (Phase 1)](#phase-1-advanced-threat-protection---short-term-priority)**
+> - 📈 **[Security Maturity (Phase 2)](#phase-2-security-maturity-and-governance)**
+> - 🔮 **[Long-term Capabilities (Phase 3)](#phase-3-advanced-capabilities-and-optimization)**
+
+> **🔗 Related Documents:**
+> - [📋 Executive Summary](executive-summary.md) - Business overview and risk summary
+> - [⚖️ Risk Assessment Matrix](../risk-assessment/risk-matrix.md) - Detailed risk prioritization
+> - [🎯 STRIDE Analysis](../threat-analysis/stride-analysis.md) - Component-level threat analysis
+> - [🏗️ System Architecture](../architecture/system-overview.md) - Technical architecture overview
 
 ## Implementation Methodology
 

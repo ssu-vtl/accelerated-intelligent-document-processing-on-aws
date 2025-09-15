@@ -1,7 +1,25 @@
 # Risk Assessment Matrix for GenAI IDP Accelerator
 
+**📖 Navigation:** [🏠 Main README](../README.md) | [📋 Executive Summary](../deliverables/executive-summary.md) | [🏗️ Architecture](../architecture/system-overview.md) | **⚖️ You are here** | [🛠️ Implementation Guide](../deliverables/implementation-guide.md)
+
+---
+
 ## Overview
 This document provides a comprehensive risk assessment matrix that consolidates threats from AI-powered discovery, STRIDE analysis, and pattern-specific analysis. Each threat is evaluated using a consistent risk scoring methodology to enable prioritized security investment decisions.
+
+> **📖 Quick Navigation:**
+> - 📊 **[Risk Scoring Framework](#risk-assessment-methodology)**
+> - 🚨 **[Critical Risks (P0)](#critical-risk-threats-risk-score-20)**
+> - ⚡ **[High Risks (P1)](#high-risk-threats-risk-score-15-19)**
+> - 📈 **[Medium Risks (P2)](#medium-risk-threats-risk-score-10-14)**
+> - 👥 **[Threat Actors](#threat-actor-analysis)**
+> - 🛡️ **[Mitigation Strategy](#risk-mitigation-strategy)**
+
+> **🔗 Related Documents:**
+> - [🎯 STRIDE Analysis](../threat-analysis/stride-analysis.md) - Component-level threat methodology
+> - [🔍 Pattern-Specific Threats](../threat-analysis/pattern-specific-threats.md) - Processing pattern vulnerabilities
+> - [🤖 AI-Generated Threats](../threat-analysis/threat-designer-results/ai-generated-threats.md) - Novel attack vectors
+> - [🛠️ Implementation Guide](../deliverables/implementation-guide.md) - Technical mitigation steps
 
 ## Risk Assessment Methodology
 
