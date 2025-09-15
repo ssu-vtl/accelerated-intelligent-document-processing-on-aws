@@ -7,6 +7,7 @@ This directory contains a comprehensive threat model analysis for the GenAI Inte
 ```
 threat-modeling/
 ├── README.md                           # This file - START HERE
+├── threat-id-glossary.md              # 📚 THREAT ID GLOSSARY & CROSS-REFERENCE
 ├── deliverables/                       # Final threat model documents
 │   ├── executive-summary.md            # 📋 EXECUTIVE OVERVIEW (Read First)
 │   ├── implementation-guide.md         # 🛠️ TECHNICAL IMPLEMENTATION (Read Second)
