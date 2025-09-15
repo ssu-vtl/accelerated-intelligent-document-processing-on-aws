@@ -1,0 +1,362 @@
+{
+  "schema": "0.4.0",
+  "modelType": "threat-model",
+  "modelId": "genai-idp-accelerator-threat-model",
+  "modelTitle": "GenAI IDP Accelerator Threat Model",
+  "modelDescription": "Comprehensive threat model for the GenAI Intelligent Document Processing Accelerator across all three processing patterns",
+  "modelOwner": "Security Architecture Team",
+  "modelReviewers": ["CISO", "Principal Security Architect", "Senior Cloud Architect"],
+  "modelVersion": "1.0",
+  "modelCreatedDate": "2025-09-15",
+  "modelLastUpdatedDate": "2025-09-15",
+  "applicationInfo": {
+    "name": "GenAI IDP Accelerator",
+    "description": "Intelligent Document Processing platform using serverless architecture and multiple AI/ML services",
+    "version": "1.0",
+    "owner": "Engineering Team",
+    "tags": ["document-processing", "ai-ml", "serverless", "aws"]
+  },
+  "architecture": {
+    "description": "Multi-pattern serverless document processing platform on AWS",
+    "diagramUrl": "../images/IDP.drawio.png"
+  },
+  "dataflow": {
+    "description": "Document upload → Processing (Pattern 1/2/3) → Results output with comprehensive monitoring",
+    "diagramUrl": "../images/DocumentProcessFlow.png"
+  },
+  "assumptions": [
+    {
+      "id": "A001",
+      "content": "Documents processed may contain sensitive PII, financial, or healthcare information",
+      "links": ["T001", "T002", "T008"]
+    },
+    {
+      "id": "A002", 
+      "content": "Users have legitimate business need to process documents through the system",
+      "links": ["T015", "T020"]
+    },
+    {
+      "id": "A003",
+      "content": "AWS services (Bedrock, Textract, SageMaker) operate securely and as designed",
+      "links": ["T005", "T012", "T018"]
+    },
+    {
+      "id": "A004",
+      "content": "Network communication between AWS services is secure by default",
+      "links": ["T025", "T026"]
+    },
+    {
+      "id": "A005",
+      "content": "IAM roles and policies are configured with least privilege principles",
+      "links": ["T009", "T021", "T027"]
+    }
+  ],
+  "threats": [
+    {
+      "id": "T001",
+      "numericId": 1,
+      "title": "Coordinated Multi-Model Prompt Injection Attack",
+      "statement": "An external attacker with document upload capabilities can craft malicious documents containing coordinated prompt injection payloads resulting in complete processing pipeline compromise affecting integrity and confidentiality of all processed data and business decision-making processes",
+      "threatSource": "External attacker",
+      "prerequisites": "Document upload access, knowledge of AI model processing chains, understanding of prompt injection techniques",
+      "threatAction": "Embed prompt injection payloads in documents that cascade through OCR → Classification → Extraction stages",
+      "threatImpact": "Complete bypass of security controls, unauthorized data extraction, manipulation of business processes",
+      "impactedGoal": ["Confidentiality", "Integrity", "Availability"],
+      "impactedAssets": ["All processed documents", "Extracted business data", "AI model outputs", "Processing workflows"],
+      "likelihood": "High",
+      "severity": "Critical",
+      "riskRating": "Critical",
+      "status": "Identified",
+      "tags": ["ai-ml", "prompt-injection", "multi-stage"],
+      "metadata": [
+        {"key": "STRIDE", "value": ["Tampering", "Information Disclosure"]},
+        {"key": "OWASP-LLM", "value": ["LLM01"]},
+        {"key": "Pattern", "value": ["Pattern-2", "Pattern-3"]},
+        {"key": "Priority", "value": "P0"}
+      ],
+      "mitigations": ["M001", "M002", "M003"]
+    },
+    {
+      "id": "T002",
+      "numericId": 2,
+      "title": "S3 Bucket Information Disclosure",
+      "statement": "An attacker with compromised AWS credentials or misconfigured access policies can access S3 buckets containing sensitive documents and processing results resulting in unauthorized data exposure affecting confidentiality of customer information and processed business intelligence",
+      "threatSource": "External attacker or malicious insider",
+      "prerequisites": "AWS credential compromise, S3 access permissions, knowledge of bucket names",
+      "threatAction": "Enumerate and access S3 buckets, download sensitive documents and processing results",
+      "threatImpact": "Exposure of sensitive customer documents, processed data, and business intelligence",
+      "impactedGoal": ["Confidentiality"],
+      "impactedAssets": ["S3 Input Bucket", "S3 Output Bucket", "S3 Working Bucket", "Customer documents", "Processing results"],
+      "likelihood": "High",
+      "severity": "Critical", 
+      "riskRating": "Critical",
+      "status": "Identified",
+      "tags": ["data-exposure", "s3", "access-control"],
+      "metadata": [
+        {"key": "STRIDE", "value": ["Information Disclosure"]},
+        {"key": "CWE", "value": ["CWE-200"]},
+        {"key": "Pattern", "value": ["All-Patterns"]},
+        {"key": "Priority", "value": "P0"}
+      ],
+      "mitigations": ["M004", "M005", "M006"]
+    },
+    {
+      "id": "T003",
+      "numericId": 3,
+      "title": "BDA Model Response Injection",
+      "statement": "An external attacker with document upload capabilities can embed prompt injection payloads in documents processed by Bedrock Data Automation resulting in manipulation of BDA model responses affecting integrity of extraction results and business decision-making processes",
+      "threatSource": "External attacker",
+      "prerequisites": "Document upload access, understanding of BDA processing, knowledge of prompt injection techniques",
+      "threatAction": "Insert malicious instructions disguised as document content, exploit BDA model context windows",
+      "threatImpact": "Extraction of unauthorized data fields, manipulation of confidence scores, system instruction bypass",
+      "impactedGoal": ["Integrity", "Confidentiality"],
+      "impactedAssets": ["BDA processing results", "Extracted business data", "Processing confidence scores"],
+      "likelihood": "High",
+      "severity": "Critical",
+      "riskRating": "Critical",
+      "status": "Identified",
+      "tags": ["bda", "prompt-injection", "pattern-1"],
+      "metadata": [
+        {"key": "STRIDE", "value": ["Tampering"]},
+        {"key": "OWASP-LLM", "value": ["LLM01"]},
+        {"key": "Pattern", "value": ["Pattern-1"]},
+        {"key": "Priority", "value": "P0"}
+      ],
+      "mitigations": ["M001", "M007", "M008"]
+    },
+    {
+      "id": "T004",
+      "numericId": 4,
+      "title": "UDOP Adversarial Input Attack",
+      "statement": "An external attacker with document upload capabilities can craft adversarial documents specifically designed to fool UDOP classification models resulting in incorrect processing workflows and potential security control bypass affecting integrity of document classification and processing accuracy",
+      "threatSource": "External attacker",
+      "prerequisites": "Understanding of UDOP model architecture, knowledge of adversarial ML techniques, document upload access",
+      "threatAction": "Create adversarial documents with visual perturbations, layout manipulation, and multimodal coordination attacks",
+      "threatImpact": "Misclassification of documents, extraction schema bypass, security control evasion",
+      "impactedGoal": ["Integrity", "Availability"],
+      "impactedAssets": ["UDOP classification model", "Document processing workflows", "Classification results"],
+      "likelihood": "High",
+      "severity": "High",
+      "riskRating": "High",
+      "status": "Identified",
+      "tags": ["adversarial-ml", "udop", "pattern-3"],
+      "metadata": [
+        {"key": "STRIDE", "value": ["Tampering"]},
+        {"key": "OWASP-LLM", "value": ["LLM08"]},
+        {"key": "Pattern", "value": ["Pattern-3"]},
+        {"key": "Priority", "value": "P0"}
+      ],
+      "mitigations": ["M009", "M010", "M011"]
+    },
+    {
+      "id": "T005",
+      "numericId": 5,
+      "title": "Distributed State Manipulation Attack",
+      "statement": "A sophisticated attacker with system access can exploit stateless Lambda functions and distributed state management to create race conditions and state inconsistencies resulting in security control bypass affecting integrity of document processing workflows and business operations",
+      "threatSource": "Sophisticated external attacker",
+      "prerequisites": "System access, understanding of serverless architecture, knowledge of timing vulnerabilities",
+      "threatAction": "Launch parallel requests to create inconsistent states, exploit timing windows between state updates",
+      "threatImpact": "Document processing bypassing security validations, incorrect billing, compliance violations",
+      "impactedGoal": ["Integrity", "Availability"],
+      "impactedAssets": ["Lambda functions", "DynamoDB state", "Step Functions workflows", "Processing integrity"],
+      "likelihood": "Medium",
+      "severity": "High",
+      "riskRating": "High",
+      "status": "Identified",
+      "tags": ["serverless", "race-condition", "state-manipulation"],
+      "metadata": [
+        {"key": "STRIDE", "value": ["Tampering", "Elevation of Privilege"]},
+        {"key": "CWE", "value": ["CWE-362"]},
+        {"key": "Pattern", "value": ["All-Patterns"]},
+        {"key": "Priority", "value": "P0"}
+      ],
+      "mitigations": ["M012", "M013", "M014"]
+    }
+  ],
+  "mitigations": [
+    {
+      "id": "M001",
+      "title": "Deploy Bedrock Guardrails",
+      "description": "Implement comprehensive Amazon Bedrock Guardrails with content filtering, topic policies, and word filtering to prevent prompt injection attacks",
+      "status": "Recommended",
+      "category": "Preventive",
+      "content": "Configure Bedrock Guardrails with:\n- Content policy filters for harmful content\n- Topic policies to deny prompt injection patterns\n- Word policies to block specific injection keywords\n- PII policies to anonymize sensitive data\n- Enable guardrail tracing for monitoring",
+      "threats": ["T001", "T003"],
+      "metadata": [
+        {"key": "Investment-Priority", "value": "Medium"},
+        {"key": "Implementation-Priority", "value": "Critical"},
+        {"key": "Priority", "value": "Critical"}
+      ]
+    },
+    {
+      "id": "M002", 
+      "title": "Input Sanitization Between Processing Stages",
+      "description": "Implement comprehensive input sanitization between OCR, classification, and extraction stages to prevent prompt injection propagation",
+      "status": "Recommended",
+      "category": "Preventive", 
+      "content": "Deploy sanitization functions that:\n- Remove suspicious Unicode characters\n- Filter prompt injection patterns\n- Validate data format consistency\n- Log sanitization actions for monitoring",
+      "threats": ["T001"],
+      "metadata": [
+        {"key": "Investment-Priority", "value": "High"},
+        {"key": "Implementation-Priority", "value": "Critical"},
+        {"key": "Priority", "value": "Critical"}
+      ]
+    },
+    {
+      "id": "M003",
+      "title": "Real-time Prompt Injection Detection",
+      "description": "Deploy real-time detection system for prompt injection attempts with automated blocking and alerting",
+      "status": "Recommended", 
+      "category": "Detective",
+      "content": "Implement detection system with:\n- ML-based prompt injection classifiers\n- Pattern matching for known injection techniques\n- Real-time blocking capabilities\n- Automated incident response workflows",
+      "threats": ["T001", "T003"],
+      "metadata": [
+        {"key": "Investment-Priority", "value": "High"},
+        {"key": "Implementation-Priority", "value": "High"},
+        {"key": "Priority", "value": "High"}
+      ]
+    },
+    {
+      "id": "M004",
+      "title": "S3 Customer-Managed KMS Encryption",
+      "description": "Implement customer-managed KMS encryption for all S3 buckets containing sensitive data",
+      "status": "Recommended",
+      "category": "Preventive",
+      "content": "Deploy customer-managed KMS keys with:\n- Automatic key rotation (annual)\n- Strict key policies limiting access\n- Comprehensive key usage logging\n- Cross-region key replication for DR",
+      "threats": ["T002"],
+      "metadata": [
+        {"key": "Investment-Priority", "value": "Medium"},
+        {"key": "Implementation-Priority", "value": "Critical"},
+        {"key": "Priority", "value": "Critical"}
+      ]
+    },
+    {
+      "id": "M005",
+      "title": "S3 Access Monitoring and Alerting", 
+      "description": "Deploy comprehensive S3 access monitoring with real-time anomaly detection and automated alerting",
+      "status": "Recommended",
+      "category": "Detective",
+      "content": "Implement monitoring system with:\n- Real-time access pattern analysis\n- Anomaly detection for unusual access\n- Automated alerting for suspicious activity\n- Integration with SIEM systems",
+      "threats": ["T002"],
+      "metadata": [
+        {"key": "Investment-Priority", "value": "Medium"},
+        {"key": "Implementation-Priority", "value": "High"},
+        {"key": "Priority", "value": "High"}
+      ]
+    }
+  ],
+  "controls": {
+    "preventive": [
+      "Input validation and sanitization",
+      "Bedrock Guardrails deployment", 
+      "S3 bucket encryption and access controls",
+      "IAM least privilege policies",
+      "Document malware scanning"
+    ],
+    "detective": [
+      "Real-time security monitoring",
+      "Prompt injection detection",
+      "Anomaly detection for processing patterns",
+      "Comprehensive audit logging",
+      "SIEM integration"
+    ],
+    "corrective": [
+      "Automated incident response",
+      "Document quarantine procedures", 
+      "Processing pipeline shutdown capabilities",
+      "Security control rollback procedures"
+    ]
+  },
+  "dataClassification": {
+    "critical": [
+      "Customer documents with PII",
+      "Financial records and statements",
+      "Healthcare information (PHI)",
+      "Legal documents and contracts"
+    ],
+    "high": [
+      "Business documents and contracts",
+      "User authentication credentials", 
+      "AI model prompts and configurations",
+      "Processing results and analytics"
+    ],
+    "medium": [
+      "Processing metadata and logs",
+      "System configuration data",
+      "Performance metrics and statistics"
+    ],
+    "low": [
+      "Public documentation",
+      "System status information",
+      "General application logs"
+    ]
+  },
+  "complianceFrameworks": [
+    {
+      "name": "GDPR",
+      "description": "General Data Protection Regulation for personal data processing",
+      "requirements": [
+        "Data encryption and access controls",
+        "Audit logging and data lineage",
+        "Privacy by design implementation",
+        "Breach notification procedures"
+      ]
+    },
+    {
+      "name": "HIPAA", 
+      "description": "Health Insurance Portability and Accountability Act for PHI protection",
+      "requirements": [
+        "Administrative, physical, and technical safeguards",
+        "Access controls and audit trails",
+        "Encryption for data in transit and at rest",
+        "Business associate agreements"
+      ]
+    },
+    {
+      "name": "SOX",
+      "description": "Sarbanes-Oxley Act for financial document integrity",
+      "requirements": [
+        "Financial data integrity controls", 
+        "Audit trail preservation",
+        "Change management procedures",
+        "Executive certification of controls"
+      ]
+    }
+  ],
+  "riskAssessment": {
+    "methodology": "Risk Score = (Impact × Likelihood) + Exploitability Factor + Business Context Multiplier",
+    "impactScale": {
+      "5": "Critical - Complete system compromise, significant data breach",
+      "4": "High - Significant security breach, data compromise", 
+      "3": "Medium - Moderate security impact, limited data exposure",
+      "2": "Low - Minor security impact, minimal data exposure",
+      "1": "Minimal - Negligible security impact, no data exposure"
+    },
+    "likelihoodScale": {
+      "5": "Very High - Attack expected imminently",
+      "4": "High - Attack likely in near term", 
+      "3": "Medium - Attack possible",
+      "2": "Low - Attack unlikely",
+      "1": "Very Low - Attack highly unlikely"
+    },
+    "riskMatrix": {
+      "critical": 8,
+      "high": 8, 
+      "medium": 8,
+      "low": 7
+    }
+  },
+  "reviewStatus": {
+    "lastReviewDate": "2025-09-15",
+    "reviewers": ["CISO", "Principal Security Architect", "Senior Cloud Architect"],
+    "approvalStatus": "Pending",
+    "nextReviewDate": "2026-03-15"
+  },
+  "metadata": {
+    "created": "2025-09-15T16:23:00Z",
+    "lastModified": "2025-09-15T16:23:00Z", 
+    "createdBy": "Security Architecture Team",
+    "toolVersion": "Threat Composer 0.4.0",
+    "exportVersion": "1.0"
+  }
+}
