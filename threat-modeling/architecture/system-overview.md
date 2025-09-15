@@ -7,6 +7,145 @@
 ## Executive Summary
 The GenAI IDP Accelerator is a sophisticated serverless document processing platform that combines multiple AWS services to provide intelligent document processing capabilities. The system operates across multiple security zones with complex data flows and AI/ML integrations, presenting a rich attack surface that requires comprehensive threat analysis.
 
+## Security Tenets
+
+The GenAI IDP Accelerator is built around the following core security tenets:
+
+### 1. **Data Protection First**
+Customer document data is never exposed beyond the processing pipeline and is never used for model training or improvement. All customer data remains under customer control with comprehensive encryption and access controls.
+
+### 2. **AI Model Security** 
+All AI model interactions are protected by comprehensive content safety guardrails. No AI model can be manipulated to bypass security controls or extract unauthorized data through prompt injection or adversarial techniques.
+
+### 3. **Zero Trust Processing**
+No implicit trust exists between processing stages. Every input, output, and intermediate result is validated, sanitized, and verified. Each processing component operates with minimal required privileges.
+
+### 4. **Compliance by Design**
+The system architecture inherently supports regulatory compliance (GDPR, HIPAA, SOX) with built-in data classification, audit trails, encryption, and privacy controls that cannot be bypassed.
+
+### 5. **Transparent Processing**
+Complete audit trails exist for all document processing activities. Every processing decision, AI model interaction, and data transformation is logged and traceable for security analysis and compliance verification.
+
+### 6. **Resilient Security**
+Security controls are designed to fail securely. If any security component fails, the system defaults to blocking processing rather than allowing potentially unsafe operations to proceed.
+
+## Security Anti-Patterns Analysis
+
+The following AWS Security Anti-Patterns were evaluated for relevance to the GenAI IDP system:
+
+### 1. **Overprivileged IAM Roles** - ⚠️ RELEVANT
+**Anti-Pattern**: IAM roles with more permissions than required for functionality
+**Threat Mapping**: 
+- **STRIDE-LAMBDA-E**: Lambda privilege escalation through overprivileged execution roles
+- **SAC.2**: Cross-function privilege escalation chain
+- **P3.T03**: Cross-service privilege escalation
+
+**Mitigation Strategy**: 
+- Implement least privilege IAM policies with regular access reviews
+- Use IAM permissions boundaries for additional protection
+- Deploy automated privilege analysis and right-sizing
+
+### 2. **Unencrypted Data Storage** - ⚠️ RELEVANT  
+**Anti-Pattern**: Storing sensitive data without encryption at rest
+**Threat Mapping**:
+- **STRIDE-S3-I**: S3 bucket information disclosure
+- **DF.1**: Data in transit interception
+- **STRIDE-DDB-I**: DynamoDB unauthorized access
+
+**Mitigation Strategy**:
+- Customer-managed KMS encryption for all sensitive data stores
+- Encryption in transit with TLS 1.2+ for all communications
+- Regular encryption compliance audits
+
+### 3. **Weak Authentication & Authorization** - ⚠️ RELEVANT
+**Anti-Pattern**: Insufficient authentication controls or weak authorization logic
+**Threat Mapping**:
+- **STRIDE-COG-T**: Cognito token manipulation
+- **STRIDE-AS-T**: AppSync query injection and authorization bypass
+- **Authentication bypass**: JWT token manipulation attacks
+
+**Mitigation Strategy**:
+- Multi-factor authentication for all administrative access
+- Strong password policies and token expiration controls
+- Field-level authorization in GraphQL APIs
+
+### 4. **Insufficient Input Validation** - ⚠️ HIGHLY RELEVANT
+**Anti-Pattern**: Accepting and processing untrusted input without validation
+**Threat Mapping**:
+- **AME.1**: Coordinated multi-model prompt injection attack
+- **P2.T01**: Multi-stage prompt injection chain  
+- **DAP.1**: Polyglot document persistence attack
+
+**Mitigation Strategy**:
+- Comprehensive input validation at every processing stage
+- Document content sanitization and malware detection
+- AI model guardrails for prompt injection prevention
+
+### 5. **Inadequate Logging & Monitoring** - ⚠️ RELEVANT
+**Anti-Pattern**: Insufficient visibility into system behavior and security events
+**Threat Mapping**:
+- Delayed detection of **AME.1** prompt injection attacks
+- **DF.6**: Logging information disclosure through overly verbose logs
+- Reduced ability to detect **P1.T01** configuration poisoning
+
+**Mitigation Strategy**:
+- Comprehensive security event logging across all components
+- Real-time anomaly detection and alerting
+- Centralized log aggregation with tamper-evident storage
+
+### 6. **Hardcoded Secrets** - ✅ NOT APPLICABLE
+**Anti-Pattern**: Embedding secrets directly in code or configuration
+**Assessment**: System uses AWS IAM roles and managed services - no hardcoded secrets identified
+
+### 7. **Public Resources with Sensitive Data** - ⚠️ RELEVANT
+**Anti-Pattern**: Making resources publicly accessible that contain sensitive information
+**Threat Mapping**:
+- **STRIDE-S3-I**: S3 bucket information disclosure through public access
+- **CloudFront origin exposure**: Direct access bypassing CloudFront protections
+
+**Mitigation Strategy**:
+- Block all public access to S3 buckets containing sensitive data
+- Use Origin Access Identity for CloudFront to S3 communication
+- Regular resource access reviews and automated compliance checking
+
+### 8. **Insufficient Network Segmentation** - ⚠️ PARTIALLY RELEVANT
+**Anti-Pattern**: Flat network architecture without proper isolation
+**Threat Mapping**:
+- **P3.T03**: Cross-service privilege escalation through network access
+- Lateral movement risks in **SAC.1** distributed state manipulation
+
+**Mitigation Strategy**:
+- VPC isolation for SageMaker endpoints (Pattern 3)
+- Network ACLs and security groups for additional layers
+- Consider VPC endpoints for sensitive AWS service communication
+
+## APIs
+
+The GenAI IDP system exposes the following APIs for document processing and management:
+
+| API | Method | Status | Mutating or non-mutating | Functionality | Callable | Authorized | Comments |
+|-----|--------|--------|--------------------------|---------------|----------|------------|----------|
+| **uploadDocument** | POST | Active | Mutating | Generates presigned S3 URL for document upload | Web UI | Authenticated users | Internet via CloudFront |
+| **getDocumentStatus** | GET | Active | Non-mutating | Retrieves processing status for uploaded document | Web UI | Document owner | GraphQL query |
+| **listDocuments** | GET | Active | Non-mutating | Lists user's documents with processing status | Web UI | Document owner | GraphQL query |
+| **getProcessingResults** | GET | Active | Non-mutating | Retrieves processed document results | Web UI | Document owner | GraphQL query via presigned URL |
+| **updateConfiguration** | PUT | Active | Mutating | Updates processing configuration parameters | Web UI | Admin users | GraphQL mutation |
+| **startProcessing** | POST | Active | Mutating | Manually triggers document processing workflow | Internal | Queue processor Lambda | Internal SQS trigger |
+| **getWorkflowStatus** | GET | Active | Non-mutating | Retrieves Step Functions execution status | Internal | Tracking Lambda | Internal service call |
+| **updateWorkflowStatus** | PUT | Active | Mutating | Updates document processing status in DynamoDB | Internal | Processing Lambdas | Internal service call |
+| **invokeModel** | POST | Active | Non-mutating | Invokes Bedrock models for classification/extraction | Internal | Processing Lambdas | Internal service call |
+| **invokeTextract** | POST | Active | Non-mutating | Processes documents through Amazon Textract | Internal | OCR Lambda | Internal service call |
+| **invokeSageMakerEndpoint** | POST | Active | Non-mutating | Invokes UDOP model for document classification | Internal | Classification Lambda (Pattern 3) | Internal VPC call |
+| **queryKnowledgeBase** | POST | Active | Non-mutating | Semantic search across processed documents | Web UI | Authenticated users | Optional feature |
+| **submitBDAJob** | POST | Active | Non-mutating | Submits document to Bedrock Data Automation | Internal | BDA Lambda (Pattern 1) | Internal service call |
+
+### API Security Controls
+- **Authentication**: All external APIs require Cognito JWT tokens
+- **Authorization**: Field-level authorization based on user roles and document ownership
+- **Input Validation**: All APIs implement comprehensive input validation and sanitization
+- **Rate Limiting**: GraphQL APIs protected by query complexity analysis and rate limiting
+- **Audit Logging**: All API calls logged with user context and request/response details
+
 > **📖 Quick Navigation:**
 > - 🏗️ **[Architecture Diagrams](#high-level-architecture)**
 > - 🔒 **[Security Zones & Trust Boundaries](#security-zones--trust-boundaries)**
@@ -330,5 +469,38 @@ sequenceDiagram
 - Limited visibility into AI/ML model internal processing
 - Potential for configuration drift and misalignment
 - Cross-service communication complexity
+
+## References
+
+### Threat Modeling Resources
+- [AWS Threat Modeling Guide](https://catalog.workshops.aws/threatmodel/en-US) - AWS official threat modeling workshop
+- [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework) - Industry standard cybersecurity framework
+- [OWASP Threat Modeling](https://owasp.org/www-community/Threat_Modeling) - Open source threat modeling methodology
+
+### AI/ML Security References  
+- [OWASP LLM Top 10](https://owasp.org/www-project-top-10-for-large-language-model-applications/) - LLM-specific security risks
+- [NIST AI Risk Management Framework](https://www.nist.gov/itl/ai-risk-management-framework) - AI system risk management
+- [AWS Responsible AI](https://aws.amazon.com/machine-learning/responsible-ai/) - AWS AI security best practices
+
+### AWS Security Documentation
+- [AWS Well-Architected Security Pillar](https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html) - AWS security design principles
+- [AWS Security Best Practices](https://aws.amazon.com/architecture/security-identity-compliance/) - Comprehensive security guidance
+- [AWS Bedrock Security](https://docs.aws.amazon.com/bedrock/latest/userguide/security.html) - Bedrock-specific security controls
+
+### Compliance Framework References
+- [GDPR Compliance Guide](https://gdpr-info.eu/) - EU General Data Protection Regulation
+- [HIPAA Security Rule](https://www.hhs.gov/hipaa/for-professionals/security/index.html) - Healthcare data protection
+- [SOX Compliance](https://www.sec.gov/about/laws/soa2002.pdf) - Sarbanes-Oxley Act requirements
+- [PCI-DSS Standards](https://www.pcisecuritystandards.org/) - Payment card industry security
+
+### Related Threat Models & Security Reviews
+- [AWS Services Security Analysis](../docs/aws-services-and-roles.md) - Detailed AWS service security review
+- [AWS Well-Architected Assessment](../docs/well-architected.md) - Architecture security evaluation
+- [IDP Configuration Best Practices](../docs/idp-configuration-best-practices.md) - Secure configuration guidance
+
+### Technical Implementation References
+- [AWS CDK Security Patterns](https://docs.aws.amazon.com/cdk/v2/guide/best-practices.html) - Infrastructure security patterns
+- [Bedrock Guardrails Documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails.html) - Content safety implementation
+- [Lambda Security Best Practices](https://docs.aws.amazon.com/lambda/latest/dg/lambda-security.html) - Serverless security guidance
 
 This architecture overview provides the foundation for detailed threat modeling across all system components and data flows.
